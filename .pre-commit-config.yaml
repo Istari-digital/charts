@@ -1,0 +1,73 @@
+repos:
+- repo: local
+  hooks:
+  - id: trufflehog
+    name: TruffleHog
+    description: Detect secrets in your data.
+    language: system
+    # The official recommendation (https://github.com/trufflesecurity/trufflehog/tree/ad0bc11a5b5afc19873ecd5a101555784386b961?tab=readme-ov-file#pre-commit-hook)
+    # doesn't support 'pre-commit run --all-files', so we use 'trufflehog filesystem' instead of 'trufflehog git' and trust pre-commit to pass the files .
+    entry: trufflehog filesystem --results=verified,unknown --fail --log-level=-1
+    require_serial: true  # This prevents runing the hook multiple times on a subset of files in parallel, which sometimes causes false negatives
+
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v5.0.0
+  hooks:
+  # Security
+  - id: detect-aws-credentials
+    args: ['--allow-missing-credentials']
+  - id: detect-private-key
+
+  # Standard checks
+  - id: check-executables-have-shebangs
+  - id: check-json
+  - id: check-symlinks
+  - id: check-toml
+  - id: check-yaml
+  - id: end-of-file-fixer
+    exclude: '.*\.svg$'
+  - id: pretty-format-json
+    args:
+    - '--autofix'
+  - id: trailing-whitespace
+    args: ['--markdown-linebreak-ext=md']
+
+  # Cross platform
+  - id: check-case-conflict
+  - id: destroyed-symlinks
+  - id: mixed-line-ending
+    args: ['--fix=lf']
+
+  # Git
+  - id: check-added-large-files
+  - id: check-merge-conflict
+  - id: forbid-submodules
+  - id: no-commit-to-branch
+
+  # Python
+  - id: check-docstring-first
+  - id: debug-statements
+  - id: name-tests-test
+  - id: requirements-txt-fixer
+
+- repo: https://github.com/shellcheck-py/shellcheck-py
+  rev: v0.10.0.1
+  hooks:
+  - id: shellcheck
+
+- repo: https://github.com/google/yamlfmt
+  rev: v0.14.0
+  hooks:
+  - id: yamlfmt
+    args:
+    - '-formatter=indentless_arrays=true'
+    - '-formatter=pad_line_comments=2'
+    - '-formatter=retain_line_breaks=true'
+
+- repo: local
+  hooks:
+  - id: yaml-extension
+    name: Check if YAML files use *.yaml extension.
+    entry: YAML filenames must have .yaml extension.
+    language: fail
+    files: .yml$

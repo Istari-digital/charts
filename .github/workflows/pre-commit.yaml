@@ -1,0 +1,51 @@
+name: pre-commit Checks
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
+    types:
+    - opened
+    - ready_for_review
+    - reopened
+    - synchronize
+
+env:
+  python_version: '3.12'
+
+jobs:
+  pre-commit:
+    name: Test pre-commit CLI Hooks
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Python
+      uses: actions/setup-python@v5  # Also sets 'env.pythonLocation'
+      with:
+        python-version: ${{ env.python_version }}
+
+    # Ref: https://github.com/trufflesecurity/trufflehog/blob/299f883d17996d3831098f73ad3f8ec0b5372acf/README.md#using-installation-script
+    - name: Install TruffleHog
+      run: curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+      shell: bash
+
+    # Add other tools required for testing here.
+
+    # Based on: https://github.com/pre-commit/action/blob/0dbc303468d9ee1ae3a4cddd9b697c1424c73522/action.yml
+    - name: Install pre-commit
+      run: python -m pip install pre-commit
+      shell: bash
+    - run: python -m pip freeze --local
+      shell: bash
+    - uses: actions/cache@v4
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-3|${{ runner.os }}|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
+    - name: Run pre-commit
+      # The post-PR merge to main will always show failures if hook 'no-commit-to-branch' is enabled
+      run: SKIP="no-commit-to-branch" pre-commit run --color=always --show-diff-on-failure --all-files
+      shell: bash
