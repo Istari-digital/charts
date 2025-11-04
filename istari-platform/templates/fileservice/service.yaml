@@ -1,0 +1,25 @@
+{{- $serviceValues := .Values.fileservice -}}
+{{- if $serviceValues.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "fileservice.fullname" . | quote }}
+  labels:
+    {{- include "fileservice.labels" . | nindent 4 }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "80"
+    prometheus.io/path: "/stats/prometheus"
+    {{- with $serviceValues.serviceAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ $serviceValues.serviceType | quote }}
+  ports:
+  - name: "http"
+    port: 80
+    targetPort: "http"
+    protocol: "TCP"
+  selector:
+    {{- include "fileservice.selectorLabels" . | nindent 4 }}
+{{- end }}

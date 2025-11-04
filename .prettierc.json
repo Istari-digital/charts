@@ -1,0 +1,9 @@
+{
+  "plugins": [],
+  "overrides": [
+    {
+      "files": ["**/templates/*.yaml", "**/templates/*.yml"],
+      "options": { "tabWidth": 2, "printWidth": 100 }
+    }
+  ]
+}

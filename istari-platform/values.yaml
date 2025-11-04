@@ -1,0 +1,514 @@
+# Default values for the istari-platform Helm chart.
+
+# This is a YAML-formatted file.
+
+# -- Override the value used for the label 'app.kubernetes.io/name', which defaults to the chart name (istari-platform).
+nameOverride: ""
+
+# -- Override the prefix used for resource names, which defaults to the chart name (istari-platform).
+fullnameOverride: "istari"
+
+imagePullSecrets:
+- name: "docker-pull-secret"
+
+# -- Additional labels to add to all resources of all services
+commonLabels: {}
+
+# -- Optional: Trusted certificate bundle for when using a self-signed certificate. This is a PEM-encoded certificate bundle. AWS, Azure, and GCP root certs will also automatically be trusted.
+trustedCertBundle: ""
+# # Example:
+# trustedCertBundle: |-
+#   -----BEGIN CERTIFICATE-----
+#   MIID1z...
+#   ...
+#   -----END CERTIFICATE-----
+#   -----BEGIN CERTIFICATE-----
+#   MIIEvj...
+#   ...
+#   -----END CERTIFICATE-----
+
+# Default values for Fileservice.
+fileservice:
+  # -- Enable / Disable the whole deployment
+  enabled: true
+  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
+  registry: "istaridigital.jfrog.io/customer-docker"
+  # -- Image name. The combination of registry, image, and tag will be used to pull the image.
+  image: "fileservice2"
+  # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
+  tag: "8.10.4"
+  # -- Image pull policy
+  imagePullPolicy: "IfNotPresent"
+  # -- Secret name. The secret should contain the environment variables required by the service.
+  secretName: "istari-fileservice"
+  # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
+  extraEnvSecrets: []
+  # -- Replica count
+  replicaCount: 1
+  # -- Restart policy
+  restartPolicy: "Always"
+  # -- Additional labels to add to all of this service's resources
+  commonLabels: {}
+  # -- Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName.
+  serviceType: "ClusterIP"
+  # -- Additional annotations to apply to the service, note the following annotations for duplicate keys.
+  serviceAnnotations: {}
+  # -- Prometheus autodiscovery annotations. If true, the following annotations will be added to the service
+  # prometheus.io/scrape: "true"
+  # prometheus.io/port: "8000"
+  # prometheus.io/path: "/stats/prometheus"
+  prometheusAutodiscoveryAnnotations: true  # if true, the following annotations will be added to the service
+  # -- Additional annotations to add to the deployment
+  deploymentAnnotations: {}
+  # -- Additional annotations to add to pods
+  podAnnotations: {}
+  # -- Additional labels to add to pods
+  podLabels: {}
+  # -- Pod security context
+  podSecurityContext: {}
+  # -- Primary container's security context
+  containerSecurityContext: {}
+  # -- Additional annotations to apply to the service account
+  serviceAccountAnnotations: {}
+  # Environment variables
+  ###############################
+  # example:
+  # env:
+  # - name: FILE_SERVICE_LOG_LEVEL
+  #   value: DEBUG
+  ###############################
+  # If you are using secrets, you can use the following format:
+  # env:
+  # - name: FILE_SERVICE_LOG_LEVEL
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: istari-fileservice
+  #       key: FILE_SERVICE_LOG_LEVEL
+  env: []
+  # Autoscaling -- set autoscaling (HPA) parameters
+  autoscaling:
+    # -- Enable/Disable autoscaling
+    enabled: false
+    # -- Minimum number of replicas
+    minReplicas: 1
+    # -- Maximum number of replicas
+    maxReplicas: 2
+    # -- Average CPU utilization percentage. Unset to disable.
+    averageCPUUtilization: 80
+    # -- Average Memory value. Unset to disable.
+    averageMemoryValue: 80
+  # Resources -- set resources
+  resources: {}
+  # -- Pod Volumes
+  volumes: []
+  # -- Volume Mounts for pod containers
+  volumeMounts: []
+  # -- Tolerations.
+  # Example:
+  #
+  # ```
+  # tolerations:
+  # - "effect": "NoSchedule"
+  #   "key": "istari.k8s.io/role"
+  #   "operator": "Equal"
+  #   "value": "main"
+  # ```
+  tolerations: []
+  # -- Node selector
+  nodeSelector: {}
+  # -- Affinity
+  affinity: {}
+
+# Default values for Frontend.
+frontend:
+  # -- Enable / Disable the whole deployment
+  enabled: true
+  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
+  registry: "istaridigital.jfrog.io/customer-docker"
+  # -- Image name. The combination of registry, image, and tag will be used to pull the image.
+  image: "frontend-service"
+  # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
+  tag: "8.10.2"
+  # -- Image pull policy
+  imagePullPolicy: IfNotPresent
+  # -- Secret name. The secret should contain the environment variables required by the service.
+  secretName: "istari-frontend"
+  # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
+  extraEnvSecrets: []
+  # -- Replica count
+  replicaCount: 1
+  # -- Restart policy
+  restartPolicy: "Always"
+  # -- Additional labels to add to all of this service's resources
+  commonLabels: {}
+  # -- Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName.
+  serviceType: "ClusterIP"
+  # -- Additional annotations to apply to the service, note the following annotations for duplicate keys.
+  serviceAnnotations: {}
+  # -- Additional annotations to add to the deployment
+  deploymentAnnotations: {}
+  # -- Additional annotations to add to pods
+  podAnnotations: {}
+  # -- Additional labels to add to pods
+  podLabels: {}
+  # -- Pod security context
+  podSecurityContext:
+    fsGroup: 2000
+  # -- Primary container's security context
+  containerSecurityContext:
+    capabilities:
+      drop:
+      - ALL
+    runAsUser: 1000
+    runAsNonRoot: true
+    readOnlyRootFilesystem: false
+  # -- Additional annotations to apply to the service account
+  serviceAccountAnnotations: {}
+  # Environment variables
+  ###############################
+  # This has the same schema as the standard `env:` block in a pod's container's definition. For example:
+  # env:
+  # - name: VITE_DOCUMENTATION_URL
+  #   value: "https://docs.istaridigital.com"
+  ###############################
+  # If you are using secrets, you can use the following format:
+  # env:
+  # - name: VITE_DOCUMENTATION_URL
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: istari-frontend
+  #       key: VITE_DOCUMENTATION_URL
+  env: []
+  # Autoscaling -- set autoscaling (HPA) parameters
+  autoscaling:
+    # -- Enable/Disable autoscaling
+    enabled: false
+    # -- Minimum number of replicas
+    minReplicas: 1
+    # -- Maximum number of replicas
+    maxReplicas: 3
+    # -- Average CPU utilization percentage. Unset to disable.
+    averageCPUUtilization: 80
+    # -- Average Memory value. Unset to disable.
+    averageMemoryValue: 80
+  # Resources -- set resources
+  resources: {}
+  # -- Tolerations.
+  # Example:
+  #
+  # ```
+  # tolerations:
+  # - "effect": "NoSchedule"
+  #   "key": "istari.k8s.io/role"
+  #   "operator": "Equal"
+  #   "value": "main"
+  # ```
+  # -- Pod Volumes
+  volumes: []
+  # -- Volume Mounts for pod containers
+  volumeMounts: []
+  # -- Tolerations.
+  # Example:
+  #
+  # ```
+  # tolerations:
+  # - "effect": "NoSchedule"
+  #   "key": "istari.k8s.io/role"
+  #   "operator": "Equal"
+  #   "value": "main"
+  # ```
+  tolerations: []
+  # -- Node selector
+  nodeSelector: {}
+  # -- Affinity
+  affinity: {}
+
+# Default values for MCP Service.
+mcp:
+  # -- Enable / Disable the whole deployment
+  enabled: false
+  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
+  registry: "istaridigital.jfrog.io/customer-docker"
+  # -- Image name. The combination of registry, image, and tag will be used to pull the image.
+  image: "mcp-service"
+  # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
+  tag: "0.1.36"
+  # -- Image pull policy
+  imagePullPolicy: IfNotPresent
+  # -- Secret name. The secret should contain the environment variables required by the service.
+  # Note that a ConfigMap is also automatically created & used with the correct value for ISTARI_DIGITAL_REGISTRY_SERVICE_URL
+  secretName: istari-mcp
+  # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
+  extraEnvSecrets: []
+  # -- Replica count
+  replicaCount: 2
+  # -- Restart policy
+  restartPolicy: "Always"
+  # -- Additional labels to add to all of this service's resources
+  commonLabels: {}
+  # -- Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName.
+  serviceType: "ClusterIP"
+  # -- Additional annotations to apply to the service, note the following annotations for duplicate keys.
+  serviceAnnotations: {}
+  # -- Additional annotations to add to the deployment
+  deploymentAnnotations: {}
+  # -- Additional annotations to add to pods
+  podAnnotations: {}
+  # -- Additional labels to add to pods
+  podLabels: {}
+  # -- Pod security context
+  podSecurityContext:
+    fsGroup: 1001
+  # -- Primary container's security context
+  containerSecurityContext:
+    capabilities:
+      drop:
+      - ALL
+    runAsUser: 1001
+    runAsNonRoot: true
+    readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+  # -- Additional annotations to apply to the service account
+  serviceAccountAnnotations: {}
+  # Environment variables
+  ###############################
+  # This has the same schema as the standard `env:` block in a pod's container's definition. For example:
+  # env:
+  # - name: ISTARI_DIGITAL_LOG_LEVEL
+  #   value: DEBUG
+  ###############################
+  # If you are using secrets, you can use the following format:
+  # env:
+  # - name: ISTARI_DIGITAL_LOG_LEVEL
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: istari-mcp
+  #       key: ISTARI_DIGITAL_LOG_LEVEL
+  env: []
+  # Autoscaling -- set autoscaling (HPA) parameters
+  autoscaling:
+    # -- Enable/Disable autoscaling
+    enabled: false
+    # -- Minimum number of replicas
+    minReplicas: 1
+    # -- Maximum number of replicas
+    maxReplicas: 3
+    # -- Average CPU utilization percentage. Unset to disable.
+    averageCPUUtilization: 80
+    # -- Average Memory value. Unset to disable.
+    averageMemoryValue: 80
+  # Resources -- set resources
+  resources: {}
+  # -- Tolerations.
+  # Example:
+  #
+  # ```
+  # tolerations:
+  # - "effect": "NoSchedule"
+  #   "key": "istari.k8s.io/role"
+  #   "operator": "Equal"
+  #   "value": "main"
+  # ```
+  # -- Pod Volumes
+  volumes: []
+  # -- Volume Mounts for pod containers
+  volumeMounts: []
+  # -- Tolerations.
+  # Example:
+  #
+  # ```
+  # tolerations:
+  # - "effect": "NoSchedule"
+  #   "key": "istari.k8s.io/role"
+  #   "operator": "Equal"
+  #   "value": "main"
+  # ```
+  tolerations: []
+  # -- Node selector
+  nodeSelector: {}
+  # -- Affinity
+  affinity: {}
+
+# Default values for Istari Documentation. This should only be used in airgapped environments.
+docs:
+  # -- Enable / Disable the whole deployment
+  enabled: false
+  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
+  registry: "istaridigital.jfrog.io/customer-docker"
+  # -- Image name. The combination of registry, image, and tag will be used to pull the image.
+  image: "docs-service"
+  # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
+  tag: "6.5.0"
+  # -- Image pull policy
+  imagePullPolicy: IfNotPresent
+  # -- Replica count
+  replicaCount: 1
+  # -- Restart policy
+  restartPolicy: "Always"
+  # -- Additional labels to add to all of this service's resources
+  commonLabels: {}
+  # -- Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName.
+  serviceType: "ClusterIP"
+  # -- Additional annotations to apply to the service, note the following annotations for duplicate keys.
+  serviceAnnotations: {}
+  # -- Additional annotations to add to the deployment
+  deploymentAnnotations: {}
+  # -- Additional annotations to add to pods
+  podAnnotations: {}
+  # -- Additional labels to add to pods
+  podLabels: {}
+  # -- Pod security context
+  podSecurityContext:
+    fsGroup: 2000
+  # -- Primary container's security context
+  containerSecurityContext:
+    capabilities:
+      drop:
+      - ALL
+    runAsUser: 1000
+    runAsNonRoot: true
+    readOnlyRootFilesystem: false
+  # -- Additional annotations to apply to the service account
+  serviceAccountAnnotations: {}
+  # Environment variables
+  ###############################
+  # example:
+  # env:
+  # - name: FOO
+  #   value: bar
+  ###############################
+  # If you are using secrets, you can use the following format:
+  # env:
+  # - name: FOO
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: istari-docs
+  #       key: FOO
+  env: []
+  # Autoscaling -- set autoscaling (HPA) parameters
+  autoscaling:
+    # -- Enable/Disable autoscaling
+    enabled: false
+    # -- Minimum number of replicas
+    minReplicas: 1
+    # -- Maximum number of replicas
+    maxReplicas: 2
+    # -- Average CPU utilization percentage. Unset to disable.
+    averageCPUUtilization: 80
+    # -- Average Memory value. Unset to disable.
+    averageMemoryValue: 80
+  # Resources -- set resources
+  resources: {}
+  # -- Pod Volumes
+  volumes: []
+  # -- Volume Mounts for pod containers
+  volumeMounts: []
+  # -- Tolerations.
+  # Example:
+  #
+  # ```
+  # tolerations:
+  # - "effect": "NoSchedule"
+  #   "key": "istari.k8s.io/role"
+  #   "operator": "Equal"
+  #   "value": "main"
+  # ```
+  tolerations: []
+  # -- Node selector
+  nodeSelector: {}
+  # -- Affinity
+  affinity: {}
+
+# Default values for Magic Docs. This is intended for internal use only.
+magicDocs:
+  # -- Enable / Disable the whole deployment
+  enabled: false
+  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
+  registry: "istaridigital.jfrog.io/customer-docker"
+  # -- Image name. The combination of registry, image, and tag will be used to pull the image.
+  image: "magic-docs-service"
+  # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
+  tag: "3.3.9"
+  # -- Image pull policy
+  imagePullPolicy: IfNotPresent
+  # -- Secret name. The secret should contain the environment variables required by the service.
+  secretName: "istari-magic-docs"
+  # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
+  extraEnvSecrets: []
+  # -- Replica count
+  replicaCount: 1
+  # -- Restart policy
+  restartPolicy: "Always"
+  # -- Additional labels to add to all of this service's resources
+  commonLabels: {}
+  # -- Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName.
+  serviceType: "ClusterIP"
+  # -- Additional annotations to apply to the service, note the following annotations for duplicate keys.
+  serviceAnnotations: {}
+  # -- Additional annotations to add to the deployment
+  deploymentAnnotations: {}
+  # -- Additional annotations to add to pods
+  podAnnotations: {}
+  # -- Additional labels to add to pods
+  podLabels: {}
+  # -- Pod security context
+  podSecurityContext:
+    fsGroup: 2000
+  # -- Primary container's security context
+  containerSecurityContext:
+    capabilities:
+      drop:
+      - ALL
+    runAsUser: 1000
+    runAsNonRoot: true
+    readOnlyRootFilesystem: false
+  # -- Additional annotations to apply to the service account
+  serviceAccountAnnotations: {}
+  # Environment variables
+  ###############################
+  # example:
+  # env:
+  # - name: VITE_SENTRY_ENABLED
+  #   value: "false"
+  ###############################
+  # If you are using secrets, you can use the following format:
+  # env:
+  # - name: VITE_SENTRY_ENABLED
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: fileservice2-env
+  #       key: VITE_SENTRY_ENABLED
+  env: []
+  # Autoscaling -- set autoscaling (HPA) parameters
+  autoscaling:
+    # -- Enable/Disable autoscaling
+    enabled: false
+    # -- Minimum number of replicas
+    minReplicas: 1
+    # -- Maximum number of replicas
+    maxReplicas: 2
+    # -- Average CPU utilization percentage. Unset to disable.
+    averageCPUUtilization: 80
+    # -- Average Memory value. Unset to disable.
+    averageMemoryValue: 80
+  # Resources -- set resources
+  resources: {}
+  # -- Pod Volumes
+  volumes: []
+  # -- Volume Mounts for pod containers
+  volumeMounts: []
+  # -- Tolerations.
+  # Example:
+  #
+  # ```
+  # tolerations:
+  # - "effect": "NoSchedule"
+  #   "key": "istari.k8s.io/role"
+  #   "operator": "Equal"
+  #   "value": "main"
+  # ```
+  tolerations: []
+  # -- Node selector
+  nodeSelector: {}
+  # -- Affinity
+  affinity: {}

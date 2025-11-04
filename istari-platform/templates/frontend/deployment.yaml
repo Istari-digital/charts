@@ -1,0 +1,102 @@
+{{- $serviceValues := .Values.frontend -}}
+{{- if $serviceValues.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "frontend.fullname" . | quote }}
+  labels:
+    {{- include "frontend.labels" . | nindent 4 }}
+  {{- with $serviceValues.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if not $serviceValues.autoscaling.enabled }}
+  replicas: {{ $serviceValues.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "frontend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with $serviceValues.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "frontend.labels" . | nindent 8 }}
+        {{- with $serviceValues.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "frontend.fullname" . | quote }}
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: {{ .Chart.Name | quote }}
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        ports:
+        - containerPort: 8080
+          name: "http"
+          protocol: "TCP"
+        livenessProbe:
+          httpGet:
+            path: "/"
+            port: 8080
+        readinessProbe:
+          httpGet:
+            path: "/"
+            port: 8080
+        {{- with $serviceValues.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets }}
+        envFrom:
+        {{- end }}
+        {{- if $serviceValues.secretName }}
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- end }}
+        {{- with $serviceValues.extraEnvSecrets }}
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- with $serviceValues.env }}
+        env:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with $serviceValues.volumeMounts }}
+        volumeMounts:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $serviceValues.volumes }}
+      volumes:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}

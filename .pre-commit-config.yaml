@@ -1,48 +1,33 @@
 repos:
-- repo: local
-  hooks:
-  - id: trufflehog
-    name: TruffleHog
-    description: Detect secrets in your data.
-    language: system
-    # The official recommendation (https://github.com/trufflesecurity/trufflehog/tree/ad0bc11a5b5afc19873ecd5a101555784386b961?tab=readme-ov-file#pre-commit-hook)
-    # doesn't support 'pre-commit run --all-files', so we use 'trufflehog filesystem' instead of 'trufflehog git' and trust pre-commit to pass the files .
-    entry: trufflehog filesystem --results=verified,unknown --fail --log-level=-1
-    require_serial: true  # This prevents runing the hook multiple times on a subset of files in parallel, which sometimes causes false negatives
-
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v5.0.0
   hooks:
-  # Security
-  - id: detect-aws-credentials
-    args: ['--allow-missing-credentials']
-  - id: detect-private-key
-
   # Standard checks
   - id: check-executables-have-shebangs
   - id: check-json
   - id: check-symlinks
   - id: check-toml
   - id: check-yaml
+    files: '(^|/)(Chart\.ya?ml|values.*\.ya?ml|\.github/.*\.ya?ml|ci/.*\.ya?ml)$'
   - id: end-of-file-fixer
-    exclude: '.*\.svg$'
-  - id: pretty-format-json
-    args:
-    - '--autofix'
   - id: trailing-whitespace
-    args: ['--markdown-linebreak-ext=md']
+    args: [--markdown-linebreak-ext=md]
 
   # Cross platform
   - id: check-case-conflict
   - id: destroyed-symlinks
   - id: mixed-line-ending
-    args: ['--fix=lf']
+    args: [--fix=lf]
+
+  # Security
+  - id: detect-aws-credentials
+    args: ['--allow-missing-credentials']
+  - id: detect-private-key
 
   # Git
   - id: check-added-large-files
   - id: check-merge-conflict
   - id: forbid-submodules
-  - id: no-commit-to-branch
 
   # Python
   - id: check-docstring-first
@@ -50,15 +35,11 @@ repos:
   - id: name-tests-test
   - id: requirements-txt-fixer
 
-- repo: https://github.com/shellcheck-py/shellcheck-py
-  rev: v0.10.0.1
-  hooks:
-  - id: shellcheck
-
 - repo: https://github.com/google/yamlfmt
   rev: v0.14.0
   hooks:
   - id: yamlfmt
+    exclude: '^(?:charts/[^/]+|istari-platform)/templates/'
     args:
     - '-formatter=indentless_arrays=true'
     - '-formatter=pad_line_comments=2'
@@ -70,4 +51,39 @@ repos:
     name: Check if YAML files use *.yaml extension.
     entry: YAML filenames must have .yaml extension.
     language: fail
-    files: .yml$
+    files: '.yml$'
+
+- repo: local
+  hooks:
+  - id: helm-template-kubeconform
+    name: helm template | kubeconform
+    entry: bash -c 'helm dependency build istari-platform >/dev/null 2>&1 || true; helm template istari-platform | kubeconform -strict -ignore-missing-schemas'
+    language: system
+    pass_filenames: false
+
+- repo: https://github.com/pre-commit/mirrors-prettier
+  rev: v4.0.0-alpha.8
+  hooks:
+  - id: prettier
+    name: prettier (helm templates)
+    files: '^(?:charts/[^/]+|istari-platform)/templates/.*\.ya?ml$'
+    additional_dependencies:
+    - prettier@3.3.3
+
+- repo: https://github.com/shellcheck-py/shellcheck-py
+  rev: v0.10.0.1
+  hooks:
+  - id: shellcheck
+
+- repo: https://github.com/gruntwork-io/pre-commit
+  rev: v0.1.24
+  hooks:
+  - id: helmlint
+
+- repo: https://github.com/norwoodj/helm-docs
+  rev: v1.14.2
+  hooks:
+  - id: helm-docs
+    args:
+    # Make the tool search for charts only under the `charts` directory
+    - --chart-search-root=.

@@ -1,0 +1,22 @@
+{{- $serviceValues := .Values.docs -}}
+{{- if $serviceValues.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "docs.fullname" . | quote }}
+  labels:
+    {{- include "docs.labels" . | nindent 4 }}
+  {{- with $serviceValues.serviceAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $serviceValues.serviceType | quote }}
+  ports:
+  - name: "http"
+    port: 80
+    targetPort: "http"
+    protocol: "TCP"
+  selector:
+    {{- include "docs.selectorLabels" . | nindent 4 }}
+{{- end }}

@@ -1,0 +1,35 @@
+{{- $serviceValues := .Values.mcp -}}
+{{- if $serviceValues.enabled }}
+{{- if $serviceValues.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "mcp.fullname" . | quote }}
+  labels:
+    {{- include "mcp.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "mcp.fullname" . | quote }}
+  minReplicas: {{ $serviceValues.autoscaling.minReplicas }}
+  maxReplicas: {{ $serviceValues.autoscaling.maxReplicas }}
+  metrics:
+  {{- if $serviceValues.autoscaling.cpuUtilization }}
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ $serviceValues.autoscaling.cpuUtilization }}
+  {{- end }}
+  {{- if $serviceValues.autoscaling.memoryUtilization }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: AverageValue
+        averageValue: {{ $serviceValues.autoscaling.memoryUtilization }}
+  {{- end }}
+{{- end }}
+{{- end }}

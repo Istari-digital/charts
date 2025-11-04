@@ -1,0 +1,179 @@
+{{- $serviceValues := .Values.fileservice -}}
+{{- if $serviceValues.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fileservice.fullname" . | quote }}
+  labels:
+    {{- include "fileservice.labels" . | nindent 4 }}
+  {{- with $serviceValues.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if not $serviceValues.autoscaling.enabled }}
+  replicas: {{ $serviceValues.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "fileservice.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with $serviceValues.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "fileservice.labels" . | nindent 8 }}
+        {{- with $serviceValues.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "fileservice.fullname" . | quote }}
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: {{ .Chart.Name | quote }}
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        ports:
+        - containerPort: 8000
+          name: "http"
+          protocol: "TCP"
+        livenessProbe:
+          failureThreshold: 30
+          httpGet:
+            path: "/api/v2/health/liveness"
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 8
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 30
+          httpGet:
+            path: "/api/v2/health/readiness"
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 8
+          successThreshold: 1
+          timeoutSeconds: 10
+        {{- with $serviceValues.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets }}
+        envFrom:
+        {{- end }}
+        {{- if $serviceValues.secretName }}
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- end }}
+        {{- with $serviceValues.extraEnvSecrets }}
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if or $serviceValues.env .Values.trustedCertBundle }}
+        env:
+        {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
+          value: /usr/lib/ssl/cert.pem
+        - name: REQUESTS_CA_BUNDLE
+          value: /usr/lib/ssl/cert.pem
+        - name: SSL_CERT_DIR
+          value: /usr/lib/ssl
+        - name: SSL_CERT_FILE
+          value: /usr/lib/ssl/cert.pem
+        {{- end }}
+        {{- end }}
+        {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
+        volumeMounts:
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+        {{- end }}
+      initContainers:
+      - name: "init-db"
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        command:
+        - "poetry"
+        - "run"
+        - "alembic"
+        - "upgrade"
+        - "head"
+        {{- if $serviceValues.secretName }}
+        envFrom:
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- end }}
+        {{- if or $serviceValues.env .Values.trustedCertBundle }}
+        env:
+        {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
+          value: /usr/lib/ssl/cert.pem
+        - name: REQUESTS_CA_BUNDLE
+          value: /usr/lib/ssl/cert.pem
+        - name: SSL_CERT_DIR
+          value: /usr/lib/ssl/certs
+        - name: SSL_CERT_FILE
+          value: /usr/lib/ssl/cert.pem
+        {{- end }}
+        {{- end }}
+        {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
+        volumeMounts:
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+        {{- end }}
+      {{- if or $serviceValues.volumes .Values.trustedCertBundle }}
+      volumes:
+      {{- with $serviceValues.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" . | quote }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}

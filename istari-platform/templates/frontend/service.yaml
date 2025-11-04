@@ -1,0 +1,22 @@
+{{- $serviceValues := .Values.frontend -}}
+{{- if $serviceValues.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "frontend.fullname" . | quote }}
+  labels:
+    {{- include "frontend.labels" . | nindent 4 }}
+  {{- with $serviceValues.serviceAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $serviceValues.serviceType | quote }}
+  ports:
+  - name: "http"
+    port: 80
+    targetPort: "http"
+    protocol: "TCP"
+  selector:
+    {{- include "frontend.selectorLabels" . | nindent 4 }}
+{{- end }}

@@ -1,0 +1,20 @@
+{{- if .Values.trustedCertBundle }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "shared.trustedCerts.name" . | quote }}
+  labels:
+    {{- include "shared.labels" . | nindent 4 }}
+data:
+  {{- /*
+  We include AWS, Microsoft, and GCP root certificates from:
+  https://www.amazontrust.com/repository/
+  https://learn.microsoft.com/en-us/azure/security/fundamentals/azure-ca-details?tabs=root-and-subordinate-cas-list
+  https://pki.goog/repository/
+  */}}
+  bundle.crt: |-
+    # User-defined trusted cert bundle
+{{ .Values.trustedCertBundle | indent 4 }}
+
+{{ .Files.Get "files/cloud-provider-trusted-bundles.pem" | indent 4 }}
+{{- end }}

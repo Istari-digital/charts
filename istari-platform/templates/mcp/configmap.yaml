@@ -1,0 +1,15 @@
+{{- /*
+We put the generated default env vars in this config map so that user-defined values of
+'mcp.secretName', 'mcp.extraEnvSecrets', and 'mcp.env' will always override them.
+*/}}
+{{- $serviceValues := .Values.mcp -}}
+{{- if $serviceValues.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mcp.configmap.name" . | quote }}
+  labels:
+    {{- include "mcp.labels" . | nindent 4 }}
+data:
+  ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+{{- end }}

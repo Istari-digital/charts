@@ -1,0 +1,130 @@
+{{- $serviceValues := .Values.mcp -}}
+{{- if $serviceValues.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mcp.fullname" . | quote }}
+  labels:
+    {{- include "mcp.labels" . | nindent 4 }}
+  {{- with $serviceValues.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if not $serviceValues.autoscaling.enabled }}
+  replicas: {{ $serviceValues.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "mcp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with $serviceValues.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "mcp.labels" . | nindent 8 }}
+        {{- with $serviceValues.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "mcp.fullname" . | quote }}
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: {{ .Chart.Name | quote }}
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        ports:
+        - containerPort: 8000
+          name: "http"
+          protocol: "TCP"
+        livenessProbe:
+          httpGet:
+            path: "/health"
+            port: 8000
+        readinessProbe:
+          httpGet:
+            path: "/health"
+            port: 8000
+        {{- with $serviceValues.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        envFrom:
+        {{- /*
+        We put the generated default env vars in this config map so that user-defined values of
+        'mcp.secretName', 'mcp.extraEnvSecrets', and 'mcp.env' will always override them.
+        */}}
+        - configMapRef:
+            name: {{ include "mcp.configmap.name" . | quote }}
+        {{- if $serviceValues.secretName }}
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- end }}
+        {{- with $serviceValues.extraEnvSecrets }}
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if or $serviceValues.env .Values.trustedCertBundle }}
+        env:
+        {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
+          value: /usr/lib/ssl/cert.pem
+        - name: REQUESTS_CA_BUNDLE
+          value: /usr/lib/ssl/cert.pem
+        - name: SSL_CERT_DIR
+          value: /usr/lib/ssl
+        - name: SSL_CERT_FILE
+          value: /usr/lib/ssl/cert.pem
+        {{- end }}
+        {{- end }}
+        {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
+        volumeMounts:
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+        {{- end }}
+      {{- if or $serviceValues.volumes .Values.trustedCertBundle }}
+      volumes:
+      {{- with $serviceValues.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" . | quote }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}

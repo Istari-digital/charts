@@ -1,0 +1,22 @@
+{{- $serviceValues := .Values.mcp -}}
+{{- if $serviceValues.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mcp.fullname" . | quote }}
+  labels:
+    {{- include "mcp.labels" . | nindent 4 }}
+  {{- with $serviceValues.serviceAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $serviceValues.serviceType | quote }}
+  ports:
+  - name: "http"
+    port: 80
+    targetPort: "http"
+    protocol: "TCP"
+  selector:
+    {{- include "mcp.selectorLabels" . | nindent 4 }}
+{{- end }}
