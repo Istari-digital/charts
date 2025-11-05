@@ -8,7 +8,12 @@ repos:
   - id: check-symlinks
   - id: check-toml
   - id: check-yaml
-    exclude: ^charts/[^/]+/templates/
+    # Skip Helm templates (they're not valid plain YAML due to {{ ... }})
+    exclude: |
+      (?x)^(
+        istari-platform/templates/.*\.ya?ml |
+        charts/[^/]+/templates/.*\.ya?ml
+      )$
   - id: end-of-file-fixer
   - id: trailing-whitespace
     args: [--markdown-linebreak-ext=md]
@@ -39,7 +44,12 @@ repos:
   rev: v0.14.0
   hooks:
   - id: yamlfmt
-    exclude: ^istari-platform/[^/]+/templates/
+    # Skip Helm templates here too
+    exclude: |
+      (?x)^(
+        istari-platform/templates/.*\.ya?ml |
+        charts/[^/]+/templates/.*\.ya?ml
+      )$
     args:
     - '-formatter=indentless_arrays=true'
     - '-formatter=pad_line_comments=2'
@@ -67,6 +77,8 @@ repos:
   rev: v1.14.2
   hooks:
   - id: helm-docs
+    # Don’t pass filenames from pre-commit; let helm-docs scan itself
+    pass_filenames: false
     args:
-    # Make the tool search for charts only under the `charts` directory
     - --chart-search-root=.
+    - --recursive
