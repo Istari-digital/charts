@@ -81,4 +81,3 @@ repos:
     pass_filenames: false
     args:
     - --chart-search-root=.
-    - --recursive
