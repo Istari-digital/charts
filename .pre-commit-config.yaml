@@ -69,4 +69,4 @@ repos:
   - id: helm-docs
     args:
     # Make the tool search for charts only under the `charts` directory
-    - --chart-search-root=charts
+    - --chart-search-root=.
