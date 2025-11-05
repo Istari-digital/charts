@@ -39,7 +39,7 @@ repos:
   rev: v0.14.0
   hooks:
   - id: yamlfmt
-    exclude: ^charts/[^/]+/templates/
+    exclude: ^istari-platform/[^/]+/templates/
     args:
     - '-formatter=indentless_arrays=true'
     - '-formatter=pad_line_comments=2'
