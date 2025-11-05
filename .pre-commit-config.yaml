@@ -8,7 +8,7 @@ repos:
   - id: check-symlinks
   - id: check-toml
   - id: check-yaml
-    files: '(^|/)(Chart\.ya?ml|values.*\.ya?ml|\.github/.*\.ya?ml|ci/.*\.ya?ml)$'
+    exclude: ^charts/[^/]+/templates/
   - id: end-of-file-fixer
   - id: trailing-whitespace
     args: [--markdown-linebreak-ext=md]
@@ -39,7 +39,7 @@ repos:
   rev: v0.14.0
   hooks:
   - id: yamlfmt
-    exclude: '^(?:charts/[^/]+|istari-platform)/templates/'
+    exclude: ^charts/[^/]+/templates/
     args:
     - '-formatter=indentless_arrays=true'
     - '-formatter=pad_line_comments=2'
@@ -52,23 +52,6 @@ repos:
     entry: YAML filenames must have .yaml extension.
     language: fail
     files: '.yml$'
-
-- repo: local
-  hooks:
-  - id: helm-template-kubeconform
-    name: helm template | kubeconform
-    entry: bash -c 'helm dependency build istari-platform >/dev/null 2>&1 || true; helm template istari-platform | kubeconform -strict -ignore-missing-schemas'
-    language: system
-    pass_filenames: false
-
-- repo: https://github.com/pre-commit/mirrors-prettier
-  rev: v4.0.0-alpha.8
-  hooks:
-  - id: prettier
-    name: prettier (helm templates)
-    files: '^(?:charts/[^/]+|istari-platform)/templates/.*\.ya?ml$'
-    additional_dependencies:
-    - prettier@3.3.3
 
 - repo: https://github.com/shellcheck-py/shellcheck-py
   rev: v0.10.0.1
@@ -86,4 +69,4 @@ repos:
   - id: helm-docs
     args:
     # Make the tool search for charts only under the `charts` directory
-    - --chart-search-root=.
+    - --chart-search-root=charts
