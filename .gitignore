@@ -8,3 +8,8 @@ charts/
 istari-*
 manual/
 scripts/
+**/*.env
+**/*.env.*
+**/*.log
+**/Chart.lock
+**/docker-secret.json
