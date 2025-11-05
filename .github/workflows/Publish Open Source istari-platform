@@ -1,0 +1,219 @@
+name: Publish 'istari-platform'
+
+on:
+  workflow_dispatch: {}  # Manually trigger the workflow
+  push:
+    branches:
+    - main
+    paths:
+    - charts/istari-platform/Chart.yaml
+
+defaults:
+  run:
+    shell: bash
+    working-directory: ./charts/istari-platform
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACTORY_DOMAIN: ${{ vars.ARTIFACTORY_DOMAIN }}
+      ARTIFACTORY_REPO_URL_BASE: ${{ vars.ARTIFACTORY_URL }}/artifactory
+      BUILD_NAME_BASE: istari-platform
+      HELM_CLASSIC_REPO: main-helm-local
+      HELM_OCI_REPO: main-charts-local
+      JFROG_CLI_BUILD_NAME: istari-platform-chart
+      JFROG_CLI_BUILD_NUMBER: ${{ github.run_number }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Helm lint
+      run: helm lint .
+
+    - name: Setup JFrog CLI
+      uses: jfrog/setup-jfrog-cli@v4
+      env:
+        JF_URL: ${{ vars.ARTIFACTORY_URL }}
+        JF_ACCESS_TOKEN: ${{ secrets.ARTIFACTORY_PUBLISHER_TOKEN }}
+
+    - name: Login to Helm Repos
+      run: |
+        echo "Logging in to Helm Classic repo '${HELM_CLASSIC_REPO}'"
+        helm repo add \
+          ${HELM_CLASSIC_REPO} \
+          ${ARTIFACTORY_REPO_URL_BASE}/${HELM_CLASSIC_REPO} \
+          --username ${{ vars.ARTIFACTORY_PUBLISHER_USERNAME }} \
+          --password ${{ secrets.ARTIFACTORY_PUBLISHER_TOKEN }}
+
+        echo "Logging in to Helm OCI repo '${HELM_OCI_REPO}'"
+        helm registry login \
+          ${ARTIFACTORY_DOMAIN} \
+          --username ${{ vars.ARTIFACTORY_PUBLISHER_USERNAME }} \
+          --password ${{ secrets.ARTIFACTORY_PUBLISHER_TOKEN }}
+
+    - name: Derive Common Variables
+      run: |
+        HELM_CHART_NAME=$(yq '.name' < Chart.yaml)
+        HELM_CHART_VERSION=$(yq '.version' < Chart.yaml)
+        HELM_PACKAGE_NAME="${HELM_CHART_NAME}-${HELM_CHART_VERSION}.tgz"
+        HELM_CLASSIC_ARTIFACTORY_PATH="${HELM_CLASSIC_REPO}/${HELM_CHART_NAME}/${HELM_PACKAGE_NAME}"
+        HELM_OCI_ARTIFACTORY_PATH_WITHOUT_TRAILING_SLASH="${HELM_OCI_REPO}/${HELM_CHART_NAME}/${HELM_CHART_VERSION}"
+
+        # Make env vars available to other steps
+        echo "HELM_CHART_NAME=${HELM_CHART_NAME}" >> "$GITHUB_ENV"
+        echo "HELM_CHART_VERSION=${HELM_CHART_VERSION}" >> "$GITHUB_ENV"
+        echo "HELM_PACKAGE_NAME=${HELM_PACKAGE_NAME}" >> "$GITHUB_ENV"
+        echo "HELM_CLASSIC_ARTIFACTORY_PATH=${HELM_CLASSIC_ARTIFACTORY_PATH}" >> "$GITHUB_ENV"
+        echo "HELM_OCI_ARTIFACTORY_PATH_WITHOUT_TRAILING_SLASH=${HELM_OCI_ARTIFACTORY_PATH_WITHOUT_TRAILING_SLASH}" >> "$GITHUB_ENV"
+
+    - name: Prevent Overwriting in Helm Classic Repo
+      run: |
+        echo "Checking if version '${HELM_CHART_VERSION}' of Helm chart '${HELM_CHART_NAME}' exists in Artifactory repo '${HELM_CLASSIC_REPO}'"
+        if jf rt search --fail-no-op "${HELM_CLASSIC_ARTIFACTORY_PATH}" >/dev/null 2>&1; then
+          echo "Version '${HELM_CHART_VERSION}' of Helm chart '${HELM_CHART_NAME}' already exists in Artifactory repo '${HELM_CLASSIC_REPO}'"
+          exit 3
+        fi
+
+    - name: Prevent Overwriting in Helm OCI Repo
+      run: |
+        echo "Checking if version '${HELM_CHART_VERSION}' of Helm chart '${HELM_CHART_NAME}' exists in Artifactory repo '${HELM_OCI_REPO}'"
+        if jf rt search --fail-no-op "${HELM_OCI_ARTIFACTORY_PATH_WITHOUT_TRAILING_SLASH}/manifest.json" >/dev/null 2>&1; then
+          echo "Version '${HELM_CHART_VERSION}' of Helm chart '${HELM_CHART_NAME}' already exists in Artifactory repo '${HELM_OCI_REPO}'"
+          exit 3
+        fi
+
+    - name: Download Dependencies
+      id: download_dependencies
+      run: |
+        helm dependency update .
+
+    - name: Package Helm Chart
+      id: package_helm_chart
+      run: |
+        helm package .
+
+    - name: JFrog Audit Local
+      id: jfrog_audit
+      run: |
+        # This outputs some potentially useful information, but shouldn't result in failures
+        # since we don't use the flags '--watches', '--project', or '--repo-path'
+        jf audit \
+          --fixable-only=true \
+          --licenses=true \
+          --sbom=true \
+          --sca=true \
+          .
+
+    - name: Upload to Helm Classic Repo
+      id: upload_helm_classic
+      run: |
+        jf rt upload \
+          --flat=true \
+          --module ${BUILD_NAME_BASE}-classic \
+          ${HELM_PACKAGE_NAME} \
+          ${HELM_CLASSIC_ARTIFACTORY_PATH}
+
+        # Wait 3 seconds to ensure the chart is available in Artifactory
+        sleep 3
+
+    - name: Test Pulling from Helm Classic Repo
+      id: test_pull_helm_classic
+      run: |
+        mkdir ${{ runner.temp }}/test-pull-classic
+        pushd ${{ runner.temp }}/test-pull-classic
+
+        helm repo update ${HELM_CLASSIC_REPO}
+
+        echo "Attempting to pull chart from the Helm Classic repo '${HELM_CLASSIC_REPO}'"
+        helm pull \
+          ${HELM_CLASSIC_REPO}/${HELM_CHART_NAME} \
+          --version ${HELM_CHART_VERSION} \
+          --debug \
+          --untar
+
+        rm -r ${HELM_CHART_NAME}
+
+        popd
+
+    - name: Push to Helm OCI Repo
+      id: push_helm_oci
+      run: |
+        helm push --debug ${HELM_PACKAGE_NAME} oci://${ARTIFACTORY_DOMAIN}/${HELM_OCI_REPO}
+
+        # Pushing an OCI chart with helm CLI from a local laptop sometimes results in an additional set of files that should be deleted,
+        # although the same has not yet been observed when pushing from the GitHub Action
+        HELM_OCI_MANIFEST_DIGEST_SHA256=$(jf rt search ${HELM_OCI_ARTIFACTORY_PATH_WITHOUT_TRAILING_SLASH}/manifest.json | jq -r '.[0].props.sha256[0]')
+        HELM_OCI_MANIFEST_SHA_PATH_WITHOUT_TRAILING_SLASH="${HELM_OCI_REPO}/${HELM_CHART_NAME}/sha256:${HELM_OCI_MANIFEST_DIGEST_SHA256}"
+        echo "HELM_OCI_MANIFEST_DIGEST_SHA256=${HELM_OCI_MANIFEST_DIGEST_SHA256}" >> "$GITHUB_ENV"
+        echo "HELM_OCI_MANIFEST_SHA_PATH_WITHOUT_TRAILING_SLASH=${HELM_OCI_MANIFEST_SHA_PATH_WITHOUT_TRAILING_SLASH}" >> "$GITHUB_ENV"
+
+    - name: Add Helm OCI files Artifactory Build
+      id: add_helm_oci_to_artifactory_build
+      run: |
+        # Create file containing the name of the OCI chart in a format that the can be used with the JFrog CLI's 'build-add-dependencies'
+        echo "${ARTIFACTORY_DOMAIN}/${HELM_OCI_REPO}/${HELM_CHART_NAME}:${HELM_CHART_VERSION}@sha256:${HELM_OCI_MANIFEST_DIGEST_SHA256}" > image-file.txt
+
+        echo "Adding Helm OCI chart '${HELM_CHART_NAME}' to Artifactory Build"
+        jf rt build-docker-create \
+          --build-name ${JFROG_CLI_BUILD_NAME} \
+          --build-number ${JFROG_CLI_BUILD_NUMBER} \
+          --module ${BUILD_NAME_BASE}-oci \
+          --image-file image-file.txt \
+          ${HELM_OCI_REPO}
+
+    - name: Test Pulling from Helm OCI Repo
+      id: test_pull_helm_oci
+      run: |
+        rm -rf ${{ runner.temp }}/test-pull-oci
+        mkdir ${{ runner.temp }}/test-pull-oci
+        pushd ${{ runner.temp }}/test-pull-oci
+
+        echo "Attempting to pull chart from the Helm OCI repo '${HELM_OCI_REPO}'"
+        helm pull \
+          oci://${ARTIFACTORY_DOMAIN}/${HELM_OCI_REPO}/${HELM_CHART_NAME} \
+          --version ${HELM_CHART_VERSION} \
+          --debug \
+          --untar
+
+        rm -r ${HELM_CHART_NAME}
+
+        popd
+
+    - name: Publish Artifactory Build
+      id: publish_artifactory_build
+      if: always()
+      env:
+        STATUS: ${{ job.status }}
+      run: |
+        # Collect VCS details from git and add them to the build
+        jf rt build-add-git
+
+        # Display and then publish Artifactory build info
+        echo "Publishing build info to Artifactory"
+        jf rt build-publish --dry-run
+        jf rt build-publish
+
+        # Set the Artifactory Build's status to match the GitHub Action's job's status
+        jf rt build-promote ${JFROG_CLI_BUILD_NAME} ${JFROG_CLI_BUILD_NUMBER} --status ${STATUS}
+
+    - name: Delete Helm Classic Chart after Failure
+      id: delete_helm_classic
+      if: ${{ !success() && steps.upload_helm_classic.conclusion == 'success' }}
+      run: |
+        echo "Deleting classic Helm chart from Artifactory path '${HELM_CLASSIC_REPO}/${HELM_CHART_NAME}/${HELM_PACKAGE_NAME}'"
+        jf rt delete --quiet "${HELM_CLASSIC_REPO}/${HELM_CHART_NAME}/${HELM_PACKAGE_NAME}"
+
+    - name: Delete Helm OCI Chart after Failure
+      id: delete_helm_oci
+      if: ${{ !success() && steps.push_helm_oci.conclusion == 'success' }}
+      run: |
+        # We exclude the trailing slash from the chart paths to avoid
+        # an Artifactory UI bug where an empty folder continues to be displayed for a few minutes
+        echo "Deleting classic Helm chart from Artifactory path '${HELM_OCI_ARTIFACTORY_PATH_WITHOUT_TRAILING_SLASH}'"
+        jf rt delete --quiet ${HELM_OCI_ARTIFACTORY_PATH_WITHOUT_TRAILING_SLASH}
+
+        # Delete the additional files if they exist
+        echo "Deleting classic Helm chart from Artifactory path '${HELM_OCI_MANIFEST_SHA_PATH_WITHOUT_TRAILING_SLASH}' if it exists"
+        jf rt delete --quiet ${HELM_OCI_MANIFEST_SHA_PATH_WITHOUT_TRAILING_SLASH}
