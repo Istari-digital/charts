@@ -16,6 +16,9 @@ defaults:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # allow this job to push tags back to the repo
+
     env:
       ARTIFACTORY_DOMAIN: ${{ vars.ARTIFACTORY_DOMAIN }}
       ARTIFACTORY_REPO_URL_BASE: ${{ vars.ARTIFACTORY_URL }}/artifactory
@@ -28,6 +31,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # needed so we can create and push tags
 
     - name: Helm lint
       run: helm lint .
@@ -197,6 +202,27 @@ jobs:
 
         # Set the Artifactory Build's status to match the GitHub Action's job's status
         jf rt build-promote ${JFROG_CLI_BUILD_NAME} ${JFROG_CLI_BUILD_NUMBER} --status ${STATUS}
+
+    - name: Create Git tag from chart version
+      if: success() && github.ref == 'refs/heads/main'
+      run: |
+        TAG="${HELM_CHART_NAME}-v${HELM_CHART_VERSION}"
+
+        echo "Preparing to create tag: ${TAG}"
+
+        # Configure git identity for the GitHub Actions bot
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Check if the tag already exists on origin
+        if git ls-remote --tags origin | grep -q "refs/tags/${TAG}$"; then
+          echo "Tag ${TAG} already exists on origin, skipping tag creation."
+          exit 0
+        fi
+
+        # Create and push the tag
+        git tag -a "${TAG}" -m "Release ${HELM_CHART_NAME} ${HELM_CHART_VERSION}"
+        git push origin "${TAG}"
 
     - name: Delete Helm Classic Chart after Failure
       id: delete_helm_classic
