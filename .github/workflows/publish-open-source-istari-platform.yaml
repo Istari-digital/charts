@@ -23,8 +23,8 @@ jobs:
       ARTIFACTORY_DOMAIN: ${{ vars.ARTIFACTORY_DOMAIN }}
       ARTIFACTORY_REPO_URL_BASE: ${{ vars.ARTIFACTORY_URL }}/artifactory
       BUILD_NAME_BASE: istari-platform
-      HELM_CLASSIC_REPO: main-helm-local
-      HELM_OCI_REPO: main-charts-local
+      HELM_CLASSIC_REPO: temp-helm-local
+      HELM_OCI_REPO: temp-oci-local
       JFROG_CLI_BUILD_NAME: istari-platform-chart
       JFROG_CLI_BUILD_NUMBER: ${{ github.run_number }}
 
