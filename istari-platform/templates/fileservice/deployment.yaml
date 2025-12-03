@@ -123,10 +123,18 @@ spec:
         - "alembic"
         - "upgrade"
         - "head"
-        {{- if $serviceValues.secretName }}
+        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets }}
         envFrom:
+        {{- end }}
+        {{- if $serviceValues.secretName }}
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
+        {{- end }}
+        {{- with $serviceValues.extraEnvSecrets }}
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
         {{- end }}
         {{- if or $serviceValues.env .Values.trustedCertBundle }}
         env:
