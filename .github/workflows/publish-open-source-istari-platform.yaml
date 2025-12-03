@@ -203,45 +203,33 @@ jobs:
         # Set the Artifactory Build's status to match the GitHub Action's job's status
         jf rt build-promote ${JFROG_CLI_BUILD_NAME} ${JFROG_CLI_BUILD_NUMBER} --status ${STATUS}
 
-    - name: Create Git tag from chart version
+    - name: Check if tag already exists on origin
       if: success() && github.ref == 'refs/heads/main'
+      id: check_tag
       run: |
+        TAG="${HELM_CHART_NAME}-${HELM_CHART_VERSION}"
+        echo "Checking if tag '${TAG}' exists on origin..."
+
+        if git ls-remote --tags origin | grep -q "refs/tags/${TAG}$"; then
+          echo "Tag exists."
+          echo "tag_exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "Tag does not exist."
+          echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Create Git tag from chart version
+      if: success() && github.ref == 'refs/heads/main' && steps.check_tag.outputs.tag_exists == 'false'
+      run: |
+        TAG="${HELM_CHART_NAME}-${HELM_CHART_VERSION}"
         VERSION="${HELM_CHART_VERSION}"
 
-        echo "Chart version detected: ${VERSION}"
-
-        # Only tag if version is:
-        # - v1.4.0
-        # - 1.4.0
-        # - v1.4
-        # - 1.4
-        if [[ ! "$VERSION" =~ ^v?[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-          echo "Version '${VERSION}' does not match stable pattern (vMAJOR.MINOR[.PATCH] or MAJOR.MINOR[.PATCH])."
-          echo "Skipping Git tag creation."
-          exit 0
-        fi
-
-        # Normalize tag to always start with 'v'
-        # If VERSION already starts with 'v', keep it; otherwise prepend 'v'
-        if [[ "$VERSION" =~ ^v ]]; then
-          TAG="${VERSION}"
-        else
-          TAG="v${VERSION}"
-        fi
-
-        echo "Preparing to create tag: ${TAG}"
+        echo "Creating new tag: ${TAG}"
 
         # Configure git identity for the GitHub Actions bot
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-        # Check if the tag already exists on origin
-        if git ls-remote --tags origin | grep -q "refs/tags/${TAG}$"; then
-          echo "Tag ${TAG} already exists on origin, skipping tag creation."
-          exit 0
-        fi
-
-        # Create and push the tag
         git tag -a "${TAG}" -m "Release ${HELM_CHART_NAME} ${VERSION}"
         git push origin "${TAG}"
 
