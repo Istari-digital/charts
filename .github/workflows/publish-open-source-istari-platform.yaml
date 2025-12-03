@@ -6,12 +6,12 @@ on:
     branches:
     - main
     paths:
-    - charts/istari-platform/Chart.yaml
+    - istari-platform/Chart.yaml
 
 defaults:
   run:
     shell: bash
-    working-directory: ./charts/istari-platform
+    working-directory: ./istari-platform
 
 jobs:
   publish:
