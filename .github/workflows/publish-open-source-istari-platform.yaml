@@ -206,7 +206,28 @@ jobs:
     - name: Create Git tag from chart version
       if: success() && github.ref == 'refs/heads/main'
       run: |
-        TAG="v${HELM_CHART_VERSION}"
+        VERSION="${HELM_CHART_VERSION}"
+
+        echo "Chart version detected: ${VERSION}"
+
+        # Only tag if version is:
+        # - v1.4.0
+        # - 1.4.0
+        # - v1.4
+        # - 1.4
+        if [[ ! "$VERSION" =~ ^v?[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+          echo "Version '${VERSION}' does not match stable pattern (vMAJOR.MINOR[.PATCH] or MAJOR.MINOR[.PATCH])."
+          echo "Skipping Git tag creation."
+          exit 0
+        fi
+
+        # Normalize tag to always start with 'v'
+        # If VERSION already starts with 'v', keep it; otherwise prepend 'v'
+        if [[ "$VERSION" =~ ^v ]]; then
+          TAG="${VERSION}"
+        else
+          TAG="v${VERSION}"
+        fi
 
         echo "Preparing to create tag: ${TAG}"
 
@@ -221,7 +242,7 @@ jobs:
         fi
 
         # Create and push the tag
-        git tag -a "${TAG}" -m "Release ${HELM_CHART_NAME} ${HELM_CHART_VERSION}"
+        git tag -a "${TAG}" -m "Release ${HELM_CHART_NAME} ${VERSION}"
         git push origin "${TAG}"
 
     - name: Delete Helm Classic Chart after Failure
