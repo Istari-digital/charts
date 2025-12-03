@@ -206,7 +206,7 @@ jobs:
     - name: Create Git tag from chart version
       if: success() && github.ref == 'refs/heads/main'
       run: |
-        TAG="${HELM_CHART_NAME}-v${HELM_CHART_VERSION}"
+        TAG="v${HELM_CHART_VERSION}"
 
         echo "Preparing to create tag: ${TAG}"
 
