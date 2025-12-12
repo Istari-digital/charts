@@ -49,13 +49,13 @@ jobs:
         helm repo add \
           ${HELM_CLASSIC_REPO} \
           ${ARTIFACTORY_REPO_URL_BASE}/${HELM_CLASSIC_REPO} \
-          --username ${{ vars.ARTIFACTORY_PUBLISHER_USERNAME }} \
+          --username ${{ secrets.ARTIFACTORY_PUBLISHER_USERNAME }} \
           --password ${{ secrets.ARTIFACTORY_PUBLISHER_TOKEN }}
 
         echo "Logging in to Helm OCI repo '${HELM_OCI_REPO}'"
         helm registry login \
           ${ARTIFACTORY_DOMAIN} \
-          --username ${{ vars.ARTIFACTORY_PUBLISHER_USERNAME }} \
+          --username ${{ secrets.ARTIFACTORY_PUBLISHER_USERNAME }} \
           --password ${{ secrets.ARTIFACTORY_PUBLISHER_TOKEN }}
 
     - name: Derive Common Variables
