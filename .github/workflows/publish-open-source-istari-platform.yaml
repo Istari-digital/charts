@@ -203,6 +203,26 @@ jobs:
         # Set the Artifactory Build's status to match the GitHub Action's job's status
         jf rt build-promote ${JFROG_CLI_BUILD_NAME} ${JFROG_CLI_BUILD_NUMBER} --status ${STATUS}
 
+    - name: Delete Helm Classic Chart after Failure
+      id: delete_helm_classic
+      if: ${{ !success() && steps.upload_helm_classic.conclusion == 'success' }}
+      run: |
+        echo "Deleting classic Helm chart from Artifactory path '${HELM_CLASSIC_REPO}/${HELM_CHART_NAME}/${HELM_PACKAGE_NAME}'"
+        jf rt delete --quiet "${HELM_CLASSIC_REPO}/${HELM_CHART_NAME}/${HELM_PACKAGE_NAME}"
+
+    - name: Delete Helm OCI Chart after Failure
+      id: delete_helm_oci
+      if: ${{ !success() && steps.push_helm_oci.conclusion == 'success' }}
+      run: |
+        # We exclude the trailing slash from the chart paths to avoid
+        # an Artifactory UI bug where an empty folder continues to be displayed for a few minutes
+        echo "Deleting classic Helm chart from Artifactory path '${HELM_OCI_ARTIFACTORY_PATH_WITHOUT_TRAILING_SLASH}'"
+        jf rt delete --quiet ${HELM_OCI_ARTIFACTORY_PATH_WITHOUT_TRAILING_SLASH}
+
+        # Delete the additional files if they exist
+        echo "Deleting classic Helm chart from Artifactory path '${HELM_OCI_MANIFEST_SHA_PATH_WITHOUT_TRAILING_SLASH}' if it exists"
+        jf rt delete --quiet ${HELM_OCI_MANIFEST_SHA_PATH_WITHOUT_TRAILING_SLASH}
+
     - name: Create Git tag from chart version
       if: success() && github.ref == 'refs/heads/main'
       run: |
@@ -223,23 +243,3 @@ jobs:
 
         git tag -a "${TAG}" -m "Release ${HELM_CHART_NAME} ${VERSION}"
         git push origin "${TAG}"
-
-    - name: Delete Helm Classic Chart after Failure
-      id: delete_helm_classic
-      if: ${{ !success() && steps.upload_helm_classic.conclusion == 'success' }}
-      run: |
-        echo "Deleting classic Helm chart from Artifactory path '${HELM_CLASSIC_REPO}/${HELM_CHART_NAME}/${HELM_PACKAGE_NAME}'"
-        jf rt delete --quiet "${HELM_CLASSIC_REPO}/${HELM_CHART_NAME}/${HELM_PACKAGE_NAME}"
-
-    - name: Delete Helm OCI Chart after Failure
-      id: delete_helm_oci
-      if: ${{ !success() && steps.push_helm_oci.conclusion == 'success' }}
-      run: |
-        # We exclude the trailing slash from the chart paths to avoid
-        # an Artifactory UI bug where an empty folder continues to be displayed for a few minutes
-        echo "Deleting classic Helm chart from Artifactory path '${HELM_OCI_ARTIFACTORY_PATH_WITHOUT_TRAILING_SLASH}'"
-        jf rt delete --quiet ${HELM_OCI_ARTIFACTORY_PATH_WITHOUT_TRAILING_SLASH}
-
-        # Delete the additional files if they exist
-        echo "Deleting classic Helm chart from Artifactory path '${HELM_OCI_MANIFEST_SHA_PATH_WITHOUT_TRAILING_SLASH}' if it exists"
-        jf rt delete --quiet ${HELM_OCI_MANIFEST_SHA_PATH_WITHOUT_TRAILING_SLASH}
