@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.3.0](https://img.shields.io/badge/Version-3.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.x.x](https://img.shields.io/badge/AppVersion-6.x.x-informational?style=flat-square)
+![Version: 3.3.1](https://img.shields.io/badge/Version-3.3.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.x.x](https://img.shields.io/badge/AppVersion-6.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Platform's control plane.
 
@@ -18,10 +18,10 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 |-----|------|---------|-------------|
 | commonLabels | object | `{}` | Additional labels to add to all resources of all services |
 | docs.affinity | object | `{}` | Affinity |
-| docs.autoscaling.averageCPUUtilization | int | `80` | Average CPU utilization percentage. Unset to disable. |
-| docs.autoscaling.averageMemoryValue | int | `80` | Average Memory value. Unset to disable. |
+| docs.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Unset to disable. |
 | docs.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
 | docs.autoscaling.maxReplicas | int | `2` | Maximum number of replicas |
+| docs.autoscaling.memoryUtilization | int | `80` | Average Memory value. Unset to disable. |
 | docs.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | docs.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | docs.containerSecurityContext | object | `{"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":1000}` | Primary container's security context |
@@ -46,10 +46,10 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | docs.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | docs.volumes | list | `[]` | Pod Volumes |
 | fileservice.affinity | object | `{}` | Affinity |
-| fileservice.autoscaling.averageCPUUtilization | int | `80` | Average CPU utilization percentage. Unset to disable. |
-| fileservice.autoscaling.averageMemoryValue | int | `80` | Average Memory value. Unset to disable. |
+| fileservice.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Unset to disable. |
 | fileservice.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
 | fileservice.autoscaling.maxReplicas | int | `2` | Maximum number of replicas |
+| fileservice.autoscaling.memoryUtilization | int | `80` | Average Memory value. Unset to disable. |
 | fileservice.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | fileservice.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | fileservice.containerSecurityContext | object | `{}` | Primary container's security context |
@@ -77,10 +77,10 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | fileservice.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | fileservice.volumes | list | `[]` | Pod Volumes |
 | frontend.affinity | object | `{}` | Affinity |
-| frontend.autoscaling.averageCPUUtilization | int | `80` | Average CPU utilization percentage. Unset to disable. |
-| frontend.autoscaling.averageMemoryValue | int | `80` | Average Memory value. Unset to disable. |
+| frontend.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Unset to disable. |
 | frontend.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
 | frontend.autoscaling.maxReplicas | int | `3` | Maximum number of replicas |
+| frontend.autoscaling.memoryUtilization | int | `80` | Average Memory value. Unset to disable. |
 | frontend.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | frontend.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | frontend.containerSecurityContext | object | `{"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":1000}` | Primary container's security context |
@@ -109,10 +109,10 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | fullnameOverride | string | `"istari"` | Override the prefix used for resource names, which defaults to the chart name (istari-platform). |
 | imagePullSecrets[0].name | string | `"docker-pull-secret"` |  |
 | magicDocs.affinity | object | `{}` | Affinity |
-| magicDocs.autoscaling.averageCPUUtilization | int | `80` | Average CPU utilization percentage. Unset to disable. |
-| magicDocs.autoscaling.averageMemoryValue | int | `80` | Average Memory value. Unset to disable. |
+| magicDocs.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Unset to disable. |
 | magicDocs.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
 | magicDocs.autoscaling.maxReplicas | int | `2` | Maximum number of replicas |
+| magicDocs.autoscaling.memoryUtilization | int | `80` | Average Memory value. Unset to disable. |
 | magicDocs.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | magicDocs.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | magicDocs.containerSecurityContext | object | `{"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":1000}` | Primary container's security context |
@@ -139,10 +139,10 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | magicDocs.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | magicDocs.volumes | list | `[]` | Pod Volumes |
 | mcp.affinity | object | `{}` | Affinity |
-| mcp.autoscaling.averageCPUUtilization | int | `80` | Average CPU utilization percentage. Unset to disable. |
-| mcp.autoscaling.averageMemoryValue | int | `80` | Average Memory value. Unset to disable. |
+| mcp.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Unset to disable. |
 | mcp.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
 | mcp.autoscaling.maxReplicas | int | `3` | Maximum number of replicas |
+| mcp.autoscaling.memoryUtilization | int | `80` | Average Memory value. Unset to disable. |
 | mcp.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | mcp.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | mcp.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":1001}` | Primary container's security context |
