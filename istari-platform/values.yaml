@@ -94,9 +94,9 @@ fileservice:
     # -- Maximum number of replicas
     maxReplicas: 2
     # -- Average CPU utilization percentage. Unset to disable.
-    averageCPUUtilization: 80
+    cpuUtilization: 80
     # -- Average Memory value. Unset to disable.
-    averageMemoryValue: 80
+    memoryUtilization: 80
   # Resources -- set resources
   resources: {}
   # -- Pod Volumes
@@ -188,9 +188,9 @@ frontend:
     # -- Maximum number of replicas
     maxReplicas: 3
     # -- Average CPU utilization percentage. Unset to disable.
-    averageCPUUtilization: 80
+    cpuUtilization: 80
     # -- Average Memory value. Unset to disable.
-    averageMemoryValue: 80
+    memoryUtilization: 80
   # Resources -- set resources
   resources: {}
   # -- Tolerations.
@@ -294,9 +294,9 @@ mcp:
     # -- Maximum number of replicas
     maxReplicas: 3
     # -- Average CPU utilization percentage. Unset to disable.
-    averageCPUUtilization: 80
+    cpuUtilization: 80
     # -- Average Memory value. Unset to disable.
-    averageMemoryValue: 80
+    memoryUtilization: 80
   # Resources -- set resources
   resources: {}
   # -- Tolerations.
@@ -394,9 +394,9 @@ docs:
     # -- Maximum number of replicas
     maxReplicas: 2
     # -- Average CPU utilization percentage. Unset to disable.
-    averageCPUUtilization: 80
+    cpuUtilization: 80
     # -- Average Memory value. Unset to disable.
-    averageMemoryValue: 80
+    memoryUtilization: 80
   # Resources -- set resources
   resources: {}
   # -- Pod Volumes
@@ -488,9 +488,9 @@ magicDocs:
     # -- Maximum number of replicas
     maxReplicas: 2
     # -- Average CPU utilization percentage. Unset to disable.
-    averageCPUUtilization: 80
+    cpuUtilization: 80
     # -- Average Memory value. Unset to disable.
-    averageMemoryValue: 80
+    memoryUtilization: 80
   # Resources -- set resources
   resources: {}
   # -- Pod Volumes
