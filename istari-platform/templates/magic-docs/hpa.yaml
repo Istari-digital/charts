@@ -28,8 +28,8 @@ spec:
     resource:
       name: memory
       target:
-        type: AverageValue
-        averageValue: {{ $serviceValues.autoscaling.memoryUtilization }}
+        type: Utilization
+        averageUtilization: {{ $serviceValues.autoscaling.memoryUtilization }}
   {{- end }}
 {{- end }}
 {{- end }}
