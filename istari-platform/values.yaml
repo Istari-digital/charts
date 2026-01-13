@@ -93,9 +93,9 @@ fileservice:
     minReplicas: 1
     # -- Maximum number of replicas
     maxReplicas: 2
-    # -- Average CPU utilization percentage. Unset to disable.
+    # -- Average CPU utilization percentage. Set to `null` to disable.
     cpuUtilization: 80
-    # -- Average Memory value. Unset to disable.
+    # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
   # Resources -- set resources
   resources: {}
@@ -187,9 +187,9 @@ frontend:
     minReplicas: 1
     # -- Maximum number of replicas
     maxReplicas: 3
-    # -- Average CPU utilization percentage. Unset to disable.
+    # -- Average CPU utilization percentage. Set to `null` to disable.
     cpuUtilization: 80
-    # -- Average Memory value. Unset to disable.
+    # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
   # Resources -- set resources
   resources: {}
@@ -293,9 +293,9 @@ mcp:
     minReplicas: 1
     # -- Maximum number of replicas
     maxReplicas: 3
-    # -- Average CPU utilization percentage. Unset to disable.
+    # -- Average CPU utilization percentage. Set to `null` to disable.
     cpuUtilization: 80
-    # -- Average Memory value. Unset to disable.
+    # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
   # Resources -- set resources
   resources: {}
@@ -393,9 +393,9 @@ docs:
     minReplicas: 1
     # -- Maximum number of replicas
     maxReplicas: 2
-    # -- Average CPU utilization percentage. Unset to disable.
+    # -- Average CPU utilization percentage. Set to `null` to disable.
     cpuUtilization: 80
-    # -- Average Memory value. Unset to disable.
+    # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
   # Resources -- set resources
   resources: {}
@@ -487,9 +487,9 @@ magicDocs:
     minReplicas: 1
     # -- Maximum number of replicas
     maxReplicas: 2
-    # -- Average CPU utilization percentage. Unset to disable.
+    # -- Average CPU utilization percentage. Set to `null` to disable.
     cpuUtilization: 80
-    # -- Average Memory value. Unset to disable.
+    # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
   # Resources -- set resources
   resources: {}
