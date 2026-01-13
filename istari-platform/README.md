@@ -134,7 +134,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | magicDocs.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | magicDocs.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | magicDocs.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| magicDocs.tag | string | `"3.3.11"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| magicDocs.tag | string | `"3.3.12"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | magicDocs.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | magicDocs.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | magicDocs.volumes | list | `[]` | Pod Volumes |

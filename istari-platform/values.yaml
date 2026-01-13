@@ -428,7 +428,7 @@ magicDocs:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "magic-docs-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "3.3.11"
+  tag: "3.3.12"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
