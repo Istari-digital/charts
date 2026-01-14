@@ -338,7 +338,7 @@ docs:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "docs-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "6.8.0"
+  tag: "6.9.0"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Replica count
