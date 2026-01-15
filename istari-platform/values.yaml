@@ -128,7 +128,7 @@ frontend:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "frontend-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "8.20.0"
+  tag: "8.20.1"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -338,7 +338,7 @@ docs:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "docs-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "6.9.0"
+  tag: "6.9.1"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Replica count
