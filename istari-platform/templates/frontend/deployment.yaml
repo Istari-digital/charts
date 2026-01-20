@@ -40,10 +40,14 @@ spec:
       {{- end }}
       containers:
       - name: {{ .Chart.Name | quote }}
-        {{- with $serviceValues.containerSecurityContext }}
         securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          {{- with $serviceValues.containerSecurityContext }}
           {{- toYaml . | nindent 10 }}
-        {{- end }}
+          {{- end }}
         image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         ports:
