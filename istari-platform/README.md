@@ -145,7 +145,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | mcp.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | mcp.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | mcp.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
-| mcp.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":1001}` | Primary container's security context |
+| mcp.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | mcp.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
 | mcp.enabled | bool | `false` | Enable / Disable the whole deployment |
 | mcp.env | list | `[]` |  |
@@ -155,7 +155,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | mcp.nodeSelector | object | `{}` | Node selector |
 | mcp.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | mcp.podLabels | object | `{}` | Additional labels to add to pods |
-| mcp.podSecurityContext | object | `{"fsGroup":1001}` | Pod security context |
+| mcp.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | mcp.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.replicaCount | int | `2` | Replica count |
 | mcp.resources | object | `{}` |  |

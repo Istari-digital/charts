@@ -258,13 +258,13 @@ mcp:
   podLabels: {}
   # -- Pod security context
   podSecurityContext:
-    fsGroup: 1001
+    fsGroup: 65532
   # -- Primary container's security context
   containerSecurityContext:
     capabilities:
       drop:
       - ALL
-    runAsUser: 1001
+    runAsUser: 65532
     runAsNonRoot: true
     readOnlyRootFilesystem: false
     allowPrivilegeEscalation: false
