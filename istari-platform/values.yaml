@@ -153,14 +153,15 @@ frontend:
   podLabels: {}
   # -- Pod security context
   podSecurityContext:
-    fsGroup: 2000
+    fsGroup: 65532
   # -- Primary container's security context
   containerSecurityContext:
     capabilities:
       drop:
       - ALL
-    runAsUser: 1000
-    runAsNonRoot: true
+    # Frontend runs one configuration step and demotes itself to nonroot
+    runAsUser: 0
+    runAsNonRoot: false
     readOnlyRootFilesystem: false
   # -- Additional annotations to apply to the service account
   serviceAccountAnnotations: {}
