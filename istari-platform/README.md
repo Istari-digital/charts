@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.3.5](https://img.shields.io/badge/Version-3.3.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.x.x](https://img.shields.io/badge/AppVersion-6.x.x-informational?style=flat-square)
+![Version: 3.4.0](https://img.shields.io/badge/Version-3.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.x.x](https://img.shields.io/badge/AppVersion-6.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Platform's control plane.
 
@@ -145,7 +145,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | mcp.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | mcp.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | mcp.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
-| mcp.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":1001}` | Primary container's security context |
+| mcp.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | mcp.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
 | mcp.enabled | bool | `false` | Enable / Disable the whole deployment |
 | mcp.env | list | `[]` |  |
@@ -155,7 +155,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | mcp.nodeSelector | object | `{}` | Node selector |
 | mcp.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | mcp.podLabels | object | `{}` | Additional labels to add to pods |
-| mcp.podSecurityContext | object | `{"fsGroup":1001}` | Pod security context |
+| mcp.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | mcp.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.replicaCount | int | `2` | Replica count |
 | mcp.resources | object | `{}` |  |
@@ -164,7 +164,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | mcp.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | mcp.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | mcp.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| mcp.tag | string | `"0.1.51"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| mcp.tag | string | `"0.1.52"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | mcp.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | mcp.volumes | list | `[]` | Pod Volumes |
