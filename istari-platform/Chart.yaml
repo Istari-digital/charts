@@ -1,7 +1,7 @@
 apiVersion: v2
 name: istari-platform
 description: An umbrella helm chart used to install all Kubernetes components of the Istari Platform's control plane.
-version: 4.0.0
+version: 3.3.6
 appVersion: 6.x.x
 type: application
 maintainers:
