@@ -2,6 +2,7 @@
 .env
 .envrc
 .netrc
+.idea
 *.old
 Chart.lock
 charts/
