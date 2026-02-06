@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.4.0](https://img.shields.io/badge/Version-3.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.x.x](https://img.shields.io/badge/AppVersion-6.x.x-informational?style=flat-square)
+![Version: 3.4.1](https://img.shields.io/badge/Version-3.4.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.x.x](https://img.shields.io/badge/AppVersion-6.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Platform's control plane.
 
@@ -41,7 +41,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | docs.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | docs.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | docs.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| docs.tag | string | `"6.9.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| docs.tag | string | `"6.9.2"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | docs.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | docs.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | docs.volumes | list | `[]` | Pod Volumes |
@@ -72,7 +72,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | fileservice.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | fileservice.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | fileservice.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| fileservice.tag | string | `"10.9.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| fileservice.tag | string | `"10.10.3"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | fileservice.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | fileservice.volumes | list | `[]` | Pod Volumes |
@@ -164,7 +164,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | mcp.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | mcp.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | mcp.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| mcp.tag | string | `"0.1.52"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| mcp.tag | string | `"0.1.56"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | mcp.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | mcp.volumes | list | `[]` | Pod Volumes |
