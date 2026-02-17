@@ -83,7 +83,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | frontend.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | frontend.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | frontend.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
-| frontend.containerSecurityContext | object | `{"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":1000}` | Primary container's security context |
+| frontend.containerSecurityContext | object | `{"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | frontend.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
 | frontend.enabled | bool | `true` | Enable / Disable the whole deployment |
 | frontend.env | list | `[]` |  |
@@ -93,7 +93,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | frontend.nodeSelector | object | `{}` | Node selector |
 | frontend.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | frontend.podLabels | object | `{}` | Additional labels to add to pods |
-| frontend.podSecurityContext | object | `{"fsGroup":2000}` | Pod security context |
+| frontend.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | frontend.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | frontend.replicaCount | int | `1` | Replica count |
 | frontend.resources | object | `{}` |  |
@@ -102,7 +102,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | frontend.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | frontend.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | frontend.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| frontend.tag | string | `"8.20.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| frontend.tag | string | `"8.23.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | frontend.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | frontend.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | frontend.volumes | list | `[]` | Pod Volumes |

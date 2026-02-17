@@ -128,7 +128,7 @@ frontend:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "frontend-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "8.20.1"
+  tag: "8.23.0"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -153,13 +153,13 @@ frontend:
   podLabels: {}
   # -- Pod security context
   podSecurityContext:
-    fsGroup: 2000
+    fsGroup: 65532
   # -- Primary container's security context
   containerSecurityContext:
     capabilities:
       drop:
       - ALL
-    runAsUser: 1000
+    runAsUser: 65532
     runAsNonRoot: true
     readOnlyRootFilesystem: false
   # -- Additional annotations to apply to the service account
