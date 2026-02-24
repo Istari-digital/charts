@@ -23,10 +23,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install Python
-      uses: actions/setup-python@v5  # Also sets 'env.pythonLocation'
+    - name: Install Python & pre-commit
+      uses: actions/setup-python@v6  # Also sets 'env.pythonLocation'
       with:
         python-version: ${{ env.python_version }}
+        pip-install: pre-commit
 
     - uses: azure/setup-helm@v4
       id: install_helm
@@ -41,13 +42,6 @@ jobs:
       with:
         # Helm Docs Version to install (Mandatory)
         version: ${{ env.helm_docs_version }}
-
-    # Based on: https://github.com/pre-commit/action/blob/0dbc303468d9ee1ae3a4cddd9b697c1424c73522/action.yml
-    - name: Install pre-commit
-      run: python -m pip install pre-commit
-      shell: bash
-    - run: python -m pip freeze --local
-      shell: bash
     - uses: actions/cache@v4
       with:
         path: ~/.cache/pre-commit
