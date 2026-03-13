@@ -157,7 +157,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | mcp.podLabels | object | `{}` | Additional labels to add to pods |
 | mcp.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | mcp.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
-| mcp.replicaCount | int | `2` | Replica count |
+| mcp.replicaCount | int | `1` | Replica count |
 | mcp.resources | object | `{}` |  |
 | mcp.restartPolicy | string | `"Always"` | Restart policy |
 | mcp.secretName | string | `"istari-mcp"` | Secret name. The secret should contain the environment variables required by the service. Note that a ConfigMap is also automatically created & used with the correct value for ISTARI_DIGITAL_REGISTRY_SERVICE_URL |

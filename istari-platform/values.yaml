@@ -241,7 +241,7 @@ mcp:
   # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
   extraEnvSecrets: []
   # -- Replica count
-  replicaCount: 2
+  replicaCount: 1
   # -- Restart policy
   restartPolicy: "Always"
   # -- Additional labels to add to all of this service's resources
