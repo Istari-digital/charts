@@ -329,7 +329,7 @@ mcp:
   # -- Affinity
   affinity: {}
 
-# Default values for Istari Documentation. This should only be used in airgapped environments.
+# Default values for Istari Digital Documentation. This should only be used in airgapped environments.
 docs:
   # -- Enable / Disable the whole deployment
   enabled: false
