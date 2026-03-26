@@ -1,14 +1,14 @@
 # istari-platform
 
-![Version: 3.5.1](https://img.shields.io/badge/Version-3.5.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.x.x](https://img.shields.io/badge/AppVersion-6.x.x-informational?style=flat-square)
+![Version: 3.5.2](https://img.shields.io/badge/Version-3.5.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.x.x](https://img.shields.io/badge/AppVersion-6.x.x-informational?style=flat-square)
 
-An umbrella helm chart used to install all Kubernetes components of the Istari Platform's control plane.
+An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
 ## Installation
 
 >[!NOTE]
->Istari needs to grant access to the Istari Artifactory to allow customers to pull the istari-platform helm chart.
->Please contact [Support Team](mailto:support@istaridigital.com) for more information.
+>Pulling the chart requires access to Istari Digital's Artifactory.
+>Please contact the [Support Team](mailto:support@istaridigital.com) for more information.
 
 Instructions for installing the istari-platform chart are available in the IT Admins section of the [official Istari Documentation](https://docs.istaridigital.com/).
 
