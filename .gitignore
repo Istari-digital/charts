@@ -5,6 +5,6 @@
 *.old
 Chart.lock
 charts/
-istari-helm*
+istari-*
 manual/
 scripts/
