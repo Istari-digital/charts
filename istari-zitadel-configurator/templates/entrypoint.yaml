@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: istari-zitadel-configurator-entrypoint-script
+stringData:
+  entrypoint.sh: |
+    #!/usr/bin/env bash
+
+    set -xe
+    pushd /terraform
+
+    #check if a Secret named ${CONFIG_TERRAFORM_STATE_SECRET_NAME} exists
+    if kubectl get secret ${CONFIG_TERRAFORM_STATE_SECRET_NAME}; then
+      kubectl get secret ${CONFIG_TERRAFORM_STATE_SECRET_NAME} -o jsonpath='{.data.terraform\.tfstate}' | base64 -d > /terraform/state/terraform.tfstate
+      echo "Retrieved existing Secret ${CONFIG_TERRAFORM_STATE_SECRET_NAME}"
+    else
+      echo "No existing Secret ${CONFIG_TERRAFORM_STATE_SECRET_NAME} found, proceeding with empty state"
+    fi
+
+    terraform init -lock=false
+    if [ "$CONFIG_PLAN_ONLY" = "true" ]; then
+      echo "Running in plan-only mode"
+      terraform plan
+      exit 0
+    fi
+
+    terraform plan -out=/terraform/.terraform/terraform.tfplan
+    # We still need to write the state to the secret even if apply fails
+    terraform apply -parallelism=1 /terraform/.terraform/terraform.tfplan || exit 0
+
+    # Create or update the Secret with the Terraform state
+    kubectl create secret generic ${CONFIG_TERRAFORM_STATE_SECRET_NAME} --from-file=/terraform/state/terraform.tfstate --dry-run=client -o yaml | kubectl apply -f -
+
+
+    terraform output -raw secret_file > /tmp/zitadel-secrets.yaml
+    # This allows creation and updating of the secret in the cluster
+    kubectl apply -f /tmp/zitadel-secrets.yaml

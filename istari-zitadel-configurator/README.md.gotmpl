@@ -1,0 +1,54 @@
+{{ template "chart.header" . }}
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.badgesSection" . }}
+
+{{ template "chart.description" . }}
+
+{{ template "chart.homepageLine" . }}
+
+## Overview
+This chart automates the setup and configuration of Zitadel resources for the Istari Platform.
+
+## Features
+- Automates ZITADEL configuration for Istari environments
+- Integrates with Istari platform services
+- Supports custom values for flexible deployments
+
+## Prerequisites
+- [Helm 3.x](https://helm.sh/)
+- Access to a Kubernetes cluster
+
+## Installation
+
+>[!NOTE]
+>Pulling the chart requires access to Istari Digital's Artifactory.
+>Please contact the [Support Team](mailto:support@istaridigital.com) for more information.
+
+```sh
+helm repo add istari-digital https://istaridigital.jfrog.io/artifactory/api/helm/main-helm-local --username <username> --password <token>
+helm install istari-zitadel-configurator istari-digital/istari-zitadel-configurator [--values my-values.yaml]
+```
+
+## Configuration
+You must customize the deployment by providing your own `values.yaml` file. See the [values.yaml](values.yaml) for all available configuration options.
+
+Example:
+```yaml
+configurator:
+  org_name: "istari"
+  zitadel_domain: "your-zitadel-domain"
+  # ... more configuration ...
+```
+
+## Uninstall
+```sh
+helm uninstall istari-zitadel-configurator
+```
+{{ template "chart.sourcesSection" . }}
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "chart.maintainersSection" . }}
