@@ -1,0 +1,188 @@
+image:
+  # -- Docker registry where the image is hosted
+  registry: istaridigital.jfrog.io
+  # -- Docker repository for the image
+  repository: main-docker-local/zitadel-configurator
+  # -- Image pull policy (e.g., Always, IfNotPresent, Never)
+  pullPolicy: IfNotPresent
+  # -- Image tag to use
+  tag: "1.0.0"
+
+# -- Override the name of the chart.
+nameOverride: istari-zitadel-configurator
+
+# -- Override the name of the chart.
+fullnameOverride: istari-zitadel-configurator
+imagePullSecrets:
+- name: "docker-pull-secret"
+
+# This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# This is for setting Kubernetes Annotations to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+podAnnotations: {}
+# This is for setting Kubernetes Labels to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+podLabels: {}
+
+# -- Security context for the Pod. For more information, see:
+# https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+podSecurityContext:
+  # -- Group ID for all files created by containers in the Pod
+  fsGroup: 2000
+
+# -- Security context for the container. For more information, see:
+# https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+securityContext:
+  # -- Drop all Linux capabilities for the container
+  capabilities:
+    drop:
+    - ALL
+  # -- Mount the root filesystem as read-only
+  readOnlyRootFilesystem: true
+  # -- Run the container as a non-root user
+  runAsNonRoot: true
+  # -- User ID to run the entrypoint of the container process
+  runAsUser: 1000
+  # -- Prevent privilege escalation
+  allowPrivilegeEscalation: false
+
+# -- Resource requests and limits for the container. For more information, see:
+# https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+resources:
+  limits:
+    cpu: "1"
+    memory: 512Mi
+  requests:
+    cpu: "1"
+    memory: 512Mi
+
+# -- Node selector for pod assignment. For more information, see:
+# https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+nodeSelector: {}
+
+# -- Tolerations for pod assignment. For more information, see:
+# https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+tolerations: []
+
+# -- Affinity rules for pod assignment. For more information, see:
+# https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+affinity: {}
+
+# -- Name of an existing ConfigMap containing trusted CA certificates (key: bundle.crt).
+# Used in SSL inspection environments (Zscaler, Broadcom, Fortinet).
+# When set to a non-empty string, the ConfigMap is mounted into the container at /etc/pki/tls/certs/ca-bundle.crt.
+# Leave empty to disable.
+trustedCertBundleUseExistingConfigMap: ""
+
+# -- Additional environment variables to add to the container.
+extraEnv: []
+
+# -- Additional volume mounts to add to the container.
+extraVolumeMounts: []
+
+# -- Additional volumes to add to the pod.
+extraVolumes: []
+
+override:
+  # -- Enable overriding terraform plan with custom pre-existing plan. If enabled is set to true, "configurator" part of the values.yaml will be ignored.
+  enabled: false
+  # -- Name of kubernetes secret containing terraform plan
+  plan_secret_name: istari-zitadel-configurator-overrides-terraform
+  # -- Name of kubernetes secret containing entrypoint script for the container
+  entrypoint_secret_name: istari-zitadel-configurator-overrides-entrypoint
+
+# We assume customer domain is "domain.com", specifically "main_domain" value.
+# Please change it to your domain.
+configurator:
+  # -- Set to true to enable debug mode for the Terraform plan; pod logs will display the planning output. Set to false to apply the Terraform changes instead.
+  plan_only: false
+
+  # -- This will determine the main domain for the Terraform configuration.
+  main_domain: domain.com
+
+  # -- Enable auto configuration of subdomains. If enabled is set to true.
+  # If set to true, the following domains will be assumed (Please note using domain.com as an example):
+  # Frontend service subdomain: https://domain.com and https://v2.domain.com
+  # MCP service subdomain: https://mcp.domain.com
+  # Any additional subdomains required by Istari-Platform helm chart will take values as:
+  #   http://[subdomain].domain.com
+  #
+  # If set to false, the following values have to be provided:
+  # `frontend_post_logout_redirect_uris`, `frontend_redirect_uris`, `mcp_service.post_logout_redirect_uris`, `mcp_service.redirect_uris`
+  auto_configure_subdomains: true
+
+  # -- Ziatdel domain
+  zitadel_domain: "zitadel.domain.com"
+  # -- Ziatdel port
+  zitadel_port: 443
+  # -- Whether to connect to Ziatdel over insecure channel
+  zitadel_insecure: false
+  # -- The secret name the is created by Ziatdel helm chart
+  zitadel_sa_secret_name: "zitadel-sa-user"
+  # -- URLs inside this array should not end with a trailing "/"
+  frontend_service_post_logout_redirect_uris:
+  - https://domain.com
+  # -- URLs inside this array should not end with a trailing "/"
+  frontend_service_redirect_uris:
+  - https://domain.com
+  # -- MCP service
+  mcp_service:
+    # -- Whether to create MCP application in Zitadel
+    enabled: false
+    # -- URLs inside this array should not end with a trailing "/". Required only if MCP is enabled.
+    post_logout_redirect_uris:
+    - https://mcp.domain.com
+    # -- URLs inside this array should not end with a trailing "/". Required only if MCP is enabled.
+    redirect_uris:
+    - https://mcp.domain.com
+    # -- In case auto_configure_subdomains is enabled, this might be used to configure additional domains for the application in Ziatdel.
+    additional_redirect_uris: []
+  # -- Display name of the organization
+  org_name: "istari"
+  # -- Organization owner user
+  org_owner:
+    email: "local_admin@domain.com"
+    firstname: "local"
+    lastname: "admin"
+    temporary_password: "IstariLocalPassword1!"
+    username: "local_admin"
+  # -- Privacy policy link
+  privacy_link: "https://domain.com/privacy-policy"
+  # -- Display name of the project
+  project_name: "istari"
+  # -- Terms of service link
+  tos_link: "https://domain.com/terms-of-service"
+  smtp:
+    # -- Whether to create SMTP application in Zitadel
+    enabled: false
+    # -- Recommended way to configure SMTP settings. Indicates whether to use an existing secret or create a new one.
+    existing_secret: true
+    # -- The key in the existing secret that contains the SMTP password.
+    existing_secret_key: "smtp_password"
+    # -- The name of the existing secret that contains the SMTP settings.
+    existing_secret_name: "configurator-secrets"
+    # -- SMTP Host
+    host: ""
+    # -- Not recommended. if smtp_existing_secret is true, this will be ignored
+    password: ""
+    # -- SMTP Port
+    port: 587
+    # -- Email address to use for sending out emails
+    sender_address: ""
+    # -- Name to use for sending out emails
+    sender_name: ""
+    # -- Whether to use TLS for SMTP communication
+    tls: true
+    # -- Username to use for SMTP authentication
+    username: ""
