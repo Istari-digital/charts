@@ -108,36 +108,6 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | frontend.volumes | list | `[]` | Pod Volumes |
 | fullnameOverride | string | `"istari"` | Override the prefix used for resource names, which defaults to the chart name (istari-platform). |
 | imagePullSecrets[0].name | string | `"docker-pull-secret"` |  |
-| magicDocs.affinity | object | `{}` | Affinity |
-| magicDocs.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
-| magicDocs.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
-| magicDocs.autoscaling.maxReplicas | int | `2` | Maximum number of replicas |
-| magicDocs.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
-| magicDocs.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
-| magicDocs.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
-| magicDocs.containerSecurityContext | object | `{"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":1000}` | Primary container's security context |
-| magicDocs.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
-| magicDocs.enabled | bool | `false` | Enable / Disable the whole deployment |
-| magicDocs.env | list | `[]` |  |
-| magicDocs.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
-| magicDocs.image | string | `"magic-docs-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
-| magicDocs.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
-| magicDocs.nodeSelector | object | `{}` | Node selector |
-| magicDocs.podAnnotations | object | `{}` | Additional annotations to add to pods |
-| magicDocs.podLabels | object | `{}` | Additional labels to add to pods |
-| magicDocs.podSecurityContext | object | `{"fsGroup":2000}` | Pod security context |
-| magicDocs.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
-| magicDocs.replicaCount | int | `1` | Replica count |
-| magicDocs.resources | object | `{}` |  |
-| magicDocs.restartPolicy | string | `"Always"` | Restart policy |
-| magicDocs.secretName | string | `"istari-magic-docs"` | Secret name. The secret should contain the environment variables required by the service. |
-| magicDocs.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
-| magicDocs.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
-| magicDocs.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| magicDocs.tag | string | `"3.3.12"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
-| magicDocs.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
-| magicDocs.volumeMounts | list | `[]` | Volume Mounts for pod containers |
-| magicDocs.volumes | list | `[]` | Pod Volumes |
 | mcp.affinity | object | `{}` | Affinity |
 | mcp.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
 | mcp.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
