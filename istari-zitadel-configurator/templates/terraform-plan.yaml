@@ -48,7 +48,7 @@ stringData:
     smtp_sender_address                 = {{ .Values.configurator.smtp.sender_address | quote }}
     smtp_sender_name                    = {{ .Values.configurator.smtp.sender_name | quote }}
     smtp_tls                            = {{ .Values.configurator.smtp.tls | quote }}
-    smtp_user                           = {{ .Values.configurator.smtp.user | quote }}
+    smtp_user                           = {{ .Values.configurator.smtp.username | quote }}
     {{- end }}
     tos_link                            = {{ .Values.configurator.tos_link | quote }}
     zitadel_domain                      = {{ .Values.configurator.zitadel_domain | quote }}
