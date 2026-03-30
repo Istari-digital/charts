@@ -6,12 +6,12 @@ on:
     branches:
     - main
     paths:
-    - charts/istari-zitadel-configurator/Chart.yaml
+    - istari-zitadel-configurator/Chart.yaml
 
 defaults:
   run:
     shell: bash
-    working-directory: ./charts/istari-zitadel-configurator
+    working-directory: ./istari-zitadel-configurator
 
 jobs:
   publish:
