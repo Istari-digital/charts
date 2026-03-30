@@ -11,8 +11,7 @@ repos:
     # Skip Helm templates (they're not valid plain YAML due to {{ ... }})
     exclude: |
       (?x)^(
-        istari-platform/templates/.*\.ya?ml |
-        charts/[^/]+/templates/.*\.ya?ml
+        [^/]+/templates/.*\.ya?ml
       )$
   - id: end-of-file-fixer
   - id: trailing-whitespace
@@ -47,8 +46,7 @@ repos:
     # Skip Helm templates here too
     exclude: |
       (?x)^(
-        istari-platform/templates/.*\.ya?ml |
-        charts/[^/]+/templates/.*\.ya?ml
+        [^/]+/templates/.*\.ya?ml
       )$
     args:
     - '-formatter=indentless_arrays=true'
