@@ -1,0 +1,25 @@
+{{ if .Values.configurator.plan_only }}
+
+`plan_only` value was provided as `true`, this chart will not perform any changes to your Zitadel instance.
+
+{{ else }}
+
+NOTE:
+`plan_only` value was provided as `false`, this chart will perform changes to your Zitadel instance.
+
+You can visit your Zitadel instance at:
+
+  {{ if .Values.configurator.zitadel_insecure }}http://{{ else }}https://{{ end }}{{ .Values.configurator.zitadel_domain }}{{ if .Values.configurator.zitadel_port }}:{{ .Values.configurator.zitadel_port }}{{ end }}
+
+To access the Zitadel instance, you can use the following credentials:
+
+  Username: {{ .Values.configurator.org_owner.username }}
+  Password: {{ .Values.configurator.org_owner.temporary_password }}
+
+You will need to reset the password on first login.
+
+{{ end }}
+
+To see the Istari Zitadel Configurator in action, you can run the following command:
+
+  kubectl -n {{ .Release.Namespace }} logs jobs/{{ include "istari-zitadel-configurator.fullname" . }}

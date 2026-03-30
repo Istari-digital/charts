@@ -1,0 +1,175 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: istari-zitadel-configurator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "istari-zitadel-configurator.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    {{- with .Values.jobAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+        sidecar.istio.io/inject: "false"
+      {{- end }}
+      labels:
+        {{- include "istari-zitadel-configurator.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "istari-zitadel-configurator.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ .Chart.Name }}
+        {{- with .Values.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        command: ["/usr/bin/env", "bash", "/entrypoint.sh"]
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- with .Values.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        env:
+          - name: CONFIG_PLAN_ONLY
+            value: {{ .Values.configurator.plan_only | quote }}
+          - name: CONFIG_TERRAFORM_STATE_SECRET_NAME
+            value: configurator-state-{{ .Values.configurator.org_name }}
+          {{- if .Values.configurator.smtp.enabled }}
+          - name: TF_VAR_smtp_password
+            {{- if .Values.configurator.smtp.existing_secret }}
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.configurator.smtp.existing_secret_name }}
+                key: {{ .Values.configurator.smtp.existing_secret_key }}
+            {{- else }}
+            value: {{ .Values.configurator.smtp.password }}
+            {{- end }}
+          {{- end }}
+          {{- if .Values.configurator.google_idp }}
+          {{- if .Values.configurator.google_idp.enabled | default false}}
+          - name: TF_VAR_google_idp_client_secret
+            {{- if .Values.configurator.google_idp.existing_secret }}
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.configurator.google_idp.existing_secret_name }}
+                key: {{ .Values.configurator.google_idp.existing_secret_key }}
+            {{- else }}
+            value: {{ .Values.configurator.google_idp.client_secret }}
+            {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.trustedCertBundleUseExistingConfigMap }}
+          - name: SSL_CERT_FILE
+            value: /etc/pki/tls/certs/ca-bundle.crt
+          - name: SSL_CERT_DIR
+            value: /etc/pki/tls/certs
+          - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
+            value: /etc/pki/tls/certs/ca-bundle.crt
+          {{- end }}
+          {{- with .Values.extraEnv }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+        volumeMounts:
+        - name: terraform-plan
+          mountPath: /terraform
+        - name: terraform-state
+          mountPath: /terraform/state
+        - name: terraform-temp
+          mountPath: /terraform/.terraform
+        - name: temp
+          mountPath: /tmp
+        - name: machinekey
+          mountPath: /machinekey
+        - name: entrypoint-script
+          mountPath: /entrypoint.sh
+          subPath: entrypoint.sh
+        {{- if .Values.trustedCertBundleUseExistingConfigMap }}
+        - name: trusted-certs
+          mountPath: /etc/pki/tls/certs/ca-bundle.crt
+          subPath: bundle.crt
+        {{- end }}
+        {{- with .Values.extraVolumeMounts }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.volumeMounts }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      restartPolicy: OnFailure
+      automountServiceAccountToken: true
+      volumes:
+      - name: terraform-state
+        emptyDir:
+          medium: Memory
+      - name: terraform-temp
+        emptyDir:
+          medium: Memory
+      - name: temp
+        emptyDir:
+          medium: Memory
+      - name: machinekey
+        secret:
+          secretName: {{ .Values.configurator.zitadel_sa_secret_name }}
+      {{- if .Values.override.enabled }}
+      - name: terraform-plan
+        secret:
+          secretName: {{ .Values.override.plan_secret_name }}
+      - name: entrypoint-script
+        secret:
+          secretName: {{ .Values.override.entrypoint_secret_name }}
+          defaultMode: 493
+          items:
+          - key: entrypoint.sh
+            path: entrypoint.sh
+      {{- else }}
+      - name: terraform-plan
+        secret:
+          secretName: istari-zitadel-configurator-terraform-plan-script
+      - name: entrypoint-script
+        secret:
+          secretName: istari-zitadel-configurator-entrypoint-script
+          defaultMode: 493
+          items:
+          - key: entrypoint.sh
+            path: entrypoint.sh
+      {{- end }}
+      {{- if .Values.trustedCertBundleUseExistingConfigMap }}
+      - name: trusted-certs
+        configMap:
+          name: {{ .Values.trustedCertBundleUseExistingConfigMap | quote }}
+      {{- end }}
+      {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

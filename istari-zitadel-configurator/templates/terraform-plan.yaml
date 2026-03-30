@@ -1,0 +1,63 @@
+{{- if not .Values.override.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: istari-zitadel-configurator-terraform-plan-script
+type: Opaque
+stringData:
+  .terraform.lock.hcl: |
+{{ .Files.Get "terraform/.terraform.lock.hcl" | indent 4 }}
+
+  main.tf: |
+{{ .Files.Get "terraform/main.tf" | indent 4 }}
+
+  moved.tf: |
+{{ .Files.Get "terraform/moved.tf" | indent 4 }}
+
+  outputs.tf: |
+{{ .Files.Get "terraform/outputs.tf" | indent 4 }}
+
+  secrets.yaml.tftpl: |
+{{ .Files.Get "terraform/secrets.yaml.tftpl" | indent 4 }}
+
+  terraform.tf: |
+{{ .Files.Get "terraform/terraform.tf" | indent 4 }}
+
+  terraform.tfvars: |
+    auto_configure_subdomains           = {{ .Values.configurator.auto_configure_subdomains }}
+    frontend_service_post_logout_redirect_uris  = [{{- range $index, $flag := .Values.configurator.frontend_service_post_logout_redirect_uris }}{{ . | quote }}{{ if ne $index (sub (len $.Values.configurator.frontend_service_post_logout_redirect_uris) 1)}}, {{ end }}{{ end }}]
+    frontend_service_redirect_uris              = [{{- range $index, $flag := .Values.configurator.frontend_service_redirect_uris }}{{ . | quote }}{{ if ne $index (sub (len $.Values.configurator.frontend_service_redirect_uris) 1)}}, {{ end }}{{ end }}]
+    main_domain                          = {{ .Values.configurator.main_domain | quote }}
+    {{- if .Values.configurator.mcp_service.enabled }}
+    mcp_enabled                         = {{ .Values.configurator.mcp_service.enabled | quote }}
+    mcp_post_logout_redirect_uris       = [{{- range $index, $flag := .Values.configurator.mcp_service.post_logout_redirect_uris }}{{ . | quote }}{{ if ne $index (sub (len $.Values.configurator.mcp_service.post_logout_redirect_uris) 1)}}, {{ end }}{{ end }}]
+    mcp_redirect_uris                   = [{{- range $index, $flag := .Values.configurator.mcp_service.redirect_uris }}{{ . | quote }}{{ if ne $index (sub (len $.Values.configurator.mcp_service.redirect_uris) 1)}}, {{ end }}{{ end }}]
+    {{- end }}
+    org_name                            = {{ .Values.configurator.org_name | quote }}
+    org_owner_email                     = {{ .Values.configurator.org_owner.email | quote }}
+    org_owner_firstname                 = {{ .Values.configurator.org_owner.firstname | quote }}
+    org_owner_lastname                  = {{ .Values.configurator.org_owner.lastname | quote }}
+    org_owner_temporary_password        = {{ .Values.configurator.org_owner.temporary_password | quote }}
+    org_owner_username                  = {{ .Values.configurator.org_owner.username | quote }}
+    project_name                        = {{ .Values.configurator.project_name | quote }}
+    privacy_link                        = {{ .Values.configurator.privacy_link | quote }}
+    sa_json_file                        = "/machinekey/{{ .Values.configurator.zitadel_sa_secret_name }}.json"
+    {{- if .Values.configurator.smtp.enabled }}
+    smtp_enabled                        = {{ .Values.configurator.smtp.enabled | quote }}
+    smtp_host                           = {{ .Values.configurator.smtp.host | quote }}
+    smtp_sender_address                 = {{ .Values.configurator.smtp.sender_address | quote }}
+    smtp_sender_name                    = {{ .Values.configurator.smtp.sender_name | quote }}
+    smtp_tls                            = {{ .Values.configurator.smtp.tls | quote }}
+    smtp_user                           = {{ .Values.configurator.smtp.username | quote }}
+    {{- end }}
+    tos_link                            = {{ .Values.configurator.tos_link | quote }}
+    zitadel_domain                      = {{ .Values.configurator.zitadel_domain | quote }}
+    zitadel_port                        = {{ .Values.configurator.zitadel_port | quote }}
+    zitadel_insecure                    = {{ .Values.configurator.zitadel_insecure | quote }}
+
+  variables.tf: |
+{{ .Files.Get "terraform/variables.tf" | indent 4 }}
+
+  default_texts.tf: |
+{{ .Files.Get "terraform/default_texts.tf" | indent 4 }}
+{{- end }}
