@@ -13,8 +13,8 @@ You can visit your Zitadel instance at:
 
 To access the Zitadel instance, you can use the following credentials:
 
-  Username: {{ .Values.configurator.org_owner_username }}
-  Password: {{ .Values.configurator.org_owner_temporary_password }}
+  Username: {{ .Values.configurator.org_owner.username }}
+  Password: {{ .Values.configurator.org_owner.temporary_password }}
 
 You will need to reset the password on first login.
 
