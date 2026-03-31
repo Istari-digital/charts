@@ -23,7 +23,7 @@ This chart automates the setup and configuration of Zitadel resources for the Is
 >Please contact the [Support Team](mailto:support@istaridigital.com) for more information.
 
 ```sh
-helm registry login istaridigital.jfrog.io --username <username> --password <token>
+helm pull oci://istaridigital.jfrog.io/customer-charts/istari-zitadel-configurator --version <version> --username <username> --password <token>
 helm upgrade --install istari-zitadel-configurator oci://istaridigital.jfrog.io/customer-charts/istari-zitadel-configurator --version <version> [--values my-values.yaml]
 ```
 
