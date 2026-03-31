@@ -23,8 +23,9 @@ This chart automates the setup and configuration of Zitadel resources for the Is
 >Please contact the [Support Team](mailto:support@istaridigital.com) for more information.
 
 ```sh
-helm repo add istari-digital https://istaridigital.jfrog.io/artifactory/api/helm/main-helm-local --username <username> --password <token>
-helm install istari-zitadel-configurator istari-digital/istari-zitadel-configurator [--values my-values.yaml]
+helm repo add istari https://istaridigital.jfrog.io/ui/repos/tree/General/customer-charts/istari-zitadel-configurator --username <username> --password <token>
+helm repo update
+helm upgrade --install istari-zitadel-configurator istari/istari-zitadel-configurator [--values my-values.yaml]
 ```
 
 ## Configuration
