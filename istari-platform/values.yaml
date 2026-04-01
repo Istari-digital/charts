@@ -2,8 +2,8 @@
 
 # This is a YAML-formatted file.
 
-# -- Override the value used for the label 'app.kubernetes.io/name', which defaults to the chart name (istari-platform).
-nameOverride: ""
+# -- Additional labels to add to all resources of all services
+commonLabels: {}
 
 # -- Override the prefix used for resource names, which defaults to the chart name (istari-platform).
 fullnameOverride: "istari"
@@ -11,8 +11,8 @@ fullnameOverride: "istari"
 imagePullSecrets:
 - name: "docker-pull-secret"
 
-# -- Additional labels to add to all resources of all services
-commonLabels: {}
+# -- Override the value used for the label 'app.kubernetes.io/name', which defaults to the chart name (istari-platform).
+nameOverride: ""
 
 # -- Optional: Trusted certificate bundle for when using a self-signed certificate. This is a PEM-encoded certificate bundle. AWS, Azure, and GCP root certs will also automatically be trusted.
 trustedCertBundle: ""
@@ -309,6 +309,98 @@ mcp:
   #   "operator": "Equal"
   #   "value": "main"
   # ```
+  # -- Pod Volumes
+  volumes: []
+  # -- Volume Mounts for pod containers
+  volumeMounts: []
+  # -- Tolerations.
+  # Example:
+  #
+  # ```
+  # tolerations:
+  # - "effect": "NoSchedule"
+  #   "key": "istari.k8s.io/role"
+  #   "operator": "Equal"
+  #   "value": "main"
+  # ```
+  tolerations: []
+  # -- Node selector
+  nodeSelector: {}
+  # -- Affinity
+  affinity: {}
+
+# Default values for Remote Share.
+remoteShare:
+  # -- Enable / Disable the whole deployment
+  enabled: false
+  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
+  registry: "istaridigital.jfrog.io/customer-docker"
+  # -- Image name. The combination of registry, image, and tag will be used to pull the image.
+  image: "remote-share-service"
+  # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
+  tag: "10.12.10"
+  # -- Image pull policy
+  imagePullPolicy: "IfNotPresent"
+  # -- Secret name. The secret should contain the environment variables required by the service.
+  secretName: "istari-remote-share"
+  # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
+  extraEnvSecrets: []
+  # -- Replica count
+  replicaCount: 1
+  # -- Restart policy
+  restartPolicy: "Always"
+  # -- Additional labels to add to all of this service's resources
+  commonLabels: {}
+  # -- Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName.
+  serviceType: "ClusterIP"
+  # -- Additional annotations to apply to the service, note the following annotations for duplicate keys.
+  serviceAnnotations: {}
+  # -- Prometheus autodiscovery annotations. If true, the following annotations will be added to the service
+  # prometheus.io/scrape: "true"
+  # prometheus.io/port: "8000"
+  # prometheus.io/path: "/stats/prometheus"
+  prometheusAutodiscoveryAnnotations: true  # if true, the following annotations will be added to the service
+  # -- Additional annotations to add to the deployment
+  deploymentAnnotations: {}
+  # -- Additional annotations to add to pods
+  podAnnotations: {}
+  # -- Additional labels to add to pods
+  podLabels: {}
+  # -- Pod security context
+  podSecurityContext: {}
+  # -- Primary container's security context
+  containerSecurityContext: {}
+  # -- Additional annotations to apply to the service account
+  serviceAccountAnnotations: {}
+  # Environment variables
+  ###############################
+  # example:
+  # env:
+  # - name: REMOTE_SHARE_LOG_LEVEL
+  #   value: DEBUG
+  ###############################
+  # If you are using secrets, you can use the following format:
+  # env:
+  # - name: REMOTE_SHARE_LOG_LEVEL
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: istari-remote-share
+  #       key: REMOTE_SHARE_LOG_LEVEL
+  env: []
+  # Autoscaling -- set autoscaling (HPA) parameters
+  autoscaling:
+    # -- Enable/Disable autoscaling
+    enabled: false
+    # -- Minimum number of replicas
+    minReplicas: 1
+    # -- Maximum number of replicas
+    maxReplicas: 2
+    # -- Average CPU utilization percentage. Set to `null` to disable.
+    cpuUtilization: 80
+    # -- Average Memory utilization percentage. Set to `null` to disable.
+    memoryUtilization: 80
+  # Resources -- set resources
+  resources: {}
   # -- Pod Volumes
   volumes: []
   # -- Volume Mounts for pod containers

@@ -1,0 +1,15 @@
+{{- /*
+We put the generated default env vars in this config map so that user-defined values of
+'remote-share.secretName', 'remote-share.extraEnvSecrets', and 'remote-share.env' will always override them.
+*/}}
+{{- $serviceValues := .Values.remoteShare -}}
+{{- if $serviceValues.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "remote-share.configmap.name" . | quote }}
+  labels:
+    {{- include "remote-share.labels" . | nindent 4 }}
+data:
+  ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+{{- end }}

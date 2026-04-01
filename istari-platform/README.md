@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.6.0](https://img.shields.io/badge/Version-3.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.7.0](https://img.shields.io/badge/Version-3.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -139,6 +139,37 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | mcp.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | mcp.volumes | list | `[]` | Pod Volumes |
 | nameOverride | string | `""` | Override the value used for the label 'app.kubernetes.io/name', which defaults to the chart name (istari-platform). |
+| remoteShare.affinity | object | `{}` | Affinity |
+| remoteShare.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
+| remoteShare.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
+| remoteShare.autoscaling.maxReplicas | int | `2` | Maximum number of replicas |
+| remoteShare.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
+| remoteShare.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
+| remoteShare.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
+| remoteShare.containerSecurityContext | object | `{}` | Primary container's security context |
+| remoteShare.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
+| remoteShare.enabled | bool | `false` | Enable / Disable the whole deployment |
+| remoteShare.env | list | `[]` |  |
+| remoteShare.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
+| remoteShare.image | string | `"remote-share-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
+| remoteShare.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| remoteShare.nodeSelector | object | `{}` | Node selector |
+| remoteShare.podAnnotations | object | `{}` | Additional annotations to add to pods |
+| remoteShare.podLabels | object | `{}` | Additional labels to add to pods |
+| remoteShare.podSecurityContext | object | `{}` | Pod security context |
+| remoteShare.prometheusAutodiscoveryAnnotations | bool | `true` | Prometheus autodiscovery annotations. If true, the following annotations will be added to the service prometheus.io/scrape: "true" prometheus.io/port: "8000" prometheus.io/path: "/stats/prometheus" |
+| remoteShare.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
+| remoteShare.replicaCount | int | `1` | Replica count |
+| remoteShare.resources | object | `{}` |  |
+| remoteShare.restartPolicy | string | `"Always"` | Restart policy |
+| remoteShare.secretName | string | `"istari-remote-share"` | Secret name. The secret should contain the environment variables required by the service. |
+| remoteShare.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
+| remoteShare.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
+| remoteShare.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
+| remoteShare.tag | string | `"10.12.10"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| remoteShare.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
+| remoteShare.volumeMounts | list | `[]` | Volume Mounts for pod containers |
+| remoteShare.volumes | list | `[]` | Pod Volumes |
 | trustedCertBundle | string | `""` | Optional: Trusted certificate bundle for when using a self-signed certificate. This is a PEM-encoded certificate bundle. AWS, Azure, and GCP root certs will also automatically be trusted. |
 
 ## Maintainers

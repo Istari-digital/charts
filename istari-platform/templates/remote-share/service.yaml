@@ -1,0 +1,25 @@
+{{- $serviceValues := .Values.remoteShare -}}
+{{- if $serviceValues.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "remote-share.fullname" . | quote }}
+  labels:
+    {{- include "remote-share.labels" . | nindent 4 }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "80"
+    prometheus.io/path: "/stats/prometheus"
+    {{- with $serviceValues.serviceAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ $serviceValues.serviceType | quote }}
+  ports:
+  - name: "http"
+    port: 80
+    targetPort: "http"
+    protocol: "TCP"
+  selector:
+    {{- include "remote-share.selectorLabels" . | nindent 4 }}
+{{- end }}
