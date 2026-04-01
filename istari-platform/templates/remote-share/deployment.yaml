@@ -74,9 +74,13 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets }}
         envFrom:
-        {{- end }}
+        {{- /*
+        We put the generated default env vars in this config map so that user-defined values of
+        'remote-share.secretName', 'remote-share.extraEnvSecrets', and 'remote-share.env' will always override them.
+        */}}
+        - configMapRef:
+            name: {{ include "remote-share.configmap.name" . | quote }}
         {{- if $serviceValues.secretName }}
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
@@ -123,9 +127,13 @@ spec:
         - "alembic"
         - "upgrade"
         - "head"
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets }}
         envFrom:
-        {{- end }}
+        {{- /*
+        We put the generated default env vars in this config map so that user-defined values of
+        'remote-share.secretName', 'remote-share.extraEnvSecrets', and 'remote-share.env' will always override them.
+        */}}
+        - configMapRef:
+            name: {{ include "remote-share.configmap.name" . | quote }}
         {{- if $serviceValues.secretName }}
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
