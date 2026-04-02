@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.6.0](https://img.shields.io/badge/Version-3.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.7.0](https://img.shields.io/badge/Version-3.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -52,7 +52,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | fileservice.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | fileservice.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | fileservice.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
-| fileservice.containerSecurityContext | object | `{}` | Primary container's security context |
+| fileservice.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | fileservice.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
 | fileservice.enabled | bool | `true` | Enable / Disable the whole deployment |
 | fileservice.env | list | `[]` |  |
@@ -62,7 +62,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | fileservice.nodeSelector | object | `{}` | Node selector |
 | fileservice.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | fileservice.podLabels | object | `{}` | Additional labels to add to pods |
-| fileservice.podSecurityContext | object | `{}` | Pod security context |
+| fileservice.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | fileservice.prometheusAutodiscoveryAnnotations | bool | `true` | Prometheus autodiscovery annotations. If true, the following annotations will be added to the service prometheus.io/scrape: "true" prometheus.io/port: "8000" prometheus.io/path: "/stats/prometheus" |
 | fileservice.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.replicaCount | int | `1` | Replica count |
