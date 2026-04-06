@@ -65,9 +65,17 @@ fileservice:
   # -- Additional labels to add to pods
   podLabels: {}
   # -- Pod security context
-  podSecurityContext: {}
+  podSecurityContext:
+    fsGroup: 65532
   # -- Primary container's security context
-  containerSecurityContext: {}
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 65532
   # -- Additional annotations to apply to the service account
   serviceAccountAnnotations: {}
   # Environment variables
@@ -159,9 +167,9 @@ frontend:
     capabilities:
       drop:
       - ALL
-    runAsUser: 65532
-    runAsNonRoot: true
     readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 65532
   # -- Additional annotations to apply to the service account
   serviceAccountAnnotations: {}
   # Environment variables
@@ -261,13 +269,13 @@ mcp:
     fsGroup: 65532
   # -- Primary container's security context
   containerSecurityContext:
+    allowPrivilegeEscalation: false
     capabilities:
       drop:
       - ALL
-    runAsUser: 65532
-    runAsNonRoot: true
     readOnlyRootFilesystem: false
-    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 65532
   # -- Additional annotations to apply to the service account
   serviceAccountAnnotations: {}
   # Environment variables
@@ -365,9 +373,9 @@ docs:
     capabilities:
       drop:
       - ALL
-    runAsUser: 1000
-    runAsNonRoot: true
     readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 1000
   # -- Additional annotations to apply to the service account
   serviceAccountAnnotations: {}
   # Environment variables
