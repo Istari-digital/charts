@@ -2,9 +2,9 @@ apiVersion: v2
 name: istari-zitadel-configurator
 description: A Helm chart for configuring Zitadel instance to work with Istari.
 type: application
-version: "1.6.1"
+version: "1.6.2"
 # this matches the version of Zitadel helm chart
-appVersion: "8.7.2"
+appVersion: "8.13.4"
 maintainers:
 - name: Istari Digital Infrastructure Team
   email: infra@istaridigital.com
