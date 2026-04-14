@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.7.0](https://img.shields.io/badge/Version-3.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.8.0](https://img.shields.io/badge/Version-3.8.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -59,6 +59,11 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | fileservice.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | fileservice.image | string | `"fileservice2"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| fileservice.migrations.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). When `true`, Helm may remove the Job after the migration succeeds (less clutter; logs are shorter-lived on the cluster). When `false`, only `before-hook-creation` is set, so the completed Job (and its Pods) remain until the next install or upgrade replaces the hook—useful for auditing or inspecting migration logs. |
+| fileservice.migrations.backoffLimit | int | `0` | `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries. |
+| fileservice.migrations.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only (e.g. `sidecar.istio.io/inject: "false"` to disable Istio sidecar injection). |
+| fileservice.migrations.podLabels | object | `{}` | Extra labels for the migration Job Pod template only (in addition to the standard fileservice labels). |
+| fileservice.migrations.runAsJob | bool | `false` | Run Alembic database migrations as a Helm `pre-install` / `pre-upgrade` Job instead of a Deployment `initContainer`. When `true`, a `Job` runs `alembic upgrade head` once per release before the fileservice Deployment rolls out; the fileservice `ServiceAccount` is annotated with the same hooks so it exists before the Job runs. When `false`, migrations run in an `initContainer` on each fileservice Pod before the main container starts (legacy behavior). |
 | fileservice.nodeSelector | object | `{}` | Node selector |
 | fileservice.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | fileservice.podLabels | object | `{}` | Additional labels to add to pods |
