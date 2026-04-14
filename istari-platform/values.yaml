@@ -126,6 +126,21 @@ fileservice:
   nodeSelector: {}
   # -- Affinity
   affinity: {}
+  migrations:
+    # -- Run Alembic database migrations as a Helm `pre-install` / `pre-upgrade` Job instead of a Deployment `initContainer`.
+    # When `true`, a `Job` runs `alembic upgrade head` once per release before the fileservice Deployment rolls out; the fileservice `ServiceAccount` is annotated with the same hooks so it exists before the Job runs.
+    # When `false`, migrations run in an `initContainer` on each fileservice Pod before the main container starts (legacy behavior).
+    runAsJob: false
+    # -- `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries.
+    backoffLimit: 0
+    # -- Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`).
+    # When `true`, Helm may remove the Job after the migration succeeds (less clutter; logs are shorter-lived on the cluster).
+    # When `false`, only `before-hook-creation` is set, so the completed Job (and its Pods) remain until the next install or upgrade replaces the hook—useful for auditing or inspecting migration logs.
+    autoCleanupSuccessfulJob: true
+    # -- Annotations for the migration Job Pod template only (e.g. `sidecar.istio.io/inject: "false"` to disable Istio sidecar injection).
+    podAnnotations: {}
+    # -- Extra labels for the migration Job Pod template only (in addition to the standard fileservice labels).
+    podLabels: {}
 
 # Default values for Frontend.
 frontend:
