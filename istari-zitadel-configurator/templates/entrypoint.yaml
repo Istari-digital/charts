@@ -27,7 +27,7 @@ stringData:
 
     terraform plan -out=/terraform/.terraform/terraform.tfplan
     # We still need to write the state to the secret even if apply fails
-    terraform apply -parallelism=1 /terraform/.terraform/terraform.tfplan || exit 0
+    terraform apply -parallelism=1 /terraform/.terraform/terraform.tfplan || echo "Apply failed, continuing with state update"
 
     # Create or update the Secret with the Terraform state
     kubectl create secret generic ${CONFIG_TERRAFORM_STATE_SECRET_NAME} --from-file=/terraform/state/terraform.tfstate --dry-run=client -o yaml | kubectl apply -f -
