@@ -1,8 +1,9 @@
 ---
 reviewed: no
 fips_compliant: no
-risk_tier: unknown
-component_type: ""
+fips_exposure: unknown
+target_os: n/a
+component_type: "Helm Charts"
 last_reviewed: ""
 reviewer: ""
 ---
