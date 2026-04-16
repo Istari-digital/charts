@@ -1,5 +1,6 @@
 ---
-fips_status: non-compliant
+reviewed: no
+fips_compliant: no
 risk_tier: unknown
 component_type: ""
 last_reviewed: ""
