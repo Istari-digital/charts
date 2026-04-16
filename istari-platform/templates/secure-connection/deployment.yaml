@@ -101,7 +101,6 @@ spec:
           value: /usr/lib/ssl/cert.pem
         - name: REQUESTS_CA_BUNDLE
           value: /usr/lib/ssl/cert.pem
-        {{- /* SSL_CERT_DIR must be OpenSSL's trusted-CA directory (…/certs), not the openssl prefix; same as initContainers / migration Job. */}}
         - name: SSL_CERT_DIR
           value: /usr/lib/ssl/certs
         - name: SSL_CERT_FILE
@@ -122,7 +121,12 @@ spec:
       {{- if not (dig "migrations" "runAsJob" false $serviceValues) }}
       initContainers:
       - name: "init-db"
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         command:
         - "poetry"
         - "run"

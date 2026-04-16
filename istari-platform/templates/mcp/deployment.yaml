@@ -89,7 +89,6 @@ spec:
           value: /usr/lib/ssl/cert.pem
         - name: REQUESTS_CA_BUNDLE
           value: /usr/lib/ssl/cert.pem
-        {{- /* SSL_CERT_DIR must be OpenSSL's trusted-CA directory (…/certs), not the openssl prefix. */}}
         - name: SSL_CERT_DIR
           value: /usr/lib/ssl/certs
         - name: SSL_CERT_FILE
