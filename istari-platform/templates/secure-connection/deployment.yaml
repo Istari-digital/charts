@@ -176,9 +176,11 @@ spec:
       {{- with $serviceValues.volumes }}
       {{- toYaml . | nindent 6 }}
       {{- end }}
+      {{- if .Values.trustedCertBundle }}
       - name: trusted-certs
         configMap:
           name: {{ include "shared.trustedCerts.name" . | quote }}
+      {{- end }}
       {{- end }}
       {{- with $serviceValues.nodeSelector }}
       nodeSelector:

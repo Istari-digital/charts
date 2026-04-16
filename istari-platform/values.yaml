@@ -380,7 +380,7 @@ secureConnection:
   serviceAnnotations: {}
   # -- Prometheus autodiscovery annotations. If true, the following annotations will be added to the service
   # prometheus.io/scrape: "true"
-  # prometheus.io/port: "8000"
+  # prometheus.io/port: "80"
   # prometheus.io/path: "/stats/prometheus"
   prometheusAutodiscoveryAnnotations: true  # if true, the following annotations will be added to the service
   # -- Additional annotations to add to the deployment
