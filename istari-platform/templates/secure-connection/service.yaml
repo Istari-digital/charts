@@ -7,11 +7,9 @@ metadata:
   labels:
     {{- include "secure-connection.labels" . | nindent 4 }}
   annotations:
-    {{- if $serviceValues.prometheusAutodiscoveryAnnotations }}
     prometheus.io/scrape: "true"
     prometheus.io/port: "80"
     prometheus.io/path: "/stats/prometheus"
-    {{- end }}
     {{- with $serviceValues.serviceAnnotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
