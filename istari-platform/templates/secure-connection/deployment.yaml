@@ -118,6 +118,7 @@ spec:
           subPath: bundle.crt
         {{- end }}
         {{- end }}
+      {{- if not (dig "migrations" "runAsJob" false $serviceValues) }}
       initContainers:
       - name: "init-db"
         image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
@@ -171,16 +172,15 @@ spec:
           subPath: bundle.crt
         {{- end }}
         {{- end }}
+      {{- end }}
       {{- if or $serviceValues.volumes .Values.trustedCertBundle }}
       volumes:
       {{- with $serviceValues.volumes }}
       {{- toYaml . | nindent 6 }}
       {{- end }}
-      {{- if .Values.trustedCertBundle }}
       - name: trusted-certs
         configMap:
           name: {{ include "shared.trustedCerts.name" . | quote }}
-      {{- end }}
       {{- end }}
       {{- with $serviceValues.nodeSelector }}
       nodeSelector:

@@ -68,7 +68,6 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | fileservice.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | fileservice.podLabels | object | `{}` | Additional labels to add to pods |
 | fileservice.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
-| fileservice.prometheusAutodiscoveryAnnotations | bool | `true` | Prometheus autodiscovery annotations. If true, the following annotations will be added to the service prometheus.io/scrape: "true" prometheus.io/port: "8000" prometheus.io/path: "/stats/prometheus" |
 | fileservice.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.replicaCount | int | `1` | Replica count |
 | fileservice.resources | object | `{}` |  |
@@ -151,18 +150,22 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | secureConnection.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | secureConnection.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | secureConnection.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
-| secureConnection.containerSecurityContext | object | `{}` | Primary container's security context |
+| secureConnection.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | secureConnection.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
 | secureConnection.enabled | bool | `false` | Enable / Disable the whole deployment |
 | secureConnection.env | list | `[]` |  |
 | secureConnection.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | secureConnection.image | string | `"secure-connection-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| secureConnection.migrations.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). When `true`, Helm may remove the Job after the migration succeeds (less clutter; logs are shorter-lived on the cluster). When `false`, only `before-hook-creation` is set, so the completed Job (and its Pods) remain until the next install or upgrade replaces the hook—useful for auditing or inspecting migration logs. |
+| secureConnection.migrations.backoffLimit | int | `0` | `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries. |
+| secureConnection.migrations.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only (e.g. `sidecar.istio.io/inject: "false"` to disable Istio sidecar injection). |
+| secureConnection.migrations.podLabels | object | `{}` | Extra labels for the migration Job Pod template only (in addition to the standard secure-connection labels). |
+| secureConnection.migrations.runAsJob | bool | `false` | Run Alembic database migrations as a Helm `pre-install` / `pre-upgrade` Job instead of a Deployment `initContainer`. When `true`, a `Job` runs `alembic upgrade head` once per release before the secure-connection Deployment rolls out; the secure-connection `ServiceAccount` and env `ConfigMap` are annotated with the same hooks so they exist before the Job runs. When `false`, migrations run in an `initContainer` on each secure-connection Pod before the main container starts (legacy behavior). |
 | secureConnection.nodeSelector | object | `{}` | Node selector |
 | secureConnection.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | secureConnection.podLabels | object | `{}` | Additional labels to add to pods |
-| secureConnection.podSecurityContext | object | `{}` | Pod security context |
-| secureConnection.prometheusAutodiscoveryAnnotations | bool | `true` | Prometheus autodiscovery annotations. If true, the following annotations will be added to the service prometheus.io/scrape: "true" prometheus.io/port: "80" prometheus.io/path: "/stats/prometheus" |
+| secureConnection.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | secureConnection.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.replicaCount | int | `1` | Replica count |
 | secureConnection.resources | object | `{}` |  |
