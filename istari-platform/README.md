@@ -162,7 +162,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | secureConnection.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | secureConnection.podLabels | object | `{}` | Additional labels to add to pods |
 | secureConnection.podSecurityContext | object | `{}` | Pod security context |
-| secureConnection.prometheusAutodiscoveryAnnotations | bool | `true` | Prometheus autodiscovery annotations. If true, the following annotations will be added to the service prometheus.io/scrape: "true" prometheus.io/port: "8000" prometheus.io/path: "/stats/prometheus" |
+| secureConnection.prometheusAutodiscoveryAnnotations | bool | `true` | Prometheus autodiscovery annotations. If true, the following annotations will be added to the service prometheus.io/scrape: "true" prometheus.io/port: "80" prometheus.io/path: "/stats/prometheus" |
 | secureConnection.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.replicaCount | int | `1` | Replica count |
 | secureConnection.resources | object | `{}` |  |
