@@ -1,8 +1,8 @@
 {{/*
 Selector labels
 */}}
-{{- define "remote-share.selectorLabels" -}}
-app.kubernetes.io/component: "remote-share"
+{{- define "secure-connection.selectorLabels" -}}
+app.kubernetes.io/component: "secure-connection"
 app.kubernetes.io/instance: {{ .Release.Name | quote }}
 app.kubernetes.io/name: {{ include "istari-platform.name" . }}
 {{- end }}
@@ -10,15 +10,15 @@ app.kubernetes.io/name: {{ include "istari-platform.name" . }}
 {{/*
 Common labels
 */}}
-{{- define "remote-share.labels" -}}
-{{ include "remote-share.selectorLabels" . }}
+{{- define "secure-connection.labels" -}}
+{{ include "secure-connection.selectorLabels" . }}
 app.kubernetes.io/managed-by: "Helm"
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 helm.sh/chart: {{ include "istari-platform.chart" . }}
 {{- with .Values.commonLabels }}
 {{ toYaml . }}
 {{- end }}
-{{- with .Values.remoteShare.commonLabels }}
+{{- with .Values.secureConnection.commonLabels }}
 {{ toYaml . }}
 {{- end }}
 {{- end }}

@@ -352,20 +352,20 @@ mcp:
   # -- Affinity
   affinity: {}
 
-# Default values for Remote Share.
-remoteShare:
+# Default values for Secure Connection.
+secureConnection:
   # -- Enable / Disable the whole deployment
   enabled: false
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
-  image: "remote-share-service"
+  image: "secure-connection-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
   tag: "10.12.10"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
-  secretName: "istari-remote-share"
+  secretName: "istari-secure-connection"
   # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
   extraEnvSecrets: []
   # -- Replica count
@@ -399,16 +399,16 @@ remoteShare:
   ###############################
   # example:
   # env:
-  # - name: REMOTE_SHARE_LOG_LEVEL
+  # - name: SECURE_CONNECTION_LOG_LEVEL
   #   value: DEBUG
   ###############################
   # If you are using secrets, you can use the following format:
   # env:
-  # - name: REMOTE_SHARE_LOG_LEVEL
+  # - name: SECURE_CONNECTION_LOG_LEVEL
   #   valueFrom:
   #     secretKeyRef:
-  #       name: istari-remote-share
-  #       key: REMOTE_SHARE_LOG_LEVEL
+  #       name: istari-secure-connection
+  #       key: SECURE_CONNECTION_LOG_LEVEL
   env: []
   # Autoscaling -- set autoscaling (HPA) parameters
   autoscaling:

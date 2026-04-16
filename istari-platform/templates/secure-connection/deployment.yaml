@@ -1,11 +1,11 @@
-{{- $serviceValues := .Values.remoteShare -}}
+{{- $serviceValues := .Values.secureConnection -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "remote-share.fullname" . | quote }}
+  name: {{ include "secure-connection.fullname" . | quote }}
   labels:
-    {{- include "remote-share.labels" . | nindent 4 }}
+    {{- include "secure-connection.labels" . | nindent 4 }}
   {{- with $serviceValues.deploymentAnnotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -16,7 +16,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      {{- include "remote-share.selectorLabels" . | nindent 6 }}
+      {{- include "secure-connection.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with $serviceValues.podAnnotations }}
@@ -24,12 +24,12 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "remote-share.labels" . | nindent 8 }}
+        {{- include "secure-connection.labels" . | nindent 8 }}
         {{- with $serviceValues.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      serviceAccountName: {{ include "remote-share.fullname" . | quote }}
+      serviceAccountName: {{ include "secure-connection.fullname" . | quote }}
       {{- with $serviceValues.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -77,10 +77,10 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'remote-share.secretName', 'remote-share.extraEnvSecrets', and 'remote-share.env' will always override them.
+        'secureConnection.secretName', 'secureConnection.extraEnvSecrets', and 'secureConnection.env' will always override them.
         */}}
         - configMapRef:
-            name: {{ include "remote-share.configmap.name" . | quote }}
+            name: {{ include "secure-connection.configmap.name" . | quote }}
         {{- if $serviceValues.secretName }}
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
@@ -130,10 +130,10 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'remote-share.secretName', 'remote-share.extraEnvSecrets', and 'remote-share.env' will always override them.
+        'secureConnection.secretName', 'secureConnection.extraEnvSecrets', and 'secureConnection.env' will always override them.
         */}}
         - configMapRef:
-            name: {{ include "remote-share.configmap.name" . | quote }}
+            name: {{ include "secure-connection.configmap.name" . | quote }}
         {{- if $serviceValues.secretName }}
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
