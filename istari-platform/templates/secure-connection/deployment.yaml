@@ -53,7 +53,7 @@ spec:
         livenessProbe:
           failureThreshold: 30
           httpGet:
-            path: "/api/v2/health/liveness"
+            path: "/health"
             port: 8000
             scheme: HTTP
           initialDelaySeconds: 10
@@ -63,7 +63,7 @@ spec:
         readinessProbe:
           failureThreshold: 30
           httpGet:
-            path: "/api/v2/health/readiness"
+            path: "/health"
             port: 8000
             scheme: HTTP
           initialDelaySeconds: 10
