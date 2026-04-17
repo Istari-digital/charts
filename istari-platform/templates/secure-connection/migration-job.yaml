@@ -1,35 +1,36 @@
-{{- $serviceValues := .Values.mcp -}}
-{{- if $serviceValues.enabled }}
-apiVersion: apps/v1
-kind: Deployment
+{{- $serviceValues := .Values.secureConnection -}}
+{{- $migrationsRunAsJob := dig "migrations" "runAsJob" false $serviceValues -}}
+{{- $migrationsAutoCleanupSuccessfulJob := dig "migrations" "autoCleanupSuccessfulJob" true $serviceValues -}}
+{{- $migrationsPodAnnotations := dig "migrations" "podAnnotations" dict $serviceValues -}}
+{{- $migrationsPodLabels := dig "migrations" "podLabels" dict $serviceValues -}}
+{{- $migrationsBackoffLimit := dig "migrations" "backoffLimit" 0 $serviceValues -}}
+{{- if and $serviceValues.enabled $migrationsRunAsJob }}
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: {{ include "mcp.fullname" . | quote }}
+  name: {{ include "secure-connection.fullname" . }}-db-migrate
   labels:
-    {{- include "mcp.labels" . | nindent 4 }}
-  {{- with $serviceValues.deploymentAnnotations }}
+    {{- include "secure-connection.labels" . | nindent 4 }}
   annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: {{ if $migrationsAutoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
 spec:
-  {{- if not $serviceValues.autoscaling.enabled }}
-  replicas: {{ $serviceValues.replicaCount }}
-  {{- end }}
-  selector:
-    matchLabels:
-      {{- include "mcp.selectorLabels" . | nindent 6 }}
+  backoffLimit: {{ $migrationsBackoffLimit | int }}
   template:
     metadata:
-      {{- with $serviceValues.podAnnotations }}
+      labels:
+        {{- include "secure-connection.labels" . | nindent 8 }}
+        {{- with $migrationsPodLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $migrationsPodAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      labels:
-        {{- include "mcp.labels" . | nindent 8 }}
-        {{- with $serviceValues.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
     spec:
-      serviceAccountName: {{ include "mcp.fullname" . | quote }}
+      restartPolicy: Never
+      serviceAccountName: {{ include "secure-connection.fullname" . | quote }}
       {{- with $serviceValues.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -39,36 +40,22 @@ spec:
       {{- toYaml . | nindent 6 }}
       {{- end }}
       containers:
-      - name: {{ .Chart.Name | quote }}
+      - name: db-migrate
         {{- with $serviceValues.containerSecurityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}
         {{- end }}
         image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
-        ports:
-        - containerPort: 8000
-          name: "http"
-          protocol: "TCP"
-        livenessProbe:
-          httpGet:
-            path: "/health"
-            port: 8000
-        readinessProbe:
-          httpGet:
-            path: "/health"
-            port: 8000
-        {{- with $serviceValues.resources }}
-        resources:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
+        command:
+        - "poetry"
+        - "run"
+        - "alembic"
+        - "upgrade"
+        - "head"
         envFrom:
-        {{- /*
-        We put the generated default env vars in this config map so that user-defined values of
-        'mcp.secretName', 'mcp.extraEnvSecrets', and 'mcp.env' will always override them.
-        */}}
         - configMapRef:
-            name: {{ include "mcp.configmap.name" . | quote }}
+            name: {{ include "secure-connection.configmap.name" . | quote }}
         {{- if $serviceValues.secretName }}
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
@@ -127,6 +114,6 @@ spec:
       {{- end }}
       {{- with $serviceValues.tolerations }}
       tolerations:
-      {{- toYaml . | nindent 6 }}
+        {{- toYaml . | nindent 6 }}
       {{- end }}
 {{- end }}

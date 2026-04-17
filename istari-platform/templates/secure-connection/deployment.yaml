@@ -1,11 +1,11 @@
-{{- $serviceValues := .Values.fileservice -}}
+{{- $serviceValues := .Values.secureConnection -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "fileservice.fullname" . | quote }}
+  name: {{ include "secure-connection.fullname" . | quote }}
   labels:
-    {{- include "fileservice.labels" . | nindent 4 }}
+    {{- include "secure-connection.labels" . | nindent 4 }}
   {{- with $serviceValues.deploymentAnnotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -16,7 +16,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      {{- include "fileservice.selectorLabels" . | nindent 6 }}
+      {{- include "secure-connection.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with $serviceValues.podAnnotations }}
@@ -24,12 +24,12 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "fileservice.labels" . | nindent 8 }}
+        {{- include "secure-connection.labels" . | nindent 8 }}
         {{- with $serviceValues.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      serviceAccountName: {{ include "fileservice.fullname" . | quote }}
+      serviceAccountName: {{ include "secure-connection.fullname" . | quote }}
       {{- with $serviceValues.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -74,9 +74,13 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets }}
         envFrom:
-        {{- end }}
+        {{- /*
+        We put the generated default env vars in this config map so that user-defined values of
+        'secureConnection.secretName', 'secureConnection.extraEnvSecrets', and 'secureConnection.env' will always override them.
+        */}}
+        - configMapRef:
+            name: {{ include "secure-connection.configmap.name" . | quote }}
         {{- if $serviceValues.secretName }}
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
@@ -129,9 +133,13 @@ spec:
         - "alembic"
         - "upgrade"
         - "head"
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets }}
         envFrom:
-        {{- end }}
+        {{- /*
+        We put the generated default env vars in this config map so that user-defined values of
+        'secureConnection.secretName', 'secureConnection.extraEnvSecrets', and 'secureConnection.env' will always override them.
+        */}}
+        - configMapRef:
+            name: {{ include "secure-connection.configmap.name" . | quote }}
         {{- if $serviceValues.secretName }}
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}

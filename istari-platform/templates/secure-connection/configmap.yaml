@@ -1,0 +1,20 @@
+{{- /*
+We put the generated default env vars in this config map so that user-defined values of
+'secureConnection.secretName', 'secureConnection.extraEnvSecrets', and 'secureConnection.env' will always override them.
+*/}}
+{{- $serviceValues := .Values.secureConnection -}}
+{{- if $serviceValues.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "secure-connection.configmap.name" . | quote }}
+  labels:
+    {{- include "secure-connection.labels" . | nindent 4 }}
+  {{- if dig "migrations" "runAsJob" false $serviceValues }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-15"
+  {{- end }}
+data:
+  ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+{{- end }}
