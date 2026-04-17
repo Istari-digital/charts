@@ -128,8 +128,6 @@ spec:
         image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         command:
-        - "poetry"
-        - "run"
         - "alembic"
         - "upgrade"
         - "head"
