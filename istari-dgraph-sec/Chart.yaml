@@ -1,0 +1,17 @@
+apiVersion: v2
+name: istari-dgraph-sec
+type: application
+version: 1.0.0
+appVersion: v25.3.2-sec.1
+description: Dgraph-sec — hardened Dgraph database for Istari platform
+keywords:
+- dgraph
+- database
+- Graph
+- GraphQL
+- nosql
+home: https://dgraph.io/
+icon: https://dgraph.io/assets/images/logo.png
+maintainers:
+- name: Istari Digital Infrastructure Team
+  email: infra@istaridigital.com
