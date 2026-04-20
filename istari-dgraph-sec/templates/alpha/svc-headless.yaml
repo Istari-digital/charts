@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "dgraph.alpha.fullname" . }}-headless
+  namespace: {{ include "dgraph.namespace" . }}
+  labels:
+    {{- include "dgraph.labels" (dict "ctx" . "component" .Values.alpha.name "extra" .Values.alpha.serviceHeadless.labels) | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: grpc-alpha-int
+      port: 7080
+      targetPort: 7080
+  selector:
+    app: {{ template "dgraph.name" . }}
+    component: {{ .Values.alpha.name }}
+    release: {{ .Release.Name }}
+  publishNotReadyAddresses: {{ .Values.alpha.service.publishNotReadyAddresses }}
