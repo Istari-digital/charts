@@ -1,4 +1,4 @@
-# dgraph-sec
+# istari-dgraph-sec
 
 ![Version: 1.0.0](https://img.shields.io/badge/Version-1.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.2-sec.1](https://img.shields.io/badge/AppVersion-v25.3.2--sec.1-informational?style=flat-square)
 Dgraph-sec — hardened Dgraph database for Istari platform
@@ -124,7 +124,7 @@ Dgraph-sec — hardened Dgraph database for Istari platform
 | commonLabels | object | `{}` |  |
 | datadog.alpha.subservice | string | `"alpha"` |  |
 | datadog.enabled | bool | `false` |  |
-| datadog.superservice | string | `"dgraph-sec"` |  |
+| datadog.superservice | string | `"istari-dgraph-sec"` |  |
 | datadog.zero.subservice | string | `"zero"` |  |
 | global.domain | string | `"cluster.local"` |  |
 | global.ingress.alpha_hostname | string | `nil` |  |
@@ -192,11 +192,11 @@ Dgraph-sec — hardened Dgraph database for Istari platform
 | serviceAccount.automountServiceAccountToken | bool | `true` |  |
 | serviceAccount.create | bool | `true` |  |
 | serviceAccount.name | string | `"dgraph"` |  |
-| tracing.alpha.service | string | `"dgraph-sec.alpha"` |  |
+| tracing.alpha.service | string | `"istari-dgraph-sec.alpha"` |  |
 | tracing.enabled | bool | `false` |  |
 | tracing.endpoint | string | `"datadog-agent.datadog.svc.cluster.local:4318"` |  |
 | tracing.ratio | string | `"0.01"` |  |
-| tracing.zero.service | string | `"dgraph-sec.zero"` |  |
+| tracing.zero.service | string | `"istari-dgraph-sec.zero"` |  |
 | zero.antiAffinity | string | `"soft"` |  |
 | zero.automountServiceAccountToken | bool | `true` |  |
 | zero.configFile | object | `{}` |  |
