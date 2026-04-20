@@ -186,7 +186,7 @@ create_certificates() {
   fi
 
   ## Add optional client certificate for MutualTLS
-  if ! [[ -z $CLIENT_NAME ]]; then
+  if [[ -n $CLIENT_NAME ]]; then
     CLIENT_OPT="--client $CLIENT_NAME"
   fi
 
@@ -194,7 +194,7 @@ create_certificates() {
   ALPHA_LIST=localhost,$(get_node_list alpha)
   ZERO_LIST=localhost,$(get_node_list zero)
   ## Append list of extra specified addresses
-  if ! [[ -z $EXTRA_LIST ]]; then
+  if [[ -n $EXTRA_LIST ]]; then
     ALPHA_LIST=$ALPHA_LIST,$EXTRA_LIST
     ZERO_LIST=$ZERO_LIST,$EXTRA_LIST
   fi
@@ -228,7 +228,7 @@ create_secret_value_file() {
 alpha:
   tls:
     files:
-$(for F in "$TLS_DIR"/alpha/*; do echo "      ${F##*/}: $(cat "$F" | base64 | tr -d '\n')"; done)
+$(for F in "$TLS_DIR"/alpha/*; do echo "      ${F##*/}: $(base64 < "$F" | tr -d '\n')"; done)
 EOF
 
   if [[ $ZERO_ENABLED == "true" ]]; then
@@ -236,7 +236,7 @@ EOF
 zero:
   tls:
     files:
-$(for F in "$TLS_DIR"/zero/*; do echo "      ${F##*/}: $(cat "$F" | base64 | tr -d '\n')"; done)
+$(for F in "$TLS_DIR"/zero/*; do echo "      ${F##*/}: $(base64 < "$F" | tr -d '\n')"; done)
 EOF
   fi
 }
