@@ -727,7 +727,7 @@ backups:
 ## following the Istari 3-tier naming convention (superservice.subservice)
 datadog:
   enabled: false
-  superservice: dgraph-sec
+  superservice: istari-dgraph-sec
   alpha:
     subservice: alpha
   zero:
@@ -741,9 +741,9 @@ tracing:
   endpoint: "datadog-agent.datadog.svc.cluster.local:4318"
   ratio: "0.01"
   alpha:
-    service: "dgraph-sec.alpha"
+    service: "istari-dgraph-sec.alpha"
   zero:
-    service: "dgraph-sec.zero"
+    service: "istari-dgraph-sec.zero"
 
 global:
   domain: cluster.local
