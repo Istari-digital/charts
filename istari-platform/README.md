@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.10.2](https://img.shields.io/badge/Version-3.10.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.11.0](https://img.shields.io/badge/Version-3.11.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -30,6 +30,13 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | docs.env | list | `[]` |  |
 | docs.image | string | `"docs-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | docs.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| docs.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
+| docs.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
+| docs.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
+| docs.ingress.hosts | list | `[{"host":"docs.istari.customer-domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
+| docs.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard docs labels). |
+| docs.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
+| docs.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
 | docs.nodeSelector | object | `{}` | Node selector |
 | docs.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | docs.podLabels | object | `{}` | Additional labels to add to pods |
@@ -59,6 +66,13 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | fileservice.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | fileservice.image | string | `"fileservice2"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| fileservice.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
+| fileservice.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
+| fileservice.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
+| fileservice.ingress.hosts | list | `[{"host":"registry.istari.customer-domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
+| fileservice.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard fileservice labels). |
+| fileservice.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
+| fileservice.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
 | fileservice.migrations.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). When `true`, Helm may remove the Job after the migration succeeds (less clutter; logs are shorter-lived on the cluster). When `false`, only `before-hook-creation` is set, so the completed Job (and its Pods) remain until the next install or upgrade replaces the hook—useful for auditing or inspecting migration logs. |
 | fileservice.migrations.backoffLimit | int | `0` | `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries. |
 | fileservice.migrations.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only (e.g. `sidecar.istio.io/inject: "false"` to disable Istio sidecar injection). |
@@ -94,6 +108,13 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | frontend.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | frontend.image | string | `"frontend-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | frontend.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| frontend.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior: cert-manager (`cert-manager.io/cluster-issuer`), nginx (`nginx.ingress.kubernetes.io/*`), ALB (`alb.ingress.kubernetes.io/scheme`, `target-type`, `certificate-arn`, `group.name`, `group.order`), etc. |
+| frontend.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass (the one annotated `ingressclass.kubernetes.io/is-default-class: "true"`). |
+| frontend.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
+| frontend.ingress.hosts | list | `[{"host":"istari.customer-domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host (per the Kubernetes Ingress API and the EKS Auto Mode ALB example). |
+| frontend.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard frontend labels). |
+| frontend.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80, the port every service in this chart exposes. |
+| frontend.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. Secrets must exist (or be created via cert-manager annotations). |
 | frontend.nodeSelector | object | `{}` | Node selector |
 | frontend.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | frontend.podLabels | object | `{}` | Additional labels to add to pods |
@@ -126,6 +147,13 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | mcp.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | mcp.image | string | `"mcp-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| mcp.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
+| mcp.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
+| mcp.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
+| mcp.ingress.hosts | list | `[{"host":"mcp.istari.customer-domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
+| mcp.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard mcp labels). |
+| mcp.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
+| mcp.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
 | mcp.nodeSelector | object | `{}` | Node selector |
 | mcp.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | mcp.podLabels | object | `{}` | Additional labels to add to pods |
@@ -157,6 +185,13 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | secureConnection.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | secureConnection.image | string | `"secure-connection-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| secureConnection.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
+| secureConnection.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
+| secureConnection.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
+| secureConnection.ingress.hosts | list | `[{"host":"secure-connection.istari.customer-domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
+| secureConnection.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard secure-connection labels). |
+| secureConnection.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
+| secureConnection.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
 | secureConnection.migrations.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). When `true`, Helm may remove the Job after the migration succeeds (less clutter; logs are shorter-lived on the cluster). When `false`, only `before-hook-creation` is set, so the completed Job (and its Pods) remain until the next install or upgrade replaces the hook—useful for auditing or inspecting migration logs. |
 | secureConnection.migrations.backoffLimit | int | `0` | `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries. |
 | secureConnection.migrations.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only (e.g. `sidecar.istio.io/inject: "false"` to disable Istio sidecar injection). |
