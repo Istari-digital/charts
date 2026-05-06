@@ -36,7 +36,7 @@ fileservice:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "fileservice2"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "10.12.24"
+  tag: "10.15.2"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -166,7 +166,7 @@ frontend:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "frontend-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "8.29.1"
+  tag: "8.31.1"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -294,7 +294,7 @@ mcp:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "mcp-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "0.3.0"
+  tag: "0.3.1"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -420,7 +420,7 @@ secureConnection:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "secure-connection-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "10.12.10"
+  tag: "10.15.2"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
