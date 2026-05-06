@@ -148,7 +148,7 @@ fileservice:
     labels: {}
     # -- One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host.
     hosts:
-    - host: registry.istari.customer_domain.com
+    - host: registry.istari.customer-domain.com
       paths:
       - path: /
         pathType: Prefix
@@ -272,20 +272,15 @@ frontend:
     labels: {}
     # -- One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host (per the Kubernetes Ingress API and the EKS Auto Mode ALB example).
     hosts:
-    - host: istari.customer_domain.com
+    - host: istari.customer-domain.com
       paths:
       - path: /
         pathType: Prefix
-        # Host-less catch-all (e.g. for ALB):
-        # - paths:
-        #   - path: /*
-        #     pathType: ImplementationSpecific
+    # Host-less catch-all (e.g. for ALB) — uncomment as a sibling list item under `hosts:`:
+    # - paths:
+    #   - path: /*
+    #     pathType: ImplementationSpecific
     # -- TLS configuration; passed through to `spec.tls[]` verbatim. Secrets must exist (or be created via cert-manager annotations).
-    # Example:
-    # tls:
-    # - secretName: frontend-tls
-    #   hosts:
-    #   - istari.customer_domain.com
     tls: []
     # -- Service port the Ingress targets. Defaults to 80, the port every service in this chart exposes.
     servicePort: 80
@@ -407,7 +402,7 @@ mcp:
     labels: {}
     # -- One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host.
     hosts:
-    - host: mcp.istari.customer_domain.com
+    - host: mcp.istari.customer-domain.com
       paths:
       - path: /
         pathType: Prefix
@@ -537,7 +532,7 @@ secureConnection:
     labels: {}
     # -- One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host.
     hosts:
-    - host: secure-connection.istari.customer_domain.com
+    - host: secure-connection.istari.customer-domain.com
       paths:
       - path: /
         pathType: Prefix
@@ -647,7 +642,7 @@ docs:
     labels: {}
     # -- One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host.
     hosts:
-    - host: docs.istari.customer_domain.com
+    - host: docs.istari.customer-domain.com
       paths:
       - path: /
         pathType: Prefix

@@ -1,5 +1,8 @@
 {{- $serviceValues := .Values.docs -}}
 {{- if and $serviceValues.enabled $serviceValues.ingress.enabled }}
+{{- if not $serviceValues.ingress.hosts }}
+{{- fail "docs.ingress.hosts must be a non-empty list when docs.ingress.enabled=true. Set hosts: [...] in values, or set docs.ingress.enabled=false." }}
+{{- end }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

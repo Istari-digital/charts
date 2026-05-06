@@ -33,7 +33,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | docs.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
 | docs.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
 | docs.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
-| docs.ingress.hosts | list | `[{"host":"docs.istari.customer_domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
+| docs.ingress.hosts | list | `[{"host":"docs.istari.customer-domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
 | docs.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard docs labels). |
 | docs.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
 | docs.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
@@ -69,7 +69,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | fileservice.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
 | fileservice.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
 | fileservice.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
-| fileservice.ingress.hosts | list | `[{"host":"registry.istari.customer_domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
+| fileservice.ingress.hosts | list | `[{"host":"registry.istari.customer-domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
 | fileservice.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard fileservice labels). |
 | fileservice.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
 | fileservice.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
@@ -111,10 +111,10 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | frontend.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior: cert-manager (`cert-manager.io/cluster-issuer`), nginx (`nginx.ingress.kubernetes.io/*`), ALB (`alb.ingress.kubernetes.io/scheme`, `target-type`, `certificate-arn`, `group.name`, `group.order`), etc. |
 | frontend.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass (the one annotated `ingressclass.kubernetes.io/is-default-class: "true"`). |
 | frontend.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
-| frontend.ingress.hosts | list | `[{"host":"istari.customer_domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host (per the Kubernetes Ingress API and the EKS Auto Mode ALB example). |
+| frontend.ingress.hosts | list | `[{"host":"istari.customer-domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host (per the Kubernetes Ingress API and the EKS Auto Mode ALB example). |
 | frontend.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard frontend labels). |
 | frontend.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80, the port every service in this chart exposes. |
-| frontend.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. Secrets must exist (or be created via cert-manager annotations). Example: tls: - secretName: frontend-tls   hosts:   - istari.customer_domain.com |
+| frontend.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. Secrets must exist (or be created via cert-manager annotations). |
 | frontend.nodeSelector | object | `{}` | Node selector |
 | frontend.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | frontend.podLabels | object | `{}` | Additional labels to add to pods |
@@ -150,7 +150,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | mcp.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
 | mcp.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
 | mcp.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
-| mcp.ingress.hosts | list | `[{"host":"mcp.istari.customer_domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
+| mcp.ingress.hosts | list | `[{"host":"mcp.istari.customer-domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
 | mcp.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard mcp labels). |
 | mcp.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
 | mcp.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
@@ -188,7 +188,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | secureConnection.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
 | secureConnection.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
 | secureConnection.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
-| secureConnection.ingress.hosts | list | `[{"host":"secure-connection.istari.customer_domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
+| secureConnection.ingress.hosts | list | `[{"host":"secure-connection.istari.customer-domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
 | secureConnection.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard secure-connection labels). |
 | secureConnection.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
 | secureConnection.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
