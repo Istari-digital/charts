@@ -635,3 +635,23 @@ docs:
   nodeSelector: {}
   # -- Affinity
   affinity: {}
+  # Ingress -- optional Kubernetes Ingress for this service.
+  ingress:
+    # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
+    enabled: false
+    # -- `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass.
+    className: ""
+    # -- Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.).
+    annotations: {}
+    # -- Additional labels on the Ingress (in addition to the standard docs labels).
+    labels: {}
+    # -- One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host.
+    hosts:
+    - host: docs.istari.customer_domain.com
+      paths:
+      - path: /
+        pathType: Prefix
+    # -- TLS configuration; passed through to `spec.tls[]` verbatim.
+    tls: []
+    # -- Service port the Ingress targets. Defaults to 80.
+    servicePort: 80

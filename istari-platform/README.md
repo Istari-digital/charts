@@ -30,6 +30,13 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | docs.env | list | `[]` |  |
 | docs.image | string | `"docs-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | docs.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| docs.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
+| docs.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
+| docs.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
+| docs.ingress.hosts | list | `[{"host":"docs.istari.customer_domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
+| docs.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard docs labels). |
+| docs.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
+| docs.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
 | docs.nodeSelector | object | `{}` | Node selector |
 | docs.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | docs.podLabels | object | `{}` | Additional labels to add to pods |
