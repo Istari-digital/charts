@@ -94,6 +94,13 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | frontend.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | frontend.image | string | `"frontend-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | frontend.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| frontend.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior: cert-manager (`cert-manager.io/cluster-issuer`), nginx (`nginx.ingress.kubernetes.io/*`), ALB (`alb.ingress.kubernetes.io/scheme`, `target-type`, `certificate-arn`, `group.name`, `group.order`), etc. |
+| frontend.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass (the one annotated `ingressclass.kubernetes.io/is-default-class: "true"`). |
+| frontend.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
+| frontend.ingress.hosts | list | `[{"host":"istari.customer_domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host (per the Kubernetes Ingress API and the EKS Auto Mode ALB example). |
+| frontend.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard frontend labels). |
+| frontend.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80, the port every service in this chart exposes. |
+| frontend.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. Secrets must exist (or be created via cert-manager annotations). Example: tls: - secretName: frontend-tls   hosts:   - istari.customer_domain.com |
 | frontend.nodeSelector | object | `{}` | Node selector |
 | frontend.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | frontend.podLabels | object | `{}` | Additional labels to add to pods |
