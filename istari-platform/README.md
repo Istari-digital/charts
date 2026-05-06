@@ -178,6 +178,13 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | secureConnection.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | secureConnection.image | string | `"secure-connection-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| secureConnection.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
+| secureConnection.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
+| secureConnection.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
+| secureConnection.ingress.hosts | list | `[{"host":"secure-connection.istari.customer_domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
+| secureConnection.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard secure-connection labels). |
+| secureConnection.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
+| secureConnection.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
 | secureConnection.migrations.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). When `true`, Helm may remove the Job after the migration succeeds (less clutter; logs are shorter-lived on the cluster). When `false`, only `before-hook-creation` is set, so the completed Job (and its Pods) remain until the next install or upgrade replaces the hook—useful for auditing or inspecting migration logs. |
 | secureConnection.migrations.backoffLimit | int | `0` | `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries. |
 | secureConnection.migrations.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only (e.g. `sidecar.istio.io/inject: "false"` to disable Istio sidecar injection). |
