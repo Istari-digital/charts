@@ -1,13 +1,5 @@
 {{- $serviceValues := .Values.frontend -}}
 {{- if and $serviceValues.enabled $serviceValues.ingress.enabled }}
-{{- if not $serviceValues.ingress.hosts }}
-{{- fail "frontend.ingress.hosts must be a non-empty list when frontend.ingress.enabled=true. Set hosts: [...] in values, or set frontend.ingress.enabled=false." }}
-{{- end }}
-{{- range $idx, $h := $serviceValues.ingress.hosts }}
-{{- if not $h.paths }}
-{{- fail (printf "frontend.ingress.hosts[%d].paths must be a non-empty list when frontend.ingress.enabled=true." $idx) }}
-{{- end }}
-{{- end }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
