@@ -61,12 +61,20 @@ resource "zitadel_project_role" "service_admin" {
   group        = "service_admin"
 }
 
+resource "zitadel_project_role" "secure_connection_service_account" {
+  project_id   = zitadel_project.istari.id
+  org_id       = zitadel_org.default.id
+  role_key     = "secure_connection_service_user"
+  display_name = "secure_connection_service_user"
+  group        = "secure_connection_service_user"
+}
+
 resource "zitadel_project_grant" "default" {
   project_id     = zitadel_project.istari.id
   org_id         = zitadel_org.default.id
   granted_org_id = zitadel_org.default.id
-  role_keys      = ["customer_admin", "istari_agent", "service_admin"]
-  depends_on     = [zitadel_project_role.customer_admin, zitadel_project_role.istari_agent, zitadel_project_role.service_admin]
+  role_keys      = ["customer_admin", "istari_agent", "service_admin", "secure_connection_service_user"]
+  depends_on     = [zitadel_project_role.customer_admin, zitadel_project_role.istari_agent, zitadel_project_role.service_admin, zitadel_project_role.secure_connection_service_account]
 }
 
 resource "zitadel_application_oidc" "istari_frontend_service" {
@@ -151,10 +159,26 @@ resource "zitadel_machine_user" "registry-service-user" {
   access_token_type = "ACCESS_TOKEN_TYPE_JWT"
 }
 
+resource "zitadel_machine_user" "secure-connection-service-user" {
+  org_id            = zitadel_org.default.id
+  user_name         = "SecureConnectionServiceMachineUser"
+  name              = "SecureConnectionServiceMachineUser"
+  description       = "The machine user for the secure-connection service"
+  access_token_type = "ACCESS_TOKEN_TYPE_JWT"
+}
+
 resource "zitadel_machine_key" "registry-service-machine-key" {
   depends_on      = [zitadel_machine_user.registry-service-user]
   org_id          = zitadel_org.default.id
   user_id         = zitadel_machine_user.registry-service-user.id
+  key_type        = "KEY_TYPE_JSON"
+  expiration_date = "2519-04-01T08:45:00Z"
+}
+
+resource "zitadel_machine_key" "secure-connection-service-machine-key" {
+  depends_on      = [zitadel_machine_user.secure-connection-service-user]
+  org_id          = zitadel_org.default.id
+  user_id         = zitadel_machine_user.secure-connection-service-user.id
   key_type        = "KEY_TYPE_JSON"
   expiration_date = "2519-04-01T08:45:00Z"
 }
@@ -175,6 +199,12 @@ resource "zitadel_org_member" "registry-service-default" {
 resource "zitadel_org_member" "human-default" {
   org_id  = zitadel_org.default.id
   user_id = zitadel_human_user.default.id
+  roles   = ["ORG_OWNER"]
+}
+
+resource "zitadel_org_member" "secure-connection-service-default" {
+  org_id  = zitadel_org.default.id
+  user_id = zitadel_machine_user.secure-connection-service-user.id
   roles   = ["ORG_OWNER"]
 }
 
