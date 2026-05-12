@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.15.0](https://img.shields.io/badge/Version-3.15.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.13.0](https://img.shields.io/badge/Version-3.13.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -156,6 +156,48 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | frontend.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | frontend.volumes | list | `[]` | Pod Volumes |
 | fullnameOverride | string | `"istari"` | Override the prefix used for resource names, which defaults to the chart name (istari-platform). |
+| identityService.affinity | object | `{}` | Affinity |
+| identityService.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
+| identityService.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
+| identityService.autoscaling.maxReplicas | int | `2` | Maximum number of replicas |
+| identityService.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
+| identityService.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
+| identityService.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
+| identityService.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
+| identityService.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
+| identityService.enabled | bool | `false` | Enable / Disable the whole deployment |
+| identityService.env | list | `[]` |  |
+| identityService.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
+| identityService.image | string | `"identity-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
+| identityService.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| identityService.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
+| identityService.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
+| identityService.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
+| identityService.ingress.hosts | list | `[{"host":"identity-service.istari.customer-domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
+| identityService.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard identity-service labels). |
+| identityService.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
+| identityService.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
+| identityService.migrations.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). When `true`, Helm may remove the Job after the migration succeeds (less clutter; logs are shorter-lived on the cluster). When `false`, only `before-hook-creation` is set, so the completed Job (and its Pods) remain until the next install or upgrade replaces the hook—useful for auditing or inspecting migration logs. |
+| identityService.migrations.backoffLimit | int | `0` | `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries. |
+| identityService.migrations.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only (e.g. `sidecar.istio.io/inject: "false"` to disable Istio sidecar injection). |
+| identityService.migrations.podLabels | object | `{}` | Extra labels for the migration Job Pod template only (in addition to the standard identity-service labels). |
+| identityService.migrations.runAsJob | bool | `false` | Run database migrations as a Helm `pre-install` / `pre-upgrade` Job instead of a Deployment `initContainer`. When `true`, a `Job` runs `/migrate` once per release before the identity-service Deployment rolls out; the identity-service `ServiceAccount` and env `ConfigMap` are annotated with the same hooks so they exist before the Job runs. When `false`, migrations run in an `initContainer` on each identity-service Pod before the main container starts (legacy behavior). |
+| identityService.nodeSelector | object | `{}` | Node selector |
+| identityService.podAnnotations | object | `{}` | Additional annotations to add to pods |
+| identityService.podLabels | object | `{}` | Additional labels to add to pods |
+| identityService.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
+| identityService.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
+| identityService.replicaCount | int | `1` | Replica count |
+| identityService.resources | object | `{}` |  |
+| identityService.restartPolicy | string | `"Always"` | Restart policy |
+| identityService.secretName | string | `"istari-identity-service"` | Secret name. The secret should contain the environment variables required by the service. |
+| identityService.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
+| identityService.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
+| identityService.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
+| identityService.tag | string | `"0.0.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| identityService.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
+| identityService.volumeMounts | list | `[]` | Volume Mounts for pod containers |
+| identityService.volumes | list | `[]` | Pod Volumes |
 | imagePullSecrets[0].name | string | `"docker-pull-secret"` |  |
 | mcp.affinity | object | `{}` | Affinity |
 | mcp.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
