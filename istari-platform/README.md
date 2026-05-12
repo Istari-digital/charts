@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.12.0](https://img.shields.io/badge/Version-3.12.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.13.0](https://img.shields.io/badge/Version-3.13.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -50,6 +50,11 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | docs.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
 | docs.tag | string | `"6.11.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | docs.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
+| docs.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
+| docs.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
+| docs.virtualService.gateways | list | `[]` | `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only. |
+| docs.virtualService.hosts | list | `["docs.example.com"]` | `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). The default below is an EXAMPLE — you MUST replace it with your actual hostname(s) before enabling the VirtualService. Clearing this list while `enabled: true` will cause the chart to fail to render. |
+| docs.virtualService.labels | object | `{}` | Additional labels on the VirtualService (in addition to the standard docs labels). |
 | docs.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | docs.volumes | list | `[]` | Pod Volumes |
 | fileservice.affinity | object | `{}` | Affinity |
@@ -92,6 +97,11 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | fileservice.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
 | fileservice.tag | string | `"10.15.2"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
+| fileservice.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
+| fileservice.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
+| fileservice.virtualService.gateways | list | `[]` | `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only. |
+| fileservice.virtualService.hosts | list | `["registry.example.com"]` | `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). The default below is an EXAMPLE — you MUST replace it with your actual hostname(s) before enabling the VirtualService. Clearing this list while `enabled: true` will cause the chart to fail to render. |
+| fileservice.virtualService.labels | object | `{}` | Additional labels on the VirtualService (in addition to the standard fileservice labels). |
 | fileservice.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | fileservice.volumes | list | `[]` | Pod Volumes |
 | frontend.affinity | object | `{}` | Affinity |
@@ -129,6 +139,11 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | frontend.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
 | frontend.tag | string | `"8.31.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | frontend.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
+| frontend.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
+| frontend.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
+| frontend.virtualService.gateways | list | `[]` | `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only. |
+| frontend.virtualService.hosts | list | `["istari.example.com"]` | `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). The default below is an EXAMPLE — you MUST replace it with your actual hostname(s) before enabling the VirtualService. Clearing this list while `enabled: true` will cause the chart to fail to render. |
+| frontend.virtualService.labels | object | `{}` | Additional labels on the VirtualService (in addition to the standard frontend labels). |
 | frontend.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | frontend.volumes | list | `[]` | Pod Volumes |
 | fullnameOverride | string | `"istari"` | Override the prefix used for resource names, which defaults to the chart name (istari-platform). |
@@ -168,6 +183,11 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | mcp.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
 | mcp.tag | string | `"0.3.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
+| mcp.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
+| mcp.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
+| mcp.virtualService.gateways | list | `[]` | `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only. |
+| mcp.virtualService.hosts | list | `["mcp.example.com"]` | `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). The default below is an EXAMPLE — you MUST replace it with your actual hostname(s) before enabling the VirtualService. Clearing this list while `enabled: true` will cause the chart to fail to render. |
+| mcp.virtualService.labels | object | `{}` | Additional labels on the VirtualService (in addition to the standard mcp labels). |
 | mcp.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | mcp.volumes | list | `[]` | Pod Volumes |
 | nameOverride | string | `""` | Override the value used for the label 'app.kubernetes.io/name', which defaults to the chart name (istari-platform). |
@@ -211,6 +231,11 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | secureConnection.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
 | secureConnection.tag | string | `"10.15.2"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
+| secureConnection.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
+| secureConnection.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
+| secureConnection.virtualService.gateways | list | `[]` | `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only. |
+| secureConnection.virtualService.hosts | list | `["secure-connection.example.com"]` | `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). The default below is an EXAMPLE — you MUST replace it with your actual hostname(s) before enabling the VirtualService. Clearing this list while `enabled: true` will cause the chart to fail to render. |
+| secureConnection.virtualService.labels | object | `{}` | Additional labels on the VirtualService (in addition to the standard secure-connection labels). |
 | secureConnection.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | secureConnection.volumes | list | `[]` | Pod Volumes |
 | trustedCertBundle | string | `""` | Optional: Trusted certificate bundle for when using a self-signed certificate. This is a PEM-encoded certificate bundle. AWS, Azure, and GCP root certs will also automatically be trusted. |

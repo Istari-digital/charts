@@ -1,0 +1,33 @@
+{{- $serviceValues := .Values.docs -}}
+{{- if and $serviceValues.enabled $serviceValues.virtualService.enabled }}
+{{- if not $serviceValues.virtualService.hosts -}}
+{{- fail "docs.virtualService.hosts must contain at least one entry when docs.virtualService.enabled is true" -}}
+{{- end }}
+{{- $svcName := include "docs.fullname" . -}}
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: {{ $svcName | quote }}
+  labels:
+    {{- include "docs.labels" . | nindent 4 }}
+    {{- with $serviceValues.virtualService.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $serviceValues.virtualService.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  hosts:
+    {{- toYaml $serviceValues.virtualService.hosts | nindent 4 }}
+  {{- with $serviceValues.virtualService.gateways }}
+  gateways:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  http:
+  - route:
+    - destination:
+        host: {{ $svcName | quote }}
+        port:
+          number: 80
+{{- end }}
