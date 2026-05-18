@@ -37,7 +37,7 @@ spec:
           {{- end }}
         spec:
           {{- if .Values.serviceAccount.create }}
-          serviceAccountName: {{ .Values.serviceAccount.name }}
+          serviceAccountName: {{ include "dgraph.serviceAccountName" . }}
           {{- end }}
           {{- if .Values.backups.schedulerName }}
           schedulerName: {{ .Values.backups.schedulerName }}

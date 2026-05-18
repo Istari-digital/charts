@@ -25,7 +25,7 @@ spec:
         {{- include "dgraph.labels" (dict "ctx" . "component" .Values.ratel.name "podLabels" .Values.ratel.podLabels) | nindent 8 }}
     spec:
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      serviceAccountName: {{ include "dgraph.serviceAccountName" . }}
       automountServiceAccountToken: {{ .Values.ratel.automountServiceAccountToken }}
       {{- end }}
       {{- if .Values.ratel.schedulerName }}

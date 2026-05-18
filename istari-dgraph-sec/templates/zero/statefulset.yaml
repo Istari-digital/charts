@@ -67,7 +67,7 @@ spec:
         {{- end }}
     spec:
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      serviceAccountName: {{ include "dgraph.serviceAccountName" . }}
       automountServiceAccountToken: {{ .Values.zero.automountServiceAccountToken }}
       {{- end }}
       {{- if .Values.zero.schedulerName }}
