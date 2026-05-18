@@ -210,9 +210,11 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: datadir
+        {{- with .Values.zero.persistence.annotations }}
         annotations:
-        {{- range $key, $value := .Values.zero.persistence.annotations }}
+          {{- range $key, $value := . }}
           {{ $key }}: {{ $value }}
+          {{- end }}
         {{- end }}
       spec:
         accessModes:

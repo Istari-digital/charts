@@ -194,6 +194,8 @@ zero:
     accessModes:
     - ReadWriteOnce
     size: 32Gi
+    ## Annotations to add to the volumeClaimTemplates metadata
+    annotations: {}
 
   ## Node labels and tolerations for pod assignment
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector

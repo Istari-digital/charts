@@ -311,6 +311,12 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: datadir
+        {{- with .Values.alpha.persistence.annotations }}
+        annotations:
+          {{- range $key, $value := . }}
+          {{ $key }}: {{ $value }}
+          {{- end }}
+        {{- end }}
       spec:
         accessModes:
         {{- range .Values.alpha.persistence.accessModes }}

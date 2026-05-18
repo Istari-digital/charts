@@ -221,6 +221,7 @@ Dgraph-sec — hardened Dgraph database for Istari platform
 | zero.nodeAffinity | object | `{}` |  |
 | zero.nodeSelector | object | `{}` |  |
 | zero.persistence.accessModes[0] | string | `"ReadWriteOnce"` |  |
+| zero.persistence.annotations | object | `{}` |  |
 | zero.persistence.enabled | bool | `true` |  |
 | zero.persistence.size | string | `"32Gi"` |  |
 | zero.podAntiAffinitytopologyKey | string | `"kubernetes.io/hostname"` |  |
