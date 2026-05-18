@@ -1,6 +1,6 @@
 # Scripts
 
-Here are some scripts that may be useful for generating helm chart values for use with `dgraph` helm chart.
+Here are some scripts that may be useful for generating helm chart values for use with the `istari-dgraph-sec` helm chart.
 
 ## make_tls_secrets.sh
 
@@ -22,16 +22,16 @@ You can verify Dgraph Alpha certificates and keys with:
 
 ```bash
 ## verify certificates and keys
-dgraph cert ls --dir ./dgraph_tls/alpha
+dgraph-sec cert ls --dir ./dgraph_tls/alpha
 ## verify list of addresses supported
-dgraph cert ls --dir ./dgraph_tls/alpha | awk -F: '/Hosts/{gsub(/\[ ]+/, "", $2); print $2}' | tr , '\n'
+dgraph-sec cert ls --dir ./dgraph_tls/alpha | awk -F: '/Hosts/{gsub(/\[ ]+/, "", $2); print $2}' | tr , '\n'
 ```
 
 You can verify Dgraph Zero certificates and keys with:
 
 ```bash
 ## verify certificates and keys
-dgraph cert ls --dir ./dgraph_tls/zero
+dgraph-sec cert ls --dir ./dgraph_tls/zero
 ## verify list of addresses supported
-dgraph cert ls --dir ./dgraph_tls/zero | awk -F: '/Hosts/{gsub(/\[ ]+/, "", $2); print $2}' | tr , '\n'
+dgraph-sec cert ls --dir ./dgraph_tls/zero | awk -F: '/Hosts/{gsub(/\[ ]+/, "", $2); print $2}' | tr , '\n'
 ```

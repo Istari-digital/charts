@@ -1,16 +1,3 @@
-{{- /* Determine Backup is REST or GraphQL */}}
-{{- define "backups.api_type" -}}
-{{- $apiType := "graphql" -}}
-{{- $safeVersion := include "dgraph.version" . -}}
-{{- if semverCompare "< 20.03" $safeVersion -}}
-  {{- $apiType = "rest" -}}
-{{- end -}}
-{{- if .Values.backups.override_api_type -}}
-  {{- printf "%s" .Values.backups.override_api_type -}}
-{{- else -}}
-  {{- printf "%s" $apiType -}}
-{{- end -}}
-{{- end -}}
 {{- if .Values.backups.full.enabled -}}
 apiVersion: batch/v1
 kind: CronJob
@@ -64,7 +51,7 @@ spec:
 
                 BACKUP_DESTINATION={{ .Values.backups.destination }}
                 SUBPATH={{ .Values.backups.subpath }}
-                API_TYPE={{ template "backups.api_type" . }}
+                API_TYPE={{ template "dgraph.backupsApiType" . }}
                 MINIO_SECURE={{ .Values.backups.minioSecure }}
 
                 ## Get Tokens

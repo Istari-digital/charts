@@ -325,3 +325,36 @@ Parameters (passed as a dict):
 tags.datadoghq.com/service: {{ $fullService }}
 tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
 {{- end -}}
+
+{{- /* Generate ingress path */}}
+{{- define "dgraph.ingressPath" -}}
+  {{- $path := "/" -}}
+  {{- if .Values.global.ingress.ingressClassName -}}
+    {{- if eq .Values.global.ingress.ingressClassName "gce" "alb" "nsx" }}
+      {{- $path = "/*" -}}
+    {{- else }}
+      {{- $path = "/" -}}
+    {{- end }}
+  {{- else if index $.Values.global.ingress "annotations" -}}
+    {{- if eq (index $.Values.global.ingress.annotations "kubernetes.io/ingress.class" | default "") "gce" "alb" "nsx" }}
+      {{- $path = "/*" -}}
+    {{- else }}
+      {{- $path = "/" -}}
+    {{- end }}
+  {{- end -}}
+  {{- printf "%s" $path -}}
+{{- end -}}
+
+{{- /* Determine Backup is REST or GraphQL */}}
+{{- define "dgraph.backupsApiType" -}}
+{{- $apiType := "graphql" -}}
+{{- $safeVersion := include "dgraph.version" . -}}
+{{- if semverCompare "< 20.03" $safeVersion -}}
+  {{- $apiType = "rest" -}}
+{{- end -}}
+{{- if .Values.backups.override_api_type -}}
+  {{- printf "%s" .Values.backups.override_api_type -}}
+{{- else -}}
+  {{- printf "%s" $apiType -}}
+{{- end -}}
+{{- end -}}
