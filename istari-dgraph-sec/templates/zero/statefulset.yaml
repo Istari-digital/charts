@@ -235,7 +235,6 @@ spec:
         {{- range $key, $value := .Values.zero.persistence.annotations }}
           {{ $key }}: {{ $value }}
         {{- end }}
-          volume.alpha.kubernetes.io/storage-class: anything
       spec:
         accessModes:
         {{- range .Values.zero.persistence.accessModes }}
