@@ -150,6 +150,22 @@ resource "zitadel_application_key" "registry-service-key" {
   expiration_date = "2519-04-01T08:45:00Z"
 }
 
+resource "zitadel_application_api" "identity-service" {
+  project_id       = zitadel_project.istari.id
+  org_id           = zitadel_org.default.id
+  name             = "identity-service"
+  auth_method_type = "API_AUTH_METHOD_TYPE_PRIVATE_KEY_JWT"
+}
+
+resource "zitadel_application_key" "identity-service-key" {
+  depends_on      = [zitadel_application_api.identity-service]
+  org_id          = zitadel_org.default.id
+  project_id      = zitadel_project.istari.id
+  app_id          = zitadel_application_api.identity-service.id
+  key_type        = "KEY_TYPE_JSON"
+  expiration_date = "2519-04-01T08:45:00Z"
+}
+
 resource "zitadel_machine_user" "registry-service-user" {
   depends_on        = [zitadel_application_key.registry-service-key]
   org_id            = zitadel_org.default.id
