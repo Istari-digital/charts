@@ -358,3 +358,51 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
   {{- printf "%s" $apiType -}}
 {{- end -}}
 {{- end -}}
+
+{{- /* Generate domain name for first zero in cluster */}}
+{{- define "dgraph.peerZero" -}}
+  {{- $zeroFullName := include "dgraph.zero.fullname" . -}}
+
+  {{- /* Append domain suffix if domain is used */}}
+  {{- $domainSuffix := "" -}}
+  {{- if .Values.global.domain -}}
+  {{- $domainSuffix = printf ".%s" .Values.global.domain -}}
+  {{- end -}}
+
+  {{- printf "%s-%d.%s-headless.${POD_NAMESPACE}.svc%s:5080" $zeroFullName 0 $zeroFullName $domainSuffix -}}
+{{- end -}}
+
+{{- /* Superflag (v21.03.0) support and legacy flags */}}
+{{- define "dgraph.raftIndexFlag" -}}
+  {{- $safeVersion := include "dgraph.version" . -}}
+  {{- if semverCompare ">= 21.03.0" $safeVersion -}}
+    {{- printf "--raft idx=" -}}
+  {{- else -}}
+    {{- printf "--idx " -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* Generate comma-separated list of Zeros */}}
+{{- define "dgraph.multiZeros" -}}
+  {{- $zeroFullName := include "dgraph.zero.fullname" . -}}
+  {{- $max := int .Values.zero.replicaCount -}}
+  {{- $safeVersion := include "dgraph.version" . -}}
+  {{- /* Reset $max to 1 if multiple zeros not supported by dgraph version */}}
+  {{- if or (semverCompare "< 1.2.3" $safeVersion) (semverCompare "= 20.03.0" $safeVersion) -}}
+     {{- $max = 1 -}}
+  {{- end -}}
+
+  {{- /* Append domain suffix if domain is used */}}
+  {{- $domainSuffix := "" -}}
+  {{- if .Values.global.domain -}}
+  {{- $domainSuffix = printf ".%s" .Values.global.domain -}}
+  {{- end -}}
+
+  {{- /* Create comma-separated list of zeros */}}
+  {{- range $idx := until $max }}
+    {{- printf "%s-%d.%s-headless.${POD_NAMESPACE}.svc%s:5080" $zeroFullName $idx $zeroFullName $domainSuffix -}}
+    {{- if ne $idx (sub $max 1) -}}
+      {{- print "," -}}
+    {{- end -}}
+  {{ end }}
+{{- end -}}
