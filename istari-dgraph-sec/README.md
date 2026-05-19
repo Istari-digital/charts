@@ -33,7 +33,7 @@ Dgraph-sec — hardened Dgraph database for Istari platform
 | alpha.initContainers.init.image.<<.pullPolicy | string | `"IfNotPresent"` |  |
 | alpha.initContainers.init.image.<<.registry | string | `"istaridigital.jfrog.io"` |  |
 | alpha.initContainers.init.image.<<.repository | string | `"main-docker-local/dgraph-sec"` |  |
-| alpha.initContainers.init.image.<<.tag | string | `"v25.3.2-sec.1"` |  |
+| alpha.initContainers.init.image.<<.tag | string | `"v25.3.4-sec.1"` |  |
 | alpha.livenessProbe.enabled | bool | `true` |  |
 | alpha.livenessProbe.failureThreshold | int | `6` |  |
 | alpha.livenessProbe.initialDelaySeconds | int | `15` |  |
@@ -99,7 +99,7 @@ Dgraph-sec — hardened Dgraph database for Istari platform
 | backups.image.<<.pullPolicy | string | `"IfNotPresent"` |  |
 | backups.image.<<.registry | string | `"istaridigital.jfrog.io"` |  |
 | backups.image.<<.repository | string | `"main-docker-local/dgraph-sec"` |  |
-| backups.image.<<.tag | string | `"v25.3.2-sec.1"` |  |
+| backups.image.<<.tag | string | `"v25.3.4-sec.1"` |  |
 | backups.incremental.debug | bool | `false` |  |
 | backups.incremental.enabled | bool | `false` |  |
 | backups.incremental.restartPolicy | string | `"Never"` |  |
@@ -142,7 +142,7 @@ Dgraph-sec — hardened Dgraph database for Istari platform
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"istaridigital.jfrog.io"` |  |
 | image.repository | string | `"main-docker-local/dgraph-sec"` |  |
-| image.tag | string | `"v25.3.2-sec.1"` |  |
+| image.tag | string | `"v25.3.4-sec.1"` |  |
 | preUpgradeHook.image.registry | string | `"istaridigital.jfrog.io"` |  |
 | preUpgradeHook.image.repository | string | `"remote-docker-dockerhub/bitnami/kubectl"` |  |
 | preUpgradeHook.image.tag | string | `"1.31"` |  |
