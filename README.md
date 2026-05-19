@@ -30,3 +30,11 @@ pre-commit init-templatedir -t pre-commit ${GLOBAL_GIT_TEMPLATE_DIR}
 pre-commit install
 pre-commit install-hooks
 ```
+
+## Charts
+
+| Chart | Description |
+|-------|-------------|
+| [istari-dgraph-sec](./istari-dgraph-sec/) | Hardened Dgraph database for the Istari platform |
+| [istari-platform](./istari-platform/) | Umbrella chart for the Istari Digital Platform control plane |
+| [istari-zitadel-configurator](./istari-zitadel-configurator/) | Configures Zitadel instance for Istari |
