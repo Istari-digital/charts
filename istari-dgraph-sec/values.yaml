@@ -176,7 +176,7 @@ zero:
   ## TLS Configuration
   tls:
     enabled: false
-    ## Files created from './tls' directory set with `dgraph cert` command
+    ## Files created from './tls' directory set with `dgraph-sec cert` command
     ## Can use make_tls_secrets.sh to generate secrets.yaml
     files: {}
 
@@ -384,7 +384,7 @@ alpha:
   ##  see https://docs.dgraph.io/admin/security/tls-configuration#tls-options
   tls:
     enabled: false
-    ## Files created from './tls' directory set with `dgraph cert` command
+    ## Files created from './tls' directory set with `dgraph-sec cert` command
     ## Can use make_tls_secrets.sh to generate secrets.yaml
     files: {}
 
@@ -482,7 +482,7 @@ alpha:
 
   ## You may want to initialize the Alphas with data before starting Alpha containers.
   ## Examples can include:
-  ## * offline data restore from binary backups with `dgraph restore`
+  ## * offline data restore from binary backups with `dgraph-sec restore`
   ##   (ref. https://docs.dgraph.io/admin/admin-tasks/binary-backups#online-restore)
   ## * bulk loader (ref. https://docs.dgraph.io/migration/bulk-loader)
   initContainers:
@@ -649,7 +649,7 @@ backups:
     user: groot
     # password: password
     ## Mutual TLS client certificate and key can be used to secure transaction that was created with
-    ## dgraph cert --client <name-of-client> should be specified here.
+    ## dgraph-sec cert --client <name-of-client> should be specified here.
     ## ref. https://docs.dgraph.io/admin/security/tls-configuration#tls-options
     tls_client: ""
     ## Authorization Token can be used to secure /login and /admin.  The auth token

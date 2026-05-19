@@ -1,6 +1,6 @@
 # istari-dgraph-sec
 
-![Version: 1.0.0](https://img.shields.io/badge/Version-1.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.2-sec.1](https://img.shields.io/badge/AppVersion-v25.3.2--sec.1-informational?style=flat-square)
+![Version: 1.0.0](https://img.shields.io/badge/Version-1.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.4-sec.1](https://img.shields.io/badge/AppVersion-v25.3.4--sec.1-informational?style=flat-square)
 Dgraph-sec — hardened Dgraph database for Istari platform
 **Homepage:** <https://dgraph.io/>
 

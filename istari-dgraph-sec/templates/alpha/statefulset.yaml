@@ -192,7 +192,7 @@ spec:
           {{- /* TODO: Remove awk-gsub once dgraph-io/dgraph#6837 is merged and back-ported. */}}
           - |
             set -ex
-            dgraph alpha --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):7080 --zero {{ template "dgraph.multiZeros" . }} {{ .Values.alpha.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.alpha.service }};"{{- end }}
+            dgraph-sec alpha --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):7080 --zero {{ template "dgraph.multiZeros" . }} {{ .Values.alpha.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.alpha.service }};"{{- end }}
         resources:
 {{ toYaml .Values.alpha.resources | indent 10 }}
         {{- if .Values.alpha.startupProbe.enabled }}

@@ -130,9 +130,9 @@ spec:
               ordinal=${BASH_REMATCH[1]}
               idx=$(($ordinal + 1))
               if [[ $ordinal -eq 0 ]]; then
-                exec dgraph zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 {{ template "dgraph.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ .Values.zero.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
+                exec dgraph-sec zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 {{ template "dgraph.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ .Values.zero.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
               else
-                exec dgraph zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 --peer {{ template "dgraph.peerZero" . }} {{ template "dgraph.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ .Values.zero.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
+                exec dgraph-sec zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 --peer {{ template "dgraph.peerZero" . }} {{ template "dgraph.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ .Values.zero.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
               fi
         resources:
 {{ toYaml .Values.zero.resources | indent 10 }}
