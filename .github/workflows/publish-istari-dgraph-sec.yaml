@@ -216,11 +216,11 @@ jobs:
       run: |
         # We exclude the trailing slash from the chart paths to avoid
         # an Artifactory UI bug where an empty folder continues to be displayed for a few minutes
-        echo "Deleting classic Helm chart from Artifactory path '${HELM_OCI_ARTIFACTORY_PATH_WITHOUT_TRAILING_SLASH}'"
+        echo "Deleting OCI Helm chart from Artifactory path '${HELM_OCI_ARTIFACTORY_PATH_WITHOUT_TRAILING_SLASH}'"
         jf rt delete --quiet ${HELM_OCI_ARTIFACTORY_PATH_WITHOUT_TRAILING_SLASH}
 
         # Delete the additional files if they exist
-        echo "Deleting classic Helm chart from Artifactory path '${HELM_OCI_MANIFEST_SHA_PATH_WITHOUT_TRAILING_SLASH}' if it exists"
+        echo "Deleting OCI Helm chart manifest from Artifactory path '${HELM_OCI_MANIFEST_SHA_PATH_WITHOUT_TRAILING_SLASH}' if it exists"
         jf rt delete --quiet ${HELM_OCI_MANIFEST_SHA_PATH_WITHOUT_TRAILING_SLASH}
 
     - name: Create Git tag from chart version

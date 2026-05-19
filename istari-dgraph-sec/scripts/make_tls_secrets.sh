@@ -31,7 +31,7 @@ Flags:
      --replicas            Number of Kubernetes replicas (default "3")
      --tls_dir             Path to top level TLS directory (default "./dgraph_tls")
   -z, --zero                Create certificates for zero as well
-     --fullname           Helm fullnameOverride value (default "\$RELEASE-istari-dgraph-sec")
+     --fullname           Helm fullnameOverride value (default mirrors dgraph.fullname: \$RELEASE-istari-dgraph-sec truncated to 24 chars)
 USAGE
 }
 
