@@ -7,8 +7,8 @@ get_alpha_list() {
   RELEASE=${RELEASE:-"my-release"}
   ## namespace used during deployment
   NAMESPACE=${NAMESPACE:-"default"}
-  ## Helm fullnameOverride (defaults to RELEASE-istari-dgraph-sec)
-  FULLNAME=${FULLNAME:-"$RELEASE-istari-dgraph-sec"}
+  ## Helm fullnameOverride. Default mirrors dgraph.fullname (printf "%s-%s" Release.Name Chart.Name | trunc 24).
+  FULLNAME=${FULLNAME:-"$(printf '%s-%s' "$RELEASE" "istari-dgraph-sec" | cut -c1-24)"}
 
   ## Build List
   for (( IDX=0; IDX<REPLICAS; IDX++ )); do

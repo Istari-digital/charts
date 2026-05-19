@@ -156,8 +156,9 @@ get_node_list() {
   [[ -z "$LOCAL_DOMAIN" ]] && \
     { echo "[ERROR]: Env var 'DOMAIN' not defined" 1>&2; exit 1; }
 
-  ## FULLNAME matches the Helm fullnameOverride (or RELEASE-istari-dgraph-sec if unset)
-  local FULLNAME="${FULLNAME:-$RELEASE-istari-dgraph-sec}"
+  ## FULLNAME matches the Helm fullnameOverride. Default mirrors dgraph.fullname
+  ## (printf "%s-%s" Release.Name Chart.Name | trunc 24) so generated SANs match pod FQDNs.
+  local FULLNAME="${FULLNAME:-$(printf '%s-%s' "$RELEASE" "istari-dgraph-sec" | cut -c1-24)}"
 
   ## Build List
   for (( IDX=0; IDX<REPLICAS; IDX++ )); do
