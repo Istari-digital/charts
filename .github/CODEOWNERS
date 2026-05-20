@@ -13,3 +13,6 @@
 
 # Global rule:
 *           @Istari-digital/infra-engineers
+
+# CS Infra team reviews configurator changes
+/istari-zitadel-configurator/   @Istari-digital/cs-infra-reviewers
