@@ -69,12 +69,20 @@ resource "zitadel_project_role" "secure_connection_service_account" {
   group        = "secure_connection_service_user"
 }
 
+resource "zitadel_project_role" "rss_service_user" {
+  project_id   = zitadel_project.istari.id
+  org_id       = zitadel_org.default.id
+  role_key     = "rss_service_user"
+  display_name = "rss_service_user"
+  group        = "rss_service_user"
+}
+
 resource "zitadel_project_grant" "default" {
   project_id     = zitadel_project.istari.id
   org_id         = zitadel_org.default.id
   granted_org_id = zitadel_org.default.id
-  role_keys      = ["customer_admin", "istari_agent", "service_admin", "secure_connection_service_user"]
-  depends_on     = [zitadel_project_role.customer_admin, zitadel_project_role.istari_agent, zitadel_project_role.service_admin, zitadel_project_role.secure_connection_service_account]
+  role_keys      = ["customer_admin", "istari_agent", "service_admin", "secure_connection_service_user", "rss_service_user"]
+  depends_on     = [zitadel_project_role.customer_admin, zitadel_project_role.istari_agent, zitadel_project_role.service_admin, zitadel_project_role.secure_connection_service_account, zitadel_project_role.rss_service_user]
 }
 
 resource "zitadel_application_oidc" "istari_frontend_service" {
@@ -165,6 +173,15 @@ resource "zitadel_machine_user" "secure-connection-service-user" {
   name              = "SecureConnectionServiceMachineUser"
   description       = "The machine user for the secure-connection service"
   access_token_type = "ACCESS_TOKEN_TYPE_JWT"
+}
+
+# TODO: Follow up with DPLAT team to remove temporary rss_service_user role from the grant in the future.
+resource "zitadel_user_grant" "secure-connection-service-default" {
+  org_id     = zitadel_org.default.id
+  project_id = zitadel_project.istari.id
+  user_id    = zitadel_machine_user.secure-connection-service-user.id
+  project_grant_id   = zitadel_project_grant.default.id
+  role_keys      = ["rss_service_user", "secure_connection_service_user"]
 }
 
 resource "zitadel_machine_key" "registry-service-machine-key" {
