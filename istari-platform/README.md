@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.13.0](https://img.shields.io/badge/Version-3.13.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.14.0](https://img.shields.io/badge/Version-3.14.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -11,6 +11,15 @@ An umbrella helm chart used to install all Kubernetes components of the Istari D
 >Please contact the [Support Team](mailto:support@istaridigital.com) for more information.
 
 Instructions for installing the istari-platform chart are available in the IT Admins section of the [official Istari Documentation](https://docs.istaridigital.com/).
+
+## Requirements
+
+| Repository | Name | Version |
+|------------|------|---------|
+| https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |
+
+> [!NOTE]
+> The `nats` dependency is **optional** and conditional on `nats.enabled` (default `false`). When NATS is disabled, the subchart is not rendered and no NATS resources are installed. `helm dependency update` will still fetch the chart so the lockfile resolves, but it has no effect at install time unless enabled. See the `nats:` block under [Values](#values) for details.
 
 ## Values
 
@@ -191,6 +200,26 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | mcp.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | mcp.volumes | list | `[]` | Pod Volumes |
 | nameOverride | string | `""` | Override the value used for the label 'app.kubernetes.io/name', which defaults to the chart name (istari-platform). |
+| nats.config.cluster.enabled | bool | `true` | Enable NATS clustering for HA. Defaults to `true` to match the production deployment pattern. |
+| nats.config.jetstream.enabled | bool | `true` | Enable JetStream (NATS persistence layer). Required by fileservice. |
+| nats.config.merge.authorization.token | string | `"<< $NATS_AUTH_TOKEN >>"` | NATS auth token. The `<< $NATS_AUTH_TOKEN >>` placeholder is substituted at startup with the value of the `NATS_AUTH_TOKEN` env var (set below from your Kubernetes Secret). |
+| nats.container.env | object | `{"NATS_AUTH_TOKEN":{"valueFrom":{"secretKeyRef":{"key":"token","name":"istari-nats"}}}}` | Container env. The `NATS_AUTH_TOKEN` value is wired to the user-managed Secret (default: `istari-nats` / key `token`). Override `secretKeyRef.name` and `secretKeyRef.key` if your Secret uses a different name or key. |
+| nats.container.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-fips"` | NATS server image repository. Defaults to the Chainguard FIPS variant in the Istari customer-docker JFrog repo. |
+| nats.container.image.tag | string | `"2.14.1"` | NATS server image tag. |
+| nats.enabled | bool | `false` | Enable / Disable the NATS subchart. **Beta** — currently optional but will become required in a future release. When `false`, the subchart is not rendered at all and no NATS env vars are injected into fileservice. |
+| nats.fullnameOverride | string | `"nats"` | Override the NATS resource name prefix. With the default `nats`, the in-cluster Service is reachable at `nats://nats:4222` (the URL this chart injects as `FILE_SERVICE_NATS_URL`). Change this only if you also override `fileservice.env` with a matching URL. |
+| nats.global.image.pullSecretNames | list | `["docker-pull-secret"]` | Image pull secret names applied to every Pod created by the NATS subchart. The umbrella chart's top-level `imagePullSecrets` does not propagate to subcharts, so this is set explicitly. Defaults to `docker-pull-secret` to match the rest of the istari-platform chart. |
+| nats.natsBox.container.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-box-fips"` | nats-box image repository. Defaults to the Chainguard FIPS variant. |
+| nats.natsBox.container.image.tag | string | `"0.19.5"` | nats-box image tag. |
+| nats.natsBox.enabled | bool | `true` | Deploy the `nats-box` utility container (lightweight client for debugging from inside the cluster). |
+| nats.podTemplate.merge.spec.securityContext | object | `{"fsGroup":65532}` | `securityContext` applied to NATS Pods. `fsGroup: 65532` matches the rest of the chart so JetStream PVCs are writable by the non-root NATS user. |
+| nats.promExporter.enabled | bool | `false` | Deploy the NATS Prometheus exporter sidecar. Enable when scraping NATS metrics via a PodMonitor/ServiceMonitor. |
+| nats.promExporter.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/prometheus-nats-exporter-fips"` | Prometheus exporter image repository. Defaults to the Chainguard FIPS variant. |
+| nats.promExporter.image.tag | string | `"0.19.2"` | Prometheus exporter image tag. |
+| nats.reloader.enabled | bool | `true` | Deploy the NATS config-reloader sidecar (recommended). Reloads NATS config on ConfigMap changes without restarting the StatefulSet. |
+| nats.reloader.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-server-config-reloader-fips"` | Config-reloader image repository. Defaults to the Chainguard FIPS variant. |
+| nats.reloader.image.tag | string | `"0.23.0"` | Config-reloader image tag. |
+| nats.statefulSet.merge.spec.persistentVolumeClaimRetentionPolicy | object | `{"whenDeleted":"Delete","whenScaled":"Delete"}` | Delete the JetStream PVCs when the StatefulSet is deleted or scaled down. Set to `Retain` if you need the data to outlive the StatefulSet. |
 | secureConnection.affinity | object | `{}` | Affinity |
 | secureConnection.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
 | secureConnection.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
