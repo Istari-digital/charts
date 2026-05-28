@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.14.0](https://img.shields.io/badge/Version-3.14.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.15.0](https://img.shields.io/badge/Version-3.15.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -16,7 +16,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 | Repository | Name | Version |
 |------------|------|---------|
-| https://nats-io.github.io/k8s/helm/charts/ | nats | 2.15.0 |
+| https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |
 
 > [!NOTE]
 > The `nats` dependency is **optional** and conditional on `nats.enabled` (default `false`). When NATS is disabled, the subchart is not rendered and no NATS resources are installed. `helm dependency update` will still fetch the chart so the lockfile resolves, but it has no effect at install time unless enabled. See the `nats:` block under [Values](#values) for details.
