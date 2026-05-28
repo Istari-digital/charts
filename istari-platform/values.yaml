@@ -760,7 +760,7 @@ nats:
         valueFrom:
           secretKeyRef:
             name: istari-nats
-            key: token
+            key: NATS_AUTH_TOKEN
   reloader:
     # -- Deploy the NATS config-reloader sidecar (recommended). Reloads NATS config on ConfigMap changes without restarting the StatefulSet.
     enabled: true
