@@ -16,7 +16,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 | Repository | Name | Version |
 |------------|------|---------|
-| https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |
+| https://nats-io.github.io/k8s/helm/charts/ | nats | 2.15.0 |
 
 > [!NOTE]
 > The `nats` dependency is **optional** and conditional on `nats.enabled` (default `false`). When NATS is disabled, the subchart is not rendered and no NATS resources are installed. `helm dependency update` will still fetch the chart so the lockfile resolves, but it has no effect at install time unless enabled. See the `nats:` block under [Values](#values) for details.
@@ -203,7 +203,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | nats.config.cluster.enabled | bool | `true` | Enable NATS clustering for HA. Defaults to `true` to match the production deployment pattern. |
 | nats.config.jetstream.enabled | bool | `true` | Enable JetStream (NATS persistence layer). Required by fileservice. |
 | nats.config.merge.authorization.token | string | `"<< $NATS_AUTH_TOKEN >>"` | NATS auth token. The `<< $NATS_AUTH_TOKEN >>` placeholder is substituted at startup with the value of the `NATS_AUTH_TOKEN` env var (set below from your Kubernetes Secret). |
-| nats.container.env | object | `{"NATS_AUTH_TOKEN":{"valueFrom":{"secretKeyRef":{"key":"token","name":"istari-nats"}}}}` | Container env. The `NATS_AUTH_TOKEN` value is wired to the user-managed Secret (default: `istari-nats` / key `token`). Override `secretKeyRef.name` and `secretKeyRef.key` if your Secret uses a different name or key. |
+| nats.container.env | object | `{"NATS_AUTH_TOKEN":{"valueFrom":{"secretKeyRef":{"key":"NATS_AUTH_TOKEN","name":"istari-nats"}}}}` | Container env. The `NATS_AUTH_TOKEN` value is wired to the user-managed Secret (default: `istari-nats` / key `token`). Override `secretKeyRef.name` and `secretKeyRef.key` if your Secret uses a different name or key. |
 | nats.container.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-fips"` | NATS server image repository. Defaults to the Chainguard FIPS variant in the Istari customer-docker JFrog repo. |
 | nats.container.image.tag | string | `"2.14.1"` | NATS server image tag. |
 | nats.enabled | bool | `false` | Enable / Disable the NATS subchart. **Beta** — currently optional but will become required in a future release. When `false`, the subchart is not rendered at all and no NATS env vars are injected into fileservice. |
