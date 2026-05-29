@@ -702,6 +702,14 @@ identityService:
     podAnnotations: {}
     # -- Extra labels for the migration Job Pod template only (in addition to the standard identity-service labels).
     podLabels: {}
+    # -- Resources for migration containers, used by both the Deployment `initContainer` and the Helm hook `Job`.
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 500m
+        memory: 1Gi
   # Ingress -- optional Kubernetes Ingress for this service.
   ingress:
     # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
@@ -722,6 +730,19 @@ identityService:
     tls: []
     # -- Service port the Ingress targets. Defaults to 80.
     servicePort: 80
+  # VirtualService -- optional Istio VirtualService for this service. The chart generates a single HTTP route sending all traffic (for the listed `hosts`) to this service's `kind: Service` on port 80. For custom routing logic (URL rewriting, retries, CORS, etc.), create a separate VirtualService alongside this chart.
+  virtualService:
+    # -- Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+).
+    enabled: false
+    # -- Additional labels on the VirtualService (in addition to the standard identity-service labels).
+    labels: {}
+    # -- Annotations on the VirtualService.
+    annotations: {}
+    # -- `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). The default below is an EXAMPLE — you MUST replace it with your actual hostname(s) before enabling the VirtualService. Clearing this list while `enabled: true` will cause the chart to fail to render.
+    hosts:
+    - identity-service.example.com
+    # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
+    gateways: []
 
 # Default values for Istari Digital Documentation. This should only be used in airgapped environments.
 docs:

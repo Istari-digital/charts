@@ -1,4 +1,5 @@
 {{- $serviceValues := .Values.identityService -}}
+{{- $migrationResources := dig "migrations" "resources" dict $serviceValues -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -129,13 +130,10 @@ spec:
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         command:
         - "/migrate"
+        {{- with $migrationResources }}
         resources:
-          requests:
-            cpu: 500m
-            memory: 1Gi
-          limits:
-            cpu: 500m
-            memory: 1Gi
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of

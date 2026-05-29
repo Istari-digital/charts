@@ -4,6 +4,7 @@
 {{- $migrationsPodAnnotations := dig "migrations" "podAnnotations" dict $serviceValues -}}
 {{- $migrationsPodLabels := dig "migrations" "podLabels" dict $serviceValues -}}
 {{- $migrationsBackoffLimit := dig "migrations" "backoffLimit" 0 $serviceValues -}}
+{{- $migrationsResources := dig "migrations" "resources" dict $serviceValues -}}
 {{- if and $serviceValues.enabled $migrationsRunAsJob }}
 apiVersion: batch/v1
 kind: Job
@@ -49,13 +50,10 @@ spec:
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         command:
         - "/migrate"
+        {{- with $migrationsResources }}
         resources:
-          requests:
-            cpu: 500m
-            memory: 1Gi
-          limits:
-            cpu: 500m
-            memory: 1Gi
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         envFrom:
         - configMapRef:
             name: {{ include "identity-service.configmap.name" . | quote }}

@@ -181,6 +181,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | identityService.migrations.backoffLimit | int | `0` | `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries. |
 | identityService.migrations.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only (e.g. `sidecar.istio.io/inject: "false"` to disable Istio sidecar injection). |
 | identityService.migrations.podLabels | object | `{}` | Extra labels for the migration Job Pod template only (in addition to the standard identity-service labels). |
+| identityService.migrations.resources | object | `{"limits":{"cpu":"500m","memory":"1Gi"},"requests":{"cpu":"500m","memory":"1Gi"}}` | Resources for migration containers, used by both the Deployment `initContainer` and the Helm hook `Job`. |
 | identityService.migrations.runAsJob | bool | `false` | Run database migrations as a Helm `pre-install` / `pre-upgrade` Job instead of a Deployment `initContainer`. When `true`, a `Job` runs `/migrate` once per release before the identity-service Deployment rolls out; the identity-service `ServiceAccount` and env `ConfigMap` are annotated with the same hooks so they exist before the Job runs. When `false`, migrations run in an `initContainer` on each identity-service Pod before the main container starts (legacy behavior). |
 | identityService.nodeSelector | object | `{}` | Node selector |
 | identityService.podAnnotations | object | `{}` | Additional annotations to add to pods |
@@ -196,6 +197,11 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | identityService.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
 | identityService.tag | string | `"0.0.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | identityService.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
+| identityService.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
+| identityService.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
+| identityService.virtualService.gateways | list | `[]` | `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only. |
+| identityService.virtualService.hosts | list | `["identity-service.example.com"]` | `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). The default below is an EXAMPLE — you MUST replace it with your actual hostname(s) before enabling the VirtualService. Clearing this list while `enabled: true` will cause the chart to fail to render. |
+| identityService.virtualService.labels | object | `{}` | Additional labels on the VirtualService (in addition to the standard identity-service labels). |
 | identityService.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | identityService.volumes | list | `[]` | Pod Volumes |
 | imagePullSecrets[0].name | string | `"docker-pull-secret"` |  |
