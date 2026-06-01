@@ -593,6 +593,157 @@ secureConnection:
     # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
     gateways: []
 
+# Default values for Identity Service.
+identityService:
+  # -- Enable / Disable the whole deployment
+  enabled: false
+  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
+  registry: "istaridigital.jfrog.io/customer-docker"
+  # -- Image name. The combination of registry, image, and tag will be used to pull the image.
+  image: "identity-service"
+  # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
+  tag: "0.0.1"
+  # -- Image pull policy
+  imagePullPolicy: "IfNotPresent"
+  # -- Secret name. The secret should contain the environment variables required by the service.
+  secretName: "istari-identity-service"
+  # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
+  extraEnvSecrets: []
+  # -- Replica count
+  replicaCount: 1
+  # -- Restart policy
+  restartPolicy: "Always"
+  # -- Additional labels to add to all of this service's resources
+  commonLabels: {}
+  # -- Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName.
+  serviceType: "ClusterIP"
+  # -- Additional annotations to apply to the service, note the following annotations for duplicate keys.
+  serviceAnnotations: {}
+  # -- Additional annotations to add to the deployment
+  deploymentAnnotations: {}
+  # -- Additional annotations to add to pods
+  podAnnotations: {}
+  # -- Additional labels to add to pods
+  podLabels: {}
+  # -- Pod security context
+  podSecurityContext:
+    fsGroup: 65532
+  # -- Primary container's security context
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 65532
+  # -- Additional annotations to apply to the service account
+  serviceAccountAnnotations: {}
+  # Environment variables
+  ###############################
+  # example:
+  # env:
+  # - name: IDENTITY_SERVICE_LOG_LEVEL
+  #   value: DEBUG
+  ###############################
+  # If you are using secrets, you can use the following format:
+  # env:
+  # - name: IDENTITY_SERVICE_LOG_LEVEL
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: istari-identity-service
+  #       key: IDENTITY_SERVICE_LOG_LEVEL
+  env: []
+  # Autoscaling -- set autoscaling (HPA) parameters
+  autoscaling:
+    # -- Enable/Disable autoscaling
+    enabled: false
+    # -- Minimum number of replicas
+    minReplicas: 1
+    # -- Maximum number of replicas
+    maxReplicas: 2
+    # -- Average CPU utilization percentage. Set to `null` to disable.
+    cpuUtilization: 80
+    # -- Average Memory utilization percentage. Set to `null` to disable.
+    memoryUtilization: 80
+  # Resources -- set resources
+  resources: {}
+  # -- Pod Volumes
+  volumes: []
+  # -- Volume Mounts for pod containers
+  volumeMounts: []
+  # -- Tolerations.
+  # Example:
+  #
+  # ```
+  # tolerations:
+  # - "effect": "NoSchedule"
+  #   "key": "istari.k8s.io/role"
+  #   "operator": "Equal"
+  #   "value": "main"
+  # ```
+  tolerations: []
+  # -- Node selector
+  nodeSelector: {}
+  # -- Affinity
+  affinity: {}
+  migrations:
+    # -- Run database migrations as a Helm `pre-install` / `pre-upgrade` Job instead of a Deployment `initContainer`.
+    # When `true`, a `Job` runs `/migrate` once per release before the identity-service Deployment rolls out; the identity-service `ServiceAccount` and env `ConfigMap` are annotated with the same hooks so they exist before the Job runs.
+    # When `false`, migrations run in an `initContainer` on each identity-service Pod before the main container starts (legacy behavior).
+    runAsJob: false
+    # -- `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries.
+    backoffLimit: 0
+    # -- Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`).
+    # When `true`, Helm may remove the Job after the migration succeeds (less clutter; logs are shorter-lived on the cluster).
+    # When `false`, only `before-hook-creation` is set, so the completed Job (and its Pods) remain until the next install or upgrade replaces the hook—useful for auditing or inspecting migration logs.
+    autoCleanupSuccessfulJob: true
+    # -- Annotations for the migration Job Pod template only (e.g. `sidecar.istio.io/inject: "false"` to disable Istio sidecar injection).
+    podAnnotations: {}
+    # -- Extra labels for the migration Job Pod template only (in addition to the standard identity-service labels).
+    podLabels: {}
+    # -- Resources for migration containers, used by both the Deployment `initContainer` and the Helm hook `Job`.
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+  # Ingress -- optional Kubernetes Ingress for this service.
+  ingress:
+    # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
+    enabled: false
+    # -- `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass.
+    className: ""
+    # -- Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.).
+    annotations: {}
+    # -- Additional labels on the Ingress (in addition to the standard identity-service labels).
+    labels: {}
+    # -- One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host.
+    hosts:
+    - host: identity-service.istari.customer-domain.com
+      paths:
+      - path: /
+        pathType: Prefix
+    # -- TLS configuration; passed through to `spec.tls[]` verbatim.
+    tls: []
+    # -- Service port the Ingress targets. Defaults to 80.
+    servicePort: 80
+  # VirtualService -- optional Istio VirtualService for this service. The chart generates a single HTTP route sending all traffic (for the listed `hosts`) to this service's `kind: Service` on port 80. For custom routing logic (URL rewriting, retries, CORS, etc.), create a separate VirtualService alongside this chart.
+  virtualService:
+    # -- Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+).
+    enabled: false
+    # -- Additional labels on the VirtualService (in addition to the standard identity-service labels).
+    labels: {}
+    # -- Annotations on the VirtualService.
+    annotations: {}
+    # -- `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). The default below is an EXAMPLE — you MUST replace it with your actual hostname(s) before enabling the VirtualService. Clearing this list while `enabled: true` will cause the chart to fail to render.
+    hosts:
+    - identity-service.example.com
+    # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
+    gateways: []
+
 # Default values for Istari Digital Documentation. This should only be used in airgapped environments.
 docs:
   # -- Enable / Disable the whole deployment
