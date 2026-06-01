@@ -871,10 +871,10 @@ docs:
 #
 # BETA: NATS integration is currently in beta and disabled by default. It will eventually become a required component of the istari-platform deployment; the `nats.enabled: false` default will be flipped and this section will lose its "optional" framing in a future release.
 #
-# When `nats.enabled: true`, this chart deploys NATS in-cluster AND automatically injects the `FILE_SERVICE_NATS_URL` environment variable into the fileservice (registry-service) Pods so they can connect to it. The NATS auth token is NOT injected automatically — you remain responsible for providing it (see below).
+# When `nats.enabled: true`, this chart deploys NATS in-cluster AND automatically injects the `FILE_SERVICE_NATS_URL` and `FILE_SERVICE_ALLOWED_IDS_CACHE_ENABLED` environment variables into the fileservice (registry-service) Pods so they can connect to it. The NATS auth token is NOT injected automatically — you remain responsible for providing it (see below).
 #
 # Two things you must do yourself before enabling NATS:
-#   1. Create the Kubernetes Secret that the NATS Pod reads its auth token from. The Secret reference lives at `nats.container.env.NATS_AUTH_TOKEN.valueFrom.secretKeyRef` (default: a Secret named `istari-nats` with key `token`). The value of `nats.config.merge.authorization.token` below is just a `<< $NATS_AUTH_TOKEN >>` placeholder that NATS substitutes from that env var at startup — overriding it directly will not change which Secret NATS reads.
+#   1. Create the Kubernetes Secret that the NATS Pod reads its auth token from. The Secret reference lives at `nats.container.env.NATS_AUTH_TOKEN.valueFrom.secretKeyRef` (default: a Secret named `istari-nats` with key `NATS_AUTH_TOKEN`). The value of `nats.config.merge.authorization.token` below is just a `<< $NATS_AUTH_TOKEN >>` placeholder that NATS substitutes from that env var at startup — overriding it directly will not change which Secret NATS reads.
 #   2. Add `FILE_SERVICE_NATS_TOKEN` (with the same token value) to the Secret consumed by fileservice (default: `istari-fileservice`, configurable via `fileservice.secretName`). The chart sets `FILE_SERVICE_NATS_URL` for you, but the token is sourced from your fileservice Secret.
 #
 # Every key under `nats:` here is passed directly to the NATS subchart. See the upstream chart's `values.yaml` for the full schema.
@@ -905,7 +905,7 @@ nats:
       repository: "istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-fips"
       # -- NATS server image tag.
       tag: "2.14.1"
-    # -- Container env. The `NATS_AUTH_TOKEN` value is wired to the user-managed Secret (default: `istari-nats` / key `token`). Override `secretKeyRef.name` and `secretKeyRef.key` if your Secret uses a different name or key.
+    # -- Container env. The `NATS_AUTH_TOKEN` value is wired to the user-managed Secret (default: `istari-nats` / key `NATS_AUTH_TOKEN`). Override `secretKeyRef.name` and `secretKeyRef.key` if your Secret uses a different name or key.
     env:
       NATS_AUTH_TOKEN:
         valueFrom:
