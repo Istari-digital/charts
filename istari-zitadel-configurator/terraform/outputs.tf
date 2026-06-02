@@ -16,6 +16,7 @@ output "secret_file" {
     scs_zitadel_project_grant_id         = zitadel_project_grant.default.id
     scs_zitadel_role_name                = zitadel_project_role.secure_connection_service_account.role_key
     scs_zitadel_user_manager_secret      = base64encode(zitadel_machine_key.secure-connection-service-machine-key.key_details)
+    zitadel_domain                       = "https://${trimsuffix(var.zitadel_domain, "/")}"
   })
   sensitive = true
 }
