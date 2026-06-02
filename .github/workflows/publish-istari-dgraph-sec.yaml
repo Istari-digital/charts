@@ -120,23 +120,31 @@ jobs:
           ${HELM_PACKAGE_NAME} \
           ${HELM_CLASSIC_ARTIFACTORY_PATH}
 
-        # Wait 3 seconds to ensure the chart is available in Artifactory
-        sleep 3
-
     - name: Test Pulling from Helm Classic Repo
       id: test_pull_helm_classic
       run: |
         mkdir ${{ runner.temp }}/test-pull-classic
         pushd ${{ runner.temp }}/test-pull-classic
 
-        helm repo update ${HELM_CLASSIC_REPO}
-
-        echo "Attempting to pull chart from the Helm Classic repo '${HELM_CLASSIC_REPO}'"
-        helm pull \
-          ${HELM_CLASSIC_REPO}/${HELM_CHART_NAME} \
-          --version ${HELM_CHART_VERSION} \
-          --debug \
-          --untar
+        # Retry with backoff: the just-uploaded chart can take a moment to
+        # become visible in Artifactory. Poll instead of assuming a fixed delay,
+        # so a slower-than-usual propagation doesn't fail the pull spuriously.
+        for attempt in 1 2 3 4 5; do
+          helm repo update ${HELM_CLASSIC_REPO}
+          echo "Attempt ${attempt}: pulling chart from the Helm Classic repo '${HELM_CLASSIC_REPO}'"
+          if helm pull \
+            ${HELM_CLASSIC_REPO}/${HELM_CHART_NAME} \
+            --version ${HELM_CHART_VERSION} \
+            --debug \
+            --untar; then
+            break
+          fi
+          if [ "${attempt}" -eq 5 ]; then
+            echo "Chart still not pullable after ${attempt} attempts" >&2
+            exit 1
+          fi
+          sleep "${attempt}"
+        done
 
         rm -r ${HELM_CHART_NAME}
 

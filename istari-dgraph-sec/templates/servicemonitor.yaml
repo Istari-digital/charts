@@ -1,0 +1,36 @@
+{{- /*
+Prometheus Operator ServiceMonitor for the alpha and zero metrics endpoints.
+Default off. The alpha Service exposes the HTTP port as `http-alpha` (8080) and
+the zero Service as `http-zero` (6080); dgraph serves Prometheus metrics on the
+HTTP port at serviceMonitor.path. Listing both port names in one ServiceMonitor
+is fine — an endpoint whose named port a given Service lacks is simply skipped.
+*/ -}}
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ template "istari-dgraph-sec.fullname" . }}
+  namespace: {{ default (include "istari-dgraph-sec.namespace" .) .Values.serviceMonitor.namespace }}
+  labels:
+    {{- include "istari-dgraph-sec.labels" (dict "ctx" .) | nindent 4 }}
+    {{- with .Values.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ include "istari-dgraph-sec.namespace" . }}
+  selector:
+    matchLabels:
+      app: {{ template "istari-dgraph-sec.name" . }}
+      release: {{ .Release.Name }}
+  endpoints:
+    - port: http-alpha
+      path: {{ .Values.serviceMonitor.path }}
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+    - port: http-zero
+      path: {{ .Values.serviceMonitor.path }}
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+{{- end }}

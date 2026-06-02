@@ -1,263 +1,250 @@
 # istari-dgraph-sec
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.4-sec.1](https://img.shields.io/badge/AppVersion-v25.3.4--sec.1-informational?style=flat-square)
+![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.4-sec.1](https://img.shields.io/badge/AppVersion-v25.3.4--sec.1-informational?style=flat-square)
+
 Dgraph-sec — hardened Dgraph database for Istari platform
+
 **Homepage:** <https://dgraph.io/>
+
+`istari-dgraph-sec` packages the hardened **dgraph-sec** fork of [Dgraph](https://dgraph.io/)
+— a distributed graph database — for the Istari platform. It deploys the two
+stateful Dgraph roles, **Zero** (cluster coordinator / Raft membership) and
+**Alpha** (data + query serving), plus optional Ratel UI, binary-backup CronJobs,
+Datadog autodiscovery, and OpenTelemetry tracing.
+
+The chart is a fork of the upstream Dgraph chart with Istari-specific changes:
+secure-by-default pod and container security contexts, the `dgraph-sec` binary and
+image, Datadog/OTEL wiring, a 3-tier service-naming convention, and gated
+production add-ons (PodDisruptionBudgets, NetworkPolicy, ServiceMonitor,
+PrometheusRule).
+
+## Installation
+
+> [!NOTE]
+> Pulling the chart requires access to Istari Digital's Artifactory.
+> Please contact the [Support Team](mailto:support@istaridigital.com) for more information.
+
+```bash
+helm install dgraph-sec main-helm-local/istari-dgraph-sec \
+  --namespace dgraph-sec --create-namespace
+```
+
+This brings up a **working cluster out of the box**: 3 Zero + 3 Alpha replicas,
+non-root pods, PodDisruptionBudgets, and — because ACL is disabled by default — no
+login required, so applications can connect immediately.
+
+In helm-stack this chart is consumed from Terraform (`istari-k8s-core/dgraph-sec.tf`)
+with `fullnameOverride: dgraph-sec`, which is why the deployed objects are named
+`dgraph-sec-alpha`, `dgraph-sec-zero`, etc.
+
+## Architecture
+
+| Role | Kind | Default replicas | Purpose |
+|------|------|------------------|---------|
+| Zero | StatefulSet | 3 | Cluster coordinator: membership, tablet/shard assignment, timestamp oracle (Raft). |
+| Alpha | StatefulSet | 3 | Stores predicates/posting lists and serves DQL/GraphQL queries (Raft per group). |
+| Ratel | Deployment | 1 (disabled) | Debug-grade web UI. Off by default — see the security note below. |
+| Backups | CronJob | (disabled) | Full + incremental binary backups to filesystem / NFS / S3 / MinIO. |
+
+`zero.shardReplicaCount` is the per-group replication factor (`--replicas`), **not** a
+pod count — keep it `<= alpha.replicaCount`.
+
+## Naming
+
+Two distinct, intentional identities:
+
+- **Package identity** — `istari-dgraph-sec` (the chart name). Used for the Helm
+  template helpers, `app.kubernetes.io/name`, and the `app`/`chart` labels.
+- **Service identity** — `dgraph-sec` (short). Used for the deployed object names
+  (via `fullnameOverride`, kept short because Kubernetes truncates StatefulSet and
+  headless-Service names at the DNS limit), the Datadog `superservice`, and the OTEL
+  tracing service names that dashboards key on.
+
+## Security posture
+
+This is the `-sec` fork, so secure defaults are baked in:
+
+- Pods run **non-root** (`runAsNonRoot: true`, uid/gid 1001) with a `RuntimeDefault`
+  seccomp profile.
+- Containers **drop all Linux capabilities** and forbid privilege escalation.
+  `readOnlyRootFilesystem` is shipped `false` (dgraph writes scratch data outside its
+  mounted data dir); validate on a cluster before enabling.
+- `automountServiceAccountToken` is **off** everywhere — no workload calls the
+  Kubernetes API.
+- PodDisruptionBudgets (`minAvailable: 2`) protect Zero and Alpha quorum from
+  voluntary disruptions (node drains, autoscaler scale-down).
+
+Defaults that are **off** and must be enabled for a production posture: ACL
+(authentication), encryption at rest, TLS in transit, and NetworkPolicy. See
+`values.yaml` and the post-install NOTES for the exact flags.
+
+## Backups & restore
+
+Enable scheduled binary backups with `backups.full.enabled` / `backups.incremental.enabled`
+and a `backups.destination`. Restoring is a deliberate, operator-driven action — there
+is no automatic restore. The runbook lives in [`scripts/README.md`](./scripts/README.md#restoring-from-a-binary-backup).
+
+> [!WARNING]
+> Credentials (`backups.admin.password`, `backups.admin.auth_token`, ACL secrets) set
+> inline in a values file are visible via `helm get values` and tend to leak into git.
+> Prefer External Secrets Operator or Sealed Secrets. When ACL is enabled the chart
+> **requires** `backups.admin.user` so backups can never silently fall back to the
+> well-known `groot` superadmin.
+
+## Monitoring
+
+Alpha and Zero pods carry `prometheus.io/*` scrape annotations
+(`/debug/prometheus_metrics`) for annotation-based discovery. For the Prometheus
+Operator, enable `serviceMonitor.enabled` (and `prometheusRule.enabled` for default
+alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 
 ## Values
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| alpha.acl.enabled | bool | `false` |  |
-| alpha.antiAffinity | string | `"soft"` |  |
-| alpha.automountServiceAccountToken | bool | `true` |  |
-| alpha.configFile | object | `{}` |  |
-| alpha.customLivenessProbe | object | `{}` |  |
-| alpha.customReadinessProbe | object | `{}` |  |
-| alpha.customStartupProbe | object | `{}` |  |
-| alpha.encryption.enabled | bool | `false` |  |
-| alpha.envFrom | list | `[]` |  |
-| alpha.extraAnnotations | object | `{}` |  |
-| alpha.extraEnvs | list | `[]` |  |
-| alpha.extraFlags | string | `""` |  |
-| alpha.extraInitContainers | list | `[]` |  |
-| alpha.ingress.enabled | bool | `false` |  |
-| alpha.ingress_grpc.enabled | bool | `false` |  |
-| alpha.initContainers.init.command[0] | string | `"bash"` |  |
-| alpha.initContainers.init.command[1] | string | `"-c"` |  |
-| alpha.initContainers.init.command[2] | string | `"trap \"exit\" SIGINT SIGTERM\necho \"Write to /dgraph/doneinit when ready.\"\nuntil [ -f /dgraph/doneinit ]; do sleep 2; done\n"` |  |
-| alpha.initContainers.init.enabled | bool | `false` |  |
-| alpha.initContainers.init.env | list | `[]` |  |
-| alpha.initContainers.init.envFrom | list | `[]` |  |
-| alpha.initContainers.init.image.<<.debug | bool | `false` |  |
-| alpha.initContainers.init.image.<<.pullPolicy | string | `"IfNotPresent"` |  |
-| alpha.initContainers.init.image.<<.registry | string | `"istaridigital.jfrog.io"` |  |
-| alpha.initContainers.init.image.<<.repository | string | `"main-docker-local/dgraph-sec"` |  |
-| alpha.initContainers.init.image.<<.tag | string | `"v25.3.4-sec.1"` |  |
-| alpha.livenessProbe.enabled | bool | `true` |  |
-| alpha.livenessProbe.failureThreshold | int | `6` |  |
-| alpha.livenessProbe.initialDelaySeconds | int | `15` |  |
-| alpha.livenessProbe.path | string | `"/health?live=1"` |  |
-| alpha.livenessProbe.periodSeconds | int | `10` |  |
-| alpha.livenessProbe.port | int | `8080` |  |
-| alpha.livenessProbe.successThreshold | int | `1` |  |
-| alpha.livenessProbe.timeoutSeconds | int | `5` |  |
-| alpha.metrics.enabled | bool | `true` |  |
-| alpha.monitorLabel | string | `"alpha-dgraph-io"` |  |
-| alpha.name | string | `"alpha"` |  |
-| alpha.nodeAffinity | object | `{}` |  |
-| alpha.nodeSelector | object | `{}` |  |
-| alpha.persistence.accessModes[0] | string | `"ReadWriteOnce"` |  |
-| alpha.persistence.annotations | object | `{}` |  |
-| alpha.persistence.enabled | bool | `true` |  |
-| alpha.persistence.size | string | `"100Gi"` |  |
-| alpha.podAntiAffinitytopologyKey | string | `"kubernetes.io/hostname"` |  |
-| alpha.podLabels | object | `{}` |  |
-| alpha.podManagementPolicy | string | `"Parallel"` |  |
-| alpha.readinessProbe.enabled | bool | `true` |  |
-| alpha.readinessProbe.failureThreshold | int | `6` |  |
-| alpha.readinessProbe.initialDelaySeconds | int | `15` |  |
-| alpha.readinessProbe.path | string | `"/probe/graphql"` |  |
-| alpha.readinessProbe.periodSeconds | int | `10` |  |
-| alpha.readinessProbe.port | int | `8080` |  |
-| alpha.readinessProbe.successThreshold | int | `1` |  |
-| alpha.readinessProbe.timeoutSeconds | int | `5` |  |
-| alpha.replicaCount | int | `3` |  |
-| alpha.resources.requests.memory | string | `"100Mi"` |  |
-| alpha.securityContext.enabled | bool | `false` |  |
-| alpha.securityContext.fsGroup | int | `1001` |  |
-| alpha.securityContext.runAsUser | int | `1001` |  |
-| alpha.service.annotations | object | `{}` |  |
-| alpha.service.externalTrafficPolicy | string | `""` |  |
-| alpha.service.labels | object | `{}` |  |
-| alpha.service.loadBalancerIP | string | `""` |  |
-| alpha.service.loadBalancerSourceRanges | list | `[]` |  |
-| alpha.service.publishNotReadyAddresses | bool | `true` |  |
-| alpha.service.type | string | `"ClusterIP"` |  |
-| alpha.serviceHeadless.labels | object | `{}` |  |
-| alpha.startupProbe.enabled | bool | `false` |  |
-| alpha.startupProbe.failureThreshold | int | `30` |  |
-| alpha.startupProbe.path | string | `"/health?live=1"` |  |
-| alpha.startupProbe.periodSeconds | int | `10` |  |
-| alpha.startupProbe.port | int | `8080` |  |
-| alpha.startupProbe.successThreshold | int | `1` |  |
-| alpha.startupProbe.timeoutSeconds | int | `5` |  |
-| alpha.terminationGracePeriodSeconds | int | `600` |  |
-| alpha.tls.enabled | bool | `false` |  |
-| alpha.tls.files | object | `{}` |  |
-| alpha.tolerations | list | `[]` |  |
-| alpha.updateStrategy | string | `"RollingUpdate"` |  |
-| backups.admin.auth_token | string | `""` |  |
-| backups.admin.tls_client | string | `""` |  |
-| backups.admin.user | string | `"groot"` |  |
-| backups.destination | string | `"/dgraph/backups"` |  |
-| backups.full.debug | bool | `false` |  |
-| backups.full.enabled | bool | `false` |  |
-| backups.full.restartPolicy | string | `"Never"` |  |
-| backups.full.schedule | string | `"0 0 * * *"` |  |
-| backups.image.<<.debug | bool | `false` |  |
-| backups.image.<<.pullPolicy | string | `"IfNotPresent"` |  |
-| backups.image.<<.registry | string | `"istaridigital.jfrog.io"` |  |
-| backups.image.<<.repository | string | `"main-docker-local/dgraph-sec"` |  |
-| backups.image.<<.tag | string | `"v25.3.4-sec.1"` |  |
-| backups.incremental.debug | bool | `false` |  |
-| backups.incremental.enabled | bool | `false` |  |
-| backups.incremental.restartPolicy | string | `"Never"` |  |
-| backups.incremental.schedule | string | `"0 1-23 * * *"` |  |
-| backups.keys.minio.access | string | `""` |  |
-| backups.keys.minio.secret | string | `""` |  |
-| backups.keys.s3.access | string | `""` |  |
-| backups.keys.s3.secret | string | `""` |  |
-| backups.minioSecure | bool | `false` |  |
-| backups.name | string | `"backups"` |  |
-| backups.nfs.enabled | bool | `false` |  |
-| backups.nfs.mountPath | string | `"/dgraph/backups"` |  |
-| backups.nfs.path | string | `""` |  |
-| backups.nfs.server | string | `""` |  |
-| backups.nfs.storage | string | `"512Gi"` |  |
-| backups.podAnnotations | object | `{}` |  |
-| backups.podLabels | object | `{}` |  |
-| backups.subpath | string | `"dgraph_$(date +%Y%m%d)"` |  |
-| backups.volume.claim | string | `""` |  |
-| backups.volume.enabled | bool | `false` |  |
-| backups.volume.mountPath | string | `"/dgraph/backups/"` |  |
-| commonLabels | object | `{}` |  |
-| datadog.alpha.subservice | string | `"alpha"` |  |
-| datadog.enabled | bool | `false` |  |
-| datadog.superservice | string | `"istari-dgraph-sec"` |  |
-| datadog.zero.subservice | string | `"zero"` |  |
-| global.domain | string | `"cluster.local"` |  |
-| global.ingress.alpha_hostname | string | `nil` |  |
-| global.ingress.annotations | object | `{}` |  |
-| global.ingress.enabled | bool | `false` |  |
-| global.ingress.ingressClassName | string | `nil` |  |
-| global.ingress.ratel_hostname | string | `nil` |  |
-| global.ingress.tls | object | `{}` |  |
-| global.ingress_grpc.alpha_grpc_hostname | string | `nil` |  |
-| global.ingress_grpc.annotations | object | `{}` |  |
-| global.ingress_grpc.enabled | bool | `false` |  |
-| global.ingress_grpc.ingressClassName | string | `nil` |  |
-| global.ingress_grpc.tls | object | `{}` |  |
-| image.debug | bool | `false` |  |
-| image.pullPolicy | string | `"IfNotPresent"` |  |
-| image.registry | string | `"istaridigital.jfrog.io"` |  |
-| image.repository | string | `"main-docker-local/dgraph-sec"` |  |
-| image.tag | string | `"v25.3.4-sec.1"` |  |
-| preUpgradeHook.image.registry | string | `"istaridigital.jfrog.io"` |  |
-| preUpgradeHook.image.repository | string | `"remote-docker-dockerhub/bitnami/kubectl"` |  |
-| preUpgradeHook.image.tag | string | `"1.31"` |  |
-| preUpgradeHook.podAnnotations | object | `{}` |  |
-| preUpgradeHook.podLabels | object | `{}` |  |
-| ratel.args | list | `[]` |  |
-| ratel.automountServiceAccountToken | bool | `true` |  |
-| ratel.customLivenessProbe | object | `{}` |  |
-| ratel.customReadinessProbe | object | `{}` |  |
-| ratel.enabled | bool | `false` |  |
-| ratel.envFrom | list | `[]` |  |
-| ratel.extraAnnotations | object | `{}` |  |
-| ratel.extraEnvs | list | `[]` |  |
-| ratel.image.registry | string | `"istaridigital.jfrog.io"` |  |
-| ratel.image.repository | string | `"remote-docker-dockerhub/dgraph/ratel"` |  |
-| ratel.image.tag | string | `"v21.12.0"` |  |
-| ratel.ingress.enabled | bool | `false` |  |
-| ratel.livenessProbe.enabled | bool | `false` |  |
-| ratel.livenessProbe.failureThreshold | int | `6` |  |
-| ratel.livenessProbe.initialDelaySeconds | int | `30` |  |
-| ratel.livenessProbe.path | string | `"/"` |  |
-| ratel.livenessProbe.periodSeconds | int | `10` |  |
-| ratel.livenessProbe.port | int | `8000` |  |
-| ratel.livenessProbe.successThreshold | int | `1` |  |
-| ratel.livenessProbe.timeoutSeconds | int | `5` |  |
-| ratel.name | string | `"ratel"` |  |
-| ratel.podLabels | object | `{}` |  |
-| ratel.readinessProbe.enabled | bool | `false` |  |
-| ratel.readinessProbe.failureThreshold | int | `6` |  |
-| ratel.readinessProbe.initialDelaySeconds | int | `5` |  |
-| ratel.readinessProbe.path | string | `"/"` |  |
-| ratel.readinessProbe.periodSeconds | int | `10` |  |
-| ratel.readinessProbe.port | int | `8000` |  |
-| ratel.readinessProbe.successThreshold | int | `1` |  |
-| ratel.readinessProbe.timeoutSeconds | int | `5` |  |
-| ratel.replicaCount | int | `1` |  |
-| ratel.securityContext.enabled | bool | `false` |  |
-| ratel.securityContext.fsGroup | int | `1001` |  |
-| ratel.securityContext.runAsUser | int | `1001` |  |
-| ratel.service.annotations | object | `{}` |  |
-| ratel.service.externalTrafficPolicy | string | `""` |  |
-| ratel.service.labels | object | `{}` |  |
-| ratel.service.loadBalancerIP | string | `""` |  |
-| ratel.service.loadBalancerSourceRanges | list | `[]` |  |
-| ratel.service.type | string | `"ClusterIP"` |  |
-| serviceAccount.annotations | object | `{}` |  |
-| serviceAccount.automountServiceAccountToken | bool | `true` |  |
-| serviceAccount.create | bool | `true` |  |
-| serviceAccount.name | string | `"dgraph"` |  |
-| tracing.alpha.service | string | `"istari-dgraph-sec.alpha"` |  |
-| tracing.enabled | bool | `false` |  |
-| tracing.endpoint | string | `"datadog-agent.datadog.svc.cluster.local:4318"` |  |
-| tracing.ratio | string | `"0.01"` |  |
-| tracing.zero.service | string | `"istari-dgraph-sec.zero"` |  |
-| zero.antiAffinity | string | `"soft"` |  |
-| zero.automountServiceAccountToken | bool | `true` |  |
-| zero.configFile | object | `{}` |  |
-| zero.customLivenessProbe | object | `{}` |  |
-| zero.customReadinessProbe | object | `{}` |  |
-| zero.customStartupProbe | object | `{}` |  |
-| zero.envFrom | list | `[]` |  |
-| zero.extraAnnotations | object | `{}` |  |
-| zero.extraEnvs | list | `[]` |  |
-| zero.extraFlags | string | `""` |  |
-| zero.livenessProbe.enabled | bool | `true` |  |
-| zero.livenessProbe.failureThreshold | int | `6` |  |
-| zero.livenessProbe.initialDelaySeconds | int | `15` |  |
-| zero.livenessProbe.path | string | `"/health"` |  |
-| zero.livenessProbe.periodSeconds | int | `10` |  |
-| zero.livenessProbe.port | int | `6080` |  |
-| zero.livenessProbe.successThreshold | int | `1` |  |
-| zero.livenessProbe.timeoutSeconds | int | `5` |  |
-| zero.metrics.enabled | bool | `true` |  |
-| zero.monitorLabel | string | `"zero-dgraph-io"` |  |
-| zero.name | string | `"zero"` |  |
-| zero.nodeAffinity | object | `{}` |  |
-| zero.nodeSelector | object | `{}` |  |
-| zero.persistence.accessModes[0] | string | `"ReadWriteOnce"` |  |
-| zero.persistence.annotations | object | `{}` |  |
-| zero.persistence.enabled | bool | `true` |  |
-| zero.persistence.size | string | `"32Gi"` |  |
-| zero.podAntiAffinitytopologyKey | string | `"kubernetes.io/hostname"` |  |
-| zero.podLabels | object | `{}` |  |
-| zero.podManagementPolicy | string | `"Parallel"` |  |
-| zero.readinessProbe.enabled | bool | `true` |  |
-| zero.readinessProbe.failureThreshold | int | `6` |  |
-| zero.readinessProbe.initialDelaySeconds | int | `15` |  |
-| zero.readinessProbe.path | string | `"/state"` |  |
-| zero.readinessProbe.periodSeconds | int | `10` |  |
-| zero.readinessProbe.port | int | `6080` |  |
-| zero.readinessProbe.successThreshold | int | `1` |  |
-| zero.readinessProbe.timeoutSeconds | int | `5` |  |
-| zero.replicaCount | int | `3` |  |
-| zero.resources.requests.memory | string | `"100Mi"` |  |
-| zero.securityContext.enabled | bool | `false` |  |
-| zero.securityContext.fsGroup | int | `1001` |  |
-| zero.securityContext.runAsUser | int | `1001` |  |
-| zero.service.annotations | object | `{}` |  |
-| zero.service.externalTrafficPolicy | string | `""` |  |
-| zero.service.labels | object | `{}` |  |
-| zero.service.loadBalancerIP | string | `""` |  |
-| zero.service.loadBalancerSourceRanges | list | `[]` |  |
-| zero.service.publishNotReadyAddresses | bool | `true` |  |
-| zero.service.type | string | `"ClusterIP"` |  |
-| zero.serviceHeadless.labels | object | `{}` |  |
-| zero.shardReplicaCount | int | `5` |  |
-| zero.startupProbe.enabled | bool | `false` |  |
-| zero.startupProbe.failureThreshold | int | `6` |  |
-| zero.startupProbe.path | string | `"/health"` |  |
-| zero.startupProbe.periodSeconds | int | `10` |  |
-| zero.startupProbe.port | int | `6080` |  |
-| zero.startupProbe.successThreshold | int | `1` |  |
-| zero.startupProbe.timeoutSeconds | int | `5` |  |
-| zero.terminationGracePeriodSeconds | int | `60` |  |
-| zero.tls.enabled | bool | `false` |  |
-| zero.tls.files | object | `{}` |  |
-| zero.tolerations | list | `[]` |  |
-| zero.updateStrategy | string | `"RollingUpdate"` |  |
+| alpha.acl | object | `{"enabled":false}` | Access Control List (ACL) configuration for alpha. |
+| alpha.antiAffinity | string | `"soft"` | Pod anti-affinity strength for alpha (soft = best effort, hard = required). |
+| alpha.automountServiceAccountToken | bool | `false` | Do not mount the API token on alpha pods; alpha never calls the K8s API. |
+| alpha.configFile | object | `{}` | Config-file contents for alpha (alternative to CLI flags). |
+| alpha.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false}` | Secure-by-default container securityContext for alpha (drop ALL caps, no privilege escalation). |
+| alpha.customLivenessProbe | object | `{}` | Full custom liveness probe spec for alpha (overrides livenessProbe). |
+| alpha.customReadinessProbe | object | `{}` | Full custom readiness probe spec for alpha (overrides readinessProbe). |
+| alpha.customStartupProbe | object | `{}` | Full custom startup probe spec for alpha (overrides startupProbe). |
+| alpha.encryption | object | `{"enabled":false}` | Encryption-at-rest configuration for alpha. |
+| alpha.envFrom | list | `[]` | Extra envFrom sources (configMaps/secrets) for the alpha container. |
+| alpha.extraAnnotations | object | `{}` | Extra annotations on the alpha StatefulSet pod template. |
+| alpha.extraEnvs | list | `[]` | Extra environment variables appended to the alpha container. |
+| alpha.extraFlags | string | `""` | Extra command-line flags appended to dgraph-sec alpha. |
+| alpha.extraInitContainers | list | `[]` | Extra init containers for the alpha StatefulSet. |
+| alpha.ingress | object | `{"enabled":false}` | HTTP Ingress for the alpha service (requires an ingress controller). |
+| alpha.ingress_grpc | object | `{"enabled":false}` | gRPC Ingress for the alpha service (requires an ingress controller). |
+| alpha.initContainers | object | `{"init":{"command":["bash","-c","trap \"exit\" SIGINT SIGTERM\necho \"Write to /dgraph/doneinit when ready.\"\nuntil [ -f /dgraph/doneinit ]; do sleep 2; done\n"],"enabled":false,"env":[],"envFrom":[],"image":{"<<":{"debug":false,"pullPolicy":"IfNotPresent","registry":"istaridigital.jfrog.io","repository":"main-docker-local/dgraph-sec","tag":"v25.3.4-sec.1"}}}}` | Optional alpha pre-start init container (e.g. restore or bulk load before Alpha starts). |
+| alpha.initContainers.init.image.<<.debug | bool | `false` | Enable verbose BASH/NAMI image debugging output. |
+| alpha.initContainers.init.image.<<.pullPolicy | string | `"IfNotPresent"` | Image pull policy for the dgraph-sec image. |
+| alpha.initContainers.init.image.<<.registry | string | `"istaridigital.jfrog.io"` | Container registry hosting the dgraph-sec image. |
+| alpha.initContainers.init.image.<<.repository | string | `"main-docker-local/dgraph-sec"` | Repository path for the hardened dgraph-sec image. |
+| alpha.initContainers.init.image.<<.tag | string | `"v25.3.4-sec.1"` | dgraph-sec image tag (matches the chart appVersion). |
+| alpha.livenessProbe | object | `{"enabled":true,"failureThreshold":6,"initialDelaySeconds":15,"path":"/health?live=1","periodSeconds":10,"port":8080,"successThreshold":1,"timeoutSeconds":5}` | Liveness probe for alpha (against the 8080 /health?live=1 endpoint). |
+| alpha.metrics | object | `{"enabled":true}` | Toggle Prometheus metrics scrape annotations on alpha. |
+| alpha.monitorLabel | string | `"alpha-dgraph-io"` | Value of the "monitor" label on the alpha Service for Prometheus discovery. |
+| alpha.name | string | `"alpha"` | Component name for the alpha (data/query) workload. |
+| alpha.nodeAffinity | object | `{}` | Node affinity rules for alpha pod scheduling. |
+| alpha.nodeSelector | object | `{}` | Node selector for alpha pod scheduling. |
+| alpha.pdb | object | `{"enabled":true,"minAvailable":2}` | PodDisruptionBudget protecting the alpha Raft group. |
+| alpha.persistence | object | `{"accessModes":["ReadWriteOnce"],"annotations":{},"enabled":true,"size":"100Gi"}` | Persistent volume claim template for alpha data. |
+| alpha.podAntiAffinitytopologyKey | string | `"kubernetes.io/hostname"` | Topology key for alpha pod anti-affinity spreading. |
+| alpha.podLabels | object | `{}` | Extra pod labels on the alpha StatefulSet. |
+| alpha.podManagementPolicy | string | `"Parallel"` | Pod management policy for the alpha StatefulSet (OrderedReady or Parallel). |
+| alpha.readinessProbe | object | `{"enabled":true,"failureThreshold":6,"initialDelaySeconds":15,"path":"/probe/graphql","periodSeconds":10,"port":8080,"successThreshold":1,"timeoutSeconds":5}` | Readiness probe for alpha (against the 8080 /probe/graphql endpoint). |
+| alpha.replicaCount | int | `3` | Number of alpha data/query pods. |
+| alpha.resources | object | `{"limits":{"memory":"2Gi"},"requests":{"cpu":"250m","memory":"1Gi"}}` | CPU/memory requests and limits for alpha; right-size limits.memory before production. |
+| alpha.securityContext | object | `{"enabled":true,"fsGroup":1001,"runAsGroup":1001,"runAsNonRoot":true,"runAsUser":1001,"seccompProfile":{"type":"RuntimeDefault"}}` | Secure-by-default pod securityContext for alpha (non-root, RuntimeDefault seccomp). |
+| alpha.service | object | `{"annotations":{},"externalTrafficPolicy":"","labels":{},"loadBalancerIP":"","loadBalancerSourceRanges":[],"publishNotReadyAddresses":true,"type":"ClusterIP"}` | alpha Service configuration (type, labels, annotations, load-balancer settings). |
+| alpha.serviceHeadless | object | `{"labels":{}}` | Labels for the alpha headless Service. |
+| alpha.startupProbe | object | `{"enabled":false,"failureThreshold":30,"path":"/health?live=1","periodSeconds":10,"port":8080,"successThreshold":1,"timeoutSeconds":5}` | Startup probe for alpha (against the 8080 /health?live=1 endpoint). |
+| alpha.terminationGracePeriodSeconds | int | `600` | Termination grace period (seconds) for alpha pods. |
+| alpha.tls | object | `{"enabled":false,"files":{}}` | TLS configuration for alpha (cert files generated by dgraph-sec cert). |
+| alpha.tolerations | list | `[]` | Tolerations for alpha pod scheduling. |
+| alpha.updateStrategy | string | `"RollingUpdate"` | StatefulSet update strategy for alpha (RollingUpdate or OnDelete). |
+| backups.admin | object | `{"auth_token":"","tls_client":"","user":""}` | Backup admin credentials/token used to trigger backups when ACLs are enabled. |
+| backups.destination | string | `"/dgraph/backups"` | Backup destination: a file path, s3://, or minio:// URI. |
+| backups.full | object | `{"debug":false,"enabled":false,"restartPolicy":"Never","schedule":"0 0 * * *"}` | Full-backup CronJob (enable, schedule, restart policy). |
+| backups.image | object | `{"<<":{"debug":false,"pullPolicy":"IfNotPresent","registry":"istaridigital.jfrog.io","repository":"main-docker-local/dgraph-sec","tag":"v25.3.4-sec.1"}}` | Image for backup CronJobs (defaults to the shared dgraph-sec image; needs curl). |
+| backups.image.<<.debug | bool | `false` | Enable verbose BASH/NAMI image debugging output. |
+| backups.image.<<.pullPolicy | string | `"IfNotPresent"` | Image pull policy for the dgraph-sec image. |
+| backups.image.<<.registry | string | `"istaridigital.jfrog.io"` | Container registry hosting the dgraph-sec image. |
+| backups.image.<<.repository | string | `"main-docker-local/dgraph-sec"` | Repository path for the hardened dgraph-sec image. |
+| backups.image.<<.tag | string | `"v25.3.4-sec.1"` | dgraph-sec image tag (matches the chart appVersion). |
+| backups.incremental | object | `{"debug":false,"enabled":false,"restartPolicy":"Never","schedule":"0 1-23 * * *"}` | Incremental-backup CronJob (enable, schedule, restart policy). |
+| backups.keys | object | `{"minio":{"access":"","secret":""},"s3":{"access":"","secret":""}}` | MinIO/S3 access keys for the backup destination. |
+| backups.minioSecure | bool | `false` | Use HTTPS when the MinIO endpoint is TLS-enabled. |
+| backups.name | string | `"backups"` | Component name for the binary backup CronJobs. |
+| backups.nfs | object | `{"enabled":false,"mountPath":"/dgraph/backups","path":"","server":"","storage":"512Gi"}` | NFS-backed PersistentVolume for backup storage mounted into Alpha pods. |
+| backups.podAnnotations | object | `{}` | Extra pod annotations on the backup CronJob pod template. |
+| backups.podLabels | object | `{}` | Extra pod labels on the backup CronJob pod template. |
+| backups.subpath | string | `"dgraph_$(date +%Y%m%d)"` | Subpath under the destination for grouping full and incremental backups. |
+| backups.volume | object | `{"claim":"","enabled":false,"mountPath":"/dgraph/backups/"}` | Pre-existing PVC mounted into Alpha pods for backup storage. |
+| commonLabels | object | `{}` | Labels added to every resource and pod template; lowest priority. |
+| datadog | object | `{"alpha":{"subservice":"alpha"},"enabled":false,"superservice":"dgraph-sec","zero":{"subservice":"zero"}}` | Datadog autodiscovery annotations and tags (superservice/subservice naming). |
+| global.domain | string | `"cluster.local"` | Cluster DNS domain used to build in-cluster service hostnames. |
+| global.ingress | object | `{"alpha_hostname":null,"annotations":{},"enabled":false,"ingressClassName":null,"ratel_hostname":null,"tls":{}}` | Combined HTTP Ingress for alpha and ratel (overrides per-component ingress). |
+| global.ingress_grpc | object | `{"alpha_grpc_hostname":null,"annotations":{},"enabled":false,"ingressClassName":null,"tls":{}}` | Combined gRPC Ingress for alpha (overrides per-component ingress_grpc). |
+| image.debug | bool | `false` | Enable verbose BASH/NAMI image debugging output. |
+| image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for the dgraph-sec image. |
+| image.registry | string | `"istaridigital.jfrog.io"` | Container registry hosting the dgraph-sec image. |
+| image.repository | string | `"main-docker-local/dgraph-sec"` | Repository path for the hardened dgraph-sec image. |
+| image.tag | string | `"v25.3.4-sec.1"` | dgraph-sec image tag (matches the chart appVersion). |
+| networkPolicy | object | `{"clientPodLabels":{},"enabled":false,"extraIngress":[]}` | NetworkPolicy gating ingress to alpha/zero ports (gated production add-on). |
+| preUpgradeHook.enabled | bool | `true` | Run the v24-to-v25 StatefulSet selector migration Job on helm upgrade. |
+| preUpgradeHook.image | object | `{"registry":"istaridigital.jfrog.io","repository":"remote-docker-dockerhub/bitnami/kubectl","tag":"1.31"}` | kubectl image used by the pre-upgrade migration Job. |
+| preUpgradeHook.podAnnotations | object | `{}` | Extra pod annotations for the pre-upgrade hook Job. |
+| preUpgradeHook.podLabels | object | `{}` | Extra pod labels for the pre-upgrade hook Job. |
+| prometheusRule | object | `{"defaultRules":true,"enabled":false,"extraRules":[],"labels":{}}` | Prometheus Operator PrometheusRule with default alerts (gated production add-on). |
+| ratel.args | list | `[]` | Extra arguments appended to the dgraph-ratel command. |
+| ratel.automountServiceAccountToken | bool | `false` | Do not mount the API token on ratel pods; ratel is a static UI. |
+| ratel.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false}` | Secure-by-default container securityContext for ratel (drop ALL caps, no privilege escalation). |
+| ratel.customLivenessProbe | object | `{}` | Full custom liveness probe spec for ratel (overrides livenessProbe). |
+| ratel.customReadinessProbe | object | `{}` | Full custom readiness probe spec for ratel (overrides readinessProbe). |
+| ratel.enabled | bool | `false` | Deploy the ratel debug UI (off by default; never expose publicly). |
+| ratel.envFrom | list | `[]` | Extra envFrom sources (configMaps/secrets) for the ratel container. |
+| ratel.extraAnnotations | object | `{}` | Extra annotations on the ratel Deployment pod template. |
+| ratel.extraEnvs | list | `[]` | Extra environment variables appended to the ratel container. |
+| ratel.image | object | `{"registry":"istaridigital.jfrog.io","repository":"remote-docker-dockerhub/dgraph/ratel","tag":"v21.12.0"}` | Image for the ratel UI (separate dgraph/ratel image). |
+| ratel.ingress | object | `{"enabled":false}` | HTTP Ingress for the ratel service (requires an ingress controller). |
+| ratel.livenessProbe | object | `{"enabled":false,"failureThreshold":6,"initialDelaySeconds":30,"path":"/","periodSeconds":10,"port":8000,"successThreshold":1,"timeoutSeconds":5}` | Liveness probe for ratel (against the 8000 / endpoint). |
+| ratel.name | string | `"ratel"` | Component name for the ratel debug UI workload. |
+| ratel.podLabels | object | `{}` | Extra pod labels on the ratel Deployment. |
+| ratel.readinessProbe | object | `{"enabled":false,"failureThreshold":6,"initialDelaySeconds":5,"path":"/","periodSeconds":10,"port":8000,"successThreshold":1,"timeoutSeconds":5}` | Readiness probe for ratel (against the 8000 / endpoint). |
+| ratel.replicaCount | int | `1` | Number of ratel UI pods. |
+| ratel.securityContext | object | `{"enabled":true,"fsGroup":1001,"runAsGroup":1001,"runAsNonRoot":true,"runAsUser":1001,"seccompProfile":{"type":"RuntimeDefault"}}` | Secure-by-default pod securityContext for ratel (non-root, RuntimeDefault seccomp). |
+| ratel.service | object | `{"annotations":{},"externalTrafficPolicy":"","labels":{},"loadBalancerIP":"","loadBalancerSourceRanges":[],"type":"ClusterIP"}` | ratel Service configuration (type, labels, annotations, load-balancer settings). |
+| serviceAccount.annotations | object | `{}` | Annotations added to the ServiceAccount. |
+| serviceAccount.automountServiceAccountToken | bool | `false` | Do not mount the API token; no dgraph workload calls the Kubernetes API. |
+| serviceAccount.create | bool | `true` | Create the dgraph ServiceAccount. |
+| serviceAccount.name | string | `""` | Name of the ServiceAccount; empty means use the chart fullname. |
+| serviceMonitor | object | `{"enabled":false,"interval":"30s","labels":{},"path":"/debug/prometheus_metrics","scrapeTimeout":"10s"}` | Prometheus Operator ServiceMonitor (gated production add-on). |
+| tracing.alpha.service | string | `"dgraph-sec.alpha"` | Trace service name reported for alpha. |
+| tracing.enabled | bool | `false` | Enable OTEL trace export from alpha and zero. |
+| tracing.endpoint | string | `"datadog-agent.datadog.svc.cluster.local:4318"` | OTLP/HTTP collector endpoint for traces (port 4318). |
+| tracing.ratio | string | `"0.01"` | Trace sampling ratio (fraction of requests traced). |
+| tracing.zero.service | string | `"dgraph-sec.zero"` | Trace service name reported for zero. |
+| zero.antiAffinity | string | `"soft"` | Pod anti-affinity strength for zero (soft = best effort, hard = required). |
+| zero.automountServiceAccountToken | bool | `false` | Do not mount the API token on zero pods; zero never calls the K8s API. |
+| zero.configFile | object | `{}` | Config-file contents for zero (alternative to CLI flags). |
+| zero.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false}` | Secure-by-default container securityContext for zero (drop ALL caps, no privilege escalation). |
+| zero.customLivenessProbe | object | `{}` | Full custom liveness probe spec for zero (overrides livenessProbe). |
+| zero.customReadinessProbe | object | `{}` | Full custom readiness probe spec for zero (overrides readinessProbe). |
+| zero.customStartupProbe | object | `{}` | Full custom startup probe spec for zero (overrides startupProbe). |
+| zero.envFrom | list | `[]` | Extra envFrom sources (configMaps/secrets) for the zero container. |
+| zero.extraAnnotations | object | `{}` | Extra annotations on the zero StatefulSet pod template. |
+| zero.extraEnvs | list | `[]` | Extra environment variables appended to the zero container. |
+| zero.extraFlags | string | `""` | Extra command-line flags appended to dgraph-sec zero. |
+| zero.livenessProbe | object | `{"enabled":true,"failureThreshold":6,"initialDelaySeconds":15,"path":"/health","periodSeconds":10,"port":6080,"successThreshold":1,"timeoutSeconds":5}` | Liveness probe for zero (against the 6080 /health endpoint). |
+| zero.metrics | object | `{"enabled":true}` | Toggle Prometheus metrics scrape annotations on zero. |
+| zero.monitorLabel | string | `"zero-dgraph-io"` | Value of the "monitor" label on the zero Service for Prometheus discovery. |
+| zero.name | string | `"zero"` | Component name for the zero (cluster coordinator) workload. |
+| zero.nodeAffinity | object | `{}` | Node affinity rules for zero pod scheduling. |
+| zero.nodeSelector | object | `{}` | Node selector for zero pod scheduling. |
+| zero.pdb | object | `{"enabled":true,"minAvailable":2}` | PodDisruptionBudget protecting the zero Raft quorum. |
+| zero.persistence | object | `{"accessModes":["ReadWriteOnce"],"annotations":{},"enabled":true,"size":"32Gi"}` | Persistent volume claim template for zero data. |
+| zero.podAntiAffinitytopologyKey | string | `"kubernetes.io/hostname"` | Topology key for zero pod anti-affinity spreading. |
+| zero.podLabels | object | `{}` | Extra pod labels on the zero StatefulSet. |
+| zero.podManagementPolicy | string | `"Parallel"` | Pod management policy for the zero StatefulSet (OrderedReady or Parallel). |
+| zero.readinessProbe | object | `{"enabled":true,"failureThreshold":6,"initialDelaySeconds":15,"path":"/state","periodSeconds":10,"port":6080,"successThreshold":1,"timeoutSeconds":5}` | Readiness probe for zero (against the 6080 /state endpoint). |
+| zero.replicaCount | int | `3` | Number of zero coordinator pods (Raft membership). |
+| zero.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | CPU/memory requests and limits for zero (light coordinator workload). |
+| zero.securityContext | object | `{"enabled":true,"fsGroup":1001,"runAsGroup":1001,"runAsNonRoot":true,"runAsUser":1001,"seccompProfile":{"type":"RuntimeDefault"}}` | Secure-by-default pod securityContext for zero (non-root, RuntimeDefault seccomp). |
+| zero.service | object | `{"annotations":{},"externalTrafficPolicy":"","labels":{},"loadBalancerIP":"","loadBalancerSourceRanges":[],"publishNotReadyAddresses":true,"type":"ClusterIP"}` | zero Service configuration (type, labels, annotations, load-balancer settings). |
+| zero.serviceHeadless | object | `{"labels":{}}` | Labels for the zero headless Service. |
+| zero.shardReplicaCount | int | `3` | Per-group replication factor; keep this at or below alpha.replicaCount. |
+| zero.startupProbe | object | `{"enabled":false,"failureThreshold":6,"path":"/health","periodSeconds":10,"port":6080,"successThreshold":1,"timeoutSeconds":5}` | Startup probe for zero (against the 6080 /health endpoint). |
+| zero.terminationGracePeriodSeconds | int | `60` | Termination grace period (seconds) for zero pods. |
+| zero.tls | object | `{"enabled":false,"files":{}}` | TLS configuration for zero (cert files generated by dgraph-sec cert). |
+| zero.tolerations | list | `[]` | Tolerations for zero pod scheduling. |
+| zero.updateStrategy | string | `"RollingUpdate"` | StatefulSet update strategy for zero (RollingUpdate or OnDelete). |
+
+## Maintainers
+
+| Name | Email | Url |
+| ---- | ------ | --- |
+| Istari Digital Infrastructure Team | <infra@istaridigital.com> |  |

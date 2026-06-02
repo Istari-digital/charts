@@ -2,36 +2,36 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ template "dgraph.backups.fullname" . }}-full
-  namespace: {{ include "dgraph.namespace" . }}
+  name: {{ template "istari-dgraph-sec.backups.fullname" . }}-full
+  namespace: {{ include "istari-dgraph-sec.namespace" . }}
   labels:
-    {{- include "dgraph.labels" (dict "ctx" . "component" .Values.backups.name) | nindent 4 }}
+    {{- include "istari-dgraph-sec.labels" (dict "ctx" . "component" .Values.backups.name) | nindent 4 }}
 spec:
   schedule: "{{ .Values.backups.full.schedule }}"
   jobTemplate:
     metadata:
       labels:
-        {{- include "dgraph.labels" (dict "ctx" . "component" .Values.backups.name "extra" (dict "cronjob" (printf "%s-full" (include "dgraph.backups.fullname" .)))) | nindent 8 }}
+        {{- include "istari-dgraph-sec.labels" (dict "ctx" . "component" .Values.backups.name "extra" (dict "cronjob" (printf "%s-full" (include "istari-dgraph-sec.backups.fullname" .)))) | nindent 8 }}
     spec:
       template:
         metadata:
           labels:
-            {{- $extra := dict "cronjob" (printf "%s-full" (include "dgraph.backups.fullname" .)) }}
-            {{- include "dgraph.labels" (dict "ctx" . "component" .Values.backups.name "extra" $extra "podLabels" .Values.backups.podLabels) | nindent 12 }}
+            {{- $extra := dict "cronjob" (printf "%s-full" (include "istari-dgraph-sec.backups.fullname" .)) }}
+            {{- include "istari-dgraph-sec.labels" (dict "ctx" . "component" .Values.backups.name "extra" $extra "podLabels" .Values.backups.podLabels) | nindent 12 }}
           {{- with .Values.backups.podAnnotations }}
           annotations:
             {{- toYaml . | nindent 12 }}
           {{- end }}
         spec:
           {{- if .Values.serviceAccount.create }}
-          serviceAccountName: {{ include "dgraph.serviceAccountName" . }}
+          serviceAccountName: {{ include "istari-dgraph-sec.serviceAccountName" . }}
           {{- end }}
           {{- if .Values.backups.schedulerName }}
           schedulerName: {{ .Values.backups.schedulerName }}
           {{- end }}
           containers:
-          - name: {{ template "dgraph.backups.fullname" . }}-full
-            image: {{ template "dgraph.backups.image" . }}
+          - name: {{ template "istari-dgraph-sec.backups.fullname" . }}-full
+            image: {{ template "istari-dgraph-sec.backups.image" . }}
             imagePullPolicy: {{ .Values.backups.image.pullPolicy | quote }}
             command:
              - /usr/bin/bash
@@ -47,11 +47,11 @@ spec:
 
                 ## Use Single Alpha in Cluster to avoid potential issues with concurrent backups
                 ## ref. https://discuss.dgraph.io/t/concurrent-backups-can-lead-to-issues/9934/2
-                ALPHA_HOST="{{ template "dgraph.alpha.fullname" . }}-0.{{ template "dgraph.alpha.fullname" . }}-headless.${POD_NAMESPACE}.svc"
+                ALPHA_HOST="{{ template "istari-dgraph-sec.alpha.fullname" . }}-0.{{ template "istari-dgraph-sec.alpha.fullname" . }}-headless.${POD_NAMESPACE}.svc"
 
                 BACKUP_DESTINATION={{ .Values.backups.destination }}
                 SUBPATH={{ .Values.backups.subpath }}
-                API_TYPE={{ template "dgraph.backupsApiType" . }}
+                API_TYPE={{ template "istari-dgraph-sec.backupsApiType" . }}
                 MINIO_SECURE={{ .Values.backups.minioSecure }}
 
                 ## Get Tokens
@@ -60,7 +60,7 @@ spec:
                 {{- end }}
 
                 {{- if .Values.alpha.acl.enabled }}
-                ACCESS_TOKEN=$(get_token {{ .Values.backups.admin.user }} $(cat /backup_secrets/backup_admin_password) $AUTH_TOKEN )
+                ACCESS_TOKEN=$(get_token {{ required "backups.admin.user must be set when alpha.acl.enabled is true (do not rely on the well-known 'groot' superadmin)" .Values.backups.admin.user }} $(cat /backup_secrets/backup_admin_password) $AUTH_TOKEN )
                 {{- end }}
 
                 ## Full Backup with optional access and auth tokens
@@ -105,21 +105,21 @@ spec:
           volumes:
           - name: backup-config-volume
             configMap:
-              name: {{ template "dgraph.backups.fullname" . }}-config
+              name: {{ template "istari-dgraph-sec.backups.fullname" . }}-config
           {{- if .Values.alpha.tls.enabled }}
           - name: tls-volume
             secret:
-              secretName: {{ template "dgraph.alpha.fullname" . }}-tls-secret
+              secretName: {{ template "istari-dgraph-sec.alpha.fullname" . }}-tls-secret
           {{- end }}
           {{- if or .Values.alpha.acl.enabled .Values.backups.admin.auth_token }}
           - name: backup-secret-volume
             secret:
-              secretName: {{ template "dgraph.backups.fullname" . }}-secret
+              secretName: {{ template "istari-dgraph-sec.backups.fullname" . }}-secret
           {{- end }}
           {{- if .Values.backups.nfs.enabled }}
           - name: backups-nfs-volume
             persistentVolumeClaim:
-              claimName: {{ template "dgraph.backups.fullname" . }}-claim
+              claimName: {{ template "istari-dgraph-sec.backups.fullname" . }}-claim
           {{- end }}
           {{- if .Values.backups.volume.enabled }}
           - name: backups-vol-volume

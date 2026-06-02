@@ -2,14 +2,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "dgraph.name" -}}
+{{- define "istari-dgraph-sec.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 24 -}}
 {{- end -}}
 {{/*
 Create a default fully qualified app name.
 We truncate at 24 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 */}}
-{{- define "dgraph.fullname" -}}
+{{- define "istari-dgraph-sec.fullname" -}}
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 24 | trimSuffix "-" -}}
 {{- else -}}
@@ -20,45 +20,28 @@ We truncate at 24 chars because some Kubernetes name fields are limited to this 
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "dgraph.chart" -}}
+{{- define "istari-dgraph-sec.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
 Create a default fully qualified data name.
 */}}
-{{- define "dgraph.zero.fullname" -}}
-{{ template "dgraph.fullname" . }}-{{ .Values.zero.name }}
+{{- define "istari-dgraph-sec.zero.fullname" -}}
+{{ template "istari-dgraph-sec.fullname" . }}-{{ .Values.zero.name }}
 {{- end -}}
 
 {{/*
 Create a default fully qualified data name.
 */}}
-{{- define "dgraph.backups.fullname" -}}
-{{ template "dgraph.fullname" . }}-{{ .Values.backups.name }}
+{{- define "istari-dgraph-sec.backups.fullname" -}}
+{{ template "istari-dgraph-sec.fullname" . }}-{{ .Values.backups.name }}
 {{- end -}}
-
-{{/*
-Create a semVer/calVer version from image.tag so that it can be safely use in
-version comparisions used to toggle features or behavior.
-*/}}
-{{- define "dgraph.version" -}}
-{{- $safeVersion := .Values.image.tag -}}
-{{- if (eq $safeVersion "shuri") -}}
-  {{- $safeVersion = "v20.07.1" -}}
-{{- else if  (regexMatch "^[^v].*" $safeVersion) -}}
-  {{- $safeVersion = "v50.0.0" -}}
-{{- else -}}
-  {{- $safeVersion = regexReplaceAll "-(preview|sec).*$" $safeVersion "" -}}
-{{- end -}}
-{{- printf "%s" $safeVersion -}}
-{{- end -}}
-
 
 {{/*
 Return the backups image name
 */}}
-{{- define "dgraph.backups.image" -}}
+{{- define "istari-dgraph-sec.backups.image" -}}
 {{- $registryName := .Values.backups.image.registry -}}
 {{- $repositoryName := .Values.backups.image.repository -}}
 {{- $tag := .Values.backups.image.tag | toString -}}
@@ -68,7 +51,7 @@ Return the backups image name
 {{/*
 Return the ratel image name
 */}}
-{{- define "dgraph.ratel.image" -}}
+{{- define "istari-dgraph-sec.ratel.image" -}}
 {{- $registryName := .Values.ratel.image.registry -}}
 {{- $repositoryName := .Values.ratel.image.repository -}}
 {{- $tag := .Values.ratel.image.tag | toString -}}
@@ -79,7 +62,7 @@ Return the ratel image name
 {{/*
 Return empty string if minio keys are not defined
 */}}
-{{- define "dgraph.backups.keys.minio.enabled" -}}
+{{- define "istari-dgraph-sec.backups.keys.minio.enabled" -}}
 {{- $minioEnabled := "" -}}
 {{- $backupsEnabled := or .Values.backups.full.enabled .Values.backups.incremental.enabled }}
 {{- if $backupsEnabled -}}
@@ -97,7 +80,7 @@ Return empty string if minio keys are not defined
 {{/*
 Return empty string if s3 keys are not defined
 */}}
-{{- define "dgraph.backups.keys.s3.enabled" -}}
+{{- define "istari-dgraph-sec.backups.keys.s3.enabled" -}}
 {{- $s3Enabled := "" -}}
 {{- $backupsEnabled := or .Values.backups.full.enabled .Values.backups.incremental.enabled }}
 {{- if $backupsEnabled -}}
@@ -115,7 +98,7 @@ Return empty string if s3 keys are not defined
 {{/*
 Return the initContainers image name
 */}}
-{{- define "dgraph.initContainers.init.image" -}}
+{{- define "istari-dgraph-sec.initContainers.init.image" -}}
 {{- $registryName := .Values.alpha.initContainers.init.image.registry -}}
 {{- $repositoryName := .Values.alpha.initContainers.init.image.repository -}}
 {{- $tag := .Values.alpha.initContainers.init.image.tag | toString -}}
@@ -125,7 +108,7 @@ Return the initContainers image name
 {{/*
 Return the proper image name (for the metrics image)
 */}}
-{{- define "dgraph.image" -}}
+{{- define "istari-dgraph-sec.image" -}}
 {{- $registryName := .Values.image.registry -}}
 {{- $repositoryName := .Values.image.repository -}}
 {{- $tag := .Values.image.tag | toString -}}
@@ -148,7 +131,7 @@ Also, we can't use a single if because lazy evaluation is not an option
 {{/*
 Return the proper Docker Image Registry Secret Names
 */}}
-{{- define "dgraph.imagePullSecrets" -}}
+{{- define "istari-dgraph-sec.imagePullSecrets" -}}
 {{/*
 Helm 2.11 supports the assignment of a value to a variable defined in a different scope,
 but Helm 2.9 and 2.10 doesn't support it, so we need to implement this if-else logic.
@@ -177,16 +160,16 @@ imagePullSecrets:
 {{/*
 Create a default fully qualified alpha name.
 */}}
-{{- define "dgraph.alpha.fullname" -}}
-{{ template "dgraph.fullname" . }}-{{ .Values.alpha.name }}
+{{- define "istari-dgraph-sec.alpha.fullname" -}}
+{{ template "istari-dgraph-sec.fullname" . }}-{{ .Values.alpha.name }}
 {{- end -}}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "dgraph.serviceAccountName" -}}
+{{- define "istari-dgraph-sec.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "dgraph.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "istari-dgraph-sec.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
@@ -195,8 +178,8 @@ Create the name of the service account to use
 {{/*
 Create a default fully qualified ratel name.
 */}}
-{{- define "dgraph.ratel.fullname" -}}
-{{ template "dgraph.fullname" . }}-{{ .Values.ratel.name }}
+{{- define "istari-dgraph-sec.ratel.fullname" -}}
+{{ template "istari-dgraph-sec.fullname" . }}-{{ .Values.ratel.name }}
 {{- end -}}
 
 {{/*
@@ -233,7 +216,7 @@ the two non-headless Services, setting commonLabels.monitor will add a
 "monitor" label to most resources, but those two Services will still
 show their chart-defined monitorLabel value instead.
 */}}
-{{- define "dgraph.labels" -}}
+{{- define "istari-dgraph-sec.labels" -}}
 {{- $ctx := .ctx -}}
 {{- $labels := default (dict) $ctx.Values.commonLabels | deepCopy -}}
 {{- $_ := deepCopy (default (dict) .podLabels) | mergeOverwrite $labels -}}
@@ -244,15 +227,15 @@ show their chart-defined monitorLabel value instead.
 {{- $_ := set $labels "app.kubernetes.io/component" .component -}}
 {{- $_ := set $labels "component" .component -}}
 {{- end -}}
-{{- $_ := set $labels "app" (include "dgraph.name" $ctx) -}}
+{{- $_ := set $labels "app" (include "istari-dgraph-sec.name" $ctx) -}}
 {{- $_ := set $labels "app.kubernetes.io/instance" $ctx.Release.Name -}}
 {{- $_ := set $labels "app.kubernetes.io/managed-by" $ctx.Release.Service -}}
-{{- $_ := set $labels "app.kubernetes.io/name" (include "dgraph.name" $ctx) -}}
+{{- $_ := set $labels "app.kubernetes.io/name" (include "istari-dgraph-sec.name" $ctx) -}}
 {{- if $ctx.Chart.AppVersion -}}
 {{- $_ := set $labels "app.kubernetes.io/version" $ctx.Chart.AppVersion -}}
 {{- end -}}
-{{- $_ := set $labels "chart" (include "dgraph.chart" $ctx) -}}
-{{- $_ := set $labels "helm.sh/chart" (include "dgraph.chart" $ctx) -}}
+{{- $_ := set $labels "chart" (include "istari-dgraph-sec.chart" $ctx) -}}
+{{- $_ := set $labels "helm.sh/chart" (include "istari-dgraph-sec.chart" $ctx) -}}
 {{- $_ := set $labels "heritage" $ctx.Release.Service -}}
 {{- $_ := set $labels "release" $ctx.Release.Name -}}
 {{- toYaml $labels -}}
@@ -261,7 +244,7 @@ show their chart-defined monitorLabel value instead.
 {{/*
 Allow overriding namespace
 */}}
-{{- define "dgraph.namespace" -}}
+{{- define "istari-dgraph-sec.namespace" -}}
 {{- default .Release.Namespace .Values.namespaceOverride -}}
 {{- end -}}
 
@@ -280,16 +263,16 @@ Parameters (passed as a dict):
   ctx       — the Helm root context (required)
   component — "alpha" or "zero" (required)
 */}}
-{{- define "dgraph.datadogAnnotations" -}}
+{{- define "istari-dgraph-sec.datadogAnnotations" -}}
 {{- $superservice := .ctx.Values.datadog.superservice -}}
 {{- $subservice := "" -}}
 {{- $containerName := "" -}}
 {{- if eq .component "alpha" -}}
 {{- $subservice = .ctx.Values.datadog.alpha.subservice -}}
-{{- $containerName = include "dgraph.alpha.fullname" .ctx | trim -}}
+{{- $containerName = include "istari-dgraph-sec.alpha.fullname" .ctx | trim -}}
 {{- else -}}
 {{- $subservice = .ctx.Values.datadog.zero.subservice -}}
-{{- $containerName = include "dgraph.zero.fullname" .ctx | trim -}}
+{{- $containerName = include "istari-dgraph-sec.zero.fullname" .ctx | trim -}}
 {{- end -}}
 {{- $fullService := printf "%s.%s" $superservice $subservice -}}
 ad.datadoghq.com/tags: {{ printf `'{"istari_superservice":"%s","istari_subservice":"%s","istari_full_service":"%s"}'` $superservice $subservice $fullService }}
@@ -310,16 +293,16 @@ Parameters (passed as a dict):
   ctx       — the Helm root context (required)
   component — "alpha" or "zero" (required)
 */}}
-{{- define "dgraph.datadogLabels" -}}
+{{- define "istari-dgraph-sec.datadogLabels" -}}
 {{- $superservice := .ctx.Values.datadog.superservice -}}
 {{- $subservice := "" -}}
 {{- $containerName := "" -}}
 {{- if eq .component "alpha" -}}
 {{- $subservice = .ctx.Values.datadog.alpha.subservice -}}
-{{- $containerName = include "dgraph.alpha.fullname" .ctx | trim -}}
+{{- $containerName = include "istari-dgraph-sec.alpha.fullname" .ctx | trim -}}
 {{- else -}}
 {{- $subservice = .ctx.Values.datadog.zero.subservice -}}
-{{- $containerName = include "dgraph.zero.fullname" .ctx | trim -}}
+{{- $containerName = include "istari-dgraph-sec.zero.fullname" .ctx | trim -}}
 {{- end -}}
 {{- $fullService := printf "%s.%s" $superservice $subservice -}}
 tags.datadoghq.com/service: {{ $fullService }}
@@ -327,7 +310,7 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
 {{- end -}}
 
 {{- /* Generate ingress path */}}
-{{- define "dgraph.ingressPath" -}}
+{{- define "istari-dgraph-sec.ingressPath" -}}
   {{- $path := "/" -}}
   {{- if .Values.global.ingress.ingressClassName -}}
     {{- if eq .Values.global.ingress.ingressClassName "gce" "alb" "nsx" }}
@@ -345,23 +328,20 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
   {{- printf "%s" $path -}}
 {{- end -}}
 
-{{- /* Determine Backup is REST or GraphQL */}}
-{{- define "dgraph.backupsApiType" -}}
-{{- $apiType := "graphql" -}}
-{{- $safeVersion := include "dgraph.version" . -}}
-{{- if semverCompare "< 20.03" $safeVersion -}}
-  {{- $apiType = "rest" -}}
-{{- end -}}
+{{- /* Backup API type. Dgraph v20.03.1+ uses the GraphQL /admin endpoint;
+       this is a v25.x fork so GraphQL is always correct. override_api_type
+       remains an escape hatch. */}}
+{{- define "istari-dgraph-sec.backupsApiType" -}}
 {{- if .Values.backups.override_api_type -}}
   {{- printf "%s" .Values.backups.override_api_type -}}
 {{- else -}}
-  {{- printf "%s" $apiType -}}
+  {{- printf "graphql" -}}
 {{- end -}}
 {{- end -}}
 
 {{- /* Generate domain name for first zero in cluster */}}
-{{- define "dgraph.peerZero" -}}
-  {{- $zeroFullName := include "dgraph.zero.fullname" . -}}
+{{- define "istari-dgraph-sec.peerZero" -}}
+  {{- $zeroFullName := include "istari-dgraph-sec.zero.fullname" . -}}
 
   {{- /* Append domain suffix if domain is used */}}
   {{- $domainSuffix := "" -}}
@@ -372,25 +352,16 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
   {{- printf "%s-%d.%s-headless.${POD_NAMESPACE}.svc%s:5080" $zeroFullName 0 $zeroFullName $domainSuffix -}}
 {{- end -}}
 
-{{- /* Superflag (v21.03.0) support and legacy flags */}}
-{{- define "dgraph.raftIndexFlag" -}}
-  {{- $safeVersion := include "dgraph.version" . -}}
-  {{- if semverCompare ">= 21.03.0" $safeVersion -}}
-    {{- printf "--raft idx=" -}}
-  {{- else -}}
-    {{- printf "--idx " -}}
-  {{- end -}}
+{{- /* Raft index flag. v21.03.0+ uses the `--raft idx=` superflag; this is a
+       v25.x fork so the superflag form is always correct. */}}
+{{- define "istari-dgraph-sec.raftIndexFlag" -}}
+  {{- printf "--raft idx=" -}}
 {{- end -}}
 
 {{- /* Generate comma-separated list of Zeros */}}
-{{- define "dgraph.multiZeros" -}}
-  {{- $zeroFullName := include "dgraph.zero.fullname" . -}}
+{{- define "istari-dgraph-sec.multiZeros" -}}
+  {{- $zeroFullName := include "istari-dgraph-sec.zero.fullname" . -}}
   {{- $max := int .Values.zero.replicaCount -}}
-  {{- $safeVersion := include "dgraph.version" . -}}
-  {{- /* Reset $max to 1 if multiple zeros not supported by dgraph version */}}
-  {{- if or (semverCompare "< 1.2.3" $safeVersion) (semverCompare "= 20.03.0" $safeVersion) -}}
-     {{- $max = 1 -}}
-  {{- end -}}
 
   {{- /* Append domain suffix if domain is used */}}
   {{- $domainSuffix := "" -}}

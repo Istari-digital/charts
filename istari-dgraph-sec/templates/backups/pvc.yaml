@@ -2,15 +2,15 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ template "dgraph.backups.fullname" . }}-claim
-  namespace: {{ include "dgraph.namespace" . }}
+  name: {{ template "istari-dgraph-sec.backups.fullname" . }}-claim
+  namespace: {{ include "istari-dgraph-sec.namespace" . }}
   labels:
-    {{- include "dgraph.labels" (dict "ctx" . "component" .Values.backups.name) | nindent 4 }}
+    {{- include "istari-dgraph-sec.labels" (dict "ctx" . "component" .Values.backups.name) | nindent 4 }}
 spec:
   accessModes:
     - ReadWriteMany
   storageClassName: ""
-  volumeName: {{ template "dgraph.backups.fullname" . }}-fileserver
+  volumeName: {{ template "istari-dgraph-sec.backups.fullname" . }}-fileserver
   resources:
     requests:
       storage: {{ .Values.backups.nfs.storage }}

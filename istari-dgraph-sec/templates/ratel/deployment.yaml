@@ -2,14 +2,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "dgraph.ratel.fullname" . }}
-  namespace: {{ include "dgraph.namespace" . }}
+  name: {{ template "istari-dgraph-sec.ratel.fullname" . }}
+  namespace: {{ include "istari-dgraph-sec.namespace" . }}
   labels:
-    {{- include "dgraph.labels" (dict "ctx" . "component" .Values.ratel.name) | nindent 4 }}
+    {{- include "istari-dgraph-sec.labels" (dict "ctx" . "component" .Values.ratel.name) | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app: {{ template "dgraph.name" . }}
+      app: {{ template "istari-dgraph-sec.name" . }}
       component: {{ .Values.ratel.name }}
       release: {{ .Release.Name }}
   replicas: {{ .Values.ratel.replicaCount }}
@@ -22,10 +22,10 @@ spec:
         {{- end }}
       {{- end }}
       labels:
-        {{- include "dgraph.labels" (dict "ctx" . "component" .Values.ratel.name "podLabels" .Values.ratel.podLabels) | nindent 8 }}
+        {{- include "istari-dgraph-sec.labels" (dict "ctx" . "component" .Values.ratel.name "podLabels" .Values.ratel.podLabels) | nindent 8 }}
     spec:
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "dgraph.serviceAccountName" . }}
+      serviceAccountName: {{ include "istari-dgraph-sec.serviceAccountName" . }}
       automountServiceAccountToken: {{ .Values.ratel.automountServiceAccountToken }}
       {{- end }}
       {{- if .Values.ratel.schedulerName }}
@@ -33,14 +33,17 @@ spec:
       {{- end }}
       {{- if .Values.ratel.securityContext.enabled }}
       securityContext:
-        fsGroup: {{ .Values.ratel.securityContext.fsGroup }}
-        runAsUser: {{ .Values.ratel.securityContext.runAsUser }}
+        {{- omit .Values.ratel.securityContext "enabled" | toYaml | nindent 8 }}
       {{- end }}
-{{- include "dgraph.imagePullSecrets" . | indent 6 }}
+{{- include "istari-dgraph-sec.imagePullSecrets" . | indent 6 }}
       containers:
-      - name: "{{ template "dgraph.ratel.fullname" . }}"
-        image: "{{ template "dgraph.ratel.image" . }}"
+      - name: "{{ template "istari-dgraph-sec.ratel.fullname" . }}"
+        image: "{{ template "istari-dgraph-sec.ratel.image" . }}"
         imagePullPolicy: {{ .Values.ratel.image.pullPolicy | quote }}
+        {{- if .Values.ratel.containerSecurityContext.enabled }}
+        securityContext:
+          {{- omit .Values.ratel.containerSecurityContext "enabled" | toYaml | nindent 10 }}
+        {{- end }}
         {{- if .Values.ratel.extraEnvs }}
         env:
         {{- with .Values.ratel.extraEnvs }}

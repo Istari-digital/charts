@@ -1,16 +1,16 @@
-{{- $hasS3Keys := include "dgraph.backups.keys.s3.enabled" . -}}
-{{- $hasMinioKeys := include "dgraph.backups.keys.minio.enabled" . -}}
+{{- $hasS3Keys := include "istari-dgraph-sec.backups.keys.s3.enabled" . -}}
+{{- $hasMinioKeys := include "istari-dgraph-sec.backups.keys.minio.enabled" . -}}
 {{- $backupsEnabled := or .Values.backups.full.enabled .Values.backups.incremental.enabled }}
 {{- $initContainerEnabled := or .Values.alpha.initContainers.init.enabled .Values.alpha.extraInitContainers }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ template "dgraph.alpha.fullname" . }}
-  namespace: {{ include "dgraph.namespace" . }}
+  name: {{ template "istari-dgraph-sec.alpha.fullname" . }}
+  namespace: {{ include "istari-dgraph-sec.namespace" . }}
   labels:
-    {{- include "dgraph.labels" (dict "ctx" . "component" .Values.alpha.name) | nindent 4 }}
+    {{- include "istari-dgraph-sec.labels" (dict "ctx" . "component" .Values.alpha.name) | nindent 4 }}
 spec:
-  serviceName: {{ template "dgraph.alpha.fullname" . }}-headless
+  serviceName: {{ template "istari-dgraph-sec.alpha.fullname" . }}-headless
   replicas: {{ .Values.alpha.replicaCount }}
   podManagementPolicy: {{ .Values.alpha.podManagementPolicy | quote }}
   updateStrategy:
@@ -23,12 +23,12 @@ spec:
     {{- end }}
   selector:
     matchLabels:
-      app: {{ template "dgraph.name" . }}
+      app: {{ template "istari-dgraph-sec.name" . }}
       release: {{ .Release.Name }}
       component: {{ .Values.alpha.name }}
   template:
     metadata:
-      name: {{ template "dgraph.alpha.fullname" . }}
+      name: {{ template "istari-dgraph-sec.alpha.fullname" . }}
       {{- if or .Values.alpha.metrics.enabled .Values.alpha.extraAnnotations .Values.datadog.enabled }}
       annotations:
         {{- if .Values.alpha.metrics.enabled }}
@@ -37,20 +37,20 @@ spec:
         prometheus.io/scrape: "true"
         {{- end }}
         {{- if .Values.datadog.enabled }}
-        {{- include "dgraph.datadogAnnotations" (dict "ctx" . "component" "alpha") | nindent 8 }}
+        {{- include "istari-dgraph-sec.datadogAnnotations" (dict "ctx" . "component" "alpha") | nindent 8 }}
         {{- end }}
         {{- with .Values.alpha.extraAnnotations }}
 {{- toYaml . | trimSuffix "\n" | nindent 8 }}
         {{- end }}
       {{- end }}
       labels:
-        {{- include "dgraph.labels" (dict "ctx" . "component" .Values.alpha.name "podLabels" .Values.alpha.podLabels) | nindent 8 }}
+        {{- include "istari-dgraph-sec.labels" (dict "ctx" . "component" .Values.alpha.name "podLabels" .Values.alpha.podLabels) | nindent 8 }}
         {{- if .Values.datadog.enabled }}
-        {{- include "dgraph.datadogLabels" (dict "ctx" . "component" "alpha") | nindent 8 }}
+        {{- include "istari-dgraph-sec.datadogLabels" (dict "ctx" . "component" "alpha") | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "dgraph.serviceAccountName" . }}
+      serviceAccountName: {{ include "istari-dgraph-sec.serviceAccountName" . }}
       automountServiceAccountToken: {{ .Values.alpha.automountServiceAccountToken }}
       {{- end }}
       {{- if .Values.alpha.schedulerName }}
@@ -86,11 +86,10 @@ spec:
         nodeAffinity:
 {{ toYaml . | indent 10 }}
       {{- end }}
-{{- include "dgraph.imagePullSecrets" . | indent 6 }}
+{{- include "istari-dgraph-sec.imagePullSecrets" . | indent 6 }}
       {{- if .Values.alpha.securityContext.enabled }}
       securityContext:
-        fsGroup: {{ .Values.alpha.securityContext.fsGroup }}
-        runAsUser: {{ .Values.alpha.securityContext.runAsUser }}
+        {{- omit .Values.alpha.securityContext "enabled" | toYaml | nindent 8 }}
       {{- end }}
       {{- if .Values.alpha.nodeSelector }}
       nodeSelector:
@@ -106,9 +105,13 @@ spec:
         {{- tpl (toYaml .) $ | nindent 6 }}
       {{- end }}
       {{- if .Values.alpha.initContainers.init.enabled }}
-      - name: {{ template "dgraph.alpha.fullname" . }}-init
-        image: {{ template "dgraph.initContainers.init.image" . }}
+      - name: {{ template "istari-dgraph-sec.alpha.fullname" . }}-init
+        image: {{ template "istari-dgraph-sec.initContainers.init.image" . }}
         imagePullPolicy: {{ .Values.alpha.initContainers.init.image.pullPolicy | quote }}
+        {{- if .Values.alpha.containerSecurityContext.enabled }}
+        securityContext:
+          {{- omit .Values.alpha.containerSecurityContext "enabled" | toYaml | nindent 10 }}
+        {{- end }}
         {{- with .Values.alpha.initContainers.init.env }}
         env:
           {{- tpl (toYaml .) $ | nindent 10 }}
@@ -133,8 +136,12 @@ spec:
       {{- end }}
       {{- end }}
       containers:
-      - name: {{ template "dgraph.alpha.fullname" . }}
-        image: {{ template "dgraph.image" . }}
+      - name: {{ template "istari-dgraph-sec.alpha.fullname" . }}
+        image: {{ template "istari-dgraph-sec.image" . }}
+        {{- if .Values.alpha.containerSecurityContext.enabled }}
+        securityContext:
+          {{- omit .Values.alpha.containerSecurityContext "enabled" | toYaml | nindent 10 }}
+        {{- end }}
         ports:
         - containerPort: 7080
           name: grpc-alpha-int
@@ -152,24 +159,24 @@ spec:
           - name: MINIO_ACCESS_KEY
             valueFrom:
               secretKeyRef:
-                name: {{ template "dgraph.backups.fullname" . }}-secret
+                name: {{ template "istari-dgraph-sec.backups.fullname" . }}-secret
                 key: minio_access_key
           - name: MINIO_SECRET_KEY
             valueFrom:
               secretKeyRef:
-                name: {{ template "dgraph.backups.fullname" . }}-secret
+                name: {{ template "istari-dgraph-sec.backups.fullname" . }}-secret
                 key: minio_secret_key
           {{- end }}
           {{- if and $backupsEnabled $hasS3Keys }}
           - name: AWS_ACCESS_KEY_ID
             valueFrom:
               secretKeyRef:
-                name: {{ template "dgraph.backups.fullname" . }}-secret
+                name: {{ template "istari-dgraph-sec.backups.fullname" . }}-secret
                 key: s3_access_key
           - name: AWS_SECRET_ACCESS_KEY
             valueFrom:
               secretKeyRef:
-                name: {{ template "dgraph.backups.fullname" . }}-secret
+                name: {{ template "istari-dgraph-sec.backups.fullname" . }}-secret
                 key: s3_secret_key
           {{- end }}
           {{- if .Values.alpha.configFile }}
@@ -183,16 +190,16 @@ spec:
         envFrom:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{/* NOTE: awk '{gsub(/\.$/,"") needed to trim */}}
         command:
           - bash
           - "-c"
-          ## NOTE: awk gsub is needed to trim trailing period otherwise it causes
-          ##       crash for Kubernetes without the domain name
-          {{- /* TODO: Remove awk-gsub once dgraph-io/dgraph#6837 is merged and back-ported. */}}
+          ## NOTE: `awk gsub` trims a trailing dot from the FQDN. Some clusters
+          ##       return `hostname -f` with a trailing "." (the DNS root label);
+          ##       dgraph rejects an address with a trailing dot. Defensive — keep
+          ##       it unless you have verified this fork's image never emits one.
           - |
             set -ex
-            dgraph-sec alpha --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):7080 --zero {{ template "dgraph.multiZeros" . }} {{ .Values.alpha.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.alpha.service }};"{{- end }}
+            dgraph-sec alpha --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):7080 --zero {{ template "istari-dgraph-sec.multiZeros" . }} {{ .Values.alpha.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.alpha.service }};"{{- end }}
         resources:
 {{ toYaml .Values.alpha.resources | indent 10 }}
         {{- if .Values.alpha.startupProbe.enabled }}
@@ -274,12 +281,12 @@ spec:
       {{- if and $backupsEnabled (or $hasS3Keys $hasMinioKeys) }}
       - name: backup-secret-volume
         secret:
-          secretName: {{ template "dgraph.backups.fullname" . }}-secret
+          secretName: {{ template "istari-dgraph-sec.backups.fullname" . }}-secret
       {{- end }}
       {{- if and $backupsEnabled .Values.backups.nfs.enabled }}
       - name: backups-nfs-volume
         persistentVolumeClaim:
-          claimName: {{ template "dgraph.backups.fullname" . }}-claim
+          claimName: {{ template "istari-dgraph-sec.backups.fullname" . }}-claim
       {{- end }}
       {{- if and $backupsEnabled .Values.backups.volume.enabled }}
       - name: backups-vol-volume
@@ -289,22 +296,22 @@ spec:
       {{- if .Values.alpha.configFile }}
       - name: config-volume
         configMap:
-          name: {{ template "dgraph.alpha.fullname" . }}-config
+          name: {{ template "istari-dgraph-sec.alpha.fullname" . }}-config
       {{- end }}
       {{- if .Values.alpha.tls.enabled }}
       - name: tls-volume
         secret:
-          secretName: {{ template "dgraph.alpha.fullname" . }}-tls-secret
+          secretName: {{ template "istari-dgraph-sec.alpha.fullname" . }}-tls-secret
       {{- end }}
       {{- if .Values.alpha.encryption.enabled }}
       - name: enc-volume
         secret:
-          secretName: {{ template "dgraph.alpha.fullname" . }}-encryption-secret
+          secretName: {{ template "istari-dgraph-sec.alpha.fullname" . }}-encryption-secret
       {{- end }}
       {{- if or .Values.alpha.acl.enabled }}
       - name: acl-volume
         secret:
-          secretName: {{ template "dgraph.alpha.fullname" . }}-acl-secret
+          secretName: {{ template "istari-dgraph-sec.alpha.fullname" . }}-acl-secret
       {{- end }}
 
 {{- if .Values.alpha.persistence.enabled }}

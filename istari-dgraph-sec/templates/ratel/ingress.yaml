@@ -3,10 +3,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ template "dgraph.ratel.fullname" . }}-ingress
-  namespace: {{ include "dgraph.namespace" . }}
+  name: {{ template "istari-dgraph-sec.ratel.fullname" . }}-ingress
+  namespace: {{ include "istari-dgraph-sec.namespace" . }}
   labels:
-    {{- include "dgraph.labels" (dict "ctx" . "component" .Values.ratel.name) | nindent 4 }}
+    {{- include "istari-dgraph-sec.labels" (dict "ctx" . "component" .Values.ratel.name) | nindent 4 }}
   {{- with .Values.ratel.ingress.annotations }}
   annotations:
     {{- toYaml . | trimSuffix "\n" | nindent 4 }}
@@ -30,11 +30,11 @@ spec:
         paths:
           - backend:
               service:
-                name:  {{ template "dgraph.ratel.fullname" . }}
+                name:  {{ template "istari-dgraph-sec.ratel.fullname" . }}
                 port:
                  number: 80
             pathType: ImplementationSpecific
-            path: {{ template "dgraph.ingressPath" . }}
+            path: {{ template "istari-dgraph-sec.ingressPath" . }}
       {{- if .Values.ratel.ingress.hostname }}
       host: {{ .Values.ratel.ingress.hostname }}
       {{- end }}

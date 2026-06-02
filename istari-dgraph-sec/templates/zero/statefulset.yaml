@@ -1,12 +1,12 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: "{{ template "dgraph.zero.fullname" . }}"
-  namespace: {{ include "dgraph.namespace" . }}
+  name: "{{ template "istari-dgraph-sec.zero.fullname" . }}"
+  namespace: {{ include "istari-dgraph-sec.namespace" . }}
   labels:
-    {{- include "dgraph.labels" (dict "ctx" . "component" .Values.zero.name) | nindent 4 }}
+    {{- include "istari-dgraph-sec.labels" (dict "ctx" . "component" .Values.zero.name) | nindent 4 }}
 spec:
-  serviceName: {{ template "dgraph.zero.fullname" . }}-headless
+  serviceName: {{ template "istari-dgraph-sec.zero.fullname" . }}-headless
   replicas: {{ .Values.zero.replicaCount }}
   podManagementPolicy: {{ .Values.zero.podManagementPolicy | quote }}
   updateStrategy:
@@ -19,12 +19,12 @@ spec:
     {{- end }}
   selector:
     matchLabels:
-      app: {{ template "dgraph.name" . }}
+      app: {{ template "istari-dgraph-sec.name" . }}
       release: {{ .Release.Name }}
       component: {{ .Values.zero.name }}
   template:
     metadata:
-      name: {{ template "dgraph.zero.fullname" . }}
+      name: {{ template "istari-dgraph-sec.zero.fullname" . }}
       {{- if or .Values.zero.metrics.enabled .Values.zero.extraAnnotations .Values.datadog.enabled }}
       annotations:
         {{- if .Values.zero.metrics.enabled }}
@@ -33,20 +33,20 @@ spec:
         prometheus.io/scrape: "true"
         {{- end }}
         {{- if .Values.datadog.enabled }}
-        {{- include "dgraph.datadogAnnotations" (dict "ctx" . "component" "zero") | nindent 8 }}
+        {{- include "istari-dgraph-sec.datadogAnnotations" (dict "ctx" . "component" "zero") | nindent 8 }}
         {{- end }}
         {{- with .Values.zero.extraAnnotations }}
 {{- toYaml . | trimSuffix "\n" | nindent 8 }}
         {{- end }}
       {{- end }}
       labels:
-        {{- include "dgraph.labels" (dict "ctx" . "component" .Values.zero.name "podLabels" .Values.zero.podLabels) | nindent 8 }}
+        {{- include "istari-dgraph-sec.labels" (dict "ctx" . "component" .Values.zero.name "podLabels" .Values.zero.podLabels) | nindent 8 }}
         {{- if .Values.datadog.enabled }}
-        {{- include "dgraph.datadogLabels" (dict "ctx" . "component" "zero") | nindent 8 }}
+        {{- include "istari-dgraph-sec.datadogLabels" (dict "ctx" . "component" "zero") | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "dgraph.serviceAccountName" . }}
+      serviceAccountName: {{ include "istari-dgraph-sec.serviceAccountName" . }}
       automountServiceAccountToken: {{ .Values.zero.automountServiceAccountToken }}
       {{- end }}
       {{- if .Values.zero.schedulerName }}
@@ -82,11 +82,10 @@ spec:
         nodeAffinity:
 {{ toYaml . | indent 10 }}
       {{- end }}
-{{- include "dgraph.imagePullSecrets" . | indent 6 }}
+{{- include "istari-dgraph-sec.imagePullSecrets" . | indent 6 }}
       {{- if .Values.zero.securityContext.enabled }}
       securityContext:
-        fsGroup: {{ .Values.zero.securityContext.fsGroup }}
-        runAsUser: {{ .Values.zero.securityContext.runAsUser }}
+        {{- omit .Values.zero.securityContext "enabled" | toYaml | nindent 8 }}
       {{- end }}
       {{- if .Values.zero.nodeSelector }}
       nodeSelector:
@@ -97,8 +96,12 @@ spec:
 {{ toYaml .Values.zero.tolerations | indent 8 }}
       {{- end }}
       containers:
-      - name: {{ template "dgraph.zero.fullname" . }}
-        image: {{ template "dgraph.image" . }}
+      - name: {{ template "istari-dgraph-sec.zero.fullname" . }}
+        image: {{ template "istari-dgraph-sec.image" . }}
+        {{- if .Values.zero.containerSecurityContext.enabled }}
+        securityContext:
+          {{- omit .Values.zero.containerSecurityContext "enabled" | toYaml | nindent 10 }}
+        {{- end }}
         ports:
         - containerPort: 5080
           name: grpc-zero
@@ -130,9 +133,9 @@ spec:
               ordinal=${BASH_REMATCH[1]}
               idx=$(($ordinal + 1))
               if [[ $ordinal -eq 0 ]]; then
-                exec dgraph-sec zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 {{ template "dgraph.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ .Values.zero.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
+                exec dgraph-sec zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 {{ template "istari-dgraph-sec.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ .Values.zero.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
               else
-                exec dgraph-sec zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 --peer {{ template "dgraph.peerZero" . }} {{ template "dgraph.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ .Values.zero.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
+                exec dgraph-sec zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 --peer {{ template "istari-dgraph-sec.peerZero" . }} {{ template "istari-dgraph-sec.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ .Values.zero.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
               fi
         resources:
 {{ toYaml .Values.zero.resources | indent 10 }}
@@ -199,12 +202,12 @@ spec:
       {{- if .Values.zero.configFile }}
       - name: config-volume
         configMap:
-          name: {{ template "dgraph.zero.fullname" . }}-config
+          name: {{ template "istari-dgraph-sec.zero.fullname" . }}-config
       {{- end }}
       {{- if .Values.zero.tls.enabled }}
       - name: tls-volume
         secret:
-          secretName: {{ template "dgraph.zero.fullname" . }}-tls-secret
+          secretName: {{ template "istari-dgraph-sec.zero.fullname" . }}-tls-secret
       {{- end }}
 {{- if .Values.zero.persistence.enabled }}
   volumeClaimTemplates:

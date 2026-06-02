@@ -2,12 +2,18 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ template "dgraph.backups.fullname" . }}-config
-  namespace: {{ include "dgraph.namespace" . }}
+  name: {{ template "istari-dgraph-sec.backups.fullname" . }}-config
+  namespace: {{ include "istari-dgraph-sec.namespace" . }}
   labels:
-    {{- include "dgraph.labels" (dict "ctx" . "component" .Values.backups.name) | nindent 4 }}
+    {{- include "istari-dgraph-sec.labels" (dict "ctx" . "component" .Values.backups.name) | nindent 4 }}
 data:
   backup.sh: |
+    ## NOTE: JSON responses are parsed with `jq`. The dgraph-sec image is a
+    ## Chainguard (Wolfi) image whose `grep` is BusyBox — it has no PCRE (`-P`)
+    ## support, so the old `grep -oP` extraction would fail outright. `jq` ships
+    ## in the image and parses the responses correctly. Each extraction guards
+    ## against an empty result so a parse failure is a loud, non-zero exit rather
+    ## than a backup POSTed with no auth header.
     ######
     # get_token_rest - get accessJWT token with REST command for Dgraph 1.x
     ##########################
@@ -22,13 +28,15 @@ data:
           --data "${JSON}"
       )
 
-      if grep -q errors <<< "$RESULT"; then
-        ERROR=$(grep -oP '(?<=message":")[^"]*' <<< $RESULT)
+      ERROR=$(jq -r '.errors[0].message // empty' <<< "$RESULT")
+      if [[ -n "$ERROR" ]]; then
         echo "ERROR: $ERROR"
         return 1
       fi
 
-      grep -oP '(?<=accessJWT":")[^"]*' <<< "$RESULT"
+      TOKEN=$(jq -r '.data.accessJWT // empty' <<< "$RESULT")
+      [[ -n "$TOKEN" ]] || { echo "ERROR: could not parse accessJWT from /login response" >&2; return 1; }
+      echo "$TOKEN"
 
     }
 
@@ -46,13 +54,15 @@ data:
           --data "${GQL}"
       )
 
-      if grep -q errors <<< "$RESULT"; then
-        ERROR=$(grep -oP '(?<=message":")[^"]*' <<< $RESULT)
+      ERROR=$(jq -r '.errors[0].message // empty' <<< "$RESULT")
+      if [[ -n "$ERROR" ]]; then
         echo "ERROR: $ERROR"
         return 1
       fi
 
-      grep -oP '(?<=accessJWT":")[^"]*' <<< "$RESULT"
+      TOKEN=$(jq -r '.data.login.response.accessJWT // empty' <<< "$RESULT")
+      [[ -n "$TOKEN" ]] || { echo "ERROR: could not parse accessJWT from /admin login response" >&2; return 1; }
+      echo "$TOKEN"
 
     }
 
@@ -196,12 +206,13 @@ data:
         --data "destination=$BACKUP_DESTINATION"
       )
 
-      if grep -q errors <<< "$RESULT"; then
-        ERROR=$(grep -oP '(?<=message":")[^"]*' <<< $RESULT)
-        MESSAGE="ERROR: $ERROR"
-        if grep -q code <<< "$RESULT"; then
-          CODE=$(grep -oP '(?<=code":")[^"]*' <<< $RESULT)
-          echo "$MESSAGE REASON='$CODE'"
+      ERROR=$(jq -r '.errors[0].message // empty' <<< "$RESULT")
+      if [[ -n "$ERROR" ]]; then
+        CODE=$(jq -r '.errors[0].code // empty' <<< "$RESULT")
+        if [[ -n "$CODE" ]]; then
+          echo "ERROR: $ERROR REASON='$CODE'"
+        else
+          echo "ERROR: $ERROR"
         fi
         return 1
       fi
@@ -224,8 +235,8 @@ data:
         --data "$GQL"
       )
 
-      if grep -q errors <<< "$RESULT"; then
-        ERROR=$(grep -oP '(?<=message":")[^"]*' <<< $RESULT)
+      ERROR=$(jq -r '.errors[0].message // empty' <<< "$RESULT")
+      if [[ -n "$ERROR" ]]; then
         echo "ERROR: $ERROR"
         return 1
       fi

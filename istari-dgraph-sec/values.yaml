@@ -10,16 +10,21 @@
 ## Labels to add to all resources and pod templates.
 ## These have the lowest priority — chart-defined labels (like monitorLabel)
 ## and per-component podLabels will override commonLabels on key conflicts.
+# -- (object) Labels added to every resource and pod template; lowest priority.
 commonLabels: {}
 
 image: &image
+  # -- Container registry hosting the dgraph-sec image.
   registry: istaridigital.jfrog.io
+  # -- Repository path for the hardened dgraph-sec image.
   repository: main-docker-local/dgraph-sec
+  # -- dgraph-sec image tag (matches the chart appVersion).
   tag: v25.3.4-sec.1
   ## Specify a imagePullPolicy
   ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
   ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
   ##
+  # -- Image pull policy for the dgraph-sec image.
   pullPolicy: IfNotPresent
   ## Optionally specify an array of imagePullSecrets.
   ## Secrets must be manually created in the namespace.
@@ -31,50 +36,72 @@ image: &image
   ## It turns BASH and NAMI debugging in minideb
   ## ref:  https://github.com/bitnami/minideb-extras/#turn-on-bash-debugging
   ##
+  # -- Enable verbose BASH/NAMI image debugging output.
   debug: false
 
 ## Pre-upgrade hook Job that handles v24-to-v25 StatefulSet selector migration.
 ## Runs automatically on helm upgrade — detects and recreates StatefulSets
 ## with stale selector labels using --cascade=orphan to avoid downtime.
+## Once every cluster has migrated past the v24->v25 selector change this can
+## be set to false (it then becomes pure per-upgrade overhead) and eventually
+## removed.
 preUpgradeHook:
+  # -- Run the v24-to-v25 StatefulSet selector migration Job on helm upgrade.
+  enabled: true
+  # -- (object) kubectl image used by the pre-upgrade migration Job.
   image:
     registry: istaridigital.jfrog.io
     repository: remote-docker-dockerhub/bitnami/kubectl
     tag: "1.31"
+  # -- (object) Extra pod labels for the pre-upgrade hook Job.
   podLabels: {}
   ## Note: annotations with boolean-looking values (e.g. "false") should be
   ## set via --set-string or a values file to avoid YAML type coercion.
+  # -- (object) Extra pod annotations for the pre-upgrade hook Job.
   podAnnotations: {}
 
 serviceAccount:
   # Specifies whether a service account should be created
+  # -- Create the dgraph ServiceAccount.
   create: true
   # Annotations to add to the service account
+  # -- (object) Annotations added to the ServiceAccount.
   annotations: {}
   # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: dgraph
-  # automatically mount a ServiceAccount API credentials
+  # Leave empty so the name follows the chart fullname (e.g. "dgraph-sec" when
+  # fullnameOverride is set), keeping it consistent with every other object.
+  # -- Name of the ServiceAccount; empty means use the chart fullname.
+  name: ""
+  # Do not mount ServiceAccount API credentials by default. None of the dgraph
+  # workloads (alpha, zero, ratel, backup CronJobs) call the Kubernetes API, so
+  # the token is unnecessary attack surface. Defense-in-depth — leave false.
   # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#opt-out-of-api-credential-automounting
-  automountServiceAccountToken: true
+  # -- Do not mount the API token; no dgraph workload calls the Kubernetes API.
+  automountServiceAccountToken: false
 
 zero:
+  # -- Component name for the zero (cluster coordinator) workload.
   name: zero
+  # -- (object) Toggle Prometheus metrics scrape annotations on zero.
   metrics:
     enabled: true
 
   ## StatefulSet spec.template.metadata.annotations
+  # -- (object) Extra annotations on the zero StatefulSet pod template.
   extraAnnotations: {}
 
   ## StatefulSet spec.template.metadata.labels
+  # -- (object) Extra pod labels on the zero StatefulSet.
   podLabels: {}
 
   ## Value for the "monitor" label on the zero Service (not on pods or other resources).
   ## Used by Prometheus for service discovery.
+  # -- Value of the "monitor" label on the zero Service for Prometheus discovery.
   monitorLabel: zero-dgraph-io
   ## StatefulSet controller supports automated updates. There are two valid update strategies: RollingUpdate and OnDelete
   ## ref: https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#updating-statefulsets
   ##
+  # -- StatefulSet update strategy for zero (RollingUpdate or OnDelete).
   updateStrategy: RollingUpdate
 
   ## Scheduler name
@@ -90,53 +117,77 @@ zero:
   ## StatefulSet controller supports relax its ordering guarantees while preserving its uniqueness and identity guarantees. There are two valid pod management policies: OrderedReady and Parallel
   ## ref: https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#pod-management-policy
   ##
+  # -- Pod management policy for the zero StatefulSet (OrderedReady or Parallel).
   podManagementPolicy: Parallel
 
   ## Number of dgraph zero pods
   ##
+  # -- Number of zero coordinator pods (Raft membership).
   replicaCount: 3
 
-  ## Max number of replicas per data shard.
-  ## i.e., the max number of Dgraph Alpha instances per group (shard).
-  ##
-  shardReplicaCount: 5
+  ## Max number of Alpha replicas per data shard (Dgraph group). This becomes
+  ## zero's `--replicas N` flag. It is the per-group replication factor, NOT a
+  ## pod count — with `alpha.replicaCount: 3` and this set to 3, all three
+  ## alphas form a single replicated group. Keep this <= alpha.replicaCount;
+  ## a value larger than the alpha count simply means a second group never fills.
+  # -- Per-group replication factor; keep this at or below alpha.replicaCount.
+  shardReplicaCount: 3
 
   ## zero server pod termination grace period
   ##
+  # -- Termination grace period (seconds) for zero pods.
   terminationGracePeriodSeconds: 60
 
   ## Hard means that by default pods will only be scheduled if there are enough nodes for them
   ## and that they will never end up on the same node. Setting this to soft will do this "best effort"
+  # -- Pod anti-affinity strength for zero (soft = best effort, hard = required).
   antiAffinity: soft
 
   ## By default this will make sure two pods don't end up on the same node
   ## Changing this to a region would allow you to spread pods across regions
+  # -- Topology key for zero pod anti-affinity spreading.
   podAntiAffinitytopologyKey: "kubernetes.io/hostname"
 
   ## This is the node affinity settings as defined in
   ## https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#node-affinity-beta-feature
+  # -- (object) Node affinity rules for zero pod scheduling.
   nodeAffinity: {}
 
   ## Extra environment variables loaded from configmap(s) and/or secret(s)
+  # -- (list) Extra envFrom sources (configMaps/secrets) for the zero container.
   envFrom: []
 
   ## Extra environment variables which will be appended to the env: definition for the container.
+  # -- (list) Extra environment variables appended to the zero container.
   extraEnvs: []
 
   ## Extra flags for command line flags in command
+  # -- Extra command-line flags appended to dgraph-sec zero.
   extraFlags: ""
 
   ## Configuration file for dgraph zero used as an alternative to command-line options
   ## Ref: https://docs.dgraph.io/cli/config
+  # -- (object) Config-file contents for zero (alternative to CLI flags).
   configFile: {}
 
-  # automatically mount a ServiceAccount API credentials
+  ## PodDisruptionBudget for the zero quorum. Zero is a 3-node Raft group;
+  ## a voluntary disruption (node drain, autoscaler scale-down) that takes two
+  ## zeros at once drops quorum. Keep this enabled in production.
+  # -- (object) PodDisruptionBudget protecting the zero Raft quorum.
+  pdb:
+    enabled: true
+    minAvailable: 2
+    # maxUnavailable:
+
+  # Do not mount ServiceAccount API credentials — zero never calls the K8s API.
   # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#opt-out-of-api-credential-automounting
-  automountServiceAccountToken: true
+  # -- Do not mount the API token on zero pods; zero never calls the K8s API.
+  automountServiceAccountToken: false
 
   ## Kubernetes configuration
   ## For minikube, set this to NodePort, elsewhere use LoadBalancer
   ##
+  # -- (object) zero Service configuration (type, labels, annotations, load-balancer settings).
   service:
     type: ClusterIP  # All hostnames must be listed for grpc + https ingress shared cert secret
 
@@ -164,16 +215,41 @@ zero:
     ## * EKS: https://aws.amazon.com/premiumsupport/knowledge-center/eks-cidr-ip-address-loadbalancer/
     ## * AKS: https://docs.microsoft.com/en-us/azure/aks/load-balancer-standard#restrict-inbound-traffic-to-specific-ip-ranges
     loadBalancerSourceRanges: []
+  # -- (object) Labels for the zero headless Service.
   serviceHeadless:
     labels: {}
 
-  ## dgraph Pod Security Context
+  ## dgraph Pod Security Context.
+  ## Secure-by-default: runs as a non-root user with a RuntimeDefault seccomp
+  ## profile. fsGroup makes the mounted data volume group-writable by the
+  ## non-root user. Every key except `enabled` is rendered verbatim into the
+  ## pod-level securityContext, so additional fields can be added here.
+  # -- (object) Secure-by-default pod securityContext for zero (non-root, RuntimeDefault seccomp).
   securityContext:
-    enabled: false
+    enabled: true
     fsGroup: 1001
     runAsUser: 1001
+    runAsGroup: 1001
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  ## dgraph container Security Context.
+  ## Drops all Linux capabilities and forbids privilege escalation. Every key
+  ## except `enabled` is rendered verbatim into the container securityContext.
+  ## readOnlyRootFilesystem is left false because dgraph writes scratch data
+  ## outside its mounted data dir; flip it on only after verifying on a cluster.
+  # -- (object) Secure-by-default container securityContext for zero (drop ALL caps, no privilege escalation).
+  containerSecurityContext:
+    enabled: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+      - ALL
 
   ## TLS Configuration
+  # -- (object) TLS configuration for zero (cert files generated by dgraph-sec cert).
   tls:
     enabled: false
     ## Files created from './tls' directory set with `dgraph-sec cert` command
@@ -188,6 +264,7 @@ zero:
   ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
   ##   GKE, AWS & OpenStack)
   ##
+  # -- (object) Persistent volume claim template for zero data.
   persistence:
     enabled: true
     # storageClass: "-"
@@ -201,20 +278,29 @@ zero:
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
   ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
   ##
+  # -- (object) Node selector for zero pod scheduling.
   nodeSelector: {}
+  # -- (list) Tolerations for zero pod scheduling.
   tolerations: []
 
-  ## Configure resource requests
+  ## Configure resource requests and limits.
   ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
-  ##
+  ## Zero coordinates the cluster and holds the membership/tablet state in
+  ## memory; it is light relative to Alpha. The defaults below are a small-cluster
+  ## starting point — size limits to your data before production.
+  # -- (object) CPU/memory requests and limits for zero (light coordinator workload).
   resources:
     requests:
-      memory: 100Mi
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
 
   ## Configure extra options for startup, liveness and readiness probes.
   ## NOTE: startupProbe only support in Kubernetes v1.16+
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
   ##
+  # -- (object) Startup probe for zero (against the 6080 /health endpoint).
   startupProbe:
     enabled: false
     port: 6080
@@ -224,6 +310,7 @@ zero:
     failureThreshold: 6
     successThreshold: 1
 
+  # -- (object) Liveness probe for zero (against the 6080 /health endpoint).
   livenessProbe:
     enabled: true
     port: 6080
@@ -234,6 +321,7 @@ zero:
     failureThreshold: 6
     successThreshold: 1
 
+  # -- (object) Readiness probe for zero (against the 6080 /state endpoint).
   readinessProbe:
     enabled: true
     port: 6080
@@ -245,27 +333,36 @@ zero:
     successThreshold: 1
 
   ## Custom liveness and readiness probes
+  # -- (object) Full custom startup probe spec for zero (overrides startupProbe).
   customStartupProbe: {}
+  # -- (object) Full custom liveness probe spec for zero (overrides livenessProbe).
   customLivenessProbe: {}
+  # -- (object) Full custom readiness probe spec for zero (overrides readinessProbe).
   customReadinessProbe: {}
 
 alpha:
+  # -- Component name for the alpha (data/query) workload.
   name: alpha
+  # -- (object) Toggle Prometheus metrics scrape annotations on alpha.
   metrics:
     enabled: true
 
   ## StatefulSet spec.template.metadata.annotations
+  # -- (object) Extra annotations on the alpha StatefulSet pod template.
   extraAnnotations: {}
 
   ## StatefulSet spec.template.metadata.labels
+  # -- (object) Extra pod labels on the alpha StatefulSet.
   podLabels: {}
 
   ## Value for the "monitor" label on the alpha Service (not on pods or other resources).
   ## Used by Prometheus for service discovery.
+  # -- Value of the "monitor" label on the alpha Service for Prometheus discovery.
   monitorLabel: alpha-dgraph-io
   ## StatefulSet controller supports automated updates. There are two valid update strategies: RollingUpdate and OnDelete
   ## ref: https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#updating-statefulsets
   ##
+  # -- StatefulSet update strategy for alpha (RollingUpdate or OnDelete).
   updateStrategy: RollingUpdate
 
   ## Scheduler name
@@ -281,32 +378,40 @@ alpha:
   ## StatefulSet controller supports relax its ordering guarantees while preserving its uniqueness and identity guarantees. There are two valid pod management policies: OrderedReady and Parallel
   ## ref: https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#pod-management-policy
   ##
+  # -- Pod management policy for the alpha StatefulSet (OrderedReady or Parallel).
   podManagementPolicy: Parallel
 
   ## Number of dgraph nodes
   ##
+  # -- Number of alpha data/query pods.
   replicaCount: 3
 
   ## alpha server pod termination grace period
   ##
+  # -- Termination grace period (seconds) for alpha pods.
   terminationGracePeriodSeconds: 600
 
   ## Hard means that by default pods will only be scheduled if there are enough nodes for them
   ## and that they will never end up on the same node. Setting this to soft will do this "best effort"
+  # -- Pod anti-affinity strength for alpha (soft = best effort, hard = required).
   antiAffinity: soft
 
   ## By default this will make sure two pods don't end up on the same node
   ## Changing this to a region would allow you to spread pods across regions
+  # -- Topology key for alpha pod anti-affinity spreading.
   podAntiAffinitytopologyKey: "kubernetes.io/hostname"
 
   ## This is the node affinity settings as defined in
   ## https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#node-affinity-beta-feature
+  # -- (object) Node affinity rules for alpha pod scheduling.
   nodeAffinity: {}
 
   ## Extra environment variables loaded from configmap(s) and/or secret(s)
+  # -- (list) Extra envFrom sources (configMaps/secrets) for the alpha container.
   envFrom: []
 
   ## Extra environment variables which will be appended to the env: definition for the container.
+  # -- (list) Extra environment variables appended to the alpha container.
   extraEnvs: []
   # - name: AWS_ACCESS_KEY_ID
   #   value: "XXXXXXXXXXXXXXXXXXXX"
@@ -314,19 +419,32 @@ alpha:
   #   value: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
   ## Extra flags for command line flags in command
+  # -- Extra command-line flags appended to dgraph-sec alpha.
   extraFlags: ""
 
   ## Configuration file for dgraph alpha used as an alternative to command-line options
   ## Ref: https://docs.dgraph.io/cli/config
+  # -- (object) Config-file contents for alpha (alternative to CLI flags).
   configFile: {}
 
-  # automatically mount a ServiceAccount API credentials
+  ## PodDisruptionBudget for the alpha group. Alpha is a Raft-replicated data
+  ## tier; a voluntary disruption that takes two alphas at once can drop a group
+  ## below quorum. Keep this enabled in production.
+  # -- (object) PodDisruptionBudget protecting the alpha Raft group.
+  pdb:
+    enabled: true
+    minAvailable: 2
+    # maxUnavailable:
+
+  # Do not mount ServiceAccount API credentials — alpha never calls the K8s API.
   # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#opt-out-of-api-credential-automounting
-  automountServiceAccountToken: true
+  # -- Do not mount the API token on alpha pods; alpha never calls the K8s API.
+  automountServiceAccountToken: false
 
   ## Kubernetes configuration
   ## For minikube, set this to NodePort, elsewhere use LoadBalancer
   ##
+  # -- (object) alpha Service configuration (type, labels, annotations, load-balancer settings).
   service:
     type: ClusterIP
     labels: {}
@@ -353,10 +471,12 @@ alpha:
     ## * EKS: https://aws.amazon.com/premiumsupport/knowledge-center/eks-cidr-ip-address-loadbalancer/
     ## * AKS: https://docs.microsoft.com/en-us/azure/aks/load-balancer-standard#restrict-inbound-traffic-to-specific-ip-ranges
     loadBalancerSourceRanges: []
+  # -- (object) Labels for the alpha headless Service.
   serviceHeadless:
     labels: {}
   ## alpha ingress resource configuration
   ## This requires an ingress controller to be installed into your k8s cluster
+  # -- (object) HTTP Ingress for the alpha service (requires an ingress controller).
   ingress:
     enabled: false
     # ingressClassName: nginx
@@ -366,6 +486,7 @@ alpha:
 
   ## alpha GRPC ingress resource configuration
   ## This requires an ingress controller to be installed into your k8s cluster
+  # -- (object) gRPC Ingress for the alpha service (requires an ingress controller).
   ingress_grpc:
     enabled: false
     # ingressClassName: nginx
@@ -373,15 +494,39 @@ alpha:
     # annotations: {}
     # tls: {}
 
-  ## dgraph Pod Security Context
+  ## dgraph Pod Security Context.
+  ## Secure-by-default: runs as a non-root user with a RuntimeDefault seccomp
+  ## profile. fsGroup makes the mounted data volume group-writable by the
+  ## non-root user. Every key except `enabled` is rendered verbatim into the
+  ## pod-level securityContext, so additional fields can be added here.
+  # -- (object) Secure-by-default pod securityContext for alpha (non-root, RuntimeDefault seccomp).
   securityContext:
-    enabled: false
+    enabled: true
     fsGroup: 1001
     runAsUser: 1001
+    runAsGroup: 1001
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  ## dgraph container Security Context.
+  ## Drops all Linux capabilities and forbids privilege escalation. Every key
+  ## except `enabled` is rendered verbatim into the container securityContext.
+  ## readOnlyRootFilesystem is left false because dgraph writes scratch data
+  ## outside its mounted data dir; flip it on only after verifying on a cluster.
+  # -- (object) Secure-by-default container securityContext for alpha (drop ALL caps, no privilege escalation).
+  containerSecurityContext:
+    enabled: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+      - ALL
 
   ## TLS Configuration
   ## Documentation on dgraph alpha TLS options,
   ##  see https://docs.dgraph.io/admin/security/tls-configuration#tls-options
+  # -- (object) TLS configuration for alpha (cert files generated by dgraph-sec cert).
   tls:
     enabled: false
     ## Files created from './tls' directory set with `dgraph-sec cert` command
@@ -390,6 +535,7 @@ alpha:
 
   ## ACL Configuration
   ## ref: https://docs.dgraph.io/installation/configuration/enable-acl
+  # -- (object) Access Control List (ACL) configuration for alpha.
   acl:
     enabled: false
     ## The values in `file: {}` will be the filename as key and the file data as the value.
@@ -401,6 +547,7 @@ alpha:
 
   ## Encryption at Rest Configuration
   ## ref: https://docs.dgraph.io/installation/configuration/encryption-at-rest
+  # -- (object) Encryption-at-rest configuration for alpha.
   encryption:
     enabled: false
     ## The values in `file: {}` will be the filename as key and the file data as the value.
@@ -417,6 +564,7 @@ alpha:
   ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
   ##   GKE, AWS & OpenStack)
   ##
+  # -- (object) Persistent volume claim template for alpha data.
   persistence:
     enabled: true
     # storageClass: "-"
@@ -429,20 +577,31 @@ alpha:
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
   ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
   ##
+  # -- (object) Node selector for alpha pod scheduling.
   nodeSelector: {}
+  # -- (list) Tolerations for alpha pod scheduling.
   tolerations: []
 
-  ## Configure resource requests
+  ## Configure resource requests and limits.
   ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
-  ##
+  ## Alpha holds the posting lists and serves queries; memory is the dimension
+  ## that bites. A query scanning a large posting list with no limit can OOMKill
+  ## the NODE, not just the pod. The defaults below are a deliberately small
+  ## starting point — RIGHT-SIZE `limits.memory` to your dataset before
+  ## production (production clusters commonly need several GiB or more).
+  # -- (object) CPU/memory requests and limits for alpha; right-size limits.memory before production.
   resources:
     requests:
-      memory: 100Mi
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      memory: 2Gi
 
   ## Configure extra options for startup, liveness and readiness probes
   ## NOTE: startupProbe only support in Kubernetes v1.16+
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
   ##
+  # -- (object) Startup probe for alpha (against the 8080 /health?live=1 endpoint).
   startupProbe:
     enabled: false
     port: 8080
@@ -452,6 +611,7 @@ alpha:
     failureThreshold: 30
     successThreshold: 1
 
+  # -- (object) Liveness probe for alpha (against the 8080 /health?live=1 endpoint).
   livenessProbe:
     enabled: true
     port: 8080
@@ -462,6 +622,7 @@ alpha:
     failureThreshold: 6
     successThreshold: 1
 
+  # -- (object) Readiness probe for alpha (against the 8080 /probe/graphql endpoint).
   readinessProbe:
     enabled: true
     port: 8080
@@ -473,11 +634,15 @@ alpha:
     successThreshold: 1
 
   ## Custom liveness and readiness probes
+  # -- (object) Full custom startup probe spec for alpha (overrides startupProbe).
   customStartupProbe: {}
+  # -- (object) Full custom liveness probe spec for alpha (overrides livenessProbe).
   customLivenessProbe: {}
+  # -- (object) Full custom readiness probe spec for alpha (overrides readinessProbe).
   customReadinessProbe: {}
 
   # Enables extra init containers to be added to the alpha statefulset
+  # -- (list) Extra init containers for the alpha StatefulSet.
   extraInitContainers: []
 
   ## You may want to initialize the Alphas with data before starting Alpha containers.
@@ -485,6 +650,7 @@ alpha:
   ## * offline data restore from binary backups with `dgraph-sec restore`
   ##   (ref. https://docs.dgraph.io/admin/admin-tasks/binary-backups#online-restore)
   ## * bulk loader (ref. https://docs.dgraph.io/migration/bulk-loader)
+  # -- (object) Optional alpha pre-start init container (e.g. restore or bulk load before Alpha starts).
   initContainers:
     init:
       enabled: false
@@ -512,18 +678,27 @@ alpha:
       ##     cpu: 1
 
 ratel:
+  # -- Component name for the ratel debug UI workload.
   name: ratel
-  ## Disable Ratel service
+  ## Disable Ratel service.
+  ## WARNING: Ratel is a debug-grade UI that has seen no meaningful upstream
+  ## release since late 2021 and has known unauthenticated-admin-endpoint
+  ## concerns when exposed via Ingress. If you set this true, it MUST NOT be
+  ## reachable from the public internet — keep it ClusterIP / port-forward only.
+  # -- Deploy the ratel debug UI (off by default; never expose publicly).
   enabled: false
 
   ## Deployment spec.template.metadata.annotations
+  # -- (object) Extra annotations on the ratel Deployment pod template.
   extraAnnotations: {}
 
   ## Deployment spec.template.metadata.labels
+  # -- (object) Extra pod labels on the ratel Deployment.
   podLabels: {}
 
   ## NOTE: Ratel is no longer included in dgraph image since dgraph/dgraph:v21.03.0
   ##       The Ratel image is dgraph/ratel.
+  # -- (object) Image for the ratel UI (separate dgraph/ratel image).
   image:
     registry: istaridigital.jfrog.io
     repository: remote-docker-dockerhub/dgraph/ratel
@@ -536,24 +711,30 @@ ratel:
 
   ## Number of dgraph nodes
   ##
+  # -- Number of ratel UI pods.
   replicaCount: 1
 
   ## Extra environment variables loaded from configmap(s) and/or secret(s)
+  # -- (list) Extra envFrom sources (configMaps/secrets) for the ratel container.
   envFrom: []
 
   # Extra environment variables which will be appended to the env: definition for the container.
+  # -- (list) Extra environment variables appended to the ratel container.
   extraEnvs: []
 
   # Arguments appended to a command dgraph-ratel command
+  # -- (list) Extra arguments appended to the dgraph-ratel command.
   args: []
 
-  # automatically mount a ServiceAccount API credentials
+  # Do not mount ServiceAccount API credentials — ratel is a static UI.
   # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#opt-out-of-api-credential-automounting
-  automountServiceAccountToken: true
+  # -- Do not mount the API token on ratel pods; ratel is a static UI.
+  automountServiceAccountToken: false
 
   ## Kubernetes configuration
   ## For minikube, set this to NodePort, elsewhere use ClusterIP or LoadBalancer
   ##
+  # -- (object) ratel Service configuration (type, labels, annotations, load-balancer settings).
   service:
     type: ClusterIP
     labels: {}
@@ -580,6 +761,7 @@ ratel:
 
   ## ratel ingress resource configuration
   ## This requires an ingress controller to be installed into your k8s cluster
+  # -- (object) HTTP Ingress for the ratel service (requires an ingress controller).
   ingress:
     enabled: false
     # ingressClassName: nginx
@@ -587,11 +769,28 @@ ratel:
     # annotations: {}
     # tls: {}
 
-  ## dgraph Pod Security Context
+  ## ratel Pod Security Context (non-root, RuntimeDefault seccomp).
+  ## Every key except `enabled` is rendered verbatim into the securityContext.
+  # -- (object) Secure-by-default pod securityContext for ratel (non-root, RuntimeDefault seccomp).
   securityContext:
-    enabled: false
+    enabled: true
     fsGroup: 1001
     runAsUser: 1001
+    runAsGroup: 1001
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  ## ratel container Security Context (drop ALL caps, no privilege escalation).
+  ## Every key except `enabled` is rendered verbatim into the securityContext.
+  # -- (object) Secure-by-default container securityContext for ratel (drop ALL caps, no privilege escalation).
+  containerSecurityContext:
+    enabled: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+      - ALL
 
   ## Configure resource requests
   ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
@@ -604,6 +803,7 @@ ratel:
   ## Configure extra options for liveness and readiness probes
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
   ##
+  # -- (object) Liveness probe for ratel (against the 8000 / endpoint).
   livenessProbe:
     enabled: false
     port: 8000
@@ -614,6 +814,7 @@ ratel:
     failureThreshold: 6
     successThreshold: 1
 
+  # -- (object) Readiness probe for ratel (against the 8000 / endpoint).
   readinessProbe:
     enabled: false
     port: 8000
@@ -625,28 +826,43 @@ ratel:
     successThreshold: 1
 
   ## Custom liveness and readiness probes
+  # -- (object) Full custom liveness probe spec for ratel (overrides livenessProbe).
   customLivenessProbe: {}
+  # -- (object) Full custom readiness probe spec for ratel (overrides readinessProbe).
   customReadinessProbe: {}
 
 ## Binary Backup CronJob Configuration
 ## ref: https://docs.dgraph.io/admin/admin-tasks/binary-backups
 ##
 backups:
+  # -- Component name for the binary backup CronJobs.
   name: backups
   ## Scheduler name
   ## https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
   ##
   # schedulerName: stork
   ## CronJob spec.jobTemplate.spec.template.metadata.labels
+  # -- (object) Extra pod labels on the backup CronJob pod template.
   podLabels: {}
   ## CronJob spec.jobTemplate.spec.template.metadata.annotations
+  # -- (object) Extra pod annotations on the backup CronJob pod template.
   podAnnotations: {}
+  # -- (object) Backup admin credentials/token used to trigger backups when ACLs are enabled.
   admin:
-    ## backup user and password that is a member of 'guardians'group used to
-    ## login if ACLs are enabled.  This fetches an access token used to trigger backups
+    ## Backup user (member of the 'guardians' group) used to log in and fetch an
+    ## access token to trigger backups when ACLs are enabled.
     ## ref: https://docs.dgraph.io/installation/configuration/enable-acl
-
-    user: groot
+    ##
+    ## Intentionally empty. `groot` is Dgraph's well-known superadmin account, so
+    ## the chart will NOT silently fall back to it: when alpha.acl.enabled is true
+    ## the secret template `required`s this value. Set a dedicated backup user.
+    user: ""
+    ## SECRET HANDLING: password and auth_token below flow through values.yaml
+    ## into a Helm Secret. Anything set inline here is visible via
+    ## `helm get values` (to anyone with namespace read) and likely ends up in
+    ## git. Prefer External Secrets Operator or Sealed Secrets and reference the
+    ## generated Secret, rather than putting cleartext credentials in a values
+    ## file. ref: https://external-secrets.io / https://sealed-secrets.netlify.app
     # password: password
     ## Mutual TLS client certificate and key can be used to secure transaction that was created with
     ## dgraph-sec cert --client <name-of-client> should be specified here.
@@ -655,15 +871,23 @@ backups:
     ## Authorization Token can be used to secure /login and /admin.  The auth token
     ## string that is set Alpha configuration or environment variable needs to be
     ## specified here so that backups can properly login.
+    ## NOTE: see the SECRET HANDLING note above — prefer a managed Secret over an
+    ## inline cleartext token.
     ## ref. https://docs.dgraph.io/admin/security/admin-endpoint-security#securing-alter-operations
     auth_token: ""
   ## Backups image - image needs at least curl command
   ## default is to reuse dgraph image
+  # -- (object) Image for backup CronJobs (defaults to the shared dgraph-sec image; needs curl).
   image:
     !!merge <<: *image
   ## NFS Configuration for mounting a filepath in Alpha pods
   ## Prerequisites: NFS Server required, e.g. Google Cloud FileStore, EFS, etc.
   ## ref. https://kubernetes.io/docs/concepts/storage/volumes/#nfs
+  ## WARNING: when enabled the chart creates a cluster-scoped PersistentVolume
+  ## named "<fullname>-fileserver". PV names are cluster-global, so two releases
+  ## of this chart in the same cluster with nfs.enabled will collide. Use a
+  ## distinct fullnameOverride per release if you run more than one.
+  # -- (object) NFS-backed PersistentVolume for backup storage mounted into Alpha pods.
   nfs:
     enabled: false
     server: ""
@@ -674,10 +898,12 @@ backups:
   ## Prerequisites: PVC must be created beforehand.
   ## On cluster with 2+ alpha pods, RWX (ReadWriteMany) access mode is required.
   ## ref. https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+  # -- (object) Pre-existing PVC mounted into Alpha pods for backup storage.
   volume:
     enabled: false
     claim: ""
     mountPath: &vol_backups_path /dgraph/backups/
+  # -- (object) Full-backup CronJob (enable, schedule, restart policy).
   full:
     enabled: false
     ## enable bash debugging (set -x)
@@ -687,6 +913,7 @@ backups:
     schedule: "0 0 * * *"
     ## restart policy
     restartPolicy: Never
+  # -- (object) Incremental-backup CronJob (enable, schedule, restart policy).
   incremental:
     enabled: false
     ## enable bash debugging (set -x)
@@ -701,6 +928,7 @@ backups:
   ##   /dgraph/backups
   ##   s3://s3.us-west-2.amazonaws.com/<bucketname>
   ##   minio://my-release-minio.default.svc:9000/<bucketname>
+  # -- Backup destination: a file path, s3://, or minio:// URI.
   destination: *nfs_backups_path
   ## subpath directory useful to store full and related incremental backups
   ## in the same directory.
@@ -708,10 +936,13 @@ backups:
   ##       For example, daily fulls and hourly incrementals, a directory could
   ##       be named dgraph_$(date +%Y%m%d)
   ## ref. `date` command: https://www.gnu.org/software/coreutils/manual/html_node/date-invocation.html#date-invocation
+  # -- Subpath under the destination for grouping full and incremental backups.
   subpath: dgraph_$(date +%Y%m%d)
   ## enable if minio service has https://
+  # -- Use HTTPS when the MinIO endpoint is TLS-enabled.
   minioSecure: false
   ## specify access keys required by MinIO or S3
+  # -- (object) MinIO/S3 access keys for the backup destination.
   keys:
     minio:
       ## MINIO_ACCESS_KEY env var
@@ -727,9 +958,10 @@ backups:
 ## Datadog autodiscovery annotations
 ## Adds ad.datadoghq.com/* annotations and tags.datadoghq.com/* labels
 ## following the Istari 3-tier naming convention (superservice.subservice)
+# -- (object) Datadog autodiscovery annotations and tags (superservice/subservice naming).
 datadog:
   enabled: false
-  superservice: istari-dgraph-sec
+  superservice: dgraph-sec
   alpha:
     subservice: alpha
   zero:
@@ -738,20 +970,68 @@ datadog:
 ## OTEL tracing via Dgraph's --trace CLI flag
 ## Uses OTLP/HTTP (jaeger= sub-flag) to send traces to the Datadog agent
 ## or any OpenTelemetry collector on port 4318
+# -- (object) OTEL tracing via the --trace flag (OTLP/HTTP endpoint, sample ratio, service names).
 tracing:
+  # -- Enable OTEL trace export from alpha and zero.
   enabled: false
+  # -- OTLP/HTTP collector endpoint for traces (port 4318).
   endpoint: "datadog-agent.datadog.svc.cluster.local:4318"
+  # -- Trace sampling ratio (fraction of requests traced).
   ratio: "0.01"
   alpha:
-    service: "istari-dgraph-sec.alpha"
+    # -- Trace service name reported for alpha.
+    service: "dgraph-sec.alpha"
   zero:
-    service: "istari-dgraph-sec.zero"
+    # -- Trace service name reported for zero.
+    service: "dgraph-sec.zero"
+
+## NetworkPolicy to restrict ingress to the alpha/zero ports.
+## Default off so it can't silently break connectivity on clusters without a
+## CNI that enforces NetworkPolicy. When enabled, intra-cluster dgraph traffic
+## (alpha<->zero, peer gossip) is always allowed via the chart's own pod
+## selector; client access is granted only to pods carrying clientPodLabels.
+# -- (object) NetworkPolicy gating ingress to alpha/zero ports (gated production add-on).
+networkPolicy:
+  enabled: false
+  ## Labels a pod must carry to reach the alpha client ports (8080/9080).
+  ## Empty {} means "no external clients" — only in-chart pods may connect.
+  clientPodLabels: {}
+  #  app.kubernetes.io/part-of: istari-platform
+  ## Extra ingress rules appended verbatim (e.g. to allow a Prometheus scraper).
+  extraIngress: []
+
+## Prometheus Operator ServiceMonitor. Default off; enable on clusters running
+## the Prometheus Operator. The chart already emits prometheus.io/* scrape
+## annotations for annotation-based discovery regardless of this setting.
+# -- (object) Prometheus Operator ServiceMonitor (gated production add-on).
+serviceMonitor:
+  enabled: false
+  ## Namespace/labels for the ServiceMonitor (often must match the Prometheus
+  ## serviceMonitorSelector). Defaults to the release namespace and chart labels.
+  # namespace: monitoring
+  labels: {}
+  interval: 30s
+  scrapeTimeout: 10s
+  ## dgraph exposes Prometheus metrics on the HTTP port at this path.
+  path: /debug/prometheus_metrics
+
+## Prometheus Operator PrometheusRule with default alerts. Default off.
+# -- (object) Prometheus Operator PrometheusRule with default alerts (gated production add-on).
+prometheusRule:
+  enabled: false
+  labels: {}
+  ## Set false to ship the rule with no default alerts (e.g. to supply your own).
+  defaultRules: true
+  ## Extra alert rules appended verbatim to the default set.
+  extraRules: []
 
 global:
+  # -- Cluster DNS domain used to build in-cluster service hostnames.
   domain: cluster.local
   ## Combined ingress resource for alpha and ratel services
   ## This will override existing ingress configurations under alpha and ratel
   ## This requires an ingress controller to be installed into your k8s cluster
+  # -- (object) Combined HTTP Ingress for alpha and ratel (overrides per-component ingress).
   ingress:
     enabled: false
     ingressClassName: null
@@ -759,6 +1039,7 @@ global:
     tls: {}
     ratel_hostname: null
     alpha_hostname: null
+  # -- (object) Combined gRPC Ingress for alpha (overrides per-component ingress_grpc).
   ingress_grpc:
     enabled: false
     ingressClassName: null
