@@ -27,6 +27,7 @@ stringData:
     auto_configure_subdomains           = {{ .Values.configurator.auto_configure_subdomains }}
     frontend_service_post_logout_redirect_uris  = [{{- range $index, $flag := .Values.configurator.frontend_service_post_logout_redirect_uris }}{{ . | quote }}{{ if ne $index (sub (len $.Values.configurator.frontend_service_post_logout_redirect_uris) 1)}}, {{ end }}{{ end }}]
     frontend_service_redirect_uris              = [{{- range $index, $flag := .Values.configurator.frontend_service_redirect_uris }}{{ . | quote }}{{ if ne $index (sub (len $.Values.configurator.frontend_service_redirect_uris) 1)}}, {{ end }}{{ end }}]
+    identity_service_base_url           = {{ .Values.configurator.identity_service_base_url | quote }}
     main_domain                          = {{ .Values.configurator.main_domain | quote }}
     {{- if .Values.configurator.mcp_service.enabled }}
     mcp_enabled                         = {{ .Values.configurator.mcp_service.enabled | quote }}
