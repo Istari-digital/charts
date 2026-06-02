@@ -15,6 +15,11 @@ variable "frontend_service_redirect_uris" {
   default = []
 }
 
+variable "identity_service_base_url" {
+  type        = string
+  description = "Base URL used by identity-service"
+}
+
 variable "namespace" {
   type    = string
   default = "default_namespace"
