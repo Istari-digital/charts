@@ -50,7 +50,7 @@ This is the runbook for an on-call restore.
 > - Restore into a cluster of the **same (or newer) Dgraph version**.
 
 1. **Locate the backup.** Backups land at `backups.destination` under the
-   date-stamped `backups.subpath` directory (e.g. `s3://…/<bucket>/dgraph_YYYYMMDD`,
+   date-stamped `backups.subpath` directory (e.g. `s3://…/<bucket>/dgraph_sec_YYYYMMDD`,
    the NFS mount, or the mounted volume). A full backup plus its later incrementals
    in the same directory form one restorable set.
 
@@ -60,11 +60,11 @@ This is the runbook for an on-call restore.
 
    ```bash
    # filesystem / NFS / mounted volume:
-   dgraph-sec restore -p /dgraph/p -l /dgraph/backups/dgraph_YYYYMMDD
+   dgraph-sec restore -p /dgraph/p -l /dgraph/backups/dgraph_sec_YYYYMMDD
 
    # S3 / MinIO (credentials via env, as the backup CronJob sets them):
    dgraph-sec restore -p /dgraph/p \
-     -l s3://s3.<region>.amazonaws.com/<bucket>/dgraph_YYYYMMDD
+     -l s3://s3.<region>.amazonaws.com/<bucket>/dgraph_sec_YYYYMMDD
 
    # add the encryption key if encryption at rest was enabled:
    #   --encryption key-file=/dgraph/enc/enc_key_file
