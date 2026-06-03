@@ -7,9 +7,9 @@ We put the generated default env vars in this config map so that user-defined va
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "identity-service.configmap.name" . | quote }}
+  name: {{ include "identity.configmap.name" . | quote }}
   labels:
-    {{- include "identity-service.labels" . | nindent 4 }}
+    {{- include "identity.labels" . | nindent 4 }}
   {{- if dig "migrations" "runAsJob" false $serviceValues }}
   annotations:
     helm.sh/hook: pre-install,pre-upgrade

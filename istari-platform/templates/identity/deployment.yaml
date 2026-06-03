@@ -4,9 +4,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "identity-service.fullname" . | quote }}
+  name: {{ include "identity.fullname" . | quote }}
   labels:
-    {{- include "identity-service.labels" . | nindent 4 }}
+    {{- include "identity.labels" . | nindent 4 }}
   {{- with $serviceValues.deploymentAnnotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -17,7 +17,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      {{- include "identity-service.selectorLabels" . | nindent 6 }}
+      {{- include "identity.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with $serviceValues.podAnnotations }}
@@ -25,12 +25,12 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "identity-service.labels" . | nindent 8 }}
+        {{- include "identity.labels" . | nindent 8 }}
         {{- with $serviceValues.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      serviceAccountName: {{ include "identity-service.fullname" . | quote }}
+      serviceAccountName: {{ include "identity.fullname" . | quote }}
       {{- with $serviceValues.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -81,7 +81,7 @@ spec:
         'identityService.secretName', 'identityService.extraEnvSecrets', and 'identityService.env' will always override them.
         */}}
         - configMapRef:
-            name: {{ include "identity-service.configmap.name" . | quote }}
+            name: {{ include "identity.configmap.name" . | quote }}
         {{- if $serviceValues.secretName }}
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
@@ -140,7 +140,7 @@ spec:
         'identityService.secretName', 'identityService.extraEnvSecrets', and 'identityService.env' will always override them.
         */}}
         - configMapRef:
-            name: {{ include "identity-service.configmap.name" . | quote }}
+            name: {{ include "identity.configmap.name" . | quote }}
         {{- if $serviceValues.secretName }}
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}

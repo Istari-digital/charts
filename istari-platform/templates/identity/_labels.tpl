@@ -1,8 +1,8 @@
 {{/*
 Selector labels
 */}}
-{{- define "identity-service.selectorLabels" -}}
-app.kubernetes.io/component: "identity-service"
+{{- define "identity.selectorLabels" -}}
+app.kubernetes.io/component: "identity"
 app.kubernetes.io/instance: {{ .Release.Name | quote }}
 app.kubernetes.io/name: {{ include "istari-platform.name" . }}
 {{- end }}
@@ -10,8 +10,8 @@ app.kubernetes.io/name: {{ include "istari-platform.name" . }}
 {{/*
 Common labels
 */}}
-{{- define "identity-service.labels" -}}
-{{ include "identity-service.selectorLabels" . }}
+{{- define "identity.labels" -}}
+{{ include "identity.selectorLabels" . }}
 app.kubernetes.io/managed-by: "Helm"
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 helm.sh/chart: {{ include "istari-platform.chart" . }}
