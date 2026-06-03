@@ -7,7 +7,7 @@ Expand the name of the chart.
 {{- end -}}
 {{/*
 Create a default fully qualified app name.
-We truncate at 24 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+We truncate at 24 chars for parity with the upstream chart and its helper scripts, which assume a 24-char fullname. This is not a DNS limit — DNS labels allow 63 chars.
 */}}
 {{- define "dgraph-sec.fullname" -}}
 {{- if .Values.fullnameOverride -}}

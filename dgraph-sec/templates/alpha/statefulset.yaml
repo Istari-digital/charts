@@ -277,11 +277,6 @@ spec:
       - name: datadir
         emptyDir: {}
       {{- end }}
-      {{- if and $backupsEnabled (or $hasS3Keys $hasMinioKeys) }}
-      - name: backup-secret-volume
-        secret:
-          secretName: {{ template "dgraph-sec.backups.fullname" . }}-secret
-      {{- end }}
       {{- if and $backupsEnabled .Values.backups.nfs.enabled }}
       - name: backups-nfs-volume
         persistentVolumeClaim:

@@ -85,6 +85,11 @@ data:
       CLIENT_CERT_PATH=${CLIENT_CERT_PATH:-""}
       CLIENT_KEY_PATH=${CLIENT_KEY_PATH:-""}
 
+      ## Reset these arrays so repeated calls in the same shell (the CronJob runs
+      ## get_token then backup) don't accumulate duplicate headers / cert options.
+      HEADERS=()
+      CERTOPTS=()
+
       ## user/password required for login
       if [[ -z "$USER" || -z "$PASSWORD" ]]; then
         return 1
@@ -135,6 +140,11 @@ data:
       CACERT_PATH=${CACERT_PATH:-""}
       CLIENT_CERT_PATH=${CLIENT_CERT_PATH:-""}
       CLIENT_KEY_PATH=${CLIENT_KEY_PATH:-""}
+
+      ## Reset these arrays so headers / cert options from an earlier get_token
+      ## call in the same shell aren't inherited and duplicated here.
+      HEADERS=()
+      CERTOPTS=()
 
       API_TYPE=${API_TYPE:-"graphql"}
 
