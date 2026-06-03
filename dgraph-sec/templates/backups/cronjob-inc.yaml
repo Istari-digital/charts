@@ -24,9 +24,10 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
         spec:
-          {{- if .Values.serviceAccount.create }}
+          {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
           serviceAccountName: {{ include "dgraph-sec.serviceAccountName" . }}
           {{- end }}
+          automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
           {{- if .Values.backups.schedulerName }}
           schedulerName: {{ .Values.backups.schedulerName }}
           {{- end }}

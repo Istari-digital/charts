@@ -45,10 +45,10 @@ spec:
         {{- include "dgraph-sec.datadogLabels" (dict "ctx" . "component" "zero") | nindent 8 }}
         {{- end }}
     spec:
-      {{- if .Values.serviceAccount.create }}
+      {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
       serviceAccountName: {{ include "dgraph-sec.serviceAccountName" . }}
-      automountServiceAccountToken: {{ .Values.zero.automountServiceAccountToken }}
       {{- end }}
+      automountServiceAccountToken: {{ .Values.zero.automountServiceAccountToken }}
       {{- if .Values.zero.schedulerName }}
       schedulerName: {{ .Values.zero.schedulerName }}
       {{- end }}
@@ -178,10 +178,8 @@ spec:
         readinessProbe: {{- toYaml .Values.zero.customReadinessProbe | nindent 10 }}
         {{- end }}
         volumeMounts:
-        {{- if .Values.zero.persistence.enabled }}
         - name: datadir
           mountPath: /dgraph
-        {{- end }}
         {{- if .Values.zero.configFile }}
         - name: config-volume
           mountPath: /dgraph/config
@@ -192,11 +190,12 @@ spec:
         {{- end }}
       terminationGracePeriodSeconds: {{ .Values.zero.terminationGracePeriodSeconds }}
       volumes:
+      {{- if not .Values.zero.persistence.enabled }}
+      # When persistence is enabled the volumeClaimTemplates entry below supplies
+      # the "datadir" volume — the StatefulSet controller injects a per-pod PVC
+      # (datadir-<sts>-<ordinal>). Only declare an emptyDir fallback when
+      # persistence is disabled.
       - name: datadir
-      {{- if .Values.zero.persistence.enabled }}
-        persistentVolumeClaim:
-          claimName: datadir
-      {{- else }}
         emptyDir: {}
       {{- end }}
       {{- if .Values.zero.configFile }}

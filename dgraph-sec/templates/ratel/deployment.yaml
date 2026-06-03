@@ -24,10 +24,10 @@ spec:
       labels:
         {{- include "dgraph-sec.labels" (dict "ctx" . "component" .Values.ratel.name "podLabels" .Values.ratel.podLabels) | nindent 8 }}
     spec:
-      {{- if .Values.serviceAccount.create }}
+      {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
       serviceAccountName: {{ include "dgraph-sec.serviceAccountName" . }}
-      automountServiceAccountToken: {{ .Values.ratel.automountServiceAccountToken }}
       {{- end }}
+      automountServiceAccountToken: {{ .Values.ratel.automountServiceAccountToken }}
       {{- if .Values.ratel.schedulerName }}
       schedulerName: {{ .Values.ratel.schedulerName }}
       {{- end }}
