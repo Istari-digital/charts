@@ -1,4 +1,4 @@
-# dgraph-sec
+# Dgraph-sec
 
 ![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.4-sec.1](https://img.shields.io/badge/AppVersion-v25.3.4--sec.1-informational?style=flat-square)
 
@@ -6,7 +6,7 @@ Dgraph-sec — hardened Dgraph database for Istari platform
 
 **Homepage:** <https://dgraph.io/>
 
-This chart packages the hardened **dgraph-sec** fork of [Dgraph](https://dgraph.io/)
+This chart packages **Dgraph-sec**, the hardened fork of [Dgraph](https://dgraph.io/)
 — a distributed graph database — for the Istari platform. It deploys the two
 stateful Dgraph roles, **Zero** (cluster coordinator / Raft membership) and
 **Alpha** (data + query serving), plus optional Ratel UI, binary-backup CronJobs,

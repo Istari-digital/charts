@@ -1,4 +1,4 @@
-{{ template "chart.header" . }}
+# Dgraph-sec
 {{ template "chart.deprecationWarning" . }}
 
 {{ template "chart.badgesSection" . }}
@@ -7,7 +7,7 @@
 
 {{ template "chart.homepageLine" . }}
 
-This chart packages the hardened **dgraph-sec** fork of [Dgraph](https://dgraph.io/)
+This chart packages **Dgraph-sec**, the hardened fork of [Dgraph](https://dgraph.io/)
 — a distributed graph database — for the Istari platform. It deploys the two
 stateful Dgraph roles, **Zero** (cluster coordinator / Raft membership) and
 **Alpha** (data + query serving), plus optional Ratel UI, binary-backup CronJobs,
