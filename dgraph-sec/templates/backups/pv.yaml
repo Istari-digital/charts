@@ -1,0 +1,16 @@
+{{- if and (or .Values.backups.full.enabled .Values.backups.incremental.enabled) .Values.backups.nfs.enabled -}}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ template "dgraph-sec.backups.fullname" . }}-fileserver
+  labels:
+    {{- include "dgraph-sec.labels" (dict "ctx" . "component" .Values.backups.name) | nindent 4 }}
+spec:
+  capacity:
+    storage: {{ .Values.backups.nfs.storage }}
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    path: {{ .Values.backups.nfs.path }}
+    server: {{ .Values.backups.nfs.server }}
+{{- end }}
