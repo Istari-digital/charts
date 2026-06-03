@@ -159,7 +159,7 @@ alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 | backups.nfs | object | `{"enabled":false,"mountPath":"/dgraph/backups","path":"","server":"","storage":"512Gi"}` | NFS-backed PersistentVolume for backup storage mounted into Alpha pods. |
 | backups.podAnnotations | object | `{}` | Extra pod annotations on the backup CronJob pod template. |
 | backups.podLabels | object | `{}` | Extra pod labels on the backup CronJob pod template. |
-| backups.subpath | string | `"dgraph_$(date +%Y%m%d)"` | Subpath under the destination for grouping full and incremental backups. |
+| backups.subpath | string | `"dgraph_sec_$(date +%Y%m%d)"` | Subpath under the destination for grouping full and incremental backups. |
 | backups.volume | object | `{"claim":"","enabled":false,"mountPath":"/dgraph/backups/"}` | Pre-existing PVC mounted into Alpha pods for backup storage. |
 | commonLabels | object | `{}` | Labels added to every resource and pod template; lowest priority. |
 | datadog | object | `{"alpha":{"subservice":"alpha"},"enabled":false,"superservice":"dgraph-sec","zero":{"subservice":"zero"}}` | Datadog autodiscovery annotations and tags (superservice/subservice naming). |

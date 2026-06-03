@@ -934,10 +934,10 @@ backups:
   ## in the same directory.
   ## NOTE: It is important to create directory name that matches the schedule.
   ##       For example, daily fulls and hourly incrementals, a directory could
-  ##       be named dgraph_$(date +%Y%m%d)
+  ##       be named dgraph_sec_$(date +%Y%m%d)
   ## ref. `date` command: https://www.gnu.org/software/coreutils/manual/html_node/date-invocation.html#date-invocation
   # -- Subpath under the destination for grouping full and incremental backups.
-  subpath: dgraph_$(date +%Y%m%d)
+  subpath: dgraph_sec_$(date +%Y%m%d)
   ## enable if minio service has https://
   # -- Use HTTPS when the MinIO endpoint is TLS-enabled.
   minioSecure: false
