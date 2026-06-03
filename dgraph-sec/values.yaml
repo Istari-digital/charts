@@ -19,7 +19,7 @@ image: &image
   # -- Repository path for the hardened dgraph-sec image.
   repository: main-docker-local/dgraph-sec
   # -- dgraph-sec image tag (matches the chart appVersion).
-  tag: v25.3.4-sec.1
+  tag: v25.3.4-sec.0.1.0
   ## Specify a imagePullPolicy
   ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
   ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
