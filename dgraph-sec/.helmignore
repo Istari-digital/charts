@@ -23,4 +23,6 @@
 .vscode/
 # Chart development extras
 example_values/
-scripts/
+# Ship scripts/ (TLS helper + restore runbook the README links to), but never
+# the generated TLS material.
+scripts/dgraph_tls/

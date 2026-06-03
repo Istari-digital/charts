@@ -216,7 +216,7 @@ spec:
         {{- with .Values.zero.persistence.annotations }}
         annotations:
           {{- range $key, $value := . }}
-          {{ $key }}: {{ $value }}
+          {{ $key }}: {{ $value | quote }}
           {{- end }}
         {{- end }}
       spec:

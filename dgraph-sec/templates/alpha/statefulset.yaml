@@ -321,7 +321,7 @@ spec:
         {{- with .Values.alpha.persistence.annotations }}
         annotations:
           {{- range $key, $value := . }}
-          {{ $key }}: {{ $value }}
+          {{ $key }}: {{ $value | quote }}
           {{- end }}
         {{- end }}
       spec:
