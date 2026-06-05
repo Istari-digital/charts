@@ -459,7 +459,7 @@ secureConnection:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "secure-connection-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "10.17.2"
+  tag: "17.10.3"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.

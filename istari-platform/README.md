@@ -306,7 +306,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | secureConnection.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | secureConnection.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | secureConnection.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| secureConnection.tag | string | `"10.17.2"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| secureConnection.tag | string | `"17.10.3"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | secureConnection.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | secureConnection.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
