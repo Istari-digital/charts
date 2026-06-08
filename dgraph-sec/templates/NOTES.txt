@@ -1,0 +1,104 @@
+1. You have just deployed Dgraph-sec (chart `dgraph-sec`), image '{{ .Values.image.tag }}'.
+
+   For further information:
+     * Documentation: https://docs.dgraph.io/
+     * Community and Issues: https://discuss.dgraph.io/
+   {{ if or (eq .Values.image.tag "latest") (eq .Values.image.tag "master") }}
+   NOTE: Using 'latest' or 'master' for 'image.tag' is DANGEROUS and can lead to data loss.
+         YOU HAVE SET 'image.tag' to '{{- .Values.image.tag }}'.
+         DO NOT USE IN PRODUCTION AS THE VERSION MAY CHANGE.
+
+   {{ end }}
+   Current configuration (the knobs this hardened fork adds, and their state):
+
+     * Authentication (ACL) ... {{ if .Values.alpha.acl.enabled }}ENABLED{{ else }}DISABLED — anyone with network access to alpha can connect WITHOUT credentials{{ end }}
+     * Encryption at rest ..... {{ if .Values.alpha.encryption.enabled }}ENABLED{{ else }}disabled{{ end }}
+     * TLS (in transit) ....... {{ if .Values.alpha.tls.enabled }}ENABLED{{ else }}disabled{{ end }}
+     * NetworkPolicy .......... {{ if .Values.networkPolicy.enabled }}ENABLED{{ else }}disabled — pod-to-pod traffic is unrestricted{{ end }}
+     * Binary backups ......... {{ if or .Values.backups.full.enabled .Values.backups.incremental.enabled }}ENABLED (destination: {{ .Values.backups.destination }}){{ else }}disabled — no backups are being taken{{ end }}
+     * Datadog autodiscovery .. {{ if .Values.datadog.enabled }}ENABLED (superservice: {{ .Values.datadog.superservice }}){{ else }}disabled{{ end }}
+     * OTEL tracing ........... {{ if .Values.tracing.enabled }}ENABLED (endpoint: {{ .Values.tracing.endpoint }}){{ else }}disabled{{ end }}
+     * Pods run as ............ {{ if .Values.alpha.securityContext.enabled }}non-root (securityContext enabled){{ else }}the image default (securityContext DISABLED){{ end }}
+
+   This release deploys a WORKING cluster out of the box: with ACL disabled no
+   login is required, so applications can connect immediately. To make it
+   production-grade, layer on the security features above:
+
+     1. Authentication — enable ACL so clients must log in:
+          --set alpha.acl.enabled=true \
+          --set-file alpha.acl.file.hmac_secret_file=<path-to-32-byte-secret>
+     2. Encryption / TLS — see values.yaml `alpha.encryption` and `alpha.tls`
+        (use scripts/make_tls_secrets.sh to generate TLS material).
+     3. Backups — enable a schedule and point it at S3/MinIO/NFS:
+          --set backups.full.enabled=true \
+          --set backups.destination=s3://s3.<region>.amazonaws.com/<bucket>
+        If ACL is on, you MUST also set backups.admin.user and a password
+        (see the SECRET HANDLING note in values.yaml — prefer a managed Secret).
+     4. NetworkPolicy — restrict access on a CNI that enforces it:
+          --set networkPolicy.enabled=true
+
+2. Get the Dgraph Alpha HTTP/S endpoint by running these commands.
+
+{{- if .Values.global.ingress.enabled }}
+
+    echo "Access Alpha HTTP/S service: http://{{ .Values.global.ingress.alpha_hostname }}"
+
+{{- else if .Values.alpha.ingress.enabled }}
+
+    echo "Access Alpha HTTP/S service: http://{{ .Values.alpha.ingress.hostname }}"
+
+{{- else if contains "NodePort" .Values.alpha.service.type }}
+
+    export ALPHA_NODE_PORT=$(kubectl get --namespace {{ include "dgraph-sec.namespace" . }} -o jsonpath="{.spec.ports[?(@.name=='http-alpha')].nodePort}" services {{ include "dgraph-sec.alpha.fullname" . }})
+    export ALPHA_NODE_IP=$(kubectl get nodes --namespace {{ include "dgraph-sec.namespace" . }} -o jsonpath="{.items[0].status.addresses[0].address}")
+    echo "Access Alpha HTTP/S service using http://$ALPHA_NODE_IP:$ALPHA_NODE_PORT"
+{{- else if contains "LoadBalancer" .Values.alpha.service.type }}
+   NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+         You can watch the status of by running 'kubectl get --namespace {{ include "dgraph-sec.namespace" . }} service --watch {{ include "dgraph-sec.alpha.fullname" . }}'
+
+    export ALPHA_SERVICE_IP=$(kubectl get service --namespace {{ include "dgraph-sec.namespace" . }} {{ include "dgraph-sec.alpha.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+    echo "Access Alpha HTTP/S service using http://$ALPHA_SERVICE_IP:8080"
+
+{{- else if contains "ClusterIP" .Values.alpha.service.type }}
+
+    export ALPHA_POD_NAME=$(kubectl get pods --namespace {{ include "dgraph-sec.namespace" . }} --selector "statefulset.kubernetes.io/pod-name={{ include "dgraph-sec.alpha.fullname" . }}-0,release={{ .Release.Name }}" --output jsonpath="{.items[0].metadata.name}")
+    echo "Access Alpha HTTP/S using http://localhost:8080"
+    kubectl --namespace {{ include "dgraph-sec.namespace" . }} port-forward $ALPHA_POD_NAME 8080:8080
+
+{{- end }}
+
+   NOTE: Change "http://" to "https://" if TLS was added to the Ingress, Load Balancer, or Dgraph Alpha service.
+{{- if (eq .Values.ratel.enabled true) }}
+
+3. Get the Dgraph Ratel UI endpoint by running these commands:
+
+{{- if .Values.global.ingress.enabled }}
+
+    echo "Access Ratel HTTP/S service: http://{{ .Values.global.ingress.ratel_hostname }}"
+
+{{- else if .Values.ratel.ingress.enabled }}
+
+    echo "Access Ratel HTTP/S service: http://{{ .Values.ratel.ingress.hostname }}"
+
+{{- else if contains "NodePort" .Values.ratel.service.type }}
+
+    export RATEL_NODE_PORT=$(kubectl get --namespace {{ include "dgraph-sec.namespace" . }} -o jsonpath="{.spec.ports[?(@.name=='http-ratel')].nodePort}" services {{ include "dgraph-sec.ratel.fullname" . }})
+    export RATEL_NODE_IP=$(kubectl get nodes --namespace {{ include "dgraph-sec.namespace" . }} -o jsonpath="{.items[0].status.addresses[0].address}")
+    echo "Access Ratel HTTP/S service using http://$RATEL_NODE_IP:$RATEL_NODE_PORT"
+{{- else if contains "LoadBalancer" .Values.ratel.service.type }}
+    NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch the status of by running 'kubectl get --namespace {{ include "dgraph-sec.namespace" . }} service --watch {{ include "dgraph-sec.ratel.fullname" . }}'
+
+    export RATEL_SERVICE_IP=$(kubectl get service --namespace {{ include "dgraph-sec.namespace" . }} {{ include "dgraph-sec.ratel.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+    echo "Access Ratel HTTP/S service using http://$RATEL_SERVICE_IP"
+
+{{- else if contains "ClusterIP" .Values.ratel.service.type }}
+
+    export RATEL_POD_NAME=$(kubectl get pods --namespace {{ include "dgraph-sec.namespace" . }} --selector "component={{ .Values.ratel.name }},release={{ .Release.Name }}" --output jsonpath="{.items[0].metadata.name}")
+    echo "Access Ratel HTTP/S using http://localhost:8000"
+    kubectl --namespace {{ include "dgraph-sec.namespace" . }} port-forward $RATEL_POD_NAME 8000:8000
+
+{{- end }}
+
+   NOTE: Change "http://" to "https://" if TLS was added to the Ingress or Load Balancer.
+{{- end }}
