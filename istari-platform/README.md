@@ -57,7 +57,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | docs.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | docs.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | docs.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| docs.tag | string | `"6.13.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| docs.tag | string | `"6.13.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | docs.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | docs.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | docs.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
