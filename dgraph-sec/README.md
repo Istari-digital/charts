@@ -1,6 +1,6 @@
 # Dgraph-sec
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.4-sec.0.1.0](https://img.shields.io/badge/AppVersion-v25.3.4--sec.0.1.0-informational?style=flat-square)
+![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.4-sec.0.1.0](https://img.shields.io/badge/AppVersion-v25.3.4--sec.0.1.0-informational?style=flat-square)
 
 Dgraph-sec — hardened Dgraph database for Istari platform
 
@@ -99,7 +99,16 @@ alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| alpha.acl | object | `{"enabled":false}` | Access Control List (ACL) configuration for alpha. |
+| alpha.acl | object | `{"bootstrap":{"enabled":false,"existingSecret":"","grootPasswordSecretKey":"groot_password","groups":[],"image":{},"users":[]},"enabled":false,"existingSecret":"","secretFile":"hmac_secret_file"}` | Access Control List (ACL) configuration for alpha. |
+| alpha.acl.bootstrap | object | `{"enabled":false,"existingSecret":"","grootPasswordSecretKey":"groot_password","groups":[],"image":{},"users":[]}` | Idempotent groot-rotation + user/group reconciler, run as a Helm hook Job. |
+| alpha.acl.bootstrap.enabled | bool | `false` | Run the ACL bootstrap/reconciler Job (requires acl.enabled and a credentials Secret). |
+| alpha.acl.bootstrap.existingSecret | string | `""` | Secret holding the credentials the Job reads; defaults to acl.existingSecret. |
+| alpha.acl.bootstrap.grootPasswordSecretKey | string | `"groot_password"` | Key in the Secret holding groot's target (rotated) password. |
+| alpha.acl.bootstrap.groups | list | `[]` | ACL groups to ensure, with predicate rules. |
+| alpha.acl.bootstrap.image | object | `{}` | Image for the bootstrap Job; defaults to the dgraph-sec image (has curl + jq). |
+| alpha.acl.bootstrap.users | list | `[]` | ACL users to ensure, each with a password Secret key and group membership. |
+| alpha.acl.existingSecret | string | `""` | Name of a pre-created Secret holding the HMAC (and bootstrap passwords); empty means create one from `file`. |
+| alpha.acl.secretFile | string | `"hmac_secret_file"` | Filename/key of the HMAC secret; the `--acl secret-file=` flag points at /dgraph/acl/<secretFile>. |
 | alpha.antiAffinity | string | `"soft"` | Pod anti-affinity strength for alpha (soft = best effort, hard = required). |
 | alpha.automountServiceAccountToken | bool | `false` | Do not mount the API token on alpha pods; alpha never calls the K8s API. |
 | alpha.configFile | object | `{}` | Config-file contents for alpha (alternative to CLI flags). |
@@ -107,7 +116,9 @@ alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 | alpha.customLivenessProbe | object | `{}` | Full custom liveness probe spec for alpha (overrides livenessProbe). |
 | alpha.customReadinessProbe | object | `{}` | Full custom readiness probe spec for alpha (overrides readinessProbe). |
 | alpha.customStartupProbe | object | `{}` | Full custom startup probe spec for alpha (overrides startupProbe). |
-| alpha.encryption | object | `{"enabled":false}` | Encryption-at-rest configuration for alpha. |
+| alpha.encryption | object | `{"enabled":false,"existingSecret":"","keyFile":"enc_key_file"}` | Encryption-at-rest configuration for alpha. |
+| alpha.encryption.existingSecret | string | `""` | Name of a pre-created Secret holding the encryption key; empty means create one from `file`. |
+| alpha.encryption.keyFile | string | `"enc_key_file"` | Filename/key of the encryption key; the `--encryption key-file=` flag points at /dgraph/enc/<keyFile>. |
 | alpha.envFrom | list | `[]` | Extra envFrom sources (configMaps/secrets) for the alpha container. |
 | alpha.extraAnnotations | object | `{}` | Extra annotations on the alpha StatefulSet pod template. |
 | alpha.extraEnvs | list | `[]` | Extra environment variables appended to the alpha container. |

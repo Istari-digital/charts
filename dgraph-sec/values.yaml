@@ -535,26 +535,66 @@ alpha:
 
   ## ACL Configuration
   ## ref: https://docs.dgraph.io/installation/configuration/enable-acl
+  ## When `enabled`, the alpha command automatically gets
+  ## `--acl secret-file=/dgraph/acl/<secretFile>` (see templates/alpha/statefulset.yaml)
+  ## — no manual `extraFlags` needed. Without the flag the HMAC Secret is mounted but
+  ## unused and `groot` keeps its default password, so enabling here means activating.
   # -- (object) Access Control List (ACL) configuration for alpha.
   acl:
     enabled: false
-    ## The values in `file: {}` will be the filename as key and the file data as the value.
-    ## Make sure that the filename key matches the dgraph configuration of `acl_secret_file`
+    # -- Filename/key of the HMAC secret; the `--acl secret-file=` flag points at /dgraph/acl/<secretFile>.
+    secretFile: hmac_secret_file
+    ## Use a pre-created Secret (e.g. Terraform-managed) instead of rendering `file`
+    ## through Helm values, so the HMAC never lands in values or release state. When
+    ## set, the chart does NOT create the ACL Secret; the named Secret must hold the
+    ## `secretFile` key, and (if bootstrap runs) the groot and per-user password keys.
+    # -- Name of a pre-created Secret holding the HMAC (and bootstrap passwords); empty means create one from `file`.
+    existingSecret: ""
+    ## The values in `file: {}` are filename-key to base64 data. Ignored when
+    ## `existingSecret` is set. The key must match `secretFile`.
     # file:
-    #   ## value for 1234567890123456789012345678901
-    #   ## Note that Kubernetes secrets must be base64-encoded
     #   hmac_secret_file: MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMQo=
+    ## Bootstrap: a run-once-per-deploy Job (post-install/post-upgrade hook) that
+    ## rotates `groot` off its default password and converges the declared users and
+    ## groups. Idempotent, so it is safe on every helm upgrade.
+    ##
+    ## Add an engineer: append a `users` entry with `groups: [guardians]` and add
+    ##   their password under a new key in the bootstrap Secret (`passwordSecretKey`).
+    ## Add a service: add a `groups` entry with predicate `rules`, then a `users`
+    ##   entry placed in that group.
+    # -- (object) Idempotent groot-rotation + user/group reconciler, run as a Helm hook Job.
+    bootstrap:
+      # -- Run the ACL bootstrap/reconciler Job (requires acl.enabled and a credentials Secret).
+      enabled: false
+      # -- Secret holding the credentials the Job reads; defaults to acl.existingSecret.
+      existingSecret: ""
+      # -- Key in the Secret holding groot's target (rotated) password.
+      grootPasswordSecretKey: groot_password
+      # -- (object) Image for the bootstrap Job; defaults to the dgraph-sec image (has curl + jq).
+      image: {}
+      ## Each group: { name, rules: [{ predicate, permission }] }.
+      ## permission is OR-summed: 1=read, 2=write, 4=modify.
+      # -- (list) ACL groups to ensure, with predicate rules.
+      groups: []
+      ## Each user: { name, passwordSecretKey, groups: [ ... ] }.
+      ## `guardians` is the built-in superadmin group.
+      # -- (list) ACL users to ensure, each with a password Secret key and group membership.
+      users: []
 
   ## Encryption at Rest Configuration
   ## ref: https://docs.dgraph.io/installation/configuration/encryption-at-rest
+  ## When `enabled`, the alpha command automatically gets
+  ## `--encryption key-file=/dgraph/enc/<keyFile>` (see templates/alpha/statefulset.yaml).
   # -- (object) Encryption-at-rest configuration for alpha.
   encryption:
     enabled: false
-    ## The values in `file: {}` will be the filename as key and the file data as the value.
-    ## Make sure that the filename key matches the dgraph configuration of `encryption_key_file`
+    # -- Filename/key of the encryption key; the `--encryption key-file=` flag points at /dgraph/enc/<keyFile>.
+    keyFile: enc_key_file
+    # -- Name of a pre-created Secret holding the encryption key; empty means create one from `file`.
+    existingSecret: ""
+    ## The values in `file: {}` are filename-key to base64 data. Ignored when
+    ## `existingSecret` is set. The key must match `keyFile`.
     # file:
-    #   ## value for 123456789012345
-    #   ## Note that Kubernetes secrets must be base64-encoded
     #   enc_key_file: MTIzNDU2Nzg5MDEyMzQ1Cg==
 
   ## dgraph data Persistent Volume Storage Class
