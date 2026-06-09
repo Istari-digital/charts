@@ -85,19 +85,20 @@ This follows the existing helper convention (`dgraph-sec.raftIndexFlag`,
 ### Command-line wiring
 
 The Alpha and Zero StatefulSet commands gain the resolved flags immediately before
-`extraFlags`. Two keys (`logLevel`, `logtostderr`) emit always, so the effective value is
-explicit in the pod spec; the other three emit only when set, so an unconfigured chart
-produces a clean command line.
-
-Per-role flag fragment, in order:
+`extraFlags`. A second helper, `dgraph-sec.logFlags`, renders the per-role fragment from a
+role's value map, so the three command sites stay DRY. Two keys (`logLevel`,
+`logtostderr`) emit always, so the effective value is explicit in the pod spec; the other
+three emit only when set, so an unconfigured chart produces a clean command line.
 
 ```gotemplate
--v={{ include "dgraph-sec.verbosity" .Values.alpha.logLevel }} --logtostderr={{ .Values.alpha.logtostderr }}
-{{- if .Values.alpha.vmodule }} --vmodule={{ .Values.alpha.vmodule }}{{- end }}
-{{- if .Values.alpha.alsologtostderr }} --alsologtostderr{{- end }}
-{{- if .Values.alpha.logDir }} --log_dir={{ .Values.alpha.logDir }}{{- end }}
-{{ .Values.alpha.extraFlags }}
+{{- /* . is a role value map (.Values.alpha or .Values.zero) */}}
+{{- define "dgraph-sec.logFlags" -}}
+-v={{ include "dgraph-sec.verbosity" .logLevel }} --logtostderr={{ .logtostderr }}{{ if .vmodule }} --vmodule={{ .vmodule }}{{ end }}{{ if .alsologtostderr }} --alsologtostderr{{ end }}{{ if .logDir }} --log_dir={{ .logDir }}{{ end }}
+{{- end -}}
 ```
+
+Each command inserts `{{ template "dgraph-sec.logFlags" .Values.alpha }}` (or `.zero`)
+just before `{{ .Values.alpha.extraFlags }}`.
 
 **Ordering rule:** the resolved logging flags precede `extraFlags`, which precedes the
 conditional `--trace`. Dgraph takes the last value for a repeated flag, so a `-v` in
