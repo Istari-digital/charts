@@ -203,7 +203,7 @@ spec:
             ## `alpha.acl.enabled`/`alpha.encryption.enabled`. Those keys provision the
             ## Secret and mount; the matching superflag below is what makes Dgraph use
             ## them. Keep the two in lockstep so "enabled" always means "active".
-            dgraph-sec alpha --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):7080 --zero {{ template "dgraph-sec.multiZeros" . }} {{ .Values.alpha.extraFlags }}{{- if .Values.alpha.acl.enabled }} --acl "secret-file=/dgraph/acl/{{ .Values.alpha.acl.secretFile }};"{{- end }}{{- if .Values.alpha.encryption.enabled }} --encryption "key-file=/dgraph/enc/{{ .Values.alpha.encryption.keyFile }};"{{- end }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.alpha.service }};"{{- end }}
+            dgraph-sec alpha --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):7080 --zero {{ template "dgraph-sec.multiZeros" . }} {{ template "dgraph-sec.logFlags" .Values.alpha }} {{ .Values.alpha.extraFlags }}{{- if .Values.alpha.acl.enabled }} --acl "secret-file=/dgraph/acl/{{ .Values.alpha.acl.secretFile }};"{{- end }}{{- if .Values.alpha.encryption.enabled }} --encryption "key-file=/dgraph/enc/{{ .Values.alpha.encryption.keyFile }};"{{- end }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.alpha.service }};"{{- end }}
         resources:
 {{ toYaml .Values.alpha.resources | indent 10 }}
         {{- if .Values.alpha.startupProbe.enabled }}

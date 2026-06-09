@@ -95,6 +95,44 @@ Alpha and Zero pods carry `prometheus.io/*` scrape annotations
 Operator, enable `serviceMonitor.enabled` (and `prometheusRule.enabled` for default
 alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 
+## Logging
+
+Dgraph uses glog. Each role writes `INFO` / `WARNING` / `ERROR` to stderr, where
+`kubectl logs` and the node log collector capture them. Those severities are always
+on; verbosity only adds finer detail on top, so a log level can climb above the
+baseline but never hide a severity.
+
+Set verbosity per role with `alpha.logLevel` / `zero.logLevel` — a named level or a
+raw glog `-v` integer:
+
+| Level | `-v` |
+|-------|------|
+| `normal` (default) | 0 |
+| `verbose` | 1 |
+| `debug` | 2 |
+| `trace` | 3 |
+
+Target one subsystem with `vmodule` (e.g. `"server=3,raft=2"`). Keep
+`logtostderr: true` on Kubernetes; setting it `false` without a writable `logDir`
+loses logs when a container restarts. For any glog flag the chart does not expose
+(`--stderrthreshold`, `--log_backtrace_at`), append it to `extraFlags` — a `-v` set
+there overrides `logLevel`.
+
+## Tracing (OpenTelemetry)
+
+Set `tracing.enabled` to export traces from Alpha and Zero. The chart builds Dgraph's
+`--trace` superflag from the `tracing` block and sends OTLP/HTTP to the configured
+collector:
+
+| Value | Purpose |
+|-------|---------|
+| `tracing.endpoint` | OTLP/HTTP collector — default the Datadog agent on port 4318 |
+| `tracing.ratio` | Sample fraction — default `0.01` |
+| `tracing.alpha.service` / `tracing.zero.service` | Per-role service name (`dgraph-sec.alpha` / `dgraph-sec.zero`) |
+
+In helm-stack `tracing.enabled` follows the Datadog operator, so traces flow wherever
+the agent runs.
+
 ## Values
 
 | Key | Type | Default | Description |
@@ -109,6 +147,7 @@ alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 | alpha.acl.bootstrap.users | list | `[]` | ACL users to ensure, each with a password Secret key and group membership. |
 | alpha.acl.existingSecret | string | `""` | Name of a pre-created Secret holding the HMAC (and bootstrap passwords); empty means create one from `file`. |
 | alpha.acl.secretFile | string | `"hmac_secret_file"` | Filename/key of the HMAC secret; the `--acl secret-file=` flag points at /dgraph/acl/<secretFile>. |
+| alpha.alsologtostderr | bool | `false` | Also write alpha logs to files under logDir (--alsologtostderr). |
 | alpha.antiAffinity | string | `"soft"` | Pod anti-affinity strength for alpha (soft = best effort, hard = required). |
 | alpha.automountServiceAccountToken | bool | `false` | Do not mount the API token on alpha pods; alpha never calls the K8s API. |
 | alpha.configFile | object | `{}` | Config-file contents for alpha (alternative to CLI flags). |
@@ -122,7 +161,7 @@ alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 | alpha.envFrom | list | `[]` | Extra envFrom sources (configMaps/secrets) for the alpha container. |
 | alpha.extraAnnotations | object | `{}` | Extra annotations on the alpha StatefulSet pod template. |
 | alpha.extraEnvs | list | `[]` | Extra environment variables appended to the alpha container. |
-| alpha.extraFlags | string | `""` | Extra command-line flags appended to dgraph-sec alpha. |
+| alpha.extraFlags | string | `""` | Extra command-line flags appended to dgraph-sec alpha (logging fallthrough). |
 | alpha.extraInitContainers | list | `[]` | Extra init containers for the alpha StatefulSet. |
 | alpha.ingress | object | `{"enabled":false}` | HTTP Ingress for the alpha service (requires an ingress controller). |
 | alpha.ingress_grpc | object | `{"enabled":false}` | gRPC Ingress for the alpha service (requires an ingress controller). |
@@ -133,6 +172,9 @@ alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 | alpha.initContainers.init.image.<<.repository | string | `"main-docker-local/dgraph-sec"` | Repository path for the hardened dgraph-sec image. |
 | alpha.initContainers.init.image.<<.tag | string | `"v25.3.4-sec.0.1.0"` | dgraph-sec image tag (matches the chart appVersion). |
 | alpha.livenessProbe | object | `{"enabled":true,"failureThreshold":6,"initialDelaySeconds":15,"path":"/health?live=1","periodSeconds":10,"port":8080,"successThreshold":1,"timeoutSeconds":5}` | Liveness probe for alpha (against the 8080 /health?live=1 endpoint). |
+| alpha.logDir | string | `""` | Directory for alpha glog file output (--log_dir); needs a writable mount. |
+| alpha.logLevel | string | `"normal"` | Alpha log verbosity: named level (normal|verbose|debug|trace) or a raw glog -v integer. |
+| alpha.logtostderr | bool | `true` | Send alpha logs to stderr (--logtostderr). Keep true for Kubernetes log capture. |
 | alpha.metrics | object | `{"enabled":true}` | Toggle Prometheus metrics scrape annotations on alpha. |
 | alpha.monitorLabel | string | `"alpha-dgraph-io"` | Value of the "monitor" label on the alpha Service for Prometheus discovery. |
 | alpha.name | string | `"alpha"` | Component name for the alpha (data/query) workload. |
@@ -154,6 +196,7 @@ alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 | alpha.tls | object | `{"enabled":false,"files":{}}` | TLS configuration for alpha (cert files generated by dgraph-sec cert). |
 | alpha.tolerations | list | `[]` | Tolerations for alpha pod scheduling. |
 | alpha.updateStrategy | string | `"RollingUpdate"` | StatefulSet update strategy for alpha (RollingUpdate or OnDelete). |
+| alpha.vmodule | string | `""` | Alpha per-module glog verbosity (--vmodule); empty disables. |
 | backups.admin | object | `{"auth_token":"","tls_client":"","user":""}` | Backup admin credentials/token used to trigger backups when ACLs are enabled. |
 | backups.destination | string | `"/dgraph/backups"` | Backup destination: a file path, s3://, or minio:// URI. |
 | backups.full | object | `{"debug":false,"enabled":false,"restartPolicy":"Never","schedule":"0 0 * * *"}` | Full-backup CronJob (enable, schedule, restart policy). |
@@ -216,6 +259,7 @@ alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 | tracing.endpoint | string | `"datadog-agent.datadog.svc.cluster.local:4318"` | OTLP/HTTP collector endpoint for traces (port 4318). |
 | tracing.ratio | string | `"0.01"` | Trace sampling ratio (fraction of requests traced). |
 | tracing.zero.service | string | `"dgraph-sec.zero"` | Trace service name reported for zero. |
+| zero.alsologtostderr | bool | `false` | Also write zero logs to files under logDir (--alsologtostderr). |
 | zero.antiAffinity | string | `"soft"` | Pod anti-affinity strength for zero (soft = best effort, hard = required). |
 | zero.automountServiceAccountToken | bool | `false` | Do not mount the API token on zero pods; zero never calls the K8s API. |
 | zero.configFile | object | `{}` | Config-file contents for zero (alternative to CLI flags). |
@@ -226,8 +270,11 @@ alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 | zero.envFrom | list | `[]` | Extra envFrom sources (configMaps/secrets) for the zero container. |
 | zero.extraAnnotations | object | `{}` | Extra annotations on the zero StatefulSet pod template. |
 | zero.extraEnvs | list | `[]` | Extra environment variables appended to the zero container. |
-| zero.extraFlags | string | `""` | Extra command-line flags appended to dgraph-sec zero. |
+| zero.extraFlags | string | `""` | Extra command-line flags appended to dgraph-sec zero (logging fallthrough). |
 | zero.livenessProbe | object | `{"enabled":true,"failureThreshold":6,"initialDelaySeconds":15,"path":"/health","periodSeconds":10,"port":6080,"successThreshold":1,"timeoutSeconds":5}` | Liveness probe for zero (against the 6080 /health endpoint). |
+| zero.logDir | string | `""` | Directory for zero glog file output (--log_dir); needs a writable mount. |
+| zero.logLevel | string | `"normal"` | Zero log verbosity: named level (normal|verbose|debug|trace) or a raw glog -v integer. |
+| zero.logtostderr | bool | `true` | Send zero logs to stderr (--logtostderr). Keep true for Kubernetes log capture. |
 | zero.metrics | object | `{"enabled":true}` | Toggle Prometheus metrics scrape annotations on zero. |
 | zero.monitorLabel | string | `"zero-dgraph-io"` | Value of the "monitor" label on the zero Service for Prometheus discovery. |
 | zero.name | string | `"zero"` | Component name for the zero (cluster coordinator) workload. |
@@ -250,6 +297,7 @@ alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 | zero.tls | object | `{"enabled":false,"files":{}}` | TLS configuration for zero (cert files generated by dgraph-sec cert). |
 | zero.tolerations | list | `[]` | Tolerations for zero pod scheduling. |
 | zero.updateStrategy | string | `"RollingUpdate"` | StatefulSet update strategy for zero (RollingUpdate or OnDelete). |
+| zero.vmodule | string | `""` | Zero per-module glog verbosity (--vmodule); empty disables. |
 
 ## Maintainers
 

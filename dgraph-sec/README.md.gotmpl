@@ -96,6 +96,44 @@ Alpha and Zero pods carry `prometheus.io/*` scrape annotations
 Operator, enable `serviceMonitor.enabled` (and `prometheusRule.enabled` for default
 alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 
+## Logging
+
+Dgraph uses glog. Each role writes `INFO` / `WARNING` / `ERROR` to stderr, where
+`kubectl logs` and the node log collector capture them. Those severities are always
+on; verbosity only adds finer detail on top, so a log level can climb above the
+baseline but never hide a severity.
+
+Set verbosity per role with `alpha.logLevel` / `zero.logLevel` — a named level or a
+raw glog `-v` integer:
+
+| Level | `-v` |
+|-------|------|
+| `normal` (default) | 0 |
+| `verbose` | 1 |
+| `debug` | 2 |
+| `trace` | 3 |
+
+Target one subsystem with `vmodule` (e.g. `"server=3,raft=2"`). Keep
+`logtostderr: true` on Kubernetes; setting it `false` without a writable `logDir`
+loses logs when a container restarts. For any glog flag the chart does not expose
+(`--stderrthreshold`, `--log_backtrace_at`), append it to `extraFlags` — a `-v` set
+there overrides `logLevel`.
+
+## Tracing (OpenTelemetry)
+
+Set `tracing.enabled` to export traces from Alpha and Zero. The chart builds Dgraph's
+`--trace` superflag from the `tracing` block and sends OTLP/HTTP to the configured
+collector:
+
+| Value | Purpose |
+|-------|---------|
+| `tracing.endpoint` | OTLP/HTTP collector — default the Datadog agent on port 4318 |
+| `tracing.ratio` | Sample fraction — default `0.01` |
+| `tracing.alpha.service` / `tracing.zero.service` | Per-role service name (`dgraph-sec.alpha` / `dgraph-sec.zero`) |
+
+In helm-stack `tracing.enabled` follows the Datadog operator, so traces flow wherever
+the agent runs.
+
 {{ template "chart.sourcesSection" . }}
 
 {{ template "chart.requirementsSection" . }}

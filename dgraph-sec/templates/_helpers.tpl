@@ -358,6 +358,21 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
   {{- printf "--raft idx=" -}}
 {{- end -}}
 
+{{- /* Map a named log level to its glog -v integer; pass any other value
+       (e.g. a raw integer) through unchanged. Names are lowercase. */}}
+{{- define "dgraph-sec.verbosity" -}}
+  {{- $m := dict "normal" "0" "verbose" "1" "debug" "2" "trace" "3" -}}
+  {{- $k := toString . -}}
+  {{- index $m $k | default $k -}}
+{{- end -}}
+
+{{- /* Render the glog flag fragment for a role. `.` is a role value map
+       (.Values.alpha or .Values.zero). logLevel and logtostderr always emit;
+       vmodule/alsologtostderr/logDir emit only when set. */}}
+{{- define "dgraph-sec.logFlags" -}}
+-v={{ include "dgraph-sec.verbosity" .logLevel }} --logtostderr={{ .logtostderr }}{{ if .vmodule }} --vmodule={{ .vmodule }}{{ end }}{{ if .alsologtostderr }} --alsologtostderr{{ end }}{{ if .logDir }} --log_dir={{ .logDir }}{{ end }}
+{{- end -}}
+
 {{- /* Generate comma-separated list of Zeros */}}
 {{- define "dgraph-sec.multiZeros" -}}
   {{- $zeroFullName := include "dgraph-sec.zero.fullname" . -}}
