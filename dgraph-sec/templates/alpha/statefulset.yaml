@@ -199,7 +199,7 @@ spec:
           ##       it unless you have verified this fork's image never emits one.
           - |
             set -ex
-            dgraph-sec alpha --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):7080 --zero {{ template "dgraph-sec.multiZeros" . }} {{ .Values.alpha.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.alpha.service }};"{{- end }}
+            dgraph-sec alpha --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):7080 --zero {{ template "dgraph-sec.multiZeros" . }} {{ template "dgraph-sec.logFlags" .Values.alpha }} {{ .Values.alpha.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.alpha.service }};"{{- end }}
         resources:
 {{ toYaml .Values.alpha.resources | indent 10 }}
         {{- if .Values.alpha.startupProbe.enabled }}

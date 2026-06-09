@@ -161,8 +161,37 @@ zero:
   # -- (list) Extra environment variables appended to the zero container.
   extraEnvs: []
 
-  ## Extra flags for command line flags in command
-  # -- Extra command-line flags appended to dgraph-sec zero.
+  ## --- Logging (glog) -------------------------------------------------------
+  ## Verbosity (glog -v). INFO/WARNING/ERROR are ALWAYS written to stderr; this
+  ## only adds finer V-logs on top. Named level OR a raw -v integer:
+  ##   normal->0 (prod default)   verbose->1   debug->2   trace->3
+  # -- Zero log verbosity: named level (normal|verbose|debug|trace) or a raw glog -v integer.
+  logLevel: normal
+
+  ## Per-module verbosity (glog --vmodule), e.g. "server=3,raft=2". Empty = none.
+  # -- Zero per-module glog verbosity (--vmodule); empty disables.
+  vmodule: ""
+
+  ## Log to the container's stderr (glog --logtostderr). Keep true in Kubernetes
+  ## so logs reach `kubectl logs` / the node collector. Setting false routes logs
+  ## to files under logDir instead — only safe with a writable, mounted logDir.
+  # -- Send zero logs to stderr (--logtostderr). Keep true for Kubernetes log capture.
+  logtostderr: true
+
+  ## Also write logs to files under logDir IN ADDITION to stderr
+  ## (glog --alsologtostderr). Requires a writable logDir.
+  # -- Also write zero logs to files under logDir (--alsologtostderr).
+  alsologtostderr: false
+
+  ## Directory for glog file output (glog --log_dir); used when logtostderr=false
+  ## or alsologtostderr=true. Must be a writable mount. Empty = glog default.
+  # -- Directory for zero glog file output (--log_dir); needs a writable mount.
+  logDir: ""
+
+  ## Extra flags for command line flags in command. Fallthrough for any glog
+  ## option not exposed above; a -v here overrides logLevel (Dgraph takes the
+  ## last flag).
+  # -- Extra command-line flags appended to dgraph-sec zero (logging fallthrough).
   extraFlags: ""
 
   ## Configuration file for dgraph zero used as an alternative to command-line options
@@ -418,8 +447,37 @@ alpha:
   # - name: AWS_SECRET_ACCESS_KEY
   #   value: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
-  ## Extra flags for command line flags in command
-  # -- Extra command-line flags appended to dgraph-sec alpha.
+  ## --- Logging (glog) -------------------------------------------------------
+  ## Verbosity (glog -v). INFO/WARNING/ERROR are ALWAYS written to stderr; this
+  ## only adds finer V-logs on top. Named level OR a raw -v integer:
+  ##   normal->0 (prod default)   verbose->1   debug->2   trace->3
+  # -- Alpha log verbosity: named level (normal|verbose|debug|trace) or a raw glog -v integer.
+  logLevel: normal
+
+  ## Per-module verbosity (glog --vmodule), e.g. "server=3,raft=2". Empty = none.
+  # -- Alpha per-module glog verbosity (--vmodule); empty disables.
+  vmodule: ""
+
+  ## Log to the container's stderr (glog --logtostderr). Keep true in Kubernetes
+  ## so logs reach `kubectl logs` / the node collector. Setting false routes logs
+  ## to files under logDir instead — only safe with a writable, mounted logDir.
+  # -- Send alpha logs to stderr (--logtostderr). Keep true for Kubernetes log capture.
+  logtostderr: true
+
+  ## Also write logs to files under logDir IN ADDITION to stderr
+  ## (glog --alsologtostderr). Requires a writable logDir.
+  # -- Also write alpha logs to files under logDir (--alsologtostderr).
+  alsologtostderr: false
+
+  ## Directory for glog file output (glog --log_dir); used when logtostderr=false
+  ## or alsologtostderr=true. Must be a writable mount. Empty = glog default.
+  # -- Directory for alpha glog file output (--log_dir); needs a writable mount.
+  logDir: ""
+
+  ## Extra flags for command line flags in command. Fallthrough for any glog
+  ## option not exposed above; a -v here overrides logLevel (Dgraph takes the
+  ## last flag).
+  # -- Extra command-line flags appended to dgraph-sec alpha (logging fallthrough).
   extraFlags: ""
 
   ## Configuration file for dgraph alpha used as an alternative to command-line options
