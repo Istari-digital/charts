@@ -1,6 +1,6 @@
 # Dgraph-sec
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.4-sec.0.1.0](https://img.shields.io/badge/AppVersion-v25.3.4--sec.0.1.0-informational?style=flat-square)
+![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.4-sec.0.1.0](https://img.shields.io/badge/AppVersion-v25.3.4--sec.0.1.0-informational?style=flat-square)
 
 Dgraph-sec — hardened Dgraph database for Istari platform
 
@@ -128,7 +128,8 @@ alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 | alpha.nodeAffinity | object | `{}` | Node affinity rules for alpha pod scheduling. |
 | alpha.nodeSelector | object | `{}` | Node selector for alpha pod scheduling. |
 | alpha.pdb | object | `{"enabled":true,"minAvailable":2}` | PodDisruptionBudget protecting the alpha Raft group. |
-| alpha.persistence | object | `{"accessModes":["ReadWriteOnce"],"annotations":{},"enabled":true,"size":"100Gi"}` | Persistent volume claim template for alpha data. |
+| alpha.persistence | object | `{"accessModes":["ReadWriteOnce"],"annotations":{},"enabled":true,"persistentVolumeClaimRetentionPolicy":{"whenDeleted":"Retain","whenScaled":"Retain"},"size":"100Gi"}` | Persistent volume claim template for alpha data. |
+| alpha.persistence.persistentVolumeClaimRetentionPolicy | object | `{"whenDeleted":"Retain","whenScaled":"Retain"}` | StatefulSet PVC retention policy. whenDeleted applies on `helm uninstall`; whenScaled on replica reduction. Each "Retain" or "Delete". |
 | alpha.podAntiAffinitytopologyKey | string | `"kubernetes.io/hostname"` | Topology key for alpha pod anti-affinity spreading. |
 | alpha.podLabels | object | `{}` | Extra pod labels on the alpha StatefulSet. |
 | alpha.podManagementPolicy | string | `"Parallel"` | Pod management policy for the alpha StatefulSet (OrderedReady or Parallel). |
@@ -223,7 +224,8 @@ alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 | zero.nodeAffinity | object | `{}` | Node affinity rules for zero pod scheduling. |
 | zero.nodeSelector | object | `{}` | Node selector for zero pod scheduling. |
 | zero.pdb | object | `{"enabled":true,"minAvailable":2}` | PodDisruptionBudget protecting the zero Raft quorum. |
-| zero.persistence | object | `{"accessModes":["ReadWriteOnce"],"annotations":{},"enabled":true,"size":"32Gi"}` | Persistent volume claim template for zero data. |
+| zero.persistence | object | `{"accessModes":["ReadWriteOnce"],"annotations":{},"enabled":true,"persistentVolumeClaimRetentionPolicy":{"whenDeleted":"Retain","whenScaled":"Retain"},"size":"32Gi"}` | Persistent volume claim template for zero data. |
+| zero.persistence.persistentVolumeClaimRetentionPolicy | object | `{"whenDeleted":"Retain","whenScaled":"Retain"}` | StatefulSet PVC retention policy. whenDeleted applies on `helm uninstall`; whenScaled on replica reduction. Each "Retain" or "Delete". |
 | zero.podAntiAffinitytopologyKey | string | `"kubernetes.io/hostname"` | Topology key for zero pod anti-affinity spreading. |
 | zero.podLabels | object | `{}` | Extra pod labels on the zero StatefulSet. |
 | zero.podManagementPolicy | string | `"Parallel"` | Pod management policy for the zero StatefulSet (OrderedReady or Parallel). |

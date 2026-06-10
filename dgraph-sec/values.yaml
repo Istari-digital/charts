@@ -273,6 +273,11 @@ zero:
     size: 32Gi
     ## Annotations to add to the volumeClaimTemplates metadata
     annotations: {}
+    # -- (object) StatefulSet PVC retention policy. whenDeleted applies on
+    # `helm uninstall`; whenScaled on replica reduction. Each "Retain" or "Delete".
+    persistentVolumeClaimRetentionPolicy:
+      whenDeleted: Retain
+      whenScaled: Retain
 
   ## Node labels and tolerations for pod assignment
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
@@ -572,6 +577,11 @@ alpha:
     - ReadWriteOnce
     size: 100Gi
     annotations: {}
+    # -- (object) StatefulSet PVC retention policy. whenDeleted applies on
+    # `helm uninstall`; whenScaled on replica reduction. Each "Retain" or "Delete".
+    persistentVolumeClaimRetentionPolicy:
+      whenDeleted: Retain
+      whenScaled: Retain
 
   ## Node labels and tolerations for pod assignment
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
