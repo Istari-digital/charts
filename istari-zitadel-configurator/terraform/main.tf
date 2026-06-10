@@ -22,6 +22,8 @@ locals {
       "https://mcp.${var.main_domain}"
     ]
   ) : var.mcp_redirect_uris
+
+  identity_service_base_url = trimsuffix(var.identity_service_base_url, "/")
 }
 
 resource "zitadel_org" "default" {
@@ -162,10 +164,10 @@ resource "zitadel_application_oidc" "identity-service" {
   project_id                = zitadel_project.istari.id
   org_id                    = zitadel_org.default.id
   name                      = "identity-service"
-  redirect_uris             = ["${var.identity_service_base_url}/callback"]
+  redirect_uris             = ["${local.identity_service_base_url}/callback"]
   response_types            = ["OIDC_RESPONSE_TYPE_CODE"]
   grant_types               = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"]
-  post_logout_redirect_uris = ["${var.identity_service_base_url}/callback"]
+  post_logout_redirect_uris = ["${local.identity_service_base_url}/callback"]
   app_type                  = "OIDC_APP_TYPE_WEB"
   auth_method_type          = "OIDC_AUTH_METHOD_TYPE_PRIVATE_KEY_JWT"
   version                   = "OIDC_VERSION_1_0"
