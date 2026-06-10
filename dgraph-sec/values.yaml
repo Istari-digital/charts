@@ -633,6 +633,10 @@ alpha:
       existingSecret: ""
       # -- Key in the Secret holding groot's target (rotated) password.
       grootPasswordSecretKey: groot_password
+      # -- Opaque rotation token rendered as a Job pod annotation. Change it (e.g. from
+      #    Terraform's dgraph_sec_acl_password_rotation) to force a helm upgrade that
+      #    re-runs the reconciler, without touching Alpha. Empty = no annotation.
+      rotation: ""
       # -- (object) Image for the bootstrap Job; defaults to the dgraph-sec image (has curl + jq).
       image: {}
       ## Each group: { name, rules: [{ predicate, permission }] }.

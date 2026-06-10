@@ -137,13 +137,14 @@ the agent runs.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| alpha.acl | object | `{"bootstrap":{"enabled":false,"existingSecret":"","grootPasswordSecretKey":"groot_password","groups":[],"image":{},"users":[]},"enabled":false,"existingSecret":"","secretFile":"hmac_secret_file"}` | Access Control List (ACL) configuration for alpha. |
-| alpha.acl.bootstrap | object | `{"enabled":false,"existingSecret":"","grootPasswordSecretKey":"groot_password","groups":[],"image":{},"users":[]}` | Idempotent groot-rotation + user/group reconciler, run as a Helm hook Job. |
+| alpha.acl | object | `{"bootstrap":{"enabled":false,"existingSecret":"","grootPasswordSecretKey":"groot_password","groups":[],"image":{},"rotation":"","users":[]},"enabled":false,"existingSecret":"","secretFile":"hmac_secret_file"}` | Access Control List (ACL) configuration for alpha. |
+| alpha.acl.bootstrap | object | `{"enabled":false,"existingSecret":"","grootPasswordSecretKey":"groot_password","groups":[],"image":{},"rotation":"","users":[]}` | Idempotent groot-rotation + user/group reconciler, run as a Helm hook Job. |
 | alpha.acl.bootstrap.enabled | bool | `false` | Run the ACL bootstrap/reconciler Job (requires acl.enabled and a credentials Secret). |
 | alpha.acl.bootstrap.existingSecret | string | `""` | Secret holding the credentials the Job reads; defaults to acl.existingSecret. |
 | alpha.acl.bootstrap.grootPasswordSecretKey | string | `"groot_password"` | Key in the Secret holding groot's target (rotated) password. |
 | alpha.acl.bootstrap.groups | list | `[]` | ACL groups to ensure, with predicate rules. |
 | alpha.acl.bootstrap.image | object | `{}` | Image for the bootstrap Job; defaults to the dgraph-sec image (has curl + jq). |
+| alpha.acl.bootstrap.rotation | string | `""` | Opaque rotation token rendered as a Job pod annotation. Change it (e.g. from    Terraform's dgraph_sec_acl_password_rotation) to force a helm upgrade that    re-runs the reconciler, without touching Alpha. Empty = no annotation. |
 | alpha.acl.bootstrap.users | list | `[]` | ACL users to ensure, each with a password Secret key and group membership. |
 | alpha.acl.existingSecret | string | `""` | Name of a pre-created Secret holding the HMAC (and bootstrap passwords); empty means create one from `file`. |
 | alpha.acl.secretFile | string | `"hmac_secret_file"` | Filename/key of the HMAC secret; the `--acl secret-file=` flag points at /dgraph/acl/<secretFile>. |

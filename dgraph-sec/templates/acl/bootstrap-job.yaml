@@ -22,6 +22,14 @@ spec:
   backoffLimit: 6
   template:
     metadata:
+      {{- with .Values.alpha.acl.bootstrap.rotation }}
+      annotations:
+        ## Changing acl.bootstrap.rotation changes this annotation, so a rotation
+        ## (e.g. a Terraform counter bump) produces a release diff that re-runs this
+        ## Job and its reconciler. The annotation lands only on the Job, so Alpha is
+        ## never restarted by a rotation.
+        dgraph-sec.io/acl-rotation: {{ . | quote }}
+      {{- end }}
       labels:
         {{- include "dgraph-sec.labels" (dict "ctx" . "component" "acl-bootstrap") | nindent 8 }}
         ## A short-lived Job must not get an Istio sidecar — the proxy never exits,
