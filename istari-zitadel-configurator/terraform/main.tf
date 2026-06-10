@@ -22,6 +22,8 @@ locals {
       "https://mcp.${var.main_domain}"
     ]
   ) : var.mcp_redirect_uris
+
+  identity_service_base_url = trimsuffix(var.identity_service_base_url, "/")
 }
 
 resource "zitadel_org" "default" {
@@ -158,18 +160,26 @@ resource "zitadel_application_key" "registry-service-key" {
   expiration_date = "2519-04-01T08:45:00Z"
 }
 
-resource "zitadel_application_api" "identity-service" {
-  project_id       = zitadel_project.istari.id
-  org_id           = zitadel_org.default.id
-  name             = "identity-service"
-  auth_method_type = "API_AUTH_METHOD_TYPE_PRIVATE_KEY_JWT"
+resource "zitadel_application_oidc" "identity-service" {
+  project_id                = zitadel_project.istari.id
+  org_id                    = zitadel_org.default.id
+  name                      = "identity-service"
+  redirect_uris             = ["${local.identity_service_base_url}/callback"]
+  response_types            = ["OIDC_RESPONSE_TYPE_CODE"]
+  grant_types               = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"]
+  post_logout_redirect_uris = ["${local.identity_service_base_url}/callback"]
+  app_type                  = "OIDC_APP_TYPE_WEB"
+  auth_method_type          = "OIDC_AUTH_METHOD_TYPE_PRIVATE_KEY_JWT"
+  version                   = "OIDC_VERSION_1_0"
+  dev_mode                  = true
+  access_token_type         = "OIDC_TOKEN_TYPE_JWT"
 }
 
 resource "zitadel_application_key" "identity-service-key" {
-  depends_on      = [zitadel_application_api.identity-service]
+  depends_on      = [zitadel_application_oidc.identity-service]
   org_id          = zitadel_org.default.id
   project_id      = zitadel_project.istari.id
-  app_id          = zitadel_application_api.identity-service.id
+  app_id          = zitadel_application_oidc.identity-service.id
   key_type        = "KEY_TYPE_JSON"
   expiration_date = "2519-04-01T08:45:00Z"
 }
@@ -193,11 +203,11 @@ resource "zitadel_machine_user" "secure-connection-service-user" {
 
 # TODO: Follow up with DPLAT team to remove temporary rss_service_user role from the grant in the future.
 resource "zitadel_user_grant" "secure-connection-service-default" {
-  org_id     = zitadel_org.default.id
-  project_id = zitadel_project.istari.id
-  user_id    = zitadel_machine_user.secure-connection-service-user.id
-  project_grant_id   = zitadel_project_grant.default.id
-  role_keys      = ["rss_service_user", "secure_connection_service_user"]
+  org_id           = zitadel_org.default.id
+  project_id       = zitadel_project.istari.id
+  user_id          = zitadel_machine_user.secure-connection-service-user.id
+  project_grant_id = zitadel_project_grant.default.id
+  role_keys        = ["rss_service_user", "secure_connection_service_user"]
 }
 
 resource "zitadel_machine_key" "registry-service-machine-key" {

@@ -3,7 +3,7 @@ output "secret_file" {
     common_domain                        = var.zitadel_insecure ? "http://${var.zitadel_domain}:${var.zitadel_port}" : "https://${var.zitadel_domain}"
     fe_zitadel_client_id                 = zitadel_application_oidc.istari_frontend_service.client_id
     identity_service_base_url            = var.identity_service_base_url
-    identity_service_zitadel_client_id   = zitadel_application_api.identity-service.client_id
+    identity_service_zitadel_client_id   = zitadel_application_oidc.identity-service.client_id
     identity_service_zitadel_private_key = base64encode(zitadel_application_key.identity-service-key.key_details)
     mcp_zitadel_client_id                = var.mcp_enabled ? zitadel_application_oidc.mcp_service_post[0].client_id : ""
     mcp_zitadel_secret                   = var.mcp_enabled ? zitadel_application_oidc.mcp_service_post[0].client_secret : ""
