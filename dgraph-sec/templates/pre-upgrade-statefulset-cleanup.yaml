@@ -83,6 +83,7 @@ spec:
     spec:
       serviceAccountName: {{ template "dgraph-sec.fullname" . }}-pre-upgrade
       restartPolicy: Never
+{{- include "dgraph-sec.imagePullSecrets" . | indent 6 }}
       {{- with .Values.alpha.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
