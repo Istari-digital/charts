@@ -1,6 +1,6 @@
 # Dgraph-sec
 
-![Version: 0.4.1](https://img.shields.io/badge/Version-0.4.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.4-sec.0.1.0](https://img.shields.io/badge/AppVersion-v25.3.4--sec.0.1.0-informational?style=flat-square)
+![Version: 0.4.2](https://img.shields.io/badge/Version-0.4.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.4-sec.0.1.0](https://img.shields.io/badge/AppVersion-v25.3.4--sec.0.1.0-informational?style=flat-square)
 
 Dgraph-sec — hardened Dgraph database for Istari platform
 
@@ -236,7 +236,7 @@ the agent runs.
 | image.tag | string | `"v25.3.4-sec.0.1.0"` | dgraph-sec image tag (matches the chart appVersion). |
 | networkPolicy | object | `{"clientPodLabels":{},"enabled":false,"extraIngress":[]}` | NetworkPolicy gating ingress to alpha/zero ports (gated production add-on). |
 | preUpgradeHook.enabled | bool | `true` | Run the v24-to-v25 StatefulSet selector migration Job on helm upgrade. |
-| preUpgradeHook.image | object | `{"registry":"istaridigital.jfrog.io","repository":"remote-docker-dockerhub/bitnami/kubectl","tag":"1.31"}` | kubectl image used by the pre-upgrade migration Job. |
+| preUpgradeHook.image | object | `{"registry":"istaridigital.jfrog.io","repository":"remote-docker-chainguard/istaridigital.com/kubectl-iamguarded-fips","tag":"1.32"}` | kubectl image used by the pre-upgrade migration Job. |
 | preUpgradeHook.podAnnotations | object | `{}` | Extra pod annotations for the pre-upgrade hook Job. |
 | preUpgradeHook.podLabels | object | `{}` | Extra pod labels for the pre-upgrade hook Job. |
 | prometheusRule | object | `{"defaultRules":true,"enabled":false,"extraRules":[],"labels":{}}` | Prometheus Operator PrometheusRule with default alerts (gated production add-on). |
