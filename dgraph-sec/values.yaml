@@ -975,7 +975,12 @@ backups:
     ## git. Prefer External Secrets Operator or Sealed Secrets and reference the
     ## generated Secret, rather than putting cleartext credentials in a values
     ## file. ref: https://external-secrets.io / https://sealed-secrets.netlify.app
-    # password: password
+    ##
+    ## Intentionally empty, like `user` above. When alpha.acl.enabled is true and
+    ## backups are enabled, the backups Secret template `required`s this value, so
+    ## the chart fails closed rather than shipping a blank password. Declared here
+    ## (rather than left as a comment) so it appears in the generated values table.
+    password: ""
     ## Mutual TLS client certificate and key can be used to secure transaction that was created with
     ## dgraph-sec cert --client <name-of-client> should be specified here.
     ## ref. https://docs.dgraph.io/admin/security/tls-configuration#tls-options

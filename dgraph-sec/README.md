@@ -199,7 +199,7 @@ the agent runs.
 | alpha.tolerations | list | `[]` | Tolerations for alpha pod scheduling. |
 | alpha.updateStrategy | string | `"RollingUpdate"` | StatefulSet update strategy for alpha (RollingUpdate or OnDelete). |
 | alpha.vmodule | string | `""` | Alpha per-module glog verbosity (--vmodule); empty disables. |
-| backups.admin | object | `{"auth_token":"","tls_client":"","user":""}` | Backup admin credentials/token used to trigger backups when ACLs are enabled. |
+| backups.admin | object | `{"auth_token":"","password":"","tls_client":"","user":""}` | Backup admin credentials/token used to trigger backups when ACLs are enabled. |
 | backups.destination | string | `"/dgraph/backups"` | Backup destination: a file path, s3://, or minio:// URI. |
 | backups.full | object | `{"debug":false,"enabled":false,"restartPolicy":"Never","schedule":"0 0 * * *"}` | Full-backup CronJob (enable, schedule, restart policy). |
 | backups.image | object | `{"<<":{"debug":false,"pullPolicy":"IfNotPresent","registry":"istaridigital.jfrog.io","repository":"main-docker-local/dgraph-sec","tag":"v25.3.4-sec.0.1.0"}}` | Image for backup CronJobs (defaults to the shared dgraph-sec image; needs curl). |

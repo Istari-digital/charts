@@ -18,7 +18,10 @@ data:
     # get_token_rest - get accessJWT token with REST command for Dgraph 1.x
     ##########################
     get_token_rest() {
-      JSON="{\"userid\": \"${USER}\", \"password\": \"${PASSWORD}\" }"
+      ## Build the JSON body with `jq -n` so credentials containing quotes,
+      ## backslashes, or newlines are escaped correctly instead of breaking the
+      ## payload (string interpolation would corrupt the request).
+      JSON=$(jq -n --arg userid "$USER" --arg password "$PASSWORD" '{userid: $userid, password: $password}')
       RESULT=$(
         /usr/bin/curl --silent \
           "${HEADERS[@]}" \
@@ -44,7 +47,11 @@ data:
     # get_token_graphql - get accessJWT token using GraphQL for Dgraph 20.03.1+
     ##########################
     get_token_graphql() {
-      GQL="{\"query\": \"mutation { login(userId: \\\"${USER}\\\" password: \\\"${PASSWORD}\\\") { response { accessJWT } } }\"}"
+      ## Build the request with `jq -n` and pass credentials as GraphQL variables
+      ## (not inlined into the query string). This escapes quotes/backslashes/
+      ## newlines correctly and removes any chance of query injection via the
+      ## userid or password.
+      GQL=$(jq -n --arg userId "$USER" --arg password "$PASSWORD" '{query: "mutation ($userId: String, $password: String) { login(userId: $userId, password: $password) { response { accessJWT } } }", variables: {userId: $userId, password: $password}}')
       RESULT=$(
         /usr/bin/curl --silent \
           "${HEADERS[@]}" \
