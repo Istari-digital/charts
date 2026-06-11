@@ -161,8 +161,37 @@ zero:
   # -- (list) Extra environment variables appended to the zero container.
   extraEnvs: []
 
-  ## Extra flags for command line flags in command
-  # -- Extra command-line flags appended to dgraph-sec zero.
+  ## --- Logging (glog) -------------------------------------------------------
+  ## Verbosity (glog -v). INFO/WARNING/ERROR are ALWAYS written to stderr; this
+  ## only adds finer V-logs on top. Named level OR a raw -v integer:
+  ##   normal->0 (prod default)   verbose->1   debug->2   trace->3
+  # -- Zero log verbosity: named level (normal|verbose|debug|trace) or a raw glog -v integer.
+  logLevel: normal
+
+  ## Per-module verbosity (glog --vmodule), e.g. "server=3,raft=2". Empty = none.
+  # -- Zero per-module glog verbosity (--vmodule); empty disables.
+  vmodule: ""
+
+  ## Log to the container's stderr (glog --logtostderr). Keep true in Kubernetes
+  ## so logs reach `kubectl logs` / the node collector. Setting false routes logs
+  ## to files under logDir instead — only safe with a writable, mounted logDir.
+  # -- Send zero logs to stderr (--logtostderr). Keep true for Kubernetes log capture.
+  logtostderr: true
+
+  ## Also write logs to files under logDir IN ADDITION to stderr
+  ## (glog --alsologtostderr). Requires a writable logDir.
+  # -- Also write zero logs to files under logDir (--alsologtostderr).
+  alsologtostderr: false
+
+  ## Directory for glog file output (glog --log_dir); used when logtostderr=false
+  ## or alsologtostderr=true. Must be a writable mount. Empty = glog default.
+  # -- Directory for zero glog file output (--log_dir); needs a writable mount.
+  logDir: ""
+
+  ## Extra flags for command line flags in command. Fallthrough for any glog
+  ## option not exposed above; a -v here overrides logLevel (Dgraph takes the
+  ## last flag).
+  # -- Extra command-line flags appended to dgraph-sec zero (logging fallthrough).
   extraFlags: ""
 
   ## Configuration file for dgraph zero used as an alternative to command-line options
@@ -273,6 +302,11 @@ zero:
     size: 32Gi
     ## Annotations to add to the volumeClaimTemplates metadata
     annotations: {}
+    # -- (object) StatefulSet PVC retention policy. whenDeleted applies on
+    # `helm uninstall`; whenScaled on replica reduction. Each "Retain" or "Delete".
+    persistentVolumeClaimRetentionPolicy:
+      whenDeleted: Retain
+      whenScaled: Retain
 
   ## Node labels and tolerations for pod assignment
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
@@ -418,8 +452,37 @@ alpha:
   # - name: AWS_SECRET_ACCESS_KEY
   #   value: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
-  ## Extra flags for command line flags in command
-  # -- Extra command-line flags appended to dgraph-sec alpha.
+  ## --- Logging (glog) -------------------------------------------------------
+  ## Verbosity (glog -v). INFO/WARNING/ERROR are ALWAYS written to stderr; this
+  ## only adds finer V-logs on top. Named level OR a raw -v integer:
+  ##   normal->0 (prod default)   verbose->1   debug->2   trace->3
+  # -- Alpha log verbosity: named level (normal|verbose|debug|trace) or a raw glog -v integer.
+  logLevel: normal
+
+  ## Per-module verbosity (glog --vmodule), e.g. "server=3,raft=2". Empty = none.
+  # -- Alpha per-module glog verbosity (--vmodule); empty disables.
+  vmodule: ""
+
+  ## Log to the container's stderr (glog --logtostderr). Keep true in Kubernetes
+  ## so logs reach `kubectl logs` / the node collector. Setting false routes logs
+  ## to files under logDir instead — only safe with a writable, mounted logDir.
+  # -- Send alpha logs to stderr (--logtostderr). Keep true for Kubernetes log capture.
+  logtostderr: true
+
+  ## Also write logs to files under logDir IN ADDITION to stderr
+  ## (glog --alsologtostderr). Requires a writable logDir.
+  # -- Also write alpha logs to files under logDir (--alsologtostderr).
+  alsologtostderr: false
+
+  ## Directory for glog file output (glog --log_dir); used when logtostderr=false
+  ## or alsologtostderr=true. Must be a writable mount. Empty = glog default.
+  # -- Directory for alpha glog file output (--log_dir); needs a writable mount.
+  logDir: ""
+
+  ## Extra flags for command line flags in command. Fallthrough for any glog
+  ## option not exposed above; a -v here overrides logLevel (Dgraph takes the
+  ## last flag).
+  # -- Extra command-line flags appended to dgraph-sec alpha (logging fallthrough).
   extraFlags: ""
 
   ## Configuration file for dgraph alpha used as an alternative to command-line options
@@ -535,26 +598,70 @@ alpha:
 
   ## ACL Configuration
   ## ref: https://docs.dgraph.io/installation/configuration/enable-acl
+  ## When `enabled`, the alpha command automatically gets
+  ## `--acl secret-file=/dgraph/acl/<secretFile>` (see templates/alpha/statefulset.yaml)
+  ## — no manual `extraFlags` needed. Without the flag the HMAC Secret is mounted but
+  ## unused and `groot` keeps its default password, so enabling here means activating.
   # -- (object) Access Control List (ACL) configuration for alpha.
   acl:
     enabled: false
-    ## The values in `file: {}` will be the filename as key and the file data as the value.
-    ## Make sure that the filename key matches the dgraph configuration of `acl_secret_file`
+    # -- Filename/key of the HMAC secret; the `--acl secret-file=` flag points at /dgraph/acl/<secretFile>.
+    secretFile: hmac_secret_file
+    ## Use a pre-created Secret (e.g. Terraform-managed) instead of rendering `file`
+    ## through Helm values, so the HMAC never lands in values or release state. When
+    ## set, the chart does NOT create the ACL Secret; the named Secret must hold the
+    ## `secretFile` key, and (if bootstrap runs) the groot and per-user password keys.
+    # -- Name of a pre-created Secret holding the HMAC (and bootstrap passwords); empty means create one from `file`.
+    existingSecret: ""
+    ## The values in `file: {}` are filename-key to base64 data. Ignored when
+    ## `existingSecret` is set. The key must match `secretFile`.
     # file:
-    #   ## value for 1234567890123456789012345678901
-    #   ## Note that Kubernetes secrets must be base64-encoded
     #   hmac_secret_file: MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMQo=
+    ## Bootstrap: a run-once-per-deploy Job (post-install/post-upgrade hook) that
+    ## rotates `groot` off its default password and converges the declared users and
+    ## groups. Idempotent, so it is safe on every helm upgrade.
+    ##
+    ## Add an engineer: append a `users` entry with `groups: [guardians]` and add
+    ##   their password under a new key in the bootstrap Secret (`passwordSecretKey`).
+    ## Add a service: add a `groups` entry with predicate `rules`, then a `users`
+    ##   entry placed in that group.
+    # -- (object) Idempotent groot-rotation + user/group reconciler, run as a Helm hook Job.
+    bootstrap:
+      # -- Run the ACL bootstrap/reconciler Job (requires acl.enabled and a credentials Secret).
+      enabled: false
+      # -- Secret holding the credentials the Job reads; defaults to acl.existingSecret.
+      existingSecret: ""
+      # -- Key in the Secret holding groot's target (rotated) password.
+      grootPasswordSecretKey: groot_password
+      # -- Opaque rotation token rendered as a Job pod annotation. Change it (e.g. from
+      #    Terraform's dgraph_sec_acl_password_rotation) to force a helm upgrade that
+      #    re-runs the reconciler, without touching Alpha. Empty = no annotation.
+      rotation: ""
+      # -- (object) Image for the bootstrap Job; defaults to the dgraph-sec image (has curl + jq).
+      image: {}
+      ## Each group: { name, rules: [{ predicate, permission }] }.
+      ## permission is OR-summed: 1=read, 2=write, 4=modify.
+      # -- (list) ACL groups to ensure, with predicate rules.
+      groups: []
+      ## Each user: { name, passwordSecretKey, groups: [ ... ] }.
+      ## `guardians` is the built-in superadmin group.
+      # -- (list) ACL users to ensure, each with a password Secret key and group membership.
+      users: []
 
   ## Encryption at Rest Configuration
   ## ref: https://docs.dgraph.io/installation/configuration/encryption-at-rest
+  ## When `enabled`, the alpha command automatically gets
+  ## `--encryption key-file=/dgraph/enc/<keyFile>` (see templates/alpha/statefulset.yaml).
   # -- (object) Encryption-at-rest configuration for alpha.
   encryption:
     enabled: false
-    ## The values in `file: {}` will be the filename as key and the file data as the value.
-    ## Make sure that the filename key matches the dgraph configuration of `encryption_key_file`
+    # -- Filename/key of the encryption key; the `--encryption key-file=` flag points at /dgraph/enc/<keyFile>.
+    keyFile: enc_key_file
+    # -- Name of a pre-created Secret holding the encryption key; empty means create one from `file`.
+    existingSecret: ""
+    ## The values in `file: {}` are filename-key to base64 data. Ignored when
+    ## `existingSecret` is set. The key must match `keyFile`.
     # file:
-    #   ## value for 123456789012345
-    #   ## Note that Kubernetes secrets must be base64-encoded
     #   enc_key_file: MTIzNDU2Nzg5MDEyMzQ1Cg==
 
   ## dgraph data Persistent Volume Storage Class
@@ -572,6 +679,11 @@ alpha:
     - ReadWriteOnce
     size: 100Gi
     annotations: {}
+    # -- (object) StatefulSet PVC retention policy. whenDeleted applies on
+    # `helm uninstall`; whenScaled on replica reduction. Each "Retain" or "Delete".
+    persistentVolumeClaimRetentionPolicy:
+      whenDeleted: Retain
+      whenScaled: Retain
 
   ## Node labels and tolerations for pod assignment
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
@@ -863,7 +975,12 @@ backups:
     ## git. Prefer External Secrets Operator or Sealed Secrets and reference the
     ## generated Secret, rather than putting cleartext credentials in a values
     ## file. ref: https://external-secrets.io / https://sealed-secrets.netlify.app
-    # password: password
+    ##
+    ## Intentionally empty, like `user` above. When alpha.acl.enabled is true and
+    ## backups are enabled, the backups Secret template `required`s this value, so
+    ## the chart fails closed rather than shipping a blank password. Declared here
+    ## (rather than left as a comment) so it appears in the generated values table.
+    password: ""
     ## Mutual TLS client certificate and key can be used to secure transaction that was created with
     ## dgraph-sec cert --client <name-of-client> should be specified here.
     ## ref. https://docs.dgraph.io/admin/security/tls-configuration#tls-options

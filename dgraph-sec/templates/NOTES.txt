@@ -20,13 +20,33 @@
      * OTEL tracing ........... {{ if .Values.tracing.enabled }}ENABLED (endpoint: {{ .Values.tracing.endpoint }}){{ else }}disabled{{ end }}
      * Pods run as ............ {{ if .Values.alpha.securityContext.enabled }}non-root (securityContext enabled){{ else }}the image default (securityContext DISABLED){{ end }}
 
+{{- if .Values.alpha.acl.enabled }}
+   ACL is ENABLED, so every client must log in.
+   {{- if .Values.alpha.acl.bootstrap.enabled }}
+   The bootstrap Job rotated `groot` off its default password and provisioned the
+   declared accounts. Log in with a named account (for example `istari-admin`),
+   using its password from your credentials store:
+
+       kubectl -n {{ include "dgraph-sec.namespace" . }} port-forward svc/{{ include "dgraph-sec.alpha.fullname" . }} 8080:8080 &
+       curl -s localhost:8080/admin -H 'Content-Type: application/json' \
+         --data '{"query":"mutation($u:String!,$p:String!){login(userId:$u,password:$p){response{accessJWT}}}","variables":{"u":"istari-admin","p":"<password>"}}'
+
+   To add an account: append to `alpha.acl.bootstrap.users` (a service also needs a
+   group with predicate rules under `alpha.acl.bootstrap.groups`), add its password
+   to the credentials Secret, then re-apply. The reconciler converges it next deploy.
+   {{- else }}
+   Set `alpha.acl.bootstrap.enabled=true` with a credentials Secret to auto-rotate
+   `groot` and provision accounts; otherwise rotate `groot` manually before use.
+   {{- end }}
+{{- else }}
    This release deploys a WORKING cluster out of the box: with ACL disabled no
    login is required, so applications can connect immediately. To make it
    production-grade, layer on the security features above:
 
-     1. Authentication — enable ACL so clients must log in:
+     1. Authentication — enable ACL and auto-provision accounts:
           --set alpha.acl.enabled=true \
-          --set-file alpha.acl.file.hmac_secret_file=<path-to-32-byte-secret>
+          --set alpha.acl.existingSecret=<secret-with-hmac-and-passwords> \
+          --set alpha.acl.bootstrap.enabled=true
      2. Encryption / TLS — see values.yaml `alpha.encryption` and `alpha.tls`
         (use scripts/make_tls_secrets.sh to generate TLS material).
      3. Backups — enable a schedule and point it at S3/MinIO/NFS:
@@ -36,6 +56,7 @@
         (see the SECRET HANDLING note in values.yaml — prefer a managed Secret).
      4. NetworkPolicy — restrict access on a CNI that enforces it:
           --set networkPolicy.enabled=true
+{{- end }}
 
 2. Get the Dgraph Alpha HTTP/S endpoint by running these commands.
 

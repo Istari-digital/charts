@@ -1,0 +1,91 @@
+{{- if and .Values.alpha.acl.enabled .Values.alpha.acl.bootstrap.enabled }}
+{{- /*
+  Resolve the Secret that holds the credentials the reconciler reads (groot and
+  per-user passwords). Defaults to the bootstrap-specific existingSecret, then the
+  ACL existingSecret, then the chart-created ACL Secret.
+*/}}
+{{- $bootstrap := .Values.alpha.acl.bootstrap }}
+{{- $secretName := $bootstrap.existingSecret | default .Values.alpha.acl.existingSecret | default (printf "%s-acl-secret" (include "dgraph-sec.alpha.fullname" .)) }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "dgraph-sec.alpha.fullname" . }}-acl-bootstrap
+  namespace: {{ include "dgraph-sec.namespace" . }}
+  labels:
+    {{- include "dgraph-sec.labels" (dict "ctx" . "component" "acl-bootstrap") | nindent 4 }}
+  annotations:
+    ## Run after Alpha/Zero are up, on both first install and every upgrade.
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      {{- with .Values.alpha.acl.bootstrap.rotation }}
+      annotations:
+        ## Changing acl.bootstrap.rotation changes this annotation, so a rotation
+        ## (e.g. a Terraform counter bump) produces a release diff that re-runs this
+        ## Job and its reconciler. The annotation lands only on the Job, so Alpha is
+        ## never restarted by a rotation.
+        dgraph-sec.io/acl-rotation: {{ . | quote }}
+      {{- end }}
+      labels:
+        {{- include "dgraph-sec.labels" (dict "ctx" . "component" "acl-bootstrap") | nindent 8 }}
+        ## A short-lived Job must not get an Istio sidecar — the proxy never exits,
+        ## so the Job (and the helm hook waiting on it) would hang forever.
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: Never
+{{- include "dgraph-sec.imagePullSecrets" . | indent 6 }}
+      automountServiceAccountToken: false
+      ## Run alongside Alpha (same taint/label) so the Job can reach the service.
+      {{- if .Values.alpha.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.alpha.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.alpha.tolerations }}
+      tolerations:
+{{ toYaml .Values.alpha.tolerations | indent 8 }}
+      {{- end }}
+      {{- if .Values.alpha.securityContext.enabled }}
+      securityContext:
+        {{- omit .Values.alpha.securityContext "enabled" | toYaml | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: acl-bootstrap
+        {{- if .Values.alpha.acl.bootstrap.image }}
+        image: {{ printf "%s/%s:%s" .Values.alpha.acl.bootstrap.image.registry .Values.alpha.acl.bootstrap.image.repository (.Values.alpha.acl.bootstrap.image.tag | toString) }}
+        {{- else }}
+        image: {{ include "dgraph-sec.image" . }}
+        {{- end }}
+        imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
+        {{- if .Values.alpha.containerSecurityContext.enabled }}
+        securityContext:
+          {{- omit .Values.alpha.containerSecurityContext "enabled" | toYaml | nindent 10 }}
+        {{- end }}
+        command: ["/usr/bin/bash", "/scripts/reconcile.sh"]
+        env:
+        - name: ALPHA_HOST
+          value: {{ include "dgraph-sec.alpha.fullname" . | quote }}
+        - name: GROOT_PASSWORD_KEY
+          value: {{ .Values.alpha.acl.bootstrap.grootPasswordSecretKey | quote }}
+        - name: USERS_JSON
+          value: {{ .Values.alpha.acl.bootstrap.users | toJson | quote }}
+        - name: GROUPS_JSON
+          value: {{ .Values.alpha.acl.bootstrap.groups | toJson | quote }}
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+        - name: creds
+          mountPath: /creds
+          readOnly: true
+      volumes:
+      - name: scripts
+        configMap:
+          name: {{ include "dgraph-sec.alpha.fullname" . }}-acl-bootstrap
+          defaultMode: 0555
+      - name: creds
+        secret:
+          secretName: {{ $secretName }}
+{{- end }}

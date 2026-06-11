@@ -26,6 +26,13 @@ spec:
       app: {{ template "dgraph-sec.name" . }}
       release: {{ .Release.Name }}
       component: {{ .Values.alpha.name }}
+  {{- if .Values.alpha.persistence.enabled }}
+  {{- with .Values.alpha.persistence.persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: {{ .whenDeleted | default "Retain" }}
+    whenScaled: {{ .whenScaled | default "Retain" }}
+  {{- end }}
+  {{- end }}
   template:
     metadata:
       name: {{ template "dgraph-sec.alpha.fullname" . }}
@@ -199,7 +206,11 @@ spec:
           ##       it unless you have verified this fork's image never emits one.
           - |
             set -ex
-            dgraph-sec alpha --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):7080 --zero {{ template "dgraph-sec.multiZeros" . }} {{ .Values.alpha.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.alpha.service }};"{{- end }}
+            ## ACL and encryption-at-rest activate here, not merely by setting
+            ## `alpha.acl.enabled`/`alpha.encryption.enabled`. Those keys provision the
+            ## Secret and mount; the matching superflag below is what makes Dgraph use
+            ## them. Keep the two in lockstep so "enabled" always means "active".
+            exec dgraph-sec alpha --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):7080 --zero {{ template "dgraph-sec.multiZeros" . }} {{ template "dgraph-sec.logFlags" .Values.alpha }} {{ .Values.alpha.extraFlags }}{{- if .Values.alpha.acl.enabled }} --acl "secret-file=/dgraph/acl/{{ .Values.alpha.acl.secretFile }};"{{- end }}{{- if .Values.alpha.encryption.enabled }} --encryption "key-file=/dgraph/enc/{{ .Values.alpha.encryption.keyFile }};"{{- end }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.alpha.service }};"{{- end }}
         resources:
 {{ toYaml .Values.alpha.resources | indent 10 }}
         {{- if .Values.alpha.startupProbe.enabled }}
@@ -300,12 +311,14 @@ spec:
       {{- if .Values.alpha.encryption.enabled }}
       - name: enc-volume
         secret:
-          secretName: {{ template "dgraph-sec.alpha.fullname" . }}-encryption-secret
+          secretName: {{ .Values.alpha.encryption.existingSecret | default (printf "%s-encryption-secret" (include "dgraph-sec.alpha.fullname" .)) }}
       {{- end }}
-      {{- if or .Values.alpha.acl.enabled }}
+      {{- if .Values.alpha.acl.enabled }}
       - name: acl-volume
         secret:
-          secretName: {{ template "dgraph-sec.alpha.fullname" . }}-acl-secret
+          # existingSecret lets a pre-created Secret (e.g. a Terraform-managed one)
+          # supply the HMAC key, so it never has to be rendered through Helm values.
+          secretName: {{ .Values.alpha.acl.existingSecret | default (printf "%s-acl-secret" (include "dgraph-sec.alpha.fullname" .)) }}
       {{- end }}
 
 {{- if .Values.alpha.persistence.enabled }}
