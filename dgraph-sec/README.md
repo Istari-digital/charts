@@ -1,6 +1,6 @@
 # Dgraph-sec
 
-![Version: 0.3.0](https://img.shields.io/badge/Version-0.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.4-sec.0.1.0](https://img.shields.io/badge/AppVersion-v25.3.4--sec.0.1.0-informational?style=flat-square)
+![Version: 0.4.0](https://img.shields.io/badge/Version-0.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.4-sec.0.1.0](https://img.shields.io/badge/AppVersion-v25.3.4--sec.0.1.0-informational?style=flat-square)
 
 Dgraph-sec — hardened Dgraph database for Istari platform
 
@@ -80,6 +80,13 @@ Defaults that are **off** and must be enabled for a production posture: ACL
 Enable scheduled binary backups with `backups.full.enabled` / `backups.incremental.enabled`
 and a `backups.destination`. Restoring is a deliberate, operator-driven action — there
 is no automatic restore. The runbook lives in [`scripts/README.md`](./scripts/README.md#restoring-from-a-binary-backup).
+
+The full and incremental backup CronJobs inherit `alpha.nodeSelector` and
+`alpha.tolerations`, so each backup pod schedules onto the same node group as the
+Alpha it backs up — it triggers the backup against `alpha-0` and, for filesystem/NFS
+destinations, shares Alpha's backup volume. Pin Alpha to a dedicated, tainted node
+group and the backups follow it there; leave `alpha` scheduling unset and they
+schedule anywhere, as before.
 
 > [!WARNING]
 > Credentials (`backups.admin.password`, `backups.admin.auth_token`, ACL secrets) set

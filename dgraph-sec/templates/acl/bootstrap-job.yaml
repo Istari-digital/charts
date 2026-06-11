@@ -32,9 +32,12 @@ spec:
       {{- end }}
       labels:
         {{- include "dgraph-sec.labels" (dict "ctx" . "component" "acl-bootstrap") | nindent 8 }}
-        ## A short-lived Job must not get an Istio sidecar — the proxy never exits,
-        ## so the Job (and the helm hook waiting on it) would hang forever.
-        sidecar.istio.io/inject: "false"
+        ## This Job authenticates to Alpha's /admin over the cluster network. Under a
+        ## STRICT-mTLS mesh, Alpha's sidecar rejects plaintext from a sidecar-less pod,
+        ## which hangs the post-install hook, so this Job must carry its own sidecar.
+        ## Kubernetes-native Istio sidecars (Istio 1.20+, k8s 1.29+) terminate when the
+        ## reconciler container exits, so the Job still completes. Do not re-add
+        ## sidecar.istio.io/inject=false.
     spec:
       restartPolicy: Never
 {{- include "dgraph-sec.imagePullSecrets" . | indent 6 }}
