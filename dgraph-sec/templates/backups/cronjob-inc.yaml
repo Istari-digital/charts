@@ -31,6 +31,18 @@ spec:
           {{- if .Values.backups.schedulerName }}
           schedulerName: {{ .Values.backups.schedulerName }}
           {{- end }}
+          ## Pin the backup pod to the same node group as the Alpha cluster it
+          ## backs up. Reuse alpha.nodeSelector/alpha.tolerations (as the ACL
+          ## bootstrap Job does) so a dedicated, tainted dgraph node group admits
+          ## the CronJob pod instead of leaving it Pending or off the data tier.
+          {{- if .Values.alpha.nodeSelector }}
+          nodeSelector:
+{{ toYaml .Values.alpha.nodeSelector | indent 12 }}
+          {{- end }}
+          {{- if .Values.alpha.tolerations }}
+          tolerations:
+{{ toYaml .Values.alpha.tolerations | indent 12 }}
+          {{- end }}
           containers:
           - name: {{ template "dgraph-sec.backups.fullname" . }}-inc
             image: {{ template "dgraph-sec.backups.image" . }}
