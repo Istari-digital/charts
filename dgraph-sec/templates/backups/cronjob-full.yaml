@@ -27,6 +27,7 @@ spec:
           serviceAccountName: {{ include "dgraph-sec.serviceAccountName" . }}
           {{- end }}
           automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+{{- include "dgraph-sec.imagePullSecrets" . | indent 10 }}
           {{- if .Values.backups.schedulerName }}
           schedulerName: {{ .Values.backups.schedulerName }}
           {{- end }}
