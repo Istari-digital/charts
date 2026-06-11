@@ -165,6 +165,8 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | identityService.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | identityService.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | identityService.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
+| identityService.dgraphMigrations.enabled | bool | `false` | Apply the Dgraph schema (`migrate-dgraph up`) as a Deployment `initContainer` before the main container starts. Enable for the Dgraph cutover (`STORE_MODE=dgraph-only`) so the Dgraph schema is present before the service reads/writes Dgraph. Requires `DGRAPH_URL` reachable from the env `ConfigMap`/`secretName`. The step is idempotent (the migration runner tracks applied migrations), so it is safe to leave enabled across deploys. This service does not migrate data from Postgres to Dgraph; only the schema is applied. |
+| identityService.dgraphMigrations.resources | object | `{"limits":{"cpu":"500m","memory":"1Gi"},"requests":{"cpu":"500m","memory":"1Gi"}}` | Resources for the `dgraph-migrate` init container. Defaults to `migrations.resources` when unset. |
 | identityService.enabled | bool | `false` | Enable / Disable the whole deployment |
 | identityService.env | list | `[]` |  |
 | identityService.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |

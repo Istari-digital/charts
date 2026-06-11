@@ -710,6 +710,18 @@ identityService:
       limits:
         cpu: 500m
         memory: 1Gi
+  dgraphMigrations:
+    # -- Apply the Dgraph schema (`migrate-dgraph up`) as a Deployment `initContainer` before the main container starts.
+    # Enable for the Dgraph cutover (`STORE_MODE=dgraph-only`) so the Dgraph schema is present before the service reads/writes Dgraph. Requires `DGRAPH_URL` reachable from the env `ConfigMap`/`secretName`. The step is idempotent (the migration runner tracks applied migrations), so it is safe to leave enabled across deploys. This service does not migrate data from Postgres to Dgraph; only the schema is applied.
+    enabled: false
+    # -- Resources for the `dgraph-migrate` init container. Defaults to `migrations.resources` when unset.
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 500m
+        memory: 1Gi
   # Ingress -- optional Kubernetes Ingress for this service.
   ingress:
     # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
