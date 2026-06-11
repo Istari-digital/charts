@@ -22,6 +22,8 @@ locals {
       "https://mcp.${var.main_domain}"
     ]
   ) : var.mcp_redirect_uris
+
+  identity_service_base_url = trimsuffix(var.identity_service_base_url, "/")
 }
 
 resource "zitadel_org" "default" {
@@ -69,12 +71,20 @@ resource "zitadel_project_role" "secure_connection_service_account" {
   group        = "secure_connection_service_user"
 }
 
+resource "zitadel_project_role" "rss_service_user" {
+  project_id   = zitadel_project.istari.id
+  org_id       = zitadel_org.default.id
+  role_key     = "rss_service_user"
+  display_name = "rss_service_user"
+  group        = "rss_service_user"
+}
+
 resource "zitadel_project_grant" "default" {
   project_id     = zitadel_project.istari.id
   org_id         = zitadel_org.default.id
   granted_org_id = zitadel_org.default.id
-  role_keys      = ["customer_admin", "istari_agent", "service_admin", "secure_connection_service_user"]
-  depends_on     = [zitadel_project_role.customer_admin, zitadel_project_role.istari_agent, zitadel_project_role.service_admin, zitadel_project_role.secure_connection_service_account]
+  role_keys      = ["customer_admin", "istari_agent", "service_admin", "secure_connection_service_user", "rss_service_user"]
+  depends_on     = [zitadel_project_role.customer_admin, zitadel_project_role.istari_agent, zitadel_project_role.service_admin, zitadel_project_role.secure_connection_service_account, zitadel_project_role.rss_service_user]
 }
 
 resource "zitadel_application_oidc" "istari_frontend_service" {
@@ -150,6 +160,30 @@ resource "zitadel_application_key" "registry-service-key" {
   expiration_date = "2519-04-01T08:45:00Z"
 }
 
+resource "zitadel_application_oidc" "identity-service" {
+  project_id                = zitadel_project.istari.id
+  org_id                    = zitadel_org.default.id
+  name                      = "identity-service"
+  redirect_uris             = ["${local.identity_service_base_url}/callback"]
+  response_types            = ["OIDC_RESPONSE_TYPE_CODE"]
+  grant_types               = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"]
+  post_logout_redirect_uris = ["${local.identity_service_base_url}/callback"]
+  app_type                  = "OIDC_APP_TYPE_WEB"
+  auth_method_type          = "OIDC_AUTH_METHOD_TYPE_PRIVATE_KEY_JWT"
+  version                   = "OIDC_VERSION_1_0"
+  dev_mode                  = true
+  access_token_type         = "OIDC_TOKEN_TYPE_JWT"
+}
+
+resource "zitadel_application_key" "identity-service-key" {
+  depends_on      = [zitadel_application_oidc.identity-service]
+  org_id          = zitadel_org.default.id
+  project_id      = zitadel_project.istari.id
+  app_id          = zitadel_application_oidc.identity-service.id
+  key_type        = "KEY_TYPE_JSON"
+  expiration_date = "2519-04-01T08:45:00Z"
+}
+
 resource "zitadel_machine_user" "registry-service-user" {
   depends_on        = [zitadel_application_key.registry-service-key]
   org_id            = zitadel_org.default.id
@@ -165,6 +199,15 @@ resource "zitadel_machine_user" "secure-connection-service-user" {
   name              = "SecureConnectionServiceMachineUser"
   description       = "The machine user for the secure-connection service"
   access_token_type = "ACCESS_TOKEN_TYPE_JWT"
+}
+
+# TODO: Follow up with DPLAT team to remove temporary rss_service_user role from the grant in the future.
+resource "zitadel_user_grant" "secure-connection-service-default" {
+  org_id           = zitadel_org.default.id
+  project_id       = zitadel_project.istari.id
+  user_id          = zitadel_machine_user.secure-connection-service-user.id
+  project_grant_id = zitadel_project_grant.default.id
+  role_keys        = ["rss_service_user", "secure_connection_service_user"]
 }
 
 resource "zitadel_machine_key" "registry-service-machine-key" {

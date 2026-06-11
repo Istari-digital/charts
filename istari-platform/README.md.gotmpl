@@ -19,6 +19,9 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 {{ template "chart.requirementsSection" . }}
 
+> [!NOTE]
+> The `nats` dependency is **optional** and conditional on `nats.enabled` (default `false`). When NATS is disabled, the subchart is not rendered and no NATS resources are installed. `helm dependency update` will still fetch the chart so the lockfile resolves, but it has no effect at install time unless enabled. See the `nats:` block under [Values](#values) for details.
+
 {{ template "chart.valuesSection" . }}
 
 {{ template "chart.maintainersSection" . }}

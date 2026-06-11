@@ -111,6 +111,9 @@ configurator:
   # -- This will determine the main domain for the Terraform configuration.
   main_domain: domain.com
 
+  # -- Base URL used by identity-service.
+  identity_service_base_url: "https://identity.domain.com"
+
   # -- Enable auto configuration of subdomains. If enabled is set to true.
   # If set to true, the following domains will be assumed (Please note using domain.com as an example):
   # Frontend service subdomain: https://domain.com and https://v2.domain.com

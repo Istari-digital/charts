@@ -36,7 +36,7 @@ fileservice:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "fileservice2"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "10.15.2"
+  tag: "10.17.4"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -179,7 +179,7 @@ frontend:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "frontend-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "8.31.1"
+  tag: "8.33.5"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -320,7 +320,7 @@ mcp:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "mcp-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "0.3.1"
+  tag: "0.3.3"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -459,7 +459,7 @@ secureConnection:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "secure-connection-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "10.15.2"
+  tag: "10.17.4"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -593,6 +593,157 @@ secureConnection:
     # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
     gateways: []
 
+# Default values for Identity Service.
+identityService:
+  # -- Enable / Disable the whole deployment
+  enabled: false
+  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
+  registry: "istaridigital.jfrog.io/customer-docker"
+  # -- Image name. The combination of registry, image, and tag will be used to pull the image.
+  image: "identity-service"
+  # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
+  tag: "0.0.1"
+  # -- Image pull policy
+  imagePullPolicy: "IfNotPresent"
+  # -- Secret name. The secret should contain the environment variables required by the service.
+  secretName: "istari-identity-service"
+  # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
+  extraEnvSecrets: []
+  # -- Replica count
+  replicaCount: 1
+  # -- Restart policy
+  restartPolicy: "Always"
+  # -- Additional labels to add to all of this service's resources
+  commonLabels: {}
+  # -- Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName.
+  serviceType: "ClusterIP"
+  # -- Additional annotations to apply to the service, note the following annotations for duplicate keys.
+  serviceAnnotations: {}
+  # -- Additional annotations to add to the deployment
+  deploymentAnnotations: {}
+  # -- Additional annotations to add to pods
+  podAnnotations: {}
+  # -- Additional labels to add to pods
+  podLabels: {}
+  # -- Pod security context
+  podSecurityContext:
+    fsGroup: 65532
+  # -- Primary container's security context
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 65532
+  # -- Additional annotations to apply to the service account
+  serviceAccountAnnotations: {}
+  # Environment variables
+  ###############################
+  # example:
+  # env:
+  # - name: IDENTITY_SERVICE_LOG_LEVEL
+  #   value: DEBUG
+  ###############################
+  # If you are using secrets, you can use the following format:
+  # env:
+  # - name: IDENTITY_SERVICE_LOG_LEVEL
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: istari-identity-service
+  #       key: IDENTITY_SERVICE_LOG_LEVEL
+  env: []
+  # Autoscaling -- set autoscaling (HPA) parameters
+  autoscaling:
+    # -- Enable/Disable autoscaling
+    enabled: false
+    # -- Minimum number of replicas
+    minReplicas: 1
+    # -- Maximum number of replicas
+    maxReplicas: 2
+    # -- Average CPU utilization percentage. Set to `null` to disable.
+    cpuUtilization: 80
+    # -- Average Memory utilization percentage. Set to `null` to disable.
+    memoryUtilization: 80
+  # Resources -- set resources
+  resources: {}
+  # -- Pod Volumes
+  volumes: []
+  # -- Volume Mounts for pod containers
+  volumeMounts: []
+  # -- Tolerations.
+  # Example:
+  #
+  # ```
+  # tolerations:
+  # - "effect": "NoSchedule"
+  #   "key": "istari.k8s.io/role"
+  #   "operator": "Equal"
+  #   "value": "main"
+  # ```
+  tolerations: []
+  # -- Node selector
+  nodeSelector: {}
+  # -- Affinity
+  affinity: {}
+  migrations:
+    # -- Run database migrations as a Helm `pre-install` / `pre-upgrade` Job instead of a Deployment `initContainer`.
+    # When `true`, a `Job` runs `/migrate` once per release before the identity-service Deployment rolls out; the identity-service `ServiceAccount` and env `ConfigMap` are annotated with the same hooks so they exist before the Job runs.
+    # When `false`, migrations run in an `initContainer` on each identity-service Pod before the main container starts (legacy behavior).
+    runAsJob: false
+    # -- `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries.
+    backoffLimit: 0
+    # -- Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`).
+    # When `true`, Helm may remove the Job after the migration succeeds (less clutter; logs are shorter-lived on the cluster).
+    # When `false`, only `before-hook-creation` is set, so the completed Job (and its Pods) remain until the next install or upgrade replaces the hook—useful for auditing or inspecting migration logs.
+    autoCleanupSuccessfulJob: true
+    # -- Annotations for the migration Job Pod template only (e.g. `sidecar.istio.io/inject: "false"` to disable Istio sidecar injection).
+    podAnnotations: {}
+    # -- Extra labels for the migration Job Pod template only (in addition to the standard identity-service labels).
+    podLabels: {}
+    # -- Resources for migration containers, used by both the Deployment `initContainer` and the Helm hook `Job`.
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+  # Ingress -- optional Kubernetes Ingress for this service.
+  ingress:
+    # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
+    enabled: false
+    # -- `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass.
+    className: ""
+    # -- Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.).
+    annotations: {}
+    # -- Additional labels on the Ingress (in addition to the standard identity-service labels).
+    labels: {}
+    # -- One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host.
+    hosts:
+    - host: identity-service.istari.customer-domain.com
+      paths:
+      - path: /
+        pathType: Prefix
+    # -- TLS configuration; passed through to `spec.tls[]` verbatim.
+    tls: []
+    # -- Service port the Ingress targets. Defaults to 80.
+    servicePort: 80
+  # VirtualService -- optional Istio VirtualService for this service. The chart generates a single HTTP route sending all traffic (for the listed `hosts`) to this service's `kind: Service` on port 80. For custom routing logic (URL rewriting, retries, CORS, etc.), create a separate VirtualService alongside this chart.
+  virtualService:
+    # -- Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+).
+    enabled: false
+    # -- Additional labels on the VirtualService (in addition to the standard identity-service labels).
+    labels: {}
+    # -- Annotations on the VirtualService.
+    annotations: {}
+    # -- `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). The default below is an EXAMPLE — you MUST replace it with your actual hostname(s) before enabling the VirtualService. Clearing this list while `enabled: true` will cause the chart to fail to render.
+    hosts:
+    - identity-service.example.com
+    # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
+    gateways: []
+
 # Default values for Istari Digital Documentation. This should only be used in airgapped environments.
 docs:
   # -- Enable / Disable the whole deployment
@@ -602,7 +753,7 @@ docs:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "docs-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "6.11.0"
+  tag: "6.13.1"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Replica count
@@ -715,3 +866,87 @@ docs:
     - docs.example.com
     # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
     gateways: []
+
+# Optional NATS messaging deployment. Configured as a Helm subchart (https://github.com/nats-io/k8s/tree/main/helm/charts/nats).
+#
+# BETA: NATS integration is currently in beta and disabled by default. It will eventually become a required component of the istari-platform deployment; the `nats.enabled: false` default will be flipped and this section will lose its "optional" framing in a future release.
+#
+# When `nats.enabled: true`, this chart deploys NATS in-cluster AND automatically injects the `FILE_SERVICE_NATS_URL` and `FILE_SERVICE_ALLOWED_IDS_CACHE_ENABLED` environment variables into the fileservice (registry-service) Pods so they can connect to it. The NATS auth token is NOT injected automatically — you remain responsible for providing it (see below).
+#
+# Two things you must do yourself before enabling NATS:
+#   1. Create the Kubernetes Secret that the NATS Pod reads its auth token from. The Secret reference lives at `nats.container.env.NATS_AUTH_TOKEN.valueFrom.secretKeyRef` (default: a Secret named `istari-nats` with key `NATS_AUTH_TOKEN`). The value of `nats.config.merge.authorization.token` below is just a `<< $NATS_AUTH_TOKEN >>` placeholder that NATS substitutes from that env var at startup — overriding it directly will not change which Secret NATS reads.
+#   2. Add `FILE_SERVICE_NATS_TOKEN` (with the same token value) to the Secret consumed by fileservice (default: `istari-fileservice`, configurable via `fileservice.secretName`). The chart sets `FILE_SERVICE_NATS_URL` for you, but the token is sourced from your fileservice Secret.
+#
+# Every key under `nats:` here is passed directly to the NATS subchart. See the upstream chart's `values.yaml` for the full schema.
+nats:
+  # -- Enable / Disable the NATS subchart. **Beta** — currently optional but will become required in a future release. When `false`, the subchart is not rendered at all and no NATS env vars are injected into fileservice.
+  enabled: false
+  # -- Override the NATS resource name prefix. With the default `nats`, the in-cluster Service is reachable at `nats://nats:4222` (the URL this chart injects as `FILE_SERVICE_NATS_URL`). Change this only if you also override `fileservice.env` with a matching URL.
+  fullnameOverride: "nats"
+  global:
+    image:
+      # -- Image pull secret names applied to every Pod created by the NATS subchart. The umbrella chart's top-level `imagePullSecrets` does not propagate to subcharts, so this is set explicitly. Defaults to `docker-pull-secret` to match the rest of the istari-platform chart.
+      pullSecretNames:
+      - docker-pull-secret
+  config:
+    cluster:
+      # -- Enable NATS clustering for HA. Defaults to `true` to match the production deployment pattern.
+      enabled: true
+    jetstream:
+      # -- Enable JetStream (NATS persistence layer). Required by fileservice.
+      enabled: true
+    merge:
+      authorization:
+        # -- NATS auth token. The `<< $NATS_AUTH_TOKEN >>` placeholder is substituted at startup with the value of the `NATS_AUTH_TOKEN` env var (set below from your Kubernetes Secret).
+        token: "<< $NATS_AUTH_TOKEN >>"
+  container:
+    image:
+      # -- NATS server image repository. Defaults to the Chainguard FIPS variant in the Istari customer-docker JFrog repo.
+      repository: "istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-fips"
+      # -- NATS server image tag.
+      tag: "2.14.1"
+    # -- Container env. The `NATS_AUTH_TOKEN` value is wired to the user-managed Secret (default: `istari-nats` / key `NATS_AUTH_TOKEN`). Override `secretKeyRef.name` and `secretKeyRef.key` if your Secret uses a different name or key.
+    env:
+      NATS_AUTH_TOKEN:
+        valueFrom:
+          secretKeyRef:
+            name: istari-nats
+            key: NATS_AUTH_TOKEN
+  reloader:
+    # -- Deploy the NATS config-reloader sidecar (recommended). Reloads NATS config on ConfigMap changes without restarting the StatefulSet.
+    enabled: true
+    image:
+      # -- Config-reloader image repository. Defaults to the Chainguard FIPS variant.
+      repository: "istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-server-config-reloader-fips"
+      # -- Config-reloader image tag.
+      tag: "0.23.0"
+  promExporter:
+    # -- Deploy the NATS Prometheus exporter sidecar. Enable when scraping NATS metrics via a PodMonitor/ServiceMonitor.
+    enabled: false
+    image:
+      # -- Prometheus exporter image repository. Defaults to the Chainguard FIPS variant.
+      repository: "istaridigital.jfrog.io/customer-docker/istaridigital.com/prometheus-nats-exporter-fips"
+      # -- Prometheus exporter image tag.
+      tag: "0.19.2"
+  natsBox:
+    # -- Deploy the `nats-box` utility container (lightweight client for debugging from inside the cluster).
+    enabled: true
+    container:
+      image:
+        # -- nats-box image repository. Defaults to the Chainguard FIPS variant.
+        repository: "istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-box-fips"
+        # -- nats-box image tag.
+        tag: "0.19.5"
+  statefulSet:
+    merge:
+      spec:
+        # -- Delete the JetStream PVCs when the StatefulSet is deleted or scaled down. Set to `Retain` if you need the data to outlive the StatefulSet.
+        persistentVolumeClaimRetentionPolicy:
+          whenDeleted: "Delete"
+          whenScaled: "Delete"
+  podTemplate:
+    merge:
+      spec:
+        # -- `securityContext` applied to NATS Pods. `fsGroup: 65532` matches the rest of the chart so JetStream PVCs are writable by the non-root NATS user.
+        securityContext:
+          fsGroup: 65532

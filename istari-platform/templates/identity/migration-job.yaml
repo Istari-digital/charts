@@ -1,16 +1,17 @@
-{{- $serviceValues := .Values.fileservice -}}
+{{- $serviceValues := .Values.identityService -}}
 {{- $migrationsRunAsJob := dig "migrations" "runAsJob" false $serviceValues -}}
 {{- $migrationsAutoCleanupSuccessfulJob := dig "migrations" "autoCleanupSuccessfulJob" true $serviceValues -}}
 {{- $migrationsPodAnnotations := dig "migrations" "podAnnotations" dict $serviceValues -}}
 {{- $migrationsPodLabels := dig "migrations" "podLabels" dict $serviceValues -}}
 {{- $migrationsBackoffLimit := dig "migrations" "backoffLimit" 0 $serviceValues -}}
+{{- $migrationsResources := dig "migrations" "resources" dict $serviceValues -}}
 {{- if and $serviceValues.enabled $migrationsRunAsJob }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "fileservice.fullname" . }}-db-migrate
+  name: {{ include "identity.fullname" . }}-db-migrate
   labels:
-    {{- include "fileservice.labels" . | nindent 4 }}
+    {{- include "identity.labels" . | nindent 4 }}
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "5"
@@ -20,7 +21,7 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "fileservice.labels" . | nindent 8 }}
+        {{- include "identity.labels" . | nindent 8 }}
         {{- with $migrationsPodLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -30,7 +31,7 @@ spec:
       {{- end }}
     spec:
       restartPolicy: Never
-      serviceAccountName: {{ include "fileservice.fullname" . | quote }}
+      serviceAccountName: {{ include "identity.fullname" . | quote }}
       {{- with $serviceValues.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -48,14 +49,14 @@ spec:
         image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         command:
-        - "poetry"
-        - "run"
-        - "alembic"
-        - "upgrade"
-        - "head"
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets }}
-        envFrom:
+        - "/migrate"
+        {{- with $migrationsResources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
         {{- end }}
+        envFrom:
+        - configMapRef:
+            name: {{ include "identity.configmap.name" . | quote }}
         {{- if $serviceValues.secretName }}
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
@@ -66,14 +67,10 @@ spec:
             name: {{ . | quote }}
         {{- end }}
         {{- end }}
-        {{- $natsEnabled := dig "enabled" false (default dict .Values.nats) }}
-        {{- if or $serviceValues.env .Values.trustedCertBundle $natsEnabled }}
+        {{- if or $serviceValues.env .Values.trustedCertBundle }}
         env:
         {{- with $serviceValues.env }}
         {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- if $natsEnabled }}
-        {{- include "istari-platform.fileservice.natsEnv" . | nindent 8 }}
         {{- end }}
         {{- if .Values.trustedCertBundle }}
         - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
@@ -118,6 +115,6 @@ spec:
       {{- end }}
       {{- with $serviceValues.tolerations }}
       tolerations:
-        {{- toYaml . | nindent 6 }}
+      {{- toYaml . | nindent 6 }}
       {{- end }}
 {{- end }}
