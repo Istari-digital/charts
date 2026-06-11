@@ -51,8 +51,8 @@ preUpgradeHook:
   # -- (object) kubectl image used by the pre-upgrade migration Job.
   image:
     registry: istaridigital.jfrog.io
-    repository: remote-docker-dockerhub/bitnami/kubectl
-    tag: "1.31"
+    repository: remote-docker-chainguard/istaridigital.com/kubectl-iamguarded-fips
+    tag: "1.32"
   # -- (object) Extra pod labels for the pre-upgrade hook Job.
   podLabels: {}
   ## Note: annotations with boolean-looking values (e.g. "false") should be
