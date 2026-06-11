@@ -981,6 +981,18 @@ backups:
     ## the chart fails closed rather than shipping a blank password. Declared here
     ## (rather than left as a comment) so it appears in the generated values table.
     password: ""
+    ## Reference a pre-created Secret (e.g. a Terraform-managed one) holding the
+    ## backup admin password instead of setting `password` inline above. This is
+    ## the recommended path per the SECRET HANDLING note: no cleartext lands in
+    ## values.yaml, `helm get values`, or git. When set, the chart neither
+    ## `required`s `password` nor creates its own backups Secret for it; the
+    ## CronJob mounts this Secret and reads the password from `passwordSecretKey`.
+    ## Mirrors alpha.acl.existingSecret.
+    existingSecret: ""
+    ## Key within `existingSecret` holding the backup admin password. Defaults to
+    ## the chart's own key name, so a whole-secret swap needs no remap; override it
+    ## to point at a differently-named key (e.g. a per-user password key).
+    passwordSecretKey: backup_admin_password
     ## Mutual TLS client certificate and key can be used to secure transaction that was created with
     ## dgraph-sec cert --client <name-of-client> should be specified here.
     ## ref. https://docs.dgraph.io/admin/security/tls-configuration#tls-options

@@ -118,8 +118,29 @@ spec:
           {{- end }}
           {{- if or .Values.alpha.acl.enabled .Values.backups.admin.auth_token }}
           - name: backup-secret-volume
+          {{- if and .Values.alpha.acl.enabled .Values.backups.admin.existingSecret }}
+            ## Admin password comes from a pre-created Secret
+            ## (backups.admin.existingSecret); project just that one key to
+            ## /backup_secrets/backup_admin_password (the path the script reads).
+            ## Any auth_token still comes from the chart-managed Secret.
+            projected:
+              sources:
+              - secret:
+                  name: {{ .Values.backups.admin.existingSecret }}
+                  items:
+                  - key: {{ .Values.backups.admin.passwordSecretKey }}
+                    path: backup_admin_password
+              {{- if .Values.backups.admin.auth_token }}
+              - secret:
+                  name: {{ template "dgraph-sec.backups.fullname" . }}-secret
+                  items:
+                  - key: backup_auth_token
+                    path: backup_auth_token
+              {{- end }}
+          {{- else }}
             secret:
               secretName: {{ template "dgraph-sec.backups.fullname" . }}-secret
+          {{- end }}
           {{- end }}
           {{- if .Values.backups.nfs.enabled }}
           - name: backups-nfs-volume
