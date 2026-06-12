@@ -121,7 +121,7 @@ spec:
         {{- end }}
       {{- $runMigrationsInline := not (dig "migrations" "runAsJob" false $serviceValues) }}
       {{- $dgraphMigrateEnabled := dig "dgraphMigrations" "enabled" false $serviceValues }}
-      {{- $dgraphMigrateResources := dig "dgraphMigrations" "resources" $migrationResources $serviceValues }}
+      {{- $dgraphMigrateResources := dig "dgraphMigrations" "resources" dict $serviceValues | default $migrationResources }}
       {{- if or $runMigrationsInline $dgraphMigrateEnabled }}
       initContainers:
       {{- if $runMigrationsInline }}
