@@ -89,6 +89,23 @@ destinations, shares Alpha's backup volume. Pin Alpha to a dedicated, tainted no
 group and the backups follow it there; leave `alpha` scheduling unset and they
 schedule anywhere, as before.
 
+### S3 permissions
+
+When `backups.destination` is an `s3://` URI, the AWS credentials the backups use
+must allow `s3:ListBucket` on the bucket and `s3:GetObject`, `s3:PutObject`,
+`s3:DeleteObject`, and `s3:AbortMultipartUpload` on its objects.
+
+`s3:DeleteObject` is not optional: S3 has no rename, so after every backup Dgraph
+promotes `manifest_tmp.json` to `manifest.json` by copy-then-delete. Without it,
+every backup reports `resolving backup failed because task failed` even though the
+backup data and manifest uploaded; the detailed `AccessDenied` error appears only
+in the Alpha leader's logs.
+
+The backup task executes on the **Alpha leader**, not in the backup CronJob pod,
+so the credentials must be available to the Alpha pods — grant them via the chart's
+ServiceAccount (EKS Pod Identity / IRSA) or set `backups.keys.s3` — not just to
+the backup Job pods.
+
 > [!WARNING]
 > Credentials (`backups.admin.password`, `backups.admin.auth_token`, ACL secrets) set
 > inline in a values file are visible via `helm get values` and tend to leak into git.

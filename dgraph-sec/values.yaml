@@ -1071,6 +1071,15 @@ backups:
   # -- Use HTTPS when the MinIO endpoint is TLS-enabled.
   minioSecure: false
   ## specify access keys required by MinIO or S3
+  ## For s3:// destinations the credentials must allow s3:ListBucket on the
+  ## bucket and s3:GetObject, s3:PutObject, s3:DeleteObject, and
+  ## s3:AbortMultipartUpload on its objects. s3:DeleteObject is required because
+  ## Dgraph promotes manifest_tmp.json to manifest.json by copy-then-delete;
+  ## without it every backup reports "resolving backup failed because task
+  ## failed". The backup task runs on the Alpha leader, not the backup CronJob
+  ## pod, so the credentials (these keys, or pod identity / IRSA on the chart
+  ## ServiceAccount) must reach the Alpha pods. See the README section
+  ## "Backups & restore > S3 permissions".
   # -- (object) MinIO/S3 access keys for the backup destination.
   keys:
     minio:
