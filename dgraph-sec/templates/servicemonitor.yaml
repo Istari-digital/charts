@@ -4,6 +4,13 @@ Default off. The alpha Service exposes the HTTP port as `http-alpha` (8080) and
 the zero Service as `http-zero` (6080); dgraph serves Prometheus metrics on the
 HTTP port at serviceMonitor.path. Listing both port names in one ServiceMonitor
 is fine — an endpoint whose named port a given Service lacks is simply skipped.
+
+The selector requires the `monitor` label, which only the ClusterIP Services
+carry (set from alpha.monitorLabel / zero.monitorLabel). The headless Services
+share the same app/release labels but do not carry `monitor`, so they are never
+selected — this matters because the alpha headless Service also exposes
+`http-alpha` (required for backup mTLS routing under a strict Istio mesh) and
+sets publishNotReadyAddresses: true.
 */ -}}
 {{- if .Values.serviceMonitor.enabled }}
 apiVersion: monitoring.coreos.com/v1
@@ -24,6 +31,9 @@ spec:
     matchLabels:
       app: {{ template "dgraph-sec.name" . }}
       release: {{ .Release.Name }}
+    matchExpressions:
+      - key: monitor
+        operator: Exists
   endpoints:
     - port: http-alpha
       path: {{ .Values.serviceMonitor.path }}
