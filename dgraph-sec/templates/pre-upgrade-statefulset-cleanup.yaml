@@ -101,7 +101,11 @@ spec:
 
               # StatefulSets (Alpha and Zero)
               for STS in {{ template "dgraph-sec.alpha.fullname" . }} {{ template "dgraph-sec.zero.fullname" . }}; do
-                if ! kubectl get statefulset "$STS" -n "$NS" >/dev/null 2>&1; then
+                # --ignore-not-found: NotFound exits 0 with empty output (handled
+                # below); any other kubectl error exits non-zero and fails the Job
+                # via sh -e, so RBAC or connection problems stay visible.
+                EXISTS=$(kubectl get statefulset "$STS" -n "$NS" --ignore-not-found -o name)
+                if [ -z "$EXISTS" ]; then
                   echo "StatefulSet $STS: not found in namespace $NS; nothing to migrate."
                   continue
                 fi
@@ -116,7 +120,8 @@ spec:
 
               # Deployments (Ratel)
               for DEPLOY in {{ template "dgraph-sec.ratel.fullname" . }}; do
-                if ! kubectl get deployment "$DEPLOY" -n "$NS" >/dev/null 2>&1; then
+                EXISTS=$(kubectl get deployment "$DEPLOY" -n "$NS" --ignore-not-found -o name)
+                if [ -z "$EXISTS" ]; then
                   echo "Deployment $DEPLOY: not found in namespace $NS; nothing to migrate."
                   continue
                 fi
