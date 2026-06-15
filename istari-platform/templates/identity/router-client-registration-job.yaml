@@ -1,18 +1,19 @@
 {{- $serviceValues := .Values.identityService -}}
 {{- $registration := $serviceValues.identityRouterClientRegistration -}}
 {{- $fileserviceValues := .Values.fileservice -}}
+{{- $registrationPodAnnotations := dig "podAnnotations" dict $registration -}}
+{{- $registrationPodLabels := dig "podLabels" dict $registration -}}
+{{- $registrationResources := dig "resources" dict $registration -}}
 {{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
 {{- if and $serviceValues.enabled $fileserviceValues.enabled $registration.enabled }}
+{{- $_ := $fileserviceValues.secretName | required "fileservice.secretName is required when identityService.identityRouterClientRegistration.enabled is true" -}}
+{{- $_ := $serviceValues.secretName | required "identityService.secretName is required when identityService.identityRouterClientRegistration.enabled is true" -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ include "identity.routerClientRegistration.jobName" . | quote }}
   labels:
-    app.kubernetes.io/component: "identity-router-client-registration"
-    app.kubernetes.io/instance: {{ .Release.Name | quote }}
-    app.kubernetes.io/managed-by: "Helm"
-    app.kubernetes.io/name: {{ include "istari-platform.name" . }}
-    helm.sh/chart: {{ include "istari-platform.chart" . }}
+    {{- include "identity.labels" . | nindent 4 }}
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "10"
@@ -22,24 +23,32 @@ spec:
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: "identity-router-client-registration"
-        app.kubernetes.io/name: {{ include "istari-platform.name" . }}
-        {{- with $registration.podLabels }}
+        {{- include "identity.labels" . | nindent 8 }}
+        {{- with $registrationPodLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
         sidecar.istio.io/inject: "false"
-        {{- with $registration.podAnnotations }}
+        {{- with $registrationPodAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
       restartPolicy: {{ $registration.restartPolicy | quote }}
+      serviceAccountName: {{ include "identity.fullname" . | quote }}
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
       imagePullSecrets:
       {{- toYaml . | nindent 6 }}
       {{- end }}
       containers:
       - name: register-client
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         command:
@@ -62,7 +71,7 @@ spec:
             secretKeyRef:
               name: {{ $serviceValues.secretName | quote }}
               key: "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"
-        {{- with $registration.resources }}
+        {{- with $registrationResources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
