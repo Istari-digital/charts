@@ -710,6 +710,21 @@ identityService:
       limits:
         cpu: 500m
         memory: 1Gi
+  identityRouterClientRegistration:
+    # -- Settings for the `register-client` one-shot hook Job (pre-install/pre-upgrade) that registers the registry-service identity-router client in the identity-router ClientStore (required once the deployed identity-service image enforces client authentication on `/oauth/v2/introspect`).
+    # The Job is rendered when `identityService.enabled` is `true`. It reads `FILE_SERVICE_IDENTITY_ROUTER_SECRET` from `registerServiceSecretName` and `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` from `identityService.secretName` (both must be non-empty).
+    # -- Secret name for `FILE_SERVICE_IDENTITY_ROUTER_SECRET` (must contain the registry-service identity-router client credential).
+    registerServiceSecretName: "istari-fileservice"
+    # -- `spec.backoffLimit` for the registration Job (number of retries after a failed Pod).
+    backoffLimit: 6
+    # -- Automatically clean up the successful registration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`).
+    autoCleanupSuccessfulJob: true
+    # -- Annotations for the registration Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`).
+    podAnnotations: {}
+    # -- Extra labels for the registration Job Pod template only.
+    podLabels: {}
+    # -- Resources for the registration Job container.
+    resources: {}
   # Ingress -- optional Kubernetes Ingress for this service.
   ingress:
     # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
