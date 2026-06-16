@@ -172,7 +172,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | identityService.identityRouterClientRegistration.backoffLimit | int | `6` | `spec.backoffLimit` for the registration Job (number of retries after a failed Pod). |
 | identityService.identityRouterClientRegistration.podAnnotations | object | `{}` | Annotations for the registration Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`). |
 | identityService.identityRouterClientRegistration.podLabels | object | `{}` | Extra labels for the registration Job Pod template only. |
-| identityService.identityRouterClientRegistration.registerServiceSecretName | string | `"istari-fileservice"` | Secret name for `FILE_SERVICE_IDENTITY_ROUTER_SECRET`. Defaults to the same value as `fileservice.secretName`. |
+| identityService.identityRouterClientRegistration.registerServiceSecretName | string | `"istari-fileservice"` | Secret name for `FILE_SERVICE_IDENTITY_ROUTER_SECRET` (must contain the registry-service identity-router client credential). |
 | identityService.identityRouterClientRegistration.resources | object | `{}` | Resources for the registration Job container. |
 | identityService.image | string | `"identity-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | identityService.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
