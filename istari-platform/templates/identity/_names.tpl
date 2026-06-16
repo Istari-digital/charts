@@ -22,3 +22,10 @@ One-shot Job that registers the registry-service identity-router client in the C
 {{- define "identity.routerClientRegistration.jobName" -}}
 {{- printf "%s-register-router-client" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end }}
+
+{{/*
+True when the identity-router client registration hook Job should be rendered.
+*/}}
+{{- define "identity.routerClientRegistration.scheduled" -}}
+{{- if and .Values.identityService.enabled .Values.fileservice.enabled }}scheduled{{- end }}
+{{- end }}

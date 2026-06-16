@@ -711,12 +711,12 @@ identityService:
         cpu: 500m
         memory: 1Gi
   identityRouterClientRegistration:
-    # -- Run the `register-client` one-shot Job that registers the registry-service identity-router client in the identity-router ClientStore (required once the deployed identity-service image enforces client authentication on `/oauth/v2/introspect`). By default the Job reads `FILE_SERVICE_IDENTITY_ROUTER_SECRET` from `fileservice.secretName` and `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` from `identityService.secretName`.
-    enabled: false
+    # -- Settings for the `register-client` one-shot hook Job (pre-install/pre-upgrade) that registers the registry-service identity-router client in the identity-router ClientStore (required once the deployed identity-service image enforces client authentication on `/oauth/v2/introspect`).
+    # The Job is rendered when `identityService.enabled` and `fileservice.enabled` are both `true`. It reads `FILE_SERVICE_IDENTITY_ROUTER_SECRET` from `registerServiceSecretName` and `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` from `identityService.secretName` (both must be non-empty).
+    # -- Secret name for `FILE_SERVICE_IDENTITY_ROUTER_SECRET`. Defaults to the same value as `fileservice.secretName`.
+    registerServiceSecretName: "istari-fileservice"
     # -- `spec.backoffLimit` for the registration Job (number of retries after a failed Pod).
     backoffLimit: 6
-    # -- Pod restart policy for the registration Job.
-    restartPolicy: "OnFailure"
     # -- Automatically clean up the successful registration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`).
     autoCleanupSuccessfulJob: true
     # -- Annotations for the registration Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`).

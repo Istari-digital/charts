@@ -170,11 +170,10 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | identityService.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | identityService.identityRouterClientRegistration.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful registration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). |
 | identityService.identityRouterClientRegistration.backoffLimit | int | `6` | `spec.backoffLimit` for the registration Job (number of retries after a failed Pod). |
-| identityService.identityRouterClientRegistration.enabled | bool | `false` | Run the `register-client` one-shot Job that registers the registry-service identity-router client in the identity-router ClientStore (required once the deployed identity-service image enforces client authentication on `/oauth/v2/introspect`). By default the Job reads `FILE_SERVICE_IDENTITY_ROUTER_SECRET` from `fileservice.secretName` and `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` from `identityService.secretName`. |
 | identityService.identityRouterClientRegistration.podAnnotations | object | `{}` | Annotations for the registration Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`). |
 | identityService.identityRouterClientRegistration.podLabels | object | `{}` | Extra labels for the registration Job Pod template only. |
+| identityService.identityRouterClientRegistration.registerServiceSecretName | string | `"istari-fileservice"` | Secret name for `FILE_SERVICE_IDENTITY_ROUTER_SECRET`. Defaults to the same value as `fileservice.secretName`. |
 | identityService.identityRouterClientRegistration.resources | object | `{}` | Resources for the registration Job container. |
-| identityService.identityRouterClientRegistration.restartPolicy | string | `"OnFailure"` | Pod restart policy for the registration Job. |
 | identityService.image | string | `"identity-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | identityService.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | identityService.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |

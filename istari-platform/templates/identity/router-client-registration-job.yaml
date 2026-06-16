@@ -1,14 +1,13 @@
 {{- $serviceValues := .Values.identityService -}}
 {{- $registration := dig "identityRouterClientRegistration" dict $serviceValues -}}
-{{- $registrationEnabled := dig "enabled" false $registration -}}
-{{- $fileserviceValues := .Values.fileservice -}}
 {{- $registrationPodAnnotations := dig "podAnnotations" dict $registration -}}
 {{- $registrationPodLabels := dig "podLabels" dict $registration -}}
 {{- $registrationResources := dig "resources" dict $registration -}}
+{{- $registerServiceSecretName := dig "registerServiceSecretName" "istari-fileservice" $registration -}}
 {{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
-{{- if and $serviceValues.enabled $fileserviceValues.enabled $registrationEnabled }}
-{{- $_ := $fileserviceValues.secretName | required "fileservice.secretName is required when identityService.identityRouterClientRegistration.enabled is true" -}}
-{{- $_ := $serviceValues.secretName | required "identityService.secretName is required when identityService.identityRouterClientRegistration.enabled is true" -}}
+{{- if include "identity.routerClientRegistration.scheduled" . }}
+{{- $_ := $registerServiceSecretName | required "identityService.identityRouterClientRegistration.registerServiceSecretName is required when identityService and fileservice are both enabled" -}}
+{{- $_ := $serviceValues.secretName | required "identityService.secretName is required when identityService and fileservice are both enabled" -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -34,7 +33,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      restartPolicy: {{ dig "restartPolicy" "OnFailure" $registration | quote }}
+      restartPolicy: Never
       serviceAccountName: {{ include "identity.fullname" . | quote }}
       {{- with $serviceValues.podSecurityContext }}
       securityContext:
@@ -65,7 +64,7 @@ spec:
         - name: IDENTITY_ROUTER_SECRET
           valueFrom:
             secretKeyRef:
-              name: {{ $fileserviceValues.secretName | quote }}
+              name: {{ $registerServiceSecretName | quote }}
               key: "FILE_SERVICE_IDENTITY_ROUTER_SECRET"
         - name: DATABASE_URL
           valueFrom:
