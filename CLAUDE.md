@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Helm charts Istari shares for running its platform. These are customer-consumable charts: they publish to Artifactory (the `oci://istaridigital.jfrog.io` chart registries and the `main-helm` Helm repository) and deploy from there — `helm-stack` and `dev-cluster-gitops` consume the published artifacts, never the Git source directly. Istari-internal-only charts live in `Istari-digital/helm-charts` instead; see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the split and the rationale behind it.
+Helm charts Istari shares for running its platform. These are customer-consumable charts: CI publishes them to Artifactory — the `main-charts-local` OCI registry and the `main-helm-local` Helm repository — and deployments pull from there — `helm-stack` and `dev-cluster-gitops` consume the published artifacts, never the Git source directly. Istari-internal-only charts live in `Istari-digital/helm-charts` instead; see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the split and the rationale behind it.
 
 ## Charts
 - **dgraph-sec/**: hardened Dgraph database for the Istari platform, vendored from the upstream Dgraph chart and modified.
@@ -24,7 +24,7 @@ Each chart directory holds `Chart.yaml`, `values.yaml`, `templates/`, a generate
 
 ## Agent Working Files — Design, Plan, and Spec Docs
 - Never commit agent-generated design specs, implementation plans, or scratch notes to this repository — treat them like secrets: they must never enter version control. No plan documents belong in the repo.
-- The paths `docs/aar/`, `docs/design/`, `docs/designs/`, `docs/specs/`, `docs/plans/`, and `docs/superpowers/` are gitignored to enforce this.
+- The paths `docs/aar/`, `docs/design/`, `docs/designs/`, `docs/specs/`, `docs/plans/`, and `docs/superpowers/` are gitignored to reduce accidental commits.
 - See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for where these artifacts belong instead.
 
 ## Contributing

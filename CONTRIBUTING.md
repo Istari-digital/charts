@@ -44,13 +44,13 @@ a known-good base rather than as one indivisible diff.
 State the security primitives as planned scope up front, not as mid-review
 additions. A new chart should ship:
 
-- [ ] PodDisruptionBudget
-- [ ] NetworkPolicy
-- [ ] ServiceMonitor
-- [ ] PrometheusRule
-- [ ] Pod and container `securityContext`
-- [ ] Service-account token automounting disabled
-- [ ] Resource requests and limits
+- [ ] **PodDisruptionBudget** — cap how many replicas a voluntary disruption (node drain, cluster upgrade) can remove at once. Set `minAvailable`/`maxUnavailable` against the replica count and any quorum requirement, so a drain can't take the cluster below quorum. A single-replica workload can't have a meaningful budget — say so rather than adding an empty one.
+- [ ] **NetworkPolicy** — default-deny ingress, then allow only the clients that need the workload, plus the mesh sidecars and the Prometheus scraper; constrain egress where you can. Without a policy, every pod in the cluster can reach the service.
+- [ ] **ServiceMonitor** — tell the Prometheus Operator which port and path to scrape. Match the `Service`'s labels, set a sane scrape interval, and gate it behind a values flag so the chart still installs where the operator is absent.
+- [ ] **PrometheusRule** — ship a few meaningful alerts (availability, error rate, saturation) with severity labels and thresholds you can defend, gated behind the same flag as the ServiceMonitor. An unmonitored datastore fails silently.
+- [ ] **Pod and container `securityContext`** — `runAsNonRoot: true`, a non-root UID/GID, `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true` (mount writable volumes where the app needs them), `capabilities.drop: [ALL]`, and `seccompProfile: RuntimeDefault`. Confirm the image actually runs as non-root before claiming it.
+- [ ] **Service-account token automounting disabled** — set `automountServiceAccountToken: false` unless the workload calls the Kubernetes API. Most data and app workloads don't, and a mounted token widens the blast radius if a pod is compromised. Enable it only for components that genuinely need API access.
+- [ ] **Resource requests and limits** — set CPU and memory requests (they drive scheduling and the QoS class) and limits (they cap a noisy neighbor). Base them on observed usage and make them per-environment values. Mind the trade-offs: CPU limits throttle, memory limits OOM-kill.
 
 Treat any item you intend to skip as a decision to raise in review, with a
 reason — not as an omission.
