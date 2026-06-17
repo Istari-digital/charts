@@ -25,8 +25,7 @@ the next contributor finds it here instead of asking again.
 
 Split a large change into small pull requests that each do one thing and review
 on their own. A reviewer reads a focused diff in minutes; a sprawling branch
-invites stale approvals and churn. The dgraph-sec chart accumulated dozens of
-commits and hundreds of comments, and its size magnified every later change.
+invites stale approvals and churn.
 
 Stack the pull requests so each builds on the one below it while keeping its own
 diff small. [Graphite](https://graphite.dev/) creates and manages stacks well —
