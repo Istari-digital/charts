@@ -7,10 +7,8 @@ the toolchain, conventions, and local checks, read [`AGENTS.md`](./AGENTS.md)
 and [`CLAUDE.md`](./CLAUDE.md).
 
 These practices come from the dgraph-sec chart post-delivery review (epic
-[DGR-209](https://istari.atlassian.net/browse/DGR-209)), which traced an
-eight-week delivery — 88 percent of it spent waiting for a first review — to a
-few avoidable patterns. When you learn something the next contributor will need,
-add it here.
+[DGR-209](https://istari.atlassian.net/browse/DGR-209)). When you learn
+something the next contributor will need, add it here.
 
 ## Ask early on #team-infra
 
@@ -44,8 +42,7 @@ a known-good base rather than as one indivisible diff.
 ## Harden a new chart
 
 State the security primitives as planned scope up front, not as mid-review
-additions. In the dgraph-sec delivery, the hardening arrived as a late, separate
-wave 43 days in and drove most of the commit churn. A new chart should ship:
+additions. A new chart should ship:
 
 - [ ] PodDisruptionBudget
 - [ ] NetworkPolicy
@@ -61,12 +58,9 @@ reason — not as an omission.
 ## Validate against the target mesh early
 
 Exercise the chart in a representative environment before final review,
-including STRICT mutual-TLS and node scheduling. The dgraph-sec chart's real
-defects — sidecar-less Jobs hanging under STRICT mTLS, and backup CronJobs
-landing on the wrong node group ([DGR-246](https://istari.atlassian.net/browse/DGR-246),
-[DGR-247](https://istari.atlassian.net/browse/DGR-247),
-[DGR-248](https://istari.atlassian.net/browse/DGR-248)) — surfaced only at
-rollout, inside the merge window rather than before it.
+including STRICT mutual-TLS and node scheduling. These expose real defects —
+sidecar-less Jobs hanging under STRICT mTLS, or CronJobs landing on the wrong
+node group — that otherwise surface only at rollout.
 
 ## Where a chart belongs
 
@@ -95,8 +89,7 @@ These targets are proposed, pending team agreement (see
 - A first review should arrive within a few business days of a pull request
   opening.
 - If a review stalls, re-request the reviewer and post in `#team-infra`.
-  Escalate rather than wait — the dgraph-sec chart waited 43 days for its first
-  review.
+  Escalate rather than wait.
 - A security-sensitive chart should carry a second qualified reviewer, so
   neither the wait nor the review load rests on one person.
 
