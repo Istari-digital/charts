@@ -104,7 +104,7 @@ These targets are proposed, pending team agreement (see
 ## Keep agent design, plan, and spec docs out of the repo
 
 Do not commit design specs, implementation plans, or agent scratch notes under
-`docs/`. Per Eytan's request, no plan documents live in this repository. The
+`docs/`. No plan documents belong in this repository. The
 paths `docs/aar/`, `docs/design/`, `docs/designs/`, `docs/specs/`,
 `docs/plans/`, and `docs/superpowers/` are gitignored to enforce this.
 

@@ -23,7 +23,7 @@ Each chart directory holds `Chart.yaml`, `values.yaml`, `templates/`, a generate
 - All files end with a trailing newline.
 
 ## Agent Working Files — Design, Plan, and Spec Docs
-- Never commit agent-generated design specs, implementation plans, or scratch notes to this repository. Per Eytan's request, no plan documents live in the repo — treat them like secrets: they must never enter version control.
+- Never commit agent-generated design specs, implementation plans, or scratch notes to this repository — treat them like secrets: they must never enter version control. No plan documents belong in the repo.
 - The paths `docs/aar/`, `docs/design/`, `docs/designs/`, `docs/specs/`, `docs/plans/`, and `docs/superpowers/` are gitignored to enforce this.
 - Store these artifacts on the relevant Jira ticket instead — as the description or comments. With the Jira CLI or a Jira MCP tool configured, write them there directly. See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
