@@ -25,7 +25,7 @@ Each chart directory holds `Chart.yaml`, `values.yaml`, `templates/`, a generate
 ## Agent Working Files — Design, Plan, and Spec Docs
 - Never commit agent-generated design specs, implementation plans, or scratch notes to this repository — treat them like secrets: they must never enter version control. No plan documents belong in the repo.
 - The paths `docs/aar/`, `docs/design/`, `docs/designs/`, `docs/specs/`, `docs/plans/`, and `docs/superpowers/` are gitignored to enforce this.
-- Store these artifacts on the relevant Jira ticket instead — as the description or comments. With the Jira CLI or a Jira MCP tool configured, write them there directly. See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+- Tip: keep these artifacts on the relevant Jira ticket instead of the repo — as the description or comments. With the Jira CLI or a Jira MCP tool configured, you can tell your agent to use the ticket as the source of record and write them there directly. See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## Contributing
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the pull-request workflow (small stacked PRs, vendor-clean-chart-first), the hardening checklist, mesh validation, review expectations, and where a chart belongs.

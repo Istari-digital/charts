@@ -45,7 +45,7 @@ There is no compile/test binary step; the quality gates are lint, `helm lint`, a
 ## Design, Plan, and Spec Docs — Do Not Commit Them
 - Never add agent-generated design specs, implementation plans, or scratch notes to this repository. No plan documents belong in the repo.
 - The paths `docs/aar/`, `docs/design/`, `docs/designs/`, `docs/specs/`, `docs/plans/`, and `docs/superpowers/` are gitignored to enforce this.
-- Store these artifacts on the relevant Jira ticket instead. With the Jira CLI or a Jira MCP tool configured, write them to the ticket directly. See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+- Tip: keep these artifacts on the relevant Jira ticket instead of the repo. With the Jira CLI or a Jira MCP tool configured, you can tell your agent to use the ticket as the source of record and write them there directly. See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## Agent Workflow Expectations
 - Keep changes small and scoped to one chart where possible.
