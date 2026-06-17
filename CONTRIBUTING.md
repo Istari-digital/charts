@@ -41,19 +41,31 @@ a known-good base rather than as one indivisible diff.
 
 ## Harden a new chart
 
-State the security primitives as planned scope up front, not as mid-review
-additions. A new chart should ship:
+Plan hardening up front, not as mid-review additions. Two of these are already
+standard across the charts here; the rest are not yet universal, so weigh them
+against the workload rather than treating them as hard requirements.
 
-- [ ] **PodDisruptionBudget** — cap how many replicas a voluntary disruption (node drain, cluster upgrade) can remove at once. Set `minAvailable`/`maxUnavailable` against the replica count and any quorum requirement, so a drain can't take the cluster below quorum. A single-replica workload can't have a meaningful budget — say so rather than adding an empty one.
-- [ ] **NetworkPolicy** — default-deny ingress, then allow only the clients that need the workload, plus the mesh sidecars and the Prometheus scraper; constrain egress where you can. Without a policy, every pod in the cluster can reach the service.
-- [ ] **ServiceMonitor** — tell the Prometheus Operator which port and path to scrape. Match the `Service`'s labels, set a sane scrape interval, and gate it behind a values flag so the chart still installs where the operator is absent.
-- [ ] **PrometheusRule** — ship a few meaningful alerts (availability, error rate, saturation) with severity labels and thresholds you can defend, gated behind the same flag as the ServiceMonitor. An unmonitored datastore fails silently.
+**Expected of every chart** — the charts in this repository already meet this bar:
+
 - [ ] **Pod and container `securityContext`** — `runAsNonRoot: true`, a non-root UID/GID, `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true` (mount writable volumes where the app needs them), `capabilities.drop: [ALL]`, and `seccompProfile: RuntimeDefault`. Confirm the image actually runs as non-root before claiming it.
-- [ ] **Service-account token automounting disabled** — set `automountServiceAccountToken: false` unless the workload calls the Kubernetes API. Most data and app workloads don't, and a mounted token widens the blast radius if a pod is compromised. Enable it only for components that genuinely need API access.
 - [ ] **Resource requests and limits** — set CPU and memory requests (they drive scheduling and the QoS class) and limits (they cap a noisy neighbor). Base them on observed usage and make them per-environment values. Mind the trade-offs: CPU limits throttle, memory limits OOM-kill.
 
-Treat any item you intend to skip as a decision to raise in review, with a
-reason — not as an omission.
+**Recommended, scaled to the workload** — today only `dgraph-sec` ships these, so consider each based on what the chart does:
+
+- [ ] **NetworkPolicy** — for a long-running service, default-deny ingress, then allow only the clients that need it, plus the mesh sidecars and the Prometheus scraper; constrain egress where you can. A baseline most workloads should carry (see the note below).
+- [ ] **PodDisruptionBudget** — if the workload runs more than one replica, cap how many a voluntary disruption (node drain, upgrade) can remove via `minAvailable`/`maxUnavailable`, sized against any quorum requirement. A single-replica chart or a one-shot Job doesn't need one.
+- [ ] **ServiceMonitor** — where the Prometheus Operator is available, tell it which port and path to scrape; match the `Service`'s labels, and gate it behind a values flag so the chart still installs without the operator.
+- [ ] **PrometheusRule** — alongside a ServiceMonitor, ship a few meaningful alerts (availability, error rate, saturation) with severity labels, gated behind the same flag.
+- [ ] **Service-account token automounting disabled** — set `automountServiceAccountToken: false` unless the workload calls the Kubernetes API; most data and app workloads don't, and a mounted token widens the blast radius. Enable it only for components that genuinely need API access.
+
+When you skip a recommended item, say so in the PR with a reason, so the choice is visible rather than an omission.
+
+> **Known gap (tech debt).** The charts here are uneven: only `dgraph-sec` ships a
+> NetworkPolicy, PodDisruptionBudget, ServiceMonitor, or PrometheusRule —
+> `istari-platform` and `istari-zitadel-configurator` ship none of the four. A
+> NetworkPolicy in particular is a baseline a long-running workload should carry;
+> its absence from most charts is tech debt to backfill, not a sign the bar is
+> optional. Don't treat the current fleet as the standard to match.
 
 ## Validate against the target mesh early
 
