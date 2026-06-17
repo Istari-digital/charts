@@ -3,11 +3,11 @@
 {{- $registrationPodAnnotations := dig "podAnnotations" dict $registration -}}
 {{- $registrationPodLabels := dig "podLabels" dict $registration -}}
 {{- $registrationResources := dig "resources" dict $registration -}}
-{{- $registerServiceSecretName := dig "registerServiceSecretName" "istari-fileservice" $registration -}}
+{{- $registryServiceSecretName := dig "registryServiceSecretName" "istari-fileservice" $registration -}}
 {{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
 {{- $registrationEnabled := dig "enabled" false $registration -}}
 {{- if and $serviceValues.enabled $registrationEnabled }}
-{{- $_ := $registerServiceSecretName | required "identityService.identityRouterClientRegistration.registerServiceSecretName must be non-empty when identityService.identityRouterClientRegistration.enabled is true" -}}
+{{- $_ := $registryServiceSecretName | required "identityService.identityRouterClientRegistration.registryServiceSecretName must be non-empty when identityService.identityRouterClientRegistration.enabled is true" -}}
 {{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.identityRouterClientRegistration.enabled is true" -}}
 apiVersion: batch/v1
 kind: Job
@@ -65,7 +65,7 @@ spec:
         - name: IDENTITY_ROUTER_SECRET
           valueFrom:
             secretKeyRef:
-              name: {{ $registerServiceSecretName | quote }}
+              name: {{ $registryServiceSecretName | quote }}
               key: "FILE_SERVICE_IDENTITY_ROUTER_SECRET"
         - name: DATABASE_URL
           valueFrom:
