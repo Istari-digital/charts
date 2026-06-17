@@ -43,7 +43,7 @@ There is no compile/test binary step; the quality gates are lint, `helm lint`, a
 - All files end with a trailing newline.
 
 ## Design, Plan, and Spec Docs — Do Not Commit Them
-- Never add agent-generated design specs, implementation plans, or scratch notes to this repository. No plan documents belong in the repo.
+- Never add agent-generated design specs, implementation plans, or scratch notes to this repository. No such documents belong in the repo.
 - The paths `docs/aar/`, `docs/design/`, `docs/designs/`, `docs/specs/`, `docs/plans/`, and `docs/superpowers/` are gitignored to reduce accidental commits.
 - See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for where these artifacts belong instead.
 

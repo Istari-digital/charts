@@ -23,7 +23,7 @@ Each chart directory holds `Chart.yaml`, `values.yaml`, `templates/`, a generate
 - All files end with a trailing newline.
 
 ## Agent Working Files — Design, Plan, and Spec Docs
-- Never commit agent-generated design specs, implementation plans, or scratch notes to this repository — treat them like secrets: they must never enter version control. No plan documents belong in the repo.
+- Never commit agent-generated design specs, implementation plans, or scratch notes to this repository — treat them like secrets: they must never enter version control. No such documents belong in the repo.
 - The paths `docs/aar/`, `docs/design/`, `docs/designs/`, `docs/specs/`, `docs/plans/`, and `docs/superpowers/` are gitignored to reduce accidental commits.
 - See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for where these artifacts belong instead.
 
