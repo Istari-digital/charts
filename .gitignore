@@ -15,3 +15,12 @@ scripts/
 # Claude Code - personal/local only
 .claude/settings.local.json
 CLAUDE.local.md
+
+# Agent working docs — kept out of the repo (see CONTRIBUTING.md).
+# Design, spec, plan, and review artifacts belong on the Jira ticket, not in git.
+docs/aar/
+docs/design/
+docs/designs/
+docs/specs/
+docs/plans/
+docs/superpowers/

@@ -1,3 +1,5 @@
+> **Contributing?** See [CONTRIBUTING.md](./CONTRIBUTING.md) for the pull-request workflow, the chart hardening checklist, and where a chart belongs (this repo vs `helm-charts`).
+
 # Setup
 
 ## Installations
