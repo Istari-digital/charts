@@ -31,7 +31,7 @@ request access from IT.
 
 ### Start from a clean vendored chart, then layer by functional area
 
-Most charts here begin life as a clean chart vendored from upstream — dgraph-sec
+Some charts here begin life as a clean chart vendored from upstream — dgraph-sec
 started as the upstream Dgraph chart. When that is the case, make the pristine
 import the **first** pull request in the stack. A reviewer can then diff it
 against its upstream source and trust the baseline. Add each Istari modification
