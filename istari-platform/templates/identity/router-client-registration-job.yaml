@@ -5,9 +5,10 @@
 {{- $registrationResources := dig "resources" dict $registration -}}
 {{- $registerServiceSecretName := dig "registerServiceSecretName" "istari-fileservice" $registration -}}
 {{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
-{{- if $serviceValues.enabled }}
-{{- $_ := $registerServiceSecretName | required "identityService.identityRouterClientRegistration.registerServiceSecretName is required when identityService is enabled" -}}
-{{- $_ := $serviceValues.secretName | required "identityService.secretName is required when identityService is enabled" -}}
+{{- $registrationEnabled := dig "enabled" false $registration -}}
+{{- if and $serviceValues.enabled $registrationEnabled }}
+{{- $_ := $registerServiceSecretName | required "identityService.identityRouterClientRegistration.registerServiceSecretName is required when identityService.identityRouterClientRegistration.enabled is true" -}}
+{{- $_ := $serviceValues.secretName | required "identityService.secretName is required when identityService.identityRouterClientRegistration.enabled is true" -}}
 apiVersion: batch/v1
 kind: Job
 metadata:

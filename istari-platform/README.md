@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.17.5](https://img.shields.io/badge/Version-3.17.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.17.6](https://img.shields.io/badge/Version-3.17.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -170,6 +170,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | identityService.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | identityService.identityRouterClientRegistration.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful registration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). |
 | identityService.identityRouterClientRegistration.backoffLimit | int | `6` | `spec.backoffLimit` for the registration Job (number of retries after a failed Pod). |
+| identityService.identityRouterClientRegistration.enabled | bool | `false` | Whether to render the registration Job. Off by default: only enable in environments where the registry-service identity-router integration is turned on (so `registerServiceSecretName` actually contains `FILE_SERVICE_IDENTITY_ROUTER_SECRET`). Otherwise the hook Job fails the release with a missing-secret-key error. |
 | identityService.identityRouterClientRegistration.podAnnotations | object | `{}` | Annotations for the registration Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`). |
 | identityService.identityRouterClientRegistration.podLabels | object | `{}` | Extra labels for the registration Job Pod template only. |
 | identityService.identityRouterClientRegistration.registerServiceSecretName | string | `"istari-fileservice"` | Secret name for `FILE_SERVICE_IDENTITY_ROUTER_SECRET` (must contain the registry-service identity-router client credential). |
