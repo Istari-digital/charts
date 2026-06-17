@@ -96,9 +96,8 @@ These targets are proposed, pending team agreement (see
 ## Keep agent design, plan, and spec docs out of the repo
 
 Do not commit design specs, implementation plans, or agent scratch notes under
-`docs/`. No plan documents belong in this repository. The
-paths `docs/aar/`, `docs/design/`, `docs/designs/`, `docs/specs/`,
-`docs/plans/`, and `docs/superpowers/` are gitignored to enforce this.
+`docs/`. No plan documents belong in this repository. The following paths are
+gitignored to reduce accidental commits: `docs/aar/`, `docs/design/`, `docs/designs/`, `docs/specs/`, `docs/plans/`, and `docs/superpowers/`.
 
 **Tip:** With the Jira CLI or a Jira MCP tool configured, instruct your agent to
 store the artifacts it would otherwise write under `docs/` — plans, specs,
