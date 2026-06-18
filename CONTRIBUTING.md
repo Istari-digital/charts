@@ -6,8 +6,7 @@ This guide is the source of truth for how to propose changes so they merge
 quickly and safely; `AGENTS.md` and `CLAUDE.md` are the coding-agent copies and
 point back here.
 
-These practices come from the dgraph-sec chart post-delivery review. When you
-learn something the next contributor will need, add it here.
+When you learn something the next contributor will need, add it here.
 
 ## Ask early on #team-infra
 
