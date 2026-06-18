@@ -6,9 +6,8 @@ This guide covers how to propose changes so they merge quickly and safely. For
 the toolchain, conventions, and local checks, read [`AGENTS.md`](./AGENTS.md)
 and [`CLAUDE.md`](./CLAUDE.md).
 
-These practices come from the dgraph-sec chart post-delivery review (epic
-[DGR-209](https://istari.atlassian.net/browse/DGR-209)). When you learn
-something the next contributor will need, add it here.
+These practices come from the dgraph-sec chart post-delivery review. When you
+learn something the next contributor will need, add it here.
 
 ## Ask early on #team-infra
 
@@ -76,9 +75,8 @@ node group — that otherwise surface only at rollout.
 
 ## Where a chart belongs
 
-The split below is provisional, pending a documented org decision (see
-[DGR-209](https://istari.atlassian.net/browse/DGR-209)). When unsure, ask in
-`#team-infra` before creating the chart.
+The split below is provisional, pending a documented org decision. When unsure,
+ask in `#team-infra` before creating the chart.
 
 - **`Istari-digital/charts`** (this repository) — **shared** charts a customer
   can consume to run the Istari platform. The repository is MIT-licensed, and it
@@ -94,9 +92,6 @@ The split below is provisional, pending a documented org decision (see
   distributable chart publishes to Artifactory and is consumed from there.
 
 ## Review expectations
-
-These targets are proposed, pending team agreement (see
-[DGR-209](https://istari.atlassian.net/browse/DGR-209)).
 
 - A first review should arrive within a few business days of a pull request
   opening.
