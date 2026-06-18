@@ -106,7 +106,7 @@ zero:
     minAvailable: 2      # keep quorum through a voluntary disruption
 
 alpha:
-  replicaCount: 3        # 3 Alphas = one replicated group (replicaCount / shardReplicaCount)
+  replicaCount: 3        # 3 Alphas = one replicated group (alpha.replicaCount / zero.shardReplicaCount)
   antiAffinity: soft
   persistence:
     enabled: true
@@ -350,7 +350,7 @@ As a values file, stage and demo are just the baseline above plus these two line
 ```yaml
 # values.yaml — stage / demo deltas, layered on top of the baseline
 alpha:
-  replicaCount: 6        # 6 Alphas = 2 replicated groups (6 / shardReplicaCount 3)
+  replicaCount: 6        # 6 Alphas = 2 replicated groups (6 / zero.shardReplicaCount 3)
   persistence:
     size: 250Gi
 ```
