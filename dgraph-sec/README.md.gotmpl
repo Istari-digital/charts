@@ -36,8 +36,16 @@ helm install dgraph-sec main-helm-local/dgraph-sec \
 ```
 
 This brings up a **working cluster out of the box**: 3 Zero + 3 Alpha replicas,
-non-root pods, PodDisruptionBudgets, and — because ACL is disabled by default — no
-login required, so applications can connect immediately.
+non-root pods, and PodDisruptionBudgets. Because ACL is disabled by default, no login
+is required, so applications can connect immediately.
+
+> [!WARNING]
+> A default install is **convenient, not production-secure**. The pods are hardened
+> (non-root, dropped capabilities, seccomp), but the data-path protections —
+> authentication (ACL), TLS in transit, encryption at rest, and NetworkPolicy — are
+> all **off** by default, so the database is unauthenticated, plaintext, and reachable
+> by any pod in the cluster. Turn these on before putting real data behind it; see
+> [Security posture](#security-posture).
 
 Istari Digital deploys this chart with Terraform and sets
 `fullnameOverride: dgraph-sec`, which is why the deployed objects are named
