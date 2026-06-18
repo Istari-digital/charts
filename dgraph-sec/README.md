@@ -109,8 +109,10 @@ and Ratel workloads:
 - Containers **drop every Linux capability** and cannot escalate privileges.
   `readOnlyRootFilesystem` is left `false` because Dgraph writes scratch data outside
   its mounted data directory. Validate on a cluster before turning it on.
-- `automountServiceAccountToken` is **off** on every workload, because none of them
-  call the Kubernetes API.
+- `automountServiceAccountToken` is **off** on the long-running Dgraph workloads
+  (Alpha, Zero, Ratel, and the backup CronJobs), because none of them call the
+  Kubernetes API. The optional pre-upgrade hook Job is the one exception — it runs
+  `kubectl`, so it mounts a token by design.
 - PodDisruptionBudgets (`minAvailable: 2`) keep a node drain or an autoscaler
   scale-down from taking two Zeros or two Alphas at once and breaking quorum.
 
@@ -132,10 +134,6 @@ them on for a production posture:
 - **TLS in transit** encrypts client and cluster traffic.
 - **NetworkPolicy** restricts which pods may reach the Alpha and Zero ports.
 
-The snippet below flips the toggles. ACL, encryption, and TLS each also need key or
-Secret material; see `values.yaml` and the post-install NOTES for the full set of
-flags each one expects.
-
 ```yaml
 # values.yaml — production-posture toggles (each still needs its key/secret material)
 alpha:
@@ -144,13 +142,22 @@ alpha:
   encryption:
     enabled: true       # encryption at rest (provide an encryption key)
   tls:
-    enabled: true       # TLS in transit (provide cert files)
-
+    enabled: true       # provisions + mounts TLS certs only — see the TLS note below
 networkPolicy:
   enabled: true         # restrict ingress to the Alpha/Zero ports
   clientPodLabels:      # only pods carrying this label may connect
     app.kubernetes.io/part-of: my-client-app
 ```
+
+ACL and encryption each need key or Secret material; see `values.yaml` and the
+post-install NOTES for the exact flags.
+
+> [!IMPORTANT]
+> **TLS needs more than the toggle.** `alpha.tls.enabled` / `zero.tls.enabled` only
+> create and mount the TLS Secret at `/dgraph/tls`; the chart does **not** add
+> Dgraph's `--tls` superflag to the Alpha or Zero command. To actually encrypt
+> traffic you must also supply the `--tls` settings through `extraFlags` (or a
+> `configFile`) on **both** Alpha and Zero.
 
 ## Backups & restore
 
