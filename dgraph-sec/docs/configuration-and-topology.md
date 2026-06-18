@@ -1,8 +1,8 @@
 # Dgraph-sec configuration and topology
 
 This page describes, in one place, what the `dgraph-sec` chart deploys and how
-Istari tunes it per environment. It is written for an operator who is about to
-run, size, or review a dgraph-sec cluster.
+Istari Digital tunes it across its own environments. It is written for an
+operator who is about to run, size, or review a dgraph-sec cluster.
 
 It covers three layers, from most generic to most specific:
 
@@ -11,15 +11,14 @@ It covers three layers, from most generic to most specific:
 2. **[Default configuration reference](#default-configuration-reference)** — the
    key settable values and their defaults, grouped by component.
 3. **[Example production configurations](#example-production-configurations)** —
-   the overrides Istari's [helm-stack][helm-stack] applies, both the shared
-   baseline and the per-environment deltas (dev, stage, demo).
+   the overrides Istari Digital applies when it deploys this chart on its own
+   infrastructure, both the shared baseline and the per-environment deltas (dev,
+   stage, demo).
 
 For the exhaustive, machine-generated list of every value, see the **Values**
 section of the [chart README](../README.md#values); helm-docs regenerates it
 from `values.yaml`, so it never drifts. The tables here are a curated,
 operator-facing subset.
-
-[helm-stack]: https://github.com/Istari-digital/helm-stack
 
 ---
 
@@ -143,29 +142,29 @@ enumeration lives in the [chart README Values section](../README.md#values).
 
 ## Example production configurations
 
-Istari deploys dgraph-sec through Terraform in [helm-stack][helm-stack]
-(`istari-k8s-core/dgraph-sec.tf`), not with raw `helm install`. The Terraform
-applies two layers of overrides on top of the chart defaults above:
+Istari Digital deploys dgraph-sec with Terraform — the infrastructure-as-code it
+uses to manage its own internal clusters — rather than with raw `helm install`.
+That Terraform applies two layers of overrides on top of the chart defaults above:
 
 - a **shared baseline** that every environment receives, and
-- a small set of **per-environment variables** (`environments/<env>/config.tfvars`).
+- a small set of **per-environment values**.
 
-The environments below — dev, stage, and demo — are reference examples of what a
-production-shaped dgraph-sec deployment looks like. The configuration shown is
-what each environment deploys when dgraph-sec is enabled there, independent of
-whether the `dgraph_sec_enabled` toggle is currently on.
+The environments below — dev, stage, and demo — are Istari Digital's own internal
+clusters, included here as reference examples of what a production-shaped
+dgraph-sec deployment looks like. Each table shows the configuration that
+environment deploys.
 
 ### Shared baseline (all environments)
 
-Every Istari environment hardens and right-sizes the chart the same way. The
-baseline turns the chart's small, generic defaults into a production cluster:
-one Alpha per **dedicated, tainted node** (the module targets an `m6i.xlarge`-class
-node, ~14.5Gi allocatable, with a Zero co-located), **hard** anti-affinity so no
-two Alphas share a node, **ACL on** with a shared `istari-admin` superadmin,
-memory `request == limit` for Guaranteed QoS on the data tier, `gp3` storage, and
+Every one of these environments hardens and right-sizes the chart the same way.
+The baseline turns the chart's small, generic defaults into a production cluster:
+one Alpha per **dedicated, tainted node** (sized for an `m6i.xlarge`-class node,
+~14.5Gi allocatable, with a Zero co-located), **hard** anti-affinity so no two
+Alphas share a node, **ACL on** with a shared `istari-admin` superadmin, memory
+`request == limit` for Guaranteed QoS on the data tier, `gp3` storage, and
 scheduled **S3 backups** with Datadog and OpenTelemetry wired in.
 
-| Key | Chart default | helm-stack baseline | Why |
+| Key | Chart default | Istari baseline | Why |
 |-----|---------------|---------------------|-----|
 | `fullnameOverride` | _(chart fullname)_ | `dgraph-sec` | Stable object names (`dgraph-sec-alpha`, `-zero`). |
 | `preUpgradeHook.enabled` | `true` | `false` | Every cluster is past the v24→v25 migration; the hook is now pure overhead. |

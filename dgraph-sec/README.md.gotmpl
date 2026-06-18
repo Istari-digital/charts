@@ -34,8 +34,8 @@ This brings up a **working cluster out of the box**: 3 Zero + 3 Alpha replicas,
 non-root pods, PodDisruptionBudgets, and — because ACL is disabled by default — no
 login required, so applications can connect immediately.
 
-In helm-stack this chart is consumed from Terraform (`istari-k8s-core/dgraph-sec.tf`)
-with `fullnameOverride: dgraph-sec`, which is why the deployed objects are named
+Istari Digital deploys this chart with Terraform and sets
+`fullnameOverride: dgraph-sec`, which is why the deployed objects are named
 `dgraph-sec-alpha`, `dgraph-sec-zero`, etc.
 
 ## Architecture
@@ -52,8 +52,8 @@ pod count — keep it `<= alpha.replicaCount`.
 
 > [!TIP]
 > For the default cluster topology, a grouped reference of the chart's key
-> configuration values, and the per-environment overrides Istari applies in
-> helm-stack (dev, stage, demo), see
+> configuration values, and the per-environment overrides Istari Digital applies
+> on its own infrastructure (dev, stage, demo), see
 > [Configuration and topology](./docs/configuration-and-topology.md).
 
 ## Naming
@@ -144,8 +144,8 @@ collector:
 | `tracing.ratio` | Sample fraction — default `0.01` |
 | `tracing.alpha.service` / `tracing.zero.service` | Per-role service name (`dgraph-sec.alpha` / `dgraph-sec.zero`) |
 
-In helm-stack `tracing.enabled` follows the Datadog operator, so traces flow wherever
-the agent runs.
+On Istari Digital's own clusters, `tracing.enabled` follows the Datadog operator, so
+traces flow wherever the agent runs.
 
 {{ template "chart.sourcesSection" . }}
 
