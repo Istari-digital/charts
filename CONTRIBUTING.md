@@ -50,7 +50,7 @@ against the workload rather than treating them as hard requirements.
 - [ ] **Pod and container `securityContext`** — `runAsNonRoot: true`, a non-root UID/GID, `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true` (mount writable volumes where the app needs them), `capabilities.drop: [ALL]`, and `seccompProfile: RuntimeDefault`. Confirm the image actually runs as non-root before claiming it.
 - [ ] **Resource requests and limits** — set CPU and memory requests (they drive scheduling and the QoS class) and limits (they cap a noisy neighbor). Base them on observed usage and make them per-environment values. Mind the trade-offs: CPU limits throttle, memory limits OOM-kill.
 
-**Recommended, scaled to the workload** — today only `dgraph-sec` ships these, so consider each based on what the chart does:
+**Recommended, scaled to the workload** — as of June 2026 only the `dgraph-sec` chart ships these, so consider each based on what the chart does:
 
 - [ ] **NetworkPolicy** — for a long-running service, default-deny ingress, then allow only the clients that need it, plus the mesh sidecars and the Prometheus scraper; constrain egress where you can. A baseline most workloads should carry (see the note below).
 - [ ] **PodDisruptionBudget** — if the workload runs more than one replica, cap how many a voluntary disruption (node drain, upgrade) can remove via `minAvailable`/`maxUnavailable`, sized against any quorum requirement. A single-replica chart or a one-shot Job doesn't need one.
