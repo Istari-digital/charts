@@ -50,9 +50,12 @@ best-effort basis but still schedules them when nodes are scarce. The chart sets
 no `nodeSelector` or `tolerations` by default, so pods land on any schedulable
 node.
 
-**Availability.** A PodDisruptionBudget (`minAvailable: 2`) guards each tier, so
-a voluntary disruption — a node drain or an autoscaler scale-down — can never
-take two Zeros or two Alphas at once and drop a Raft group below quorum.
+**Availability.** A PodDisruptionBudget (`minAvailable: 2`) guards each tier
+against voluntary disruptions such as a node drain or an autoscaler scale-down. For
+a 3-node Raft group — Zero, and Alpha at its default 3 replicas — that keeps quorum
+intact. When Alpha scales past 3 into multiple groups, raise `alpha.pdb.minAvailable`
+accordingly, because a flat `minAvailable: 2` across all Alpha pods could otherwise
+let a whole group drop below quorum.
 
 **Storage.** Persistence is on for both tiers: 32Gi per Zero, 100Gi per Alpha,
 `ReadWriteOnce`, provisioned by the cluster's default StorageClass. The PVC

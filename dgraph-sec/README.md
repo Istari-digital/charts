@@ -113,8 +113,11 @@ and Ratel workloads:
   (Alpha, Zero, Ratel, and the backup CronJobs), because none of them call the
   Kubernetes API. The optional pre-upgrade hook Job is the one exception — it runs
   `kubectl`, so it mounts a token by design.
-- PodDisruptionBudgets (`minAvailable: 2`) keep a node drain or an autoscaler
-  scale-down from taking two Zeros or two Alphas at once and breaking quorum.
+- PodDisruptionBudgets (`minAvailable: 2`) protect quorum during voluntary
+  disruptions (node drains, autoscaler scale-downs) for a 3-node Raft group — Zero,
+  and Alpha at its default 3 replicas. When you scale Alpha past 3 into multiple
+  groups, raise `alpha.pdb.minAvailable`, since a flat `minAvailable: 2` across all
+  Alpha pods could otherwise let a whole group be taken below quorum.
 
 The chart never touches the image's FIPS environment, so `fips140=on` stays in effect
 at runtime. One gap to know about: the backup CronJobs run the same image but set no
