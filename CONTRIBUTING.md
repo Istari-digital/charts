@@ -10,7 +10,7 @@ When you learn something the next contributor will need, add it here.
 
 ## Ask early on #team-infra
 
-Raise questions on `#team-infra` while you work, not after review opens. A
+Raise questions on [`#team-infra`](https://istari-hq.slack.com/archives/C06721Q0LKZ) while you work, not after review opens. A
 best-guess decision that surfaces in review costs a full round-trip; the same
 question answered in chat costs minutes. Ask before you build on an assumption.
 
@@ -276,7 +276,7 @@ node group — that otherwise surface only at rollout.
 ## Where a chart belongs
 
 The split below is provisional, pending a documented org decision. When unsure,
-ask in `#team-infra` before creating the chart.
+ask in [`#team-infra`](https://istari-hq.slack.com/archives/C06721Q0LKZ) before creating the chart.
 
 - **`Istari-digital/charts`** (this repository) — **shared** charts a customer
   can consume to run the Istari platform. The repository is MIT-licensed, and it
@@ -295,7 +295,7 @@ ask in `#team-infra` before creating the chart.
 
 - A first review should arrive within a few business days of a pull request
   opening.
-- If a review stalls, re-request the reviewer and post in `#team-infra`.
+- If a review stalls, re-request the reviewer and post in [`#team-infra`](https://istari-hq.slack.com/archives/C06721Q0LKZ).
   Escalate rather than wait.
 - A security-sensitive chart should carry a second qualified reviewer, so
   neither the wait nor the review load rests on one person.
