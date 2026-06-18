@@ -50,9 +50,10 @@ with `fullnameOverride: dgraph-sec`, which is why the deployed objects are named
 pod count — keep it `<= alpha.replicaCount`.
 
 > [!TIP]
-> For the default cluster topology, a grouped reference of every settable value,
-> and the per-environment overrides Istari applies in helm-stack (dev, stage,
-> demo), see [Configuration and topology](./docs/configuration-and-topology.md).
+> For the default cluster topology, a grouped reference of the chart's key
+> configuration values, and the per-environment overrides Istari applies in
+> helm-stack (dev, stage, demo), see
+> [Configuration and topology](./docs/configuration-and-topology.md).
 
 ## Naming
 

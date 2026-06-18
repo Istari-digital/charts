@@ -9,7 +9,7 @@ It covers three layers, from most generic to most specific:
 1. **[Default cluster topology](#default-cluster-topology)** — the cluster the
    unmodified chart produces.
 2. **[Default configuration reference](#default-configuration-reference)** — the
-   settable values and their defaults, grouped by component.
+   key settable values and their defaults, grouped by component.
 3. **[Example production configurations](#example-production-configurations)** —
    the overrides Istari's [helm-stack][helm-stack] applies, both the shared
    baseline and the per-environment deltas (dev, stage, demo).
@@ -39,8 +39,8 @@ a small but genuinely highly-available cluster:
 `alpha.replicaCount: 3` divided by `zero.shardReplicaCount: 3` (Zero's
 `--replicas` flag) yields one group whose data is replicated across all three
 pods. Adding capacity means adding groups — raise `alpha.replicaCount` in
-multiples of `shardReplicaCount` (6 Alphas make 2 groups), rather than enlarging
-pods. Keep `shardReplicaCount` at or below `alpha.replicaCount`.
+multiples of `zero.shardReplicaCount` (6 Alphas make 2 groups), rather than
+enlarging pods. Keep `zero.shardReplicaCount` at or below `alpha.replicaCount`.
 
 **Scheduling.** Both tiers default to **soft** pod anti-affinity keyed on
 `kubernetes.io/hostname`, so Kubernetes spreads pods across nodes on a
@@ -202,7 +202,7 @@ fully HA, fully hardened, sized for a development data set.
 
 Stage and demo share the same dgraph-sec configuration, so they are documented
 together. Both scale the Alpha tier to **6 pods across 2 replicated groups**
-(6 ÷ `shardReplicaCount` 3), doubling write and storage capacity over dev, and
+(6 ÷ `zero.shardReplicaCount` 3), doubling write and storage capacity over dev, and
 enlarge each Alpha volume to **250Gi** for a larger working set. That means 6
 dedicated Alpha nodes (Zeros co-locate on 3 of them) instead of dev's 3.
 Everything else matches the shared baseline.
