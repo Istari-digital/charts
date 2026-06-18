@@ -102,7 +102,7 @@ ask in `#team-infra` before creating the chart.
 
 ## Keep agent design, plan, and spec docs out of the repo
 
-Do not commit design specs, implementation plans, or agent scratch notes under
+Do not commit coding agent design specs, implementation plans, or agent scratch notes under
 `docs/`. No such documents belong in this repository. The following paths are
 gitignored to reduce accidental commits: `docs/aar/`, `docs/design/`, `docs/designs/`, `docs/specs/`, `docs/plans/`, and `docs/superpowers/`.
 
