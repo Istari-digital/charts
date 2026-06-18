@@ -135,7 +135,9 @@ them on for a production posture:
 - **ACL** adds authentication and authorization.
 - **Encryption at rest** encrypts the on-disk data.
 - **TLS in transit** encrypts client and cluster traffic.
-- **NetworkPolicy** restricts which pods may reach the Alpha and Zero ports.
+- **NetworkPolicy** gates ingress to the Alpha and Zero pods: only in-chart dgraph
+  pods may reach Zero, and only pods you mark with `clientPodLabels` may reach
+  Alpha's client ports (8080/9080). Anything else needs `networkPolicy.extraIngress`.
 
 ```yaml
 # values.yaml — production-posture toggles (each still needs its key/secret material)
@@ -150,8 +152,8 @@ zero:
   tls:
     enabled: true       # Zero needs TLS cert material too — see the TLS note below
 networkPolicy:
-  enabled: true         # restrict ingress to the Alpha/Zero ports
-  clientPodLabels:      # only pods carrying this label may connect
+  enabled: true         # gate ingress to the Alpha and Zero pods
+  clientPodLabels:      # these pods may reach Alpha's client ports 8080/9080 (Zero stays internal)
     app.kubernetes.io/part-of: my-client-app
 ```
 
