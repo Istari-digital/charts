@@ -255,7 +255,7 @@ group, StorageClass, and backup bucket.
 fullnameOverride: dgraph-sec
 
 preUpgradeHook:
-  enabled: false        # only needed for the one-time pre-0.4.x selector migration
+  enabled: false        # only needed for the one-time v24-to-v25 selector-label migration
 
 zero:
   antiAffinity: hard
