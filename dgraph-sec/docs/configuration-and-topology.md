@@ -116,7 +116,7 @@ enumeration lives in the [chart README Values section](../README.md#values).
 | `alpha.persistence.size` | `100Gi` | Per-pod data volume size. |
 | `alpha.persistence.persistentVolumeClaimRetentionPolicy` | `Retain` / `Retain` | PVC retention on uninstall / scale-down. |
 | `alpha.resources.requests` | `cpu: 250m`, `memory: 1Gi` | CPU/memory requests. |
-| `alpha.resources.limits` | `memory: 2Gi` | Memory limit. **Right-size before production** — an unbounded query can OOM-kill the node. |
+| `alpha.resources.limits` | `memory: 2Gi` | Memory limit. **Right-size before production** — with a limit set, an over-budget query OOM-kills the Alpha pod; without one, a heavy query can exhaust the whole node. |
 | `alpha.pdb` | `enabled: true`, `minAvailable: 2` | PodDisruptionBudget protecting the Alpha group. |
 | `alpha.acl.enabled` | `false` | Access Control List (authentication). Off by default. |
 | `alpha.encryption.enabled` | `false` | Encryption at rest. Off by default. |
