@@ -3,11 +3,10 @@
 {{- $registrationPodAnnotations := dig "podAnnotations" dict $registration -}}
 {{- $registrationPodLabels := dig "podLabels" dict $registration -}}
 {{- $registrationResources := dig "resources" dict $registration -}}
-{{- $registerServiceSecretName := dig "registerServiceSecretName" "istari-fileservice" $registration -}}
 {{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
-{{- if $serviceValues.enabled }}
-{{- $_ := $registerServiceSecretName | required "identityService.identityRouterClientRegistration.registerServiceSecretName is required when identityService is enabled" -}}
-{{- $_ := $serviceValues.secretName | required "identityService.secretName is required when identityService is enabled" -}}
+{{- $registrationEnabled := dig "enabled" false $registration -}}
+{{- if and $serviceValues.enabled $registrationEnabled }}
+{{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.identityRouterClientRegistration.enabled is true" -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -53,19 +52,20 @@ spec:
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         command:
         - "/register-client"
-        # $(VAR) is expanded by Kubernetes from the env vars below, so the secret
-        # value and DB URL never appear in plaintext in the pod manifest.
+        # $(VAR) is expanded by Kubernetes from the env vars below, so the DB URL
+        # never appears in plaintext in the pod manifest. The registry client blob
+        # is public-key material (no private key), but is wired the same way.
         args:
         - "-secret"
-        - "$(IDENTITY_ROUTER_SECRET)"
+        - "$(REGISTRY_CLIENT_PUBLIC_KEY_BLOB)"
         - "-database-url"
         - "$(DATABASE_URL)"
         env:
-        - name: IDENTITY_ROUTER_SECRET
+        - name: REGISTRY_CLIENT_PUBLIC_KEY_BLOB
           valueFrom:
             secretKeyRef:
-              name: {{ $registerServiceSecretName | quote }}
-              key: "FILE_SERVICE_IDENTITY_ROUTER_SECRET"
+              name: {{ $serviceValues.secretName | quote }}
+              key: "ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT"
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:

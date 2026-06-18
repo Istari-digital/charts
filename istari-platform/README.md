@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.17.5](https://img.shields.io/badge/Version-3.17.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.17.6](https://img.shields.io/badge/Version-3.17.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -168,11 +168,12 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | identityService.enabled | bool | `false` | Enable / Disable the whole deployment |
 | identityService.env | list | `[]` |  |
 | identityService.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
+| identityService.identityRouterClientRegistration | object | (see fields below) | Settings for the `register-client` one-shot hook Job (pre-install/pre-upgrade) that registers the registry-service's identity-service client in the identity-service ClientStore (required once the deployed identity-service image enforces client authentication on `/oauth/v2/introspect`). The Job is rendered only when BOTH `identityService.enabled` and `identityService.identityRouterClientRegistration.enabled` are `true`. It reads both `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT` (the public-only client blob) and `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` from `identityService.secretName`, so the identity-service never needs read access to the registry-service's secret. |
 | identityService.identityRouterClientRegistration.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful registration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). |
 | identityService.identityRouterClientRegistration.backoffLimit | int | `6` | `spec.backoffLimit` for the registration Job (number of retries after a failed Pod). |
+| identityService.identityRouterClientRegistration.enabled | bool | `false` | Whether to render the registration Job. Off by default: only enable in environments where the registry-service identity-service integration is turned on (so `identityService.secretName` actually contains `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT`). Otherwise the hook Job fails the release with a missing-secret-key error. |
 | identityService.identityRouterClientRegistration.podAnnotations | object | `{}` | Annotations for the registration Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`). |
 | identityService.identityRouterClientRegistration.podLabels | object | `{}` | Extra labels for the registration Job Pod template only. |
-| identityService.identityRouterClientRegistration.registerServiceSecretName | string | `"istari-fileservice"` | Secret name for `FILE_SERVICE_IDENTITY_ROUTER_SECRET` (must contain the registry-service identity-router client credential). |
 | identityService.identityRouterClientRegistration.resources | object | `{}` | Resources for the registration Job container. |
 | identityService.image | string | `"identity-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | identityService.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
