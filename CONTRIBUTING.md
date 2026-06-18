@@ -8,6 +8,29 @@ point back here.
 
 When you learn something the next contributor will need, add it here.
 
+## Contents
+
+- [Ask early on #team-infra](#ask-early-on-team-infra)
+- [Deliver in small, stacked pull requests](#deliver-in-small-stacked-pull-requests)
+  - [Start from a clean vendored chart, then layer by functional area](#start-from-a-clean-vendored-chart-then-layer-by-functional-area)
+- [Chart conventions](#chart-conventions)
+- [Versioning and publishing](#versioning-and-publishing)
+- [Commit messages](#commit-messages)
+- [Harden a new chart](#harden-a-new-chart)
+  - [`securityContext`](#securitycontext)
+  - [Resource requests and limits](#resource-requests-and-limits)
+  - [NetworkPolicy](#networkpolicy)
+  - [PodDisruptionBudget](#poddisruptionbudget)
+  - [ServiceMonitor](#servicemonitor)
+  - [PrometheusRule](#prometheusrule)
+  - [Service-account token automounting disabled](#service-account-token-automounting-disabled)
+- [Test a chart locally](#test-a-chart-locally)
+- [Validate against the target mesh early](#validate-against-the-target-mesh-early)
+- [Where a chart belongs](#where-a-chart-belongs)
+- [Review expectations](#review-expectations)
+- [Keep agent design, plan, and spec docs out of the repo](#keep-agent-design-plan-and-spec-docs-out-of-the-repo)
+- [Before you open a pull request](#before-you-open-a-pull-request)
+
 ## Ask early on #team-infra
 
 Raise questions on [`#team-infra`](https://istari-hq.slack.com/archives/C06721Q0LKZ) while you work, not after review opens. A
@@ -301,6 +324,65 @@ Set it on the ServiceAccount to cover every pod that uses it. A mounted token is
 a credential an attacker can use against the API server if the pod is
 compromised, and most datastores and app servers never call the API. Enable it
 only for components that genuinely do (operators, controllers).
+
+## Test a chart locally
+
+Docker Desktop ships a single-node Kubernetes cluster — the quickest way to
+install and exercise a chart before review.
+
+1. **Enable the cluster.** Install [Docker Desktop](https://docs.docker.com/desktop/),
+   then open **Settings → Kubernetes → Enable Kubernetes → Apply & Restart** and
+   wait for the Kubernetes indicator to turn green.
+2. **Point `kubectl` at it and confirm it's up:**
+
+   ```sh
+   kubectl config use-context docker-desktop
+   kubectl get nodes
+   ```
+
+3. **Lint and render first** — catch errors before anything runs:
+
+   ```sh
+   helm lint <chart>
+   helm template <chart> -f <chart>/values.yaml | less
+   ```
+
+4. **Install into a throwaway namespace:**
+
+   ```sh
+   helm install <release> ./<chart> \
+     --namespace <chart>-test --create-namespace \
+     -f <chart>/values.yaml
+   kubectl get pods -n <chart>-test -w
+   ```
+
+5. **Exercise it.** Run the chart's test hooks if it defines any, and inspect
+   anything that didn't come up cleanly:
+
+   ```sh
+   helm test <release> -n <chart>-test
+   kubectl describe pod <pod> -n <chart>-test
+   kubectl logs <pod> -n <chart>-test
+   ```
+
+6. **Iterate** with `helm upgrade <release> ./<chart> -n <chart>-test -f <chart>/values.yaml`,
+   then **clean up:**
+
+   ```sh
+   helm uninstall <release> -n <chart>-test
+   kubectl delete namespace <chart>-test
+   ```
+
+What a local cluster can't show you:
+
+- **No Prometheus Operator** — the `ServiceMonitor`/`PrometheusRule` CRDs aren't
+  installed, so keep those behind their values flags (disabled by default) or the
+  install fails on an unknown `kind`.
+- **No service mesh** — STRICT mTLS and node-scheduling behaviour won't appear
+  locally; validate those against the target mesh (see below).
+- **Private images** — to pull Istari/JFrog images, run
+  `docker login istaridigital.jfrog.io` first, or point values at upstream images
+  for a smoke test.
 
 ## Validate against the target mesh early
 
