@@ -143,7 +143,10 @@ alpha:
   encryption:
     enabled: true       # encryption at rest (provide an encryption key)
   tls:
-    enabled: true       # provisions + mounts TLS certs only — see the TLS note below
+    enabled: true       # provisions + mounts TLS cert material — see the TLS note below
+zero:
+  tls:
+    enabled: true       # Zero needs TLS cert material too — see the TLS note below
 networkPolicy:
   enabled: true         # restrict ingress to the Alpha/Zero ports
   clientPodLabels:      # only pods carrying this label may connect

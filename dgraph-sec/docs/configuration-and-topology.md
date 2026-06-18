@@ -134,7 +134,7 @@ enumeration lives in the [chart README Values section](../README.md#values).
 | `image.pullPolicy` | `IfNotPresent` | Image pull policy. |
 | `preUpgradeHook.enabled` | `true` | Run the v24→v25 StatefulSet-selector migration Job on each upgrade. |
 | `serviceAccount.create` | `true` | Create the dgraph ServiceAccount. |
-| `serviceAccount.automountServiceAccountToken` | `false` | Withhold the API token; no workload calls the Kubernetes API. |
+| `serviceAccount.automountServiceAccountToken` | `false` | Withhold the API token from the long-running workloads (Alpha/Zero/Ratel/backups), which never call the Kubernetes API. The pre-upgrade hook Job is the exception — it runs `kubectl` under its own ServiceAccount. |
 | `global.domain` | `cluster.local` | Cluster DNS domain used to build in-cluster hostnames. |
 
 ### Zero (coordinator)
