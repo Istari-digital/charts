@@ -66,34 +66,81 @@ service names. The Datadog/tracing identity follows the 3-tier
 
 ## Security posture
 
-This is the `-sec` fork, so secure defaults are baked in:
+This is the `-sec` fork, so the chart ships hardened by default. You do not have to
+turn anything on to get the baseline below; it applies to the Alpha, Zero, and Ratel
+workloads out of the box.
 
-- Pods run **non-root** (`runAsNonRoot: true`, uid/gid 1001) with a `RuntimeDefault`
-  seccomp profile.
-- Containers **drop all Linux capabilities** and forbid privilege escalation.
-  `readOnlyRootFilesystem` is shipped `false` (dgraph writes scratch data outside its
-  mounted data dir); validate on a cluster before enabling.
-- `automountServiceAccountToken` is **off** everywhere — no workload calls the
-  Kubernetes API.
-- PodDisruptionBudgets (`minAvailable: 2`) protect Zero and Alpha quorum from
-  voluntary disruptions (node drains, autoscaler scale-down).
+- Pods run as a **non-root** user (`runAsNonRoot: true`, uid/gid 1001) under a
+  `RuntimeDefault` seccomp profile.
+- Containers **drop every Linux capability** and cannot escalate privileges.
+  `readOnlyRootFilesystem` is left `false` because Dgraph writes scratch data outside
+  its mounted data directory. Validate on a cluster before turning it on.
+- `automountServiceAccountToken` is **off** on every workload, because none of them
+  call the Kubernetes API.
+- PodDisruptionBudgets (`minAvailable: 2`) keep a node drain or an autoscaler
+  scale-down from taking two Zeros or two Alphas at once and breaking quorum.
 
-Defaults that are **off** and must be enabled for a production posture: ACL
-(authentication), encryption at rest, TLS in transit, and NetworkPolicy. See
-`values.yaml` and the post-install NOTES for the exact flags.
+Four things stay **off** by default, because each one needs a deliberate decision or
+some external material (a key, a certificate, a Secret). Turn them on for a
+production posture:
+
+- **ACL** adds authentication and authorization.
+- **Encryption at rest** encrypts the on-disk data.
+- **TLS in transit** encrypts client and cluster traffic.
+- **NetworkPolicy** restricts which pods may reach the Alpha and Zero ports.
+
+The snippet below flips the toggles. ACL, encryption, and TLS each also need key or
+Secret material; see `values.yaml` and the post-install NOTES for the full set of
+flags each one expects.
+
+```yaml
+# values.yaml — production-posture toggles (each still needs its key/secret material)
+alpha:
+  acl:
+    enabled: true       # authentication + authorization (provide an HMAC secret)
+  encryption:
+    enabled: true       # encryption at rest (provide an encryption key)
+  tls:
+    enabled: true       # TLS in transit (provide cert files)
+
+networkPolicy:
+  enabled: true         # restrict ingress to the Alpha/Zero ports
+  clientPodLabels:      # only pods carrying this label may connect
+    app.kubernetes.io/part-of: my-client-app
+```
 
 ## Backups & restore
 
-Enable scheduled binary backups with `backups.full.enabled` / `backups.incremental.enabled`
-and a `backups.destination`. Restoring is a deliberate, operator-driven action — there
-is no automatic restore. The runbook lives in [`scripts/README.md`](./scripts/README.md#restoring-from-a-binary-backup).
+Dgraph takes binary backups. Turn them on with `backups.full.enabled` and
+`backups.incremental.enabled`, then point `backups.destination` at a file path, an
+NFS mount, or an S3/MinIO bucket. The chart runs two CronJobs from there: one full
+backup and one incremental, each on its own schedule.
 
-The full and incremental backup CronJobs inherit `alpha.nodeSelector` and
-`alpha.tolerations`, so each backup pod schedules onto the same node group as the
-Alpha it backs up — it triggers the backup against `alpha-0` and, for filesystem/NFS
-destinations, shares Alpha's backup volume. Pin Alpha to a dedicated, tainted node
-group and the backups follow it there; leave `alpha` scheduling unset and they
-schedule anywhere, as before.
+Restoring is never automatic. It is a deliberate, operator-driven action, and the
+step-by-step runbook lives in
+[`scripts/README.md`](./scripts/README.md#restoring-from-a-binary-backup).
+
+Each backup pod follows the Alpha it backs up. The CronJobs inherit
+`alpha.nodeSelector` and `alpha.tolerations`, so a backup pod lands on the same node
+group as Alpha, triggers the backup against `alpha-0`, and — for filesystem or NFS
+destinations — shares Alpha's backup volume. Pin Alpha to a dedicated, tainted node
+group and the backups follow it there. Leave Alpha scheduling unset and they
+schedule anywhere.
+
+```yaml
+# values.yaml — daily full + hourly incremental backups to S3
+backups:
+  destination: s3://s3.us-west-2.amazonaws.com/my-dgraph-backups
+  full:
+    enabled: true
+    schedule: "0 0 * * *"      # every day at midnight
+  incremental:
+    enabled: true
+    schedule: "0 1-23 * * *"   # every hour except midnight
+  admin:
+    user: backup-admin                       # required once ACL is on
+    existingSecret: dgraph-sec-backup-admin  # holds the password; keeps it out of values/git
+```
 
 > [!WARNING]
 > Credentials (`backups.admin.password`, `backups.admin.auth_token`, ACL secrets) set
@@ -104,20 +151,36 @@ schedule anywhere, as before.
 
 ## Monitoring
 
-Alpha and Zero pods carry `prometheus.io/*` scrape annotations
-(`/debug/prometheus_metrics`) for annotation-based discovery. For the Prometheus
-Operator, enable `serviceMonitor.enabled` (and `prometheusRule.enabled` for default
-alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
+Out of the box, the Alpha and Zero pods carry `prometheus.io/*` scrape annotations
+that point at Dgraph's metrics endpoint (`/debug/prometheus_metrics`). Any Prometheus
+configured for annotation-based discovery picks them up with no extra setup.
+
+The **Prometheus Operator** works differently — it discovers targets through
+`ServiceMonitor` objects, not annotations. Set `serviceMonitor.enabled` to have the
+chart create one, and `prometheusRule.enabled` to ship a set of default alerts.
+Separately, `datadog.enabled` adds Datadog autodiscovery annotations and unified
+service tags.
+
+```yaml
+# values.yaml — Prometheus Operator + Datadog
+serviceMonitor:
+  enabled: true
+prometheusRule:
+  enabled: true     # also ship the chart's default alert rules
+datadog:
+  enabled: true     # Datadog autodiscovery + unified service tags
+```
 
 ## Logging
 
-Dgraph uses glog. Each role writes `INFO` / `WARNING` / `ERROR` to stderr, where
-`kubectl logs` and the node log collector capture them. Those severities are always
-on; verbosity only adds finer detail on top, so a log level can climb above the
-baseline but never hide a severity.
+Dgraph logs through glog. Every role always writes `INFO`, `WARNING`, and `ERROR`
+lines to stderr, where `kubectl logs` and the node log collector pick them up. You
+cannot turn those severities off. Raising the log level only *adds* finer detail on
+top of them, so a higher level shows you more but never hides a real warning or
+error.
 
-Set verbosity per role with `alpha.logLevel` / `zero.logLevel` — a named level or a
-raw glog `-v` integer:
+Set the level per role with `alpha.logLevel` and `zero.logLevel`, using either a
+named level or the equivalent raw glog `-v` integer:
 
 | Level | `-v` |
 |-------|------|
@@ -126,25 +189,51 @@ raw glog `-v` integer:
 | `debug` | 2 |
 | `trace` | 3 |
 
-Target one subsystem with `vmodule` (e.g. `"server=3,raft=2"`). Keep
-`logtostderr: true` on Kubernetes; setting it `false` without a writable `logDir`
-loses logs when a container restarts. For any glog flag the chart does not expose
-(`--stderrthreshold`, `--log_backtrace_at`), append it to `extraFlags` — a `-v` set
-there overrides `logLevel`.
+A few finer controls sit alongside the level:
+
+- **`vmodule`** narrows the extra verbosity to specific subsystems, e.g.
+  `"server=3,raft=2"`, so you can dig into raft without flooding everything else.
+- **`logtostderr`** should stay `true` on Kubernetes. Set it `false` without a
+  writable `logDir` and a container restart loses its logs.
+- **`extraFlags`** is the escape hatch for any glog flag the chart does not expose
+  directly (`--stderrthreshold`, `--log_backtrace_at`, and the like). A `-v` placed
+  here overrides `logLevel`.
+
+```yaml
+# values.yaml — verbose Alpha focused on the raft subsystem; quiet Zero
+alpha:
+  logLevel: verbose           # named level, or a raw integer like 1
+  vmodule: "server=3,raft=2"  # extra detail for just these subsystems
+  logtostderr: true           # keep true so kubectl logs sees everything
+zero:
+  logLevel: normal
+```
 
 ## Tracing (OpenTelemetry)
 
-Set `tracing.enabled` to export traces from Alpha and Zero. The chart builds Dgraph's
-`--trace` superflag from the `tracing` block and sends OTLP/HTTP to the configured
-collector:
+Set `tracing.enabled` to export traces from Alpha and Zero. The chart assembles
+Dgraph's `--trace` superflag from the `tracing` block and sends spans over OTLP/HTTP
+to the collector you point it at:
 
 | Value | Purpose |
 |-------|---------|
-| `tracing.endpoint` | OTLP/HTTP collector — default the Datadog agent on port 4318 |
-| `tracing.ratio` | Sample fraction — default `0.01` |
-| `tracing.alpha.service` / `tracing.zero.service` | Per-role service name (`dgraph-sec.alpha` / `dgraph-sec.zero`) |
+| `tracing.endpoint` | OTLP/HTTP collector endpoint. Defaults to the Datadog agent on port 4318. |
+| `tracing.ratio` | Fraction of requests sampled. Defaults to `0.01` (1%). |
+| `tracing.alpha.service` / `tracing.zero.service` | Per-role service name reported to the collector (`dgraph-sec.alpha` / `dgraph-sec.zero`). |
 
-On Istari Digital's own clusters, `tracing.enabled` follows the Datadog operator, so
+```yaml
+# values.yaml — export 1% of traces to an OTLP collector
+tracing:
+  enabled: true
+  endpoint: "datadog-agent.datadog.svc.cluster.local:4318"
+  ratio: "0.01"               # sample 1% of requests
+  alpha:
+    service: "dgraph-sec.alpha"
+  zero:
+    service: "dgraph-sec.zero"
+```
+
+On Istari Digital's own clusters, `tracing.enabled` tracks the Datadog operator, so
 traces flow wherever the agent runs.
 
 {{ template "chart.sourcesSection" . }}

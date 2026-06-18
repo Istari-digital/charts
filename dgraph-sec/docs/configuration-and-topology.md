@@ -34,12 +34,15 @@ a small but genuinely highly-available cluster:
 | **Ratel** | Deployment | 1 (disabled) | Debug-grade web UI. Off by default. |
 | **Backups** | CronJob (×2) | (disabled) | Two CronJobs — full + incremental binary backups to filesystem, NFS, S3, or MinIO. |
 
-**Replication and sharding.** The three Alphas form a single replicated group:
-`alpha.replicaCount: 3` divided by `zero.shardReplicaCount: 3` (Zero's
-`--replicas` flag) yields one group whose data is replicated across all three
-pods. Adding capacity means adding groups — raise `alpha.replicaCount` in
-multiples of `zero.shardReplicaCount` (6 Alphas make 2 groups), rather than
-enlarging pods. Keep `zero.shardReplicaCount` at or below `alpha.replicaCount`.
+**Replication and sharding.** The three Alphas form a single replicated group. The
+number of groups is `alpha.replicaCount` divided by `zero.shardReplicaCount` (Zero's
+`--replicas` flag). Here that is 3 ÷ 3 = one group, with the data replicated across
+all three Alpha pods.
+
+To add capacity, add groups rather than enlarging individual pods: raise
+`alpha.replicaCount` in multiples of `zero.shardReplicaCount`. Six Alphas, for
+example, make two groups. Always keep `zero.shardReplicaCount` at or below
+`alpha.replicaCount`, or the extra replication factor has no pods to land on.
 
 **Scheduling.** Both tiers default to **soft** pod anti-affinity keyed on
 `kubernetes.io/hostname`, so Kubernetes spreads pods across nodes on a
@@ -68,6 +71,37 @@ token. The backup CronJobs set no explicit securityContext of their own — they
 disable token automount but otherwise inherit the image's user and the cluster's
 defaults. Authentication (ACL), encryption at rest, and TLS in transit ship
 **off** — enable them for a production posture.
+
+For reference, here are the default values that produce the topology described
+above. You get this with no overrides at all; the snippet is a convenient starting
+point to copy and adjust.
+
+```yaml
+# values.yaml — the defaults behind the topology above (shown for reference; no overrides needed)
+zero:
+  replicaCount: 3        # 3-node Raft coordinator
+  shardReplicaCount: 3   # per-group replication factor (Zero's --replicas)
+  antiAffinity: soft     # best-effort spread across nodes
+  persistence:
+    enabled: true
+    size: 32Gi
+  pdb:
+    enabled: true
+    minAvailable: 2      # keep quorum through a voluntary disruption
+
+alpha:
+  replicaCount: 3        # 3 Alphas = one replicated group (replicaCount / shardReplicaCount)
+  antiAffinity: soft
+  persistence:
+    enabled: true
+    size: 100Gi
+  pdb:
+    enabled: true
+    minAvailable: 2
+
+ratel:
+  enabled: false         # debug UI off by default
+```
 
 ---
 
@@ -156,13 +190,22 @@ environment deploys.
 
 ### Shared baseline (all environments)
 
-Every one of these environments hardens and right-sizes the chart the same way.
-The baseline turns the chart's small, generic defaults into a production cluster:
-one Alpha per **dedicated, tainted node** (sized for an `m6i.xlarge`-class node,
-~14.5Gi allocatable, with a Zero co-located), **hard** anti-affinity so no two
-Alphas share a node, **ACL on** with a shared `istari-admin` superadmin, memory
-`request == limit` for Guaranteed QoS on the data tier, `gp3` storage, and
-scheduled **S3 backups** with Datadog and OpenTelemetry wired in.
+Every one of these environments hardens and right-sizes the chart the same way,
+turning its small, generic defaults into a production cluster. The baseline does
+five things:
+
+- **Isolates the data tier.** Each Alpha runs on its own dedicated, tainted node
+  (sized for an `m6i.xlarge`-class node — roughly 14.5Gi allocatable — with a Zero
+  co-located). **Hard** anti-affinity then keeps any two Alphas off the same node.
+- **Right-sizes resources.** Memory `request == limit` gives the data tier
+  Guaranteed QoS, so the kernel never reclaims its memory under node pressure.
+- **Turns on ACL.** Authentication is enabled, with a shared `istari-admin`
+  superadmin account.
+- **Uses fast storage.** Volumes come from the provisioned-IOPS `gp3` StorageClass.
+- **Wires in backups and observability.** Scheduled **S3 backups** run as CronJobs,
+  and both Datadog and OpenTelemetry are enabled.
+
+The table lists every value the baseline changes from the chart default.
 
 | Key | Chart default | Istari baseline | Why |
 |-----|---------------|---------------------|-----|
@@ -184,6 +227,76 @@ scheduled **S3 backups** with Datadog and OpenTelemetry wired in.
 | `backups.full.enabled` / `backups.incremental.enabled` | `false` | `true` | Daily full + hourly incremental backups. |
 | `backups.destination` | `/dgraph/backups` | `s3://s3.<region>.amazonaws.com/<bucket>` | Per-environment S3 bucket, accessed via Pod Identity. |
 | `backups.admin.user` | `""` | `istari-admin` | Guardian account the backup Job logs in as (ACL on). |
+
+As a single reference, the same baseline expressed as a values file looks like this.
+It is a production-shaped starting point you can copy and adapt to your own node
+group, StorageClass, and backup bucket.
+
+```yaml
+# values.yaml — production-shaped baseline (mirrors what Istari Digital deploys)
+fullnameOverride: dgraph-sec
+
+preUpgradeHook:
+  enabled: false        # only needed for the one-time pre-0.4.x selector migration
+
+zero:
+  antiAffinity: hard
+  nodeSelector:
+    nodegroup-kind: dgraph
+  tolerations:
+    - key: istari.k8s.io/role
+      operator: Equal
+      value: dgraph
+      effect: NoSchedule
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      memory: 2Gi       # request == limit → Guaranteed QoS
+  persistence:
+    storageClass: istari-gp3
+
+alpha:
+  antiAffinity: hard
+  nodeSelector:
+    nodegroup-kind: dgraph
+  tolerations:
+    - key: istari.k8s.io/role
+      operator: Equal
+      value: dgraph
+      effect: NoSchedule
+  acl:
+    enabled: true
+  extraFlags: '--cache "size-mb=4096; percentage=40,40,20;"'
+  extraEnvs:
+    - name: GOGC
+      value: "50"
+    - name: GOMEMLIMIT
+      value: "8GiB"
+  resources:
+    requests:
+      cpu: 2000m
+      memory: 10Gi
+    limits:
+      memory: 10Gi      # request == limit → Guaranteed QoS
+  persistence:
+    storageClass: istari-gp3
+
+datadog:
+  enabled: true
+tracing:
+  enabled: true
+
+backups:
+  destination: s3://s3.<region>.amazonaws.com/<bucket>
+  full:
+    enabled: true
+  incremental:
+    enabled: true
+  admin:
+    user: istari-admin
+```
 
 Zero is fixed at **3 replicas with 32Gi** volumes across all environments; only
 the Alpha tier varies, as the per-environment tables below show. Everything not
@@ -213,3 +326,13 @@ Everything else matches the shared baseline.
 |-----|----------------|--------------------|
 | `alpha.replicaCount` | `3` | `6` |
 | `alpha.persistence.size` | `100Gi` | `250Gi` |
+
+As a values file, stage and demo are just the baseline above plus these two lines:
+
+```yaml
+# values.yaml — stage / demo deltas, layered on top of the baseline
+alpha:
+  replicaCount: 6        # 6 Alphas = 2 replicated groups (6 / shardReplicaCount 3)
+  persistence:
+    size: 250Gi
+```
