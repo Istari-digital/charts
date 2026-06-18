@@ -14,6 +14,7 @@ When you learn something the next contributor will need, add it here.
 - [Ask early on #team-infra](#ask-early-on-team-infra)
 - [Deliver in small, stacked pull requests](#deliver-in-small-stacked-pull-requests)
   - [Start from a clean vendored chart, then layer by functional area](#start-from-a-clean-vendored-chart-then-layer-by-functional-area)
+- [Review expectations](#review-expectations)
 - [Chart conventions](#chart-conventions)
 - [Versioning and publishing](#versioning-and-publishing)
 - [Commit messages](#commit-messages)
@@ -28,7 +29,6 @@ When you learn something the next contributor will need, add it here.
 - [Test a chart locally](#test-a-chart-locally)
 - [Validate against the target mesh early](#validate-against-the-target-mesh-early)
 - [Where a chart belongs](#where-a-chart-belongs)
-- [Review expectations](#review-expectations)
 - [Keep agent design, plan, and spec docs out of the repo](#keep-agent-design-plan-and-spec-docs-out-of-the-repo)
 - [Before you open a pull request](#before-you-open-a-pull-request)
 
@@ -77,6 +77,15 @@ against its upstream source and trust the baseline. Add each Istari modification
 as its own stacked pull request, split by functional area — monitoring,
 telemetry, security hardening, mesh integration. Each layer then reviews against
 a known-good base rather than as one indivisible diff.
+
+## Review expectations
+
+- A first review should arrive within a few business days of a pull request
+  opening.
+- If a review stalls, re-request the reviewer and post in [`#team-infra`](https://istari-hq.slack.com/archives/C06721Q0LKZ).
+  Escalate rather than wait.
+- A security-sensitive chart should carry a second qualified reviewer, so
+  neither the wait nor the review load rests on one person.
 
 ## Chart conventions
 
@@ -426,15 +435,6 @@ ask in [`#team-infra`](https://istari-hq.slack.com/archives/C06721Q0LKZ) before 
   internal clusters").
 - The authoring repository is an ownership concern, not a deployment one: every
   distributable chart publishes to Artifactory and is consumed from there.
-
-## Review expectations
-
-- A first review should arrive within a few business days of a pull request
-  opening.
-- If a review stalls, re-request the reviewer and post in [`#team-infra`](https://istari-hq.slack.com/archives/C06721Q0LKZ).
-  Escalate rather than wait.
-- A security-sensitive chart should carry a second qualified reviewer, so
-  neither the wait nor the review load rests on one person.
 
 ## Keep agent design, plan, and spec docs out of the repo
 
