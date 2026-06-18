@@ -34,12 +34,7 @@ There is no compile/test binary step; the quality gates are lint, `helm lint`, a
 - Keep local validation close to CI to avoid workflow-only failures.
 
 ## Code Style
-- YAML files must use the `.yaml` extension (the `yaml-extension` hook fails on `.yml`).
-- Keep YAML `yamlfmt` compliant; the hook excludes `*/templates/*` (Helm templates are not plain YAML).
-- Keep templates `helmlint` clean.
-- `helm-docs` regenerates a chart's `README.md` from `values.yaml` (and `README.md.gotmpl` when present) whenever `Chart.yaml` or `values.yaml` change. The hook fails the first run after such an edit — `git add` the regenerated `README.md` and re-commit.
-- Never put secrets in chart values; they leak into ConfigMaps and other non-secret objects. Reference a Kubernetes secret via `existingSecret`/`secretKey`, or mount it as a volume.
-- Prefer Chainguard FIPS images pulled through JFrog Artifactory remote repos.
+- Chart conventions are canonical in [`CONTRIBUTING.md`](./CONTRIBUTING.md) ("Chart conventions" and "Versioning and publishing"): the `.yaml` extension (the `yaml-extension` hook fails on `.yml`), `yamlfmt`- and `helmlint`-clean templates, the generated `README.md` (`helm-docs`; never hand-edit it), secrets via `existingSecret`/`secretKey` (never in values), Chainguard FIPS images through JFrog Artifactory, and chart versioning. Follow those sections.
 - All files end with a trailing newline.
 
 ## Design, Plan, and Spec Docs — Do Not Commit Them

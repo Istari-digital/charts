@@ -15,12 +15,7 @@ Helm charts Istari shares for running its platform. These are customer-consumabl
 Each chart directory holds `Chart.yaml`, `values.yaml`, `templates/`, a generated `README.md`, and (when present) `README.md.gotmpl`.
 
 ## Conventions
-- Never pass secrets in chart values — they leak into ConfigMaps and other non-secret objects. Reference a Kubernetes secret via `existingSecret`/`secretKey`, or mount it as a volume.
-- Prefer Chainguard FIPS images pulled through JFrog Artifactory remote repos.
-- `helm-docs` keeps each chart's `README.md` in sync with its `values.yaml`; after editing `values.yaml` or `Chart.yaml`, `git add` the regenerated `README.md` and re-commit.
-- YAML files use the `.yaml` extension and stay `yamlfmt` compliant; templates stay `helmlint` clean.
-- A new chart must meet the hardening checklist in [`CONTRIBUTING.md`](./CONTRIBUTING.md): PodDisruptionBudget, NetworkPolicy, ServiceMonitor, PrometheusRule, pod and container `securityContext`, disabled token automounting, and resource limits.
-- All files end with a trailing newline.
+Chart conventions are canonical in [`CONTRIBUTING.md`](./CONTRIBUTING.md): secrets via `existingSecret` (never in chart values), Chainguard FIPS images through JFrog Artifactory, the generated `README.md` (`helm-docs`; never hand-edit it), YAML `.yaml`/`yamlfmt`/`helmlint`, chart versioning and publishing, and the hardening checklist for new charts. Follow those sections. All files end with a trailing newline.
 
 ## Agent Working Files — Design, Plan, and Spec Docs
 - Never commit agent-generated design specs, implementation plans, or scratch notes to this repository — treat them like secrets: they must never enter version control. No such documents belong in the repo.
