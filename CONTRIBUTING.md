@@ -52,8 +52,9 @@ a known-good base rather than as one indivisible diff.
   from `README.md.gotmpl` + `values.yaml`. Edit the template or the values, let
   the hook regenerate the README, and stage the result.
 - **YAML uses the `.yaml` extension** (the `yaml-extension` hook fails on `.yml`),
-  stays `yamlfmt`-clean, and templates stay `helmlint`-clean. `prettier` formats
-  `templates/*.yaml` at a 2-space indent and 100-column width.
+  stays `yamlfmt`-clean, and templates stay `helmlint`-clean. A `.prettierc.json`
+  is provided for editors that run Prettier on `templates/*.yaml` (2-space indent,
+  100-column width); it is not enforced by a hook.
 
 ## Versioning and publishing
 
@@ -105,15 +106,18 @@ When you skip a recommended item, say so in the PR with a reason, so the choice 
 > its absence from most charts is tech debt to backfill, not a sign the bar is
 > optional. Don't treat the current fleet as the standard to match.
 
-The subsections below expand each item with an example stanza. Treat the values
-as starting points — size them to the workload, and make them configurable so an
-environment can override them.
+Each subsection below explains what the item is, why it matters, and an example
+stanza to adapt. Treat the example values as starting points — size them to the
+workload and make them configurable so an environment can override them.
 
 ### `securityContext`
 
-Lock the process down: run as a non-root user, forbid privilege escalation, make
-the root filesystem read-only, drop every Linux capability, and apply the default
-seccomp profile.
+A [`securityContext`](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) sets the privileges a pod and its containers run with.
+Kubernetes' defaults are permissive — a container may run as root, write to its
+own filesystem, and keep every Linux capability — so whoever compromises the
+process inherits all of it. Tightening it shrinks the blast radius: run as a
+non-root user, forbid privilege escalation, make the root filesystem read-only,
+drop every Linux capability, and apply the default seccomp profile.
 
 ```yaml
 podSecurityContext:           # pod-level: identity and volume ownership
@@ -138,6 +142,12 @@ means any path the app writes to needs an explicit `emptyDir` or volume mount.
 
 ### Resource requests and limits
 
+[Requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) declare how much CPU and memory a container needs and may
+use. The **request** reserves capacity and tells the scheduler where the pod
+fits; the **limit** caps consumption so one workload can't starve its neighbors.
+A container with neither competes for resources unpredictably and is the first
+killed when a node runs short.
+
 ```yaml
 resources:
   requests:
@@ -148,13 +158,19 @@ resources:
     # no cpu limit on purpose — see below
 ```
 
-Requests reserve capacity and drive scheduling and the QoS class. Setting the
-memory limit equal to the request gives the pod a hard memory ceiling and avoids
-surprise eviction. Many workloads deliberately omit the CPU limit: a hard CPU
-limit throttles under burst, while leaving it unset lets the pod use spare CPU.
-Always set a memory limit — without one a leak can evict its neighbors.
+Setting the memory limit equal to the request gives the pod a hard ceiling and a
+predictable quality-of-service class. Many workloads deliberately omit the CPU
+limit: a hard CPU limit throttles the container under burst, while leaving it
+unset lets the pod use spare CPU. Always set a memory limit — without one a leak
+can evict its neighbors.
 
 ### NetworkPolicy
+
+A [`NetworkPolicy`](https://kubernetes.io/docs/concepts/services-networking/network-policies/) is a firewall for pod traffic. By default every pod in the
+cluster can open a connection to every other pod; a policy restricts which
+sources may reach this workload — and, with an egress section, where it may
+connect out. Without one, a pod compromised anywhere in the cluster can reach the
+service.
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -185,6 +201,11 @@ outbound traffic.
 
 ### PodDisruptionBudget
 
+A [`PodDisruptionBudget`](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/) (PDB) tells Kubernetes the minimum availability to keep
+during *voluntary* disruptions — node drains for upgrades, autoscaling, or
+maintenance. It doesn't guard against crashes; it stops a routine drain from
+evicting too many replicas at once and taking the service down.
+
 ```yaml
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -202,6 +223,11 @@ rest serving. For a quorum service, size it so a drain can't break quorum (for a
 Deployment or a Job — it only blocks node drains.
 
 ### ServiceMonitor
+
+A [`ServiceMonitor`](https://prometheus-operator.dev/docs/getting-started/design/#servicemonitor) is a Prometheus Operator custom resource that tells Prometheus
+which service to scrape for metrics, and on what port and path. It lets a chart
+opt into monitoring declaratively instead of someone hand-editing Prometheus
+config — but it works only where the Prometheus Operator's CRDs are installed.
 
 ```yaml
 {{- if .Values.serviceMonitor.enabled }}
@@ -225,6 +251,11 @@ port on the `Service` that exposes metrics, and the selector must match that
 Service.
 
 ### PrometheusRule
+
+A [`PrometheusRule`](https://prometheus-operator.dev/docs/getting-started/design/#prometheusrule) is a Prometheus Operator custom resource that defines the
+alerting rules for a chart's metrics, so the chart ships its own alerts and an
+operator hears about a problem from monitoring rather than from users. Like the
+ServiceMonitor, it needs the Prometheus Operator.
 
 ```yaml
 {{- if .Values.prometheusRule.enabled }}
@@ -251,6 +282,11 @@ saturation. `for: 5m` avoids flapping on transient blips, and `severity` routes
 the alert. Gate it behind the same flag as the ServiceMonitor.
 
 ### Service-account token automounting disabled
+
+By default Kubernetes mounts the pod's [ServiceAccount API token](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/) into every
+container, so code in the pod can call the Kubernetes API. Most workloads never
+do — which leaves a live credential in the pod for an attacker to use if they
+break in. Turning automounting off removes it.
 
 ```yaml
 serviceAccount:

@@ -15,7 +15,7 @@ Helm charts Istari shares for running its platform. These are customer-consumabl
 Each chart directory holds `Chart.yaml`, `values.yaml`, `templates/`, a generated `README.md`, and (when present) `README.md.gotmpl`.
 
 ## Conventions
-Chart conventions are canonical in [`CONTRIBUTING.md`](./CONTRIBUTING.md): secrets via `existingSecret` (never in chart values), Chainguard FIPS images through JFrog Artifactory, the generated `README.md` (`helm-docs`; never hand-edit it), YAML `.yaml`/`yamlfmt`/`helmlint`, chart versioning and publishing, and the hardening checklist for new charts. Follow those sections. All files end with a trailing newline.
+Chart conventions are canonical in [`CONTRIBUTING.md`](./CONTRIBUTING.md): secrets via `existingSecret` (never in chart values), Chainguard FIPS images through JFrog Artifactory, the generated `README.md` (`helm-docs`; never hand-edit it), YAML `.yaml`/`yamlfmt`/`helmlint`, chart versioning and publishing, and chart hardening (`securityContext` and resource limits are expected of every chart; the rest are recommended and scaled to the workload). All files end with a trailing newline.
 
 ## Agent Working Files — Design, Plan, and Spec Docs
 - Never commit agent-generated design specs, implementation plans, or scratch notes to this repository — treat them like secrets: they must never enter version control. No such documents belong in the repo.

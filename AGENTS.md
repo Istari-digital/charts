@@ -45,5 +45,5 @@ There is no compile/test binary step; the quality gates are lint, `helm lint`, a
 ## Agent Workflow Expectations
 - Keep changes small and scoped to one chart where possible.
 - Deliver a large change as small, stacked pull requests, vendoring any clean upstream chart first (see [`CONTRIBUTING.md`](./CONTRIBUTING.md)).
-- A new chart must meet the hardening checklist in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+- Harden a new chart per [`CONTRIBUTING.md`](./CONTRIBUTING.md): `securityContext` and resource limits are expected of every chart; the rest are recommended and scaled to the workload, with any skip noted in the PR.
 - If you introduce new conventions or tools, update this file in the same change.
