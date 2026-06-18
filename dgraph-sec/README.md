@@ -49,6 +49,11 @@ with `fullnameOverride: dgraph-sec`, which is why the deployed objects are named
 `zero.shardReplicaCount` is the per-group replication factor (`--replicas`), **not** a
 pod count — keep it `<= alpha.replicaCount`.
 
+> [!TIP]
+> For the default cluster topology, a grouped reference of every settable value,
+> and the per-environment overrides Istari applies in helm-stack (dev, stage,
+> demo), see [Configuration and topology](./docs/configuration-and-topology.md).
+
 ## Naming
 
 Everything uses a single identity: **`dgraph-sec`** — the chart name, the Helm
