@@ -710,10 +710,10 @@ identityService:
       limits:
         cpu: 500m
         memory: 1Gi
+  # -- Settings for the `register-client` one-shot hook Job (pre-install/pre-upgrade) that registers the registry-service's identity-service client in the identity-service ClientStore (required once the deployed identity-service image enforces client authentication on `/oauth/v2/introspect`). The Job is rendered only when BOTH `identityService.enabled` and `identityService.identityRouterClientRegistration.enabled` are `true`. It reads both `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT` (the public-only client blob) and `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` from `identityService.secretName`, so the identity-service never needs read access to the registry-service's secret.
+  # @default -- (see fields below)
   identityRouterClientRegistration:
-    # -- Settings for the `register-client` one-shot hook Job (pre-install/pre-upgrade) that registers the registry-service identity-router client in the identity-router ClientStore (required once the deployed identity-service image enforces client authentication on `/oauth/v2/introspect`).
-    # The Job is rendered only when BOTH `identityService.enabled` and `identityService.identityRouterClientRegistration.enabled` are `true`. It reads both `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT` (the public-only client blob) and `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` from `identityService.secretName`, so the identity-service never needs read access to the registry-service's secret.
-    # -- Whether to render the registration Job. Off by default: only enable in environments where the registry-service identity-router integration is turned on (so `identityService.secretName` actually contains `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT`). Otherwise the hook Job fails the release with a missing-secret-key error.
+    # -- Whether to render the registration Job. Off by default: only enable in environments where the registry-service identity-service integration is turned on (so `identityService.secretName` actually contains `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT`). Otherwise the hook Job fails the release with a missing-secret-key error.
     enabled: false
     # -- `spec.backoffLimit` for the registration Job (number of retries after a failed Pod).
     backoffLimit: 6
