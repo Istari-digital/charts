@@ -207,9 +207,11 @@ Every one of these environments hardens and right-sizes the chart the same way,
 turning its small, generic defaults into a production cluster. The baseline does
 five things:
 
-- **Isolates the data tier.** Each Alpha runs on its own dedicated, tainted node
-  (sized for an `m6i.xlarge`-class node — roughly 14.5Gi allocatable — with a Zero
-  co-located). **Hard** anti-affinity then keeps any two Alphas off the same node.
+- **Isolates the data tier.** Each Alpha runs on its own dedicated, tainted node,
+  sized to hold an Alpha plus a co-located Zero (an `m6i.xlarge`-class node, roughly
+  14.5Gi allocatable). The three Zeros land on three of those nodes — one-to-one in
+  dev, three-of-six in stage/demo. **Hard** anti-affinity keeps any two Alphas off
+  the same node.
 - **Right-sizes resources.** Memory `request == limit` gives the data tier
   Guaranteed QoS, so the kernel never reclaims its memory under node pressure.
 - **Turns on ACL.** Authentication is enabled, with a shared `istari-admin`
@@ -226,13 +228,13 @@ The table lists every value the baseline changes from the chart default.
 | `preUpgradeHook.enabled` | `true` | `false` | Every cluster is past the v24→v25 migration; the hook is now pure overhead. |
 | `zero.antiAffinity` / `alpha.antiAffinity` | `soft` | `hard` | One Alpha per node; never co-schedule a tier's pods. |
 | `zero.nodeSelector` / `alpha.nodeSelector` | `{}` | `nodegroup-kind: dgraph` | Pin dgraph to its own node group. |
-| `zero.tolerations` / `alpha.tolerations` | `[]` | `istari.k8s.io/role=dgraph:NoSchedule` | Admit dgraph to the tainted node group. |
+| `zero.tolerations` / `alpha.tolerations` | `[]` | a toleration for the `istari.k8s.io/role=dgraph:NoSchedule` taint | Admit dgraph to the tainted node group. Set as a list of toleration objects — see the YAML below. |
 | `zero.resources.requests` | `cpu: 100m`, `memory: 256Mi` | `cpu: 500m`, `memory: 2Gi` | Size Zero for a production node. |
 | `zero.resources.limits` | `memory: 512Mi` | `memory: 2Gi` | Guaranteed-QoS memory for Zero. |
 | `alpha.resources.requests` | `cpu: 250m`, `memory: 1Gi` | `cpu: 2000m`, `memory: 10Gi` | Size Alpha to fill a dedicated node. |
 | `alpha.resources.limits` | `memory: 2Gi` | `memory: 10Gi` | Guaranteed QoS; no overcommit on the data tier. |
 | `alpha.extraFlags` | `""` | `--cache "size-mb=4096; percentage=40,40,20;"` | Cap off-heap posting-list and Badger caches. |
-| `alpha.extraEnvs` | `[]` | `GOGC=50`, `GOMEMLIMIT=8GiB` | GC hard before the kernel OOM-kills the pod. |
+| `alpha.extraEnvs` | `[]` | env vars `GOGC=50` and `GOMEMLIMIT=8GiB` | GC hard before the kernel OOM-kills the pod. Set as a list of `{name, value}` objects — see the YAML below. |
 | `alpha.acl.enabled` | `false` | `true` | Activate `--acl`, rotate `groot`, provision `istari-admin`. |
 | `zero.persistence.storageClass` / `alpha.persistence.storageClass` | _(default provisioner)_ | `istari-gp3` | Provisioned-IOPS gp3 per Dgraph's SSD guidance. |
 | `datadog.enabled` | `false` | `true` | Datadog autodiscovery and unified service tags. |
