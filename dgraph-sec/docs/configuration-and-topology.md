@@ -15,6 +15,10 @@ It covers three layers, from most generic to most specific:
    infrastructure, both the shared baseline and the per-environment deltas (dev,
    stage, demo).
 
+A closing section, **[Deploying without a service mesh](#deploying-without-a-service-mesh)**,
+shows how to reach a production security posture on clusters that run no mesh —
+the case the chart's mesh-shaped defaults do not cover on their own.
+
 For the exhaustive, machine-generated list of every value, see the **Values**
 section of the [chart README](../README.md#values); helm-docs regenerates it
 from `values.yaml`, so it never drifts. The tables here are a curated,
@@ -354,3 +358,141 @@ alpha:
   persistence:
     size: 250Gi
 ```
+
+---
+
+## Deploying without a service mesh
+
+Istari Digital shaped this chart around its own clusters, which run a
+**strict-mTLS Istio mesh**. There, Envoy sidecars encrypt every connection
+transparently, so Dgraph speaks plaintext and the chart leaves its native TLS off.
+A few chart details serve only that mesh: the Alpha headless Service publishes its
+client ports (8080/9080) so the sidecar builds mTLS routes for them, and the ACL
+bootstrap Job carries its own sidecar so Alpha does not reset its login.
+
+Many clusters run no mesh. Without one, you own the two jobs the mesh did —
+**encrypting traffic** and **deciding which pods may connect** — through
+Kubernetes-native mechanisms the chart already ships. The mesh-specific details
+above stay inert when no sidecar is present, so they never get in your way.
+
+### Encryption in transit: Dgraph-native TLS
+
+A mesh hands every pod a cryptographic identity for free. Without one, Dgraph
+terminates TLS itself, from certificates you generate and mount. Three steps enable
+it, and the `*.tls.enabled` toggle is only the second.
+
+**1. Generate the certificates.** `scripts/make_tls_secrets.sh` wraps `dgraph-sec
+cert` and writes a ready-to-apply values file. The certificates bind to the pods'
+in-cluster DNS names, so the release name, `fullnameOverride`, namespace, domain,
+and replica count must match the deployment exactly; otherwise the certificate SANs
+will not cover the pod FQDNs and every TLS handshake fails at runtime.
+
+```bash
+# writes dgraph_tls/secrets.yaml containing alpha.tls.files and zero.tls.files
+scripts/make_tls_secrets.sh \
+  --release dgraph-sec \
+  --fullname dgraph-sec \
+  --namespace dgraph \
+  --replicas 3 \
+  --client dgraphuser \
+  --zero
+```
+
+The script emits `ca.crt`, `node.crt`, `node.key`, and `client.dgraphuser.crt`/`.key`
+per tier, base64-encoded under `alpha.tls.files` and `zero.tls.files`.
+
+**2. Enable TLS so the chart mounts the certificates.** Supply the generated
+`secrets.yaml` with `-f` (or merge it into your values). Given `enabled: true` and a
+non-empty `files` map, the chart creates the TLS Secret and mounts it at
+**`/dgraph/tls`** on that tier:
+
+```yaml
+alpha:
+  tls:
+    enabled: true
+    files: { ... }   # from make_tls_secrets.sh
+zero:
+  tls:
+    enabled: true
+    files: { ... }
+```
+
+**3. Activate TLS in the Dgraph command.** The toggle mounts the certificates but
+never adds Dgraph's `--tls` superflag. Pass it through `extraFlags` on **both**
+tiers, pointing at the mounted paths (one line per tier, as the baseline writes its
+`--cache` flag):
+
+```yaml
+alpha:
+  extraFlags: '--tls "ca-cert=/dgraph/tls/ca.crt; server-cert=/dgraph/tls/node.crt; server-key=/dgraph/tls/node.key; internal-port=true; client-cert=/dgraph/tls/client.dgraphuser.crt; client-key=/dgraph/tls/client.dgraphuser.key; client-auth-type=REQUIREANDVERIFY;"'
+zero:
+  extraFlags: '--tls "ca-cert=/dgraph/tls/ca.crt; server-cert=/dgraph/tls/node.crt; server-key=/dgraph/tls/node.key; internal-port=true; client-cert=/dgraph/tls/client.dgraphuser.crt; client-key=/dgraph/tls/client.dgraphuser.key; client-auth-type=REQUIREANDVERIFY;"'
+```
+
+`internal-port=true` with the `client-*` pair encrypts **inter-node** traffic on
+port 7080 — the Raft and gossip the mesh used to protect. `server-cert`/`server-key`
+encrypt the **client-facing** ports, 8080 and 9080. Dgraph's
+[TLS options](https://dgraph.io/docs/deploy/security/tls-configuration/) document
+every field.
+
+**What the mesh handled that you now own.** A sidecar gave every in-cluster caller
+an identity automatically. Native TLS does not, so each client that reaches Alpha
+becomes a TLS client you must provision:
+
+- **Health probes.** Once `--tls` is set, Dgraph serves its HTTP endpoints — health
+  checks included — over HTTPS, so the chart's default plaintext `httpGet` probes
+  fail. Switch them to HTTPS through `alpha.customReadinessProbe`,
+  `customLivenessProbe`, and `customStartupProbe`. `client-auth-type=REQUIREANDVERIFY`
+  makes this worse: an `httpGet` probe cannot present a client certificate, so the
+  probe is rejected outright. Relax `client-auth-type` on the external ports if you
+  depend on the built-in probes.
+- **Backups and ACL bootstrap.** The backup CronJobs and the ACL bootstrap Job log
+  in to Alpha's `/admin`. Under TLS they need the CA, and under mutual TLS a client
+  certificate; set `backups.admin.tls_client` to the client name you generated
+  (`dgraphuser` above).
+
+`client-auth-type` governs only the external ports. A value that requires no client
+certificate keeps server-side encryption while sparing those in-cluster callers;
+`REQUIREANDVERIFY` is the strongest posture but forces every caller, probes included,
+to present a valid client certificate.
+
+**Why native TLS, not a mesh, on the `-sec` product.** dgraph-sec exists to route
+cryptography through a FIPS 140-validated module
+([NIST CMVP #5132](../README.md#security-posture)), fail-closed. A sidecar terminates
+TLS in the proxy's own crypto stack, **outside** that validated boundary, which
+undercuts the guarantee the product is built to make. Dgraph-native TLS keeps the
+handshake inside the validated module, so for a FIPS posture it is the more
+defensible choice, not merely the more portable one.
+
+### Network segmentation: Kubernetes NetworkPolicy
+
+Istio's `AuthorizationPolicy` is one way to gate pod-to-pod traffic; the chart's
+mesh-independent equivalent is a standard `NetworkPolicy`, off by default and enabled
+with `networkPolicy.enabled`. Enabled, it allows intra-cluster dgraph traffic
+(Alpha↔Zero and peer gossip), opens Alpha's client ports (8080/9080) only to pods
+carrying every label in `networkPolicy.clientPodLabels`, and appends anything in
+`networkPolicy.extraIngress`:
+
+```yaml
+networkPolicy:
+  enabled: true
+  clientPodLabels:
+    app.kubernetes.io/part-of: my-client-app   # only these pods reach 8080/9080
+```
+
+**An enforcing CNI is required.** A `NetworkPolicy` takes effect only when the
+cluster's CNI enforces it. Calico, Cilium, and Antrea do; the plain AWS VPC CNI does
+not until you add its network-policy agent. On a CNI that ignores the object, the
+policy applies cleanly yet isolates nothing — a false sense of security — which is
+why the chart leaves it off until you enable it deliberately. For richer,
+identity-aware rules, those same CNIs offer their own policy CRDs — Cilium's
+`CiliumNetworkPolicy`, Calico's `GlobalNetworkPolicy` — as a superset of the standard
+API.
+
+### Authentication: Dgraph ACL
+
+Authentication needs no mesh. Enable `alpha.acl.enabled` for Dgraph's built-in ACL,
+as the [shared baseline](#shared-baseline-all-environments) already does. Three
+Kubernetes-native parts then stand in for the mesh: ACL proves who the caller is,
+NetworkPolicy limits which pods may connect, and native TLS keeps the channel
+private.
