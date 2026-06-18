@@ -52,15 +52,16 @@ spec:
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         command:
         - "/register-client"
-        # $(VAR) is expanded by Kubernetes from the env vars below, so the secret
-        # value and DB URL never appear in plaintext in the pod manifest.
+        # $(VAR) is expanded by Kubernetes from the env vars below, so the DB URL
+        # never appears in plaintext in the pod manifest. The registry client blob
+        # is public-key material (no private key), but is wired the same way.
         args:
         - "-secret"
-        - "$(IDENTITY_ROUTER_SECRET)"
+        - "$(REGISTRY_CLIENT_PUBLIC_KEY_BLOB)"
         - "-database-url"
         - "$(DATABASE_URL)"
         env:
-        - name: IDENTITY_ROUTER_SECRET
+        - name: REGISTRY_CLIENT_PUBLIC_KEY_BLOB
           valueFrom:
             secretKeyRef:
               name: {{ $serviceValues.secretName | quote }}
