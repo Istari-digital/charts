@@ -10,6 +10,7 @@ When you learn something the next contributor will need, add it here.
 
 ## Contents
 
+- [Setup](#setup)
 - [Ask early on #team-infra](#ask-early-on-team-infra)
 - [Deliver in small, stacked pull requests](#deliver-in-small-stacked-pull-requests)
   - [Start from a clean vendored chart, then layer by functional area](#start-from-a-clean-vendored-chart-then-layer-by-functional-area)
@@ -30,6 +31,23 @@ When you learn something the next contributor will need, add it here.
 - [Review expectations](#review-expectations)
 - [Keep agent design, plan, and spec docs out of the repo](#keep-agent-design-plan-and-spec-docs-out-of-the-repo)
 - [Before you open a pull request](#before-you-open-a-pull-request)
+
+## Setup
+
+You need Helm, `helm-docs`, and `pre-commit` (which pulls in the hook tools —
+`yamlfmt`, `shellcheck`); install them with Homebrew or your package manager,
+then enable the hooks:
+
+```sh
+pre-commit install && pre-commit install-hooks
+```
+
+To install and exercise a chart you also need a Kubernetes cluster — see
+[Test a chart locally](#test-a-chart-locally) for a local one via Docker Desktop.
+For access to the shared clusters (kubectl contexts and AWS), follow the
+helm-stack [`devex/KUBECTL.md`](https://github.com/Istari-digital/helm-stack/blob/main/devex/KUBECTL.md)
+and [`devex/AWS.md`](https://github.com/Istari-digital/helm-stack/blob/main/devex/AWS.md)
+guides.
 
 ## Ask early on #team-infra
 
