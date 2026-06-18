@@ -7,15 +7,20 @@
 
 {{ template "chart.homepageLine" . }}
 
-This chart packages **Dgraph-sec**, the hardened fork of [Dgraph](https://dgraph.io/)
-— a distributed graph database — for the Istari platform. It deploys the two
-stateful Dgraph roles, **Zero** (cluster coordinator / Raft membership) and
-**Alpha** (data + query serving), plus optional Ratel UI, binary-backup CronJobs,
-Datadog autodiscovery, and OpenTelemetry tracing.
+This chart packages **dgraph-sec** — a distributed graph database — for the Istari
+platform. It deploys the two stateful Dgraph roles, **Zero** (cluster coordinator /
+Raft membership) and **Alpha** (data + query serving), plus optional Ratel UI,
+binary-backup CronJobs, Datadog autodiscovery, and OpenTelemetry tracing.
 
-The chart is a fork of the upstream Dgraph chart with Istari-specific changes:
-secure-by-default pod and container security contexts, the `dgraph-sec` binary and
-image, Datadog/OTEL wiring, a 3-tier service-naming convention, and gated
+> [!IMPORTANT]
+> The **`-sec`** suffix names the **dgraph-sec product** — the FIPS-hardened Dgraph
+> build that runs inside the container — **not** the chart. The chart is named after
+> the product it deploys. See [Security posture](#security-posture) for how the image
+> is hardened and how the chart deploys it.
+
+The chart began as a fork of the upstream Dgraph **Helm chart**, with Istari-specific
+changes: secure-by-default pod and container security contexts, the dgraph-sec binary
+and image, Datadog/OTEL wiring, a 3-tier service-naming convention, and gated
 production add-ons (PodDisruptionBudgets, NetworkPolicy, ServiceMonitor,
 PrometheusRule).
 
@@ -66,9 +71,31 @@ service names. The Datadog/tracing identity follows the 3-tier
 
 ## Security posture
 
-This is the `-sec` fork, so the chart ships hardened by default. You do not have to
-turn anything on to get the baseline below; it applies to the Alpha, Zero, and Ratel
-workloads out of the box.
+The `-sec` suffix names the **dgraph-sec product** — the FIPS-hardened Dgraph build
+that runs inside the container — not the chart. The chart is simply named after the
+product it deploys. Security therefore comes in two layers: the hardened **image**,
+and the way this **chart** runs it.
+
+### The image: FIPS-hardened Dgraph
+
+The dgraph-sec image performs its cryptography through a FIPS 140-validated module
+rather than Go's built-in crypto:
+
+- It is compiled with the Microsoft Go FIPS toolchain and `GOEXPERIMENT=systemcrypto`
+  (with `CGO_ENABLED=1`), which routes Go's `crypto/*` calls to the system OpenSSL
+  FIPS provider instead of Go's native implementations.
+- The binary defaults to `GODEBUG=fips140=on`, and the runtime sets it again. This is
+  **fail-closed**: the process panics on startup if the validated FIPS provider is
+  missing, so it can never silently fall back to non-validated crypto.
+- It runs on Chainguard's `chainguard-base-fips` minimal base image, which ships the
+  OpenSSL FIPS provider validated under **NIST CMVP certificate #5132**.
+- The image's own default user is **non-root** (uid 65532).
+
+### The chart: deploying that image securely
+
+The chart defaults `image.*` to the hardened image and runs it under a restrictive
+Kubernetes security posture. You get this with no configuration, on the Alpha, Zero,
+and Ratel workloads:
 
 - Pods run as a **non-root** user (`runAsNonRoot: true`, uid/gid 1001) under a
   `RuntimeDefault` seccomp profile.
@@ -80,9 +107,18 @@ workloads out of the box.
 - PodDisruptionBudgets (`minAvailable: 2`) keep a node drain or an autoscaler
   scale-down from taking two Zeros or two Alphas at once and breaking quorum.
 
-Four things stay **off** by default, because each one needs a deliberate decision or
-some external material (a key, a certificate, a Secret). Turn them on for a
-production posture:
+The chart never touches the image's FIPS environment, so `fips140=on` stays in effect
+at runtime. One gap to know about: the backup CronJobs run the same image but set no
+pod or container securityContext of their own (they only disable token automount), so
+those pods fall back to the image's user and the cluster defaults rather than the
+explicit non-root / seccomp / dropped-capabilities context the Alpha and Zero pods
+receive.
+
+### Production toggles you must enable
+
+Four application-level protections stay **off** by default, because each one needs a
+deliberate decision or some external material (a key, a certificate, a Secret). Turn
+them on for a production posture:
 
 - **ACL** adds authentication and authorization.
 - **Encryption at rest** encrypts the on-disk data.

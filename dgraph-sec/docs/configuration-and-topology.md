@@ -63,14 +63,20 @@ release or shrinking the cluster never reclaims data volumes.
 headless Services with `publishNotReadyAddresses: true` so peers can find each
 other before they are Ready. Ingress and NetworkPolicy are off by default.
 
-**Security posture.** This is the `-sec` fork, so secure defaults are baked in.
-The **Alpha, Zero, and Ratel** pods run non-root (uid/gid 1001) with a
-`RuntimeDefault` seccomp profile, and their containers drop all Linux
-capabilities and forbid privilege escalation. No workload mounts a ServiceAccount
-token. The backup CronJobs set no explicit securityContext of their own — they
-disable token automount but otherwise inherit the image's user and the cluster's
-defaults. Authentication (ACL), encryption at rest, and TLS in transit ship
-**off** — enable them for a production posture.
+**Security posture.** The `-sec` suffix names the **dgraph-sec product** — the
+FIPS-hardened Dgraph build that runs in the container — not the chart. That image
+routes its cryptography through a FIPS 140-validated OpenSSL module (NIST CMVP
+#5132) on a Chainguard `chainguard-base-fips` base, and fails closed if the
+provider is missing. The chart then deploys it under a restrictive Kubernetes
+posture: the **Alpha, Zero, and Ratel** pods run non-root (uid/gid 1001) with a
+`RuntimeDefault` seccomp profile, their containers drop all Linux capabilities and
+forbid privilege escalation, and no workload mounts a ServiceAccount token. The
+backup CronJobs are the exception — they set no securityContext of their own and
+fall back to the image's user and the cluster defaults. The application-layer
+controls — authentication (ACL), encryption at rest, TLS in transit, and
+NetworkPolicy — ship **off** and must be enabled for a production posture. See the
+chart README's [Security posture](../README.md#security-posture) for the full FIPS
+and deployment detail.
 
 For reference, here are the default values that produce the topology described
 above. You get this with no overrides at all; the snippet is a convenient starting
