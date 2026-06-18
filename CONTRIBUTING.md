@@ -2,9 +2,10 @@
 
 This repository holds the Helm charts Istari shares for running its platform —
 charts a customer can consume, published to Artifactory and deployed from there.
-This guide covers how to propose changes so they merge quickly and safely. For
-the toolchain, conventions, and local checks, read [`AGENTS.md`](./AGENTS.md)
-and [`CLAUDE.md`](./CLAUDE.md).
+This guide covers how to propose changes so they merge quickly and safely,
+including the conventions and the local checks to run before opening a pull
+request (below). (`AGENTS.md` and `CLAUDE.md` carry the same conventions for
+coding agents.)
 
 These practices come from the dgraph-sec chart post-delivery review. When you
 learn something the next contributor will need, add it here.
@@ -114,7 +115,9 @@ work, and the repository stays free of agent scratch docs.
 
 ## Before you open a pull request
 
-Run the hooks locally (see [`AGENTS.md`](./AGENTS.md) for the full list):
+Run the full pre-commit suite locally — it mirrors CI and covers the standard
+file checks, YAML formatting (`yamlfmt`), the `.yaml`-extension rule,
+`shellcheck`, `helmlint`, and `helm-docs`:
 
 ```sh
 pre-commit run --all-files
