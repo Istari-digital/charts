@@ -33,7 +33,7 @@ a small but genuinely highly-available cluster:
 | **Zero** | StatefulSet | 3 | Cluster coordinator — Raft membership, tablet/shard assignment, timestamp oracle. |
 | **Alpha** | StatefulSet | 3 | Stores predicates and posting lists; serves DQL/GraphQL queries (Raft per group). |
 | **Ratel** | Deployment | 1 (disabled) | Debug-grade web UI. Off by default. |
-| **Backups** | CronJob | (disabled) | Full + incremental binary backups to filesystem, NFS, S3, or MinIO. |
+| **Backups** | CronJob (×2) | (disabled) | Two CronJobs — full + incremental binary backups to filesystem, NFS, S3, or MinIO. |
 
 **Replication and sharding.** The three Alphas form a single replicated group:
 `alpha.replicaCount: 3` divided by `zero.shardReplicaCount: 3` (Zero's
@@ -61,11 +61,14 @@ release or shrinking the cluster never reclaims data volumes.
 headless Services with `publishNotReadyAddresses: true` so peers can find each
 other before they are Ready. Ingress and NetworkPolicy are off by default.
 
-**Security posture.** This is the `-sec` fork, so secure defaults are baked in:
-pods run non-root (uid/gid 1001) with a `RuntimeDefault` seccomp profile,
-containers drop all Linux capabilities and forbid privilege escalation, and no
-workload mounts a ServiceAccount token. Authentication (ACL), encryption at
-rest, and TLS in transit ship **off** — enable them for a production posture.
+**Security posture.** This is the `-sec` fork, so secure defaults are baked in.
+The **Alpha, Zero, and Ratel** pods run non-root (uid/gid 1001) with a
+`RuntimeDefault` seccomp profile, and their containers drop all Linux
+capabilities and forbid privilege escalation. No workload mounts a ServiceAccount
+token. The backup CronJobs set no explicit securityContext of their own — they
+disable token automount but otherwise inherit the image's user and the cluster's
+defaults. Authentication (ACL), encryption at rest, and TLS in transit ship
+**off** — enable them for a production posture.
 
 ---
 
