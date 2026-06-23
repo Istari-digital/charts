@@ -77,12 +77,29 @@ spec:
           value: {{ .Values.alpha.acl.bootstrap.users | toJson | quote }}
         - name: GROUPS_JSON
           value: {{ .Values.alpha.acl.bootstrap.groups | toJson | quote }}
+        {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true" }}
+        ## Native TLS (serviceMesh.enabled=false): reconcile.sh reads these to talk
+        ## HTTPS to Alpha's /admin and present a client cert under mutual TLS.
+        - name: CACERT_PATH
+          value: /dgraph/tls/ca.crt
+        {{- if .Values.alpha.tls.clientName }}
+        - name: CLIENT_CERT_PATH
+          value: /dgraph/tls/client.{{ .Values.alpha.tls.clientName }}.crt
+        - name: CLIENT_KEY_PATH
+          value: /dgraph/tls/client.{{ .Values.alpha.tls.clientName }}.key
+        {{- end }}
+        {{- end }}
         volumeMounts:
         - name: scripts
           mountPath: /scripts
         - name: creds
           mountPath: /creds
           readOnly: true
+        {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true" }}
+        - name: tls-volume
+          mountPath: /dgraph/tls
+          readOnly: true
+        {{- end }}
       volumes:
       - name: scripts
         configMap:
@@ -91,4 +108,9 @@ spec:
       - name: creds
         secret:
           secretName: {{ $secretName }}
+      {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true" }}
+      - name: tls-volume
+        secret:
+          secretName: {{ include "dgraph-sec.alpha.fullname" . }}-tls-secret
+      {{- end }}
 {{- end }}
