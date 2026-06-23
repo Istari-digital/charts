@@ -284,6 +284,14 @@ zero:
     ## Files created from './tls' directory set with `dgraph-sec cert` command
     ## Can use make_tls_secrets.sh to generate secrets.yaml
     files: {}
+    ## Read only when serviceMesh.enabled=false AND tls.enabled=true; the chart
+    ## then builds Dgraph's --tls superflag from them. Ignored under a mesh.
+    # -- (bool) Encrypt inter-node traffic on port 5080 (internal-port=true). Synthesized into --tls only when serviceMesh.enabled=false.
+    internalPort: true
+    # -- (string) Client cert basename; selects client.<clientName>.crt/.key at /dgraph/tls. Empty omits the client cert from --tls.
+    clientName: ""
+    # -- (string) Dgraph client-auth-type for the external ports (e.g. REQUIREANDVERIFY). Empty omits the field.
+    clientAuthType: ""
 
 
   ## dgraph data Persistent Volume Storage Class
@@ -595,6 +603,15 @@ alpha:
     ## Files created from './tls' directory set with `dgraph-sec cert` command
     ## Can use make_tls_secrets.sh to generate secrets.yaml
     files: {}
+    ## The three keys below are read only when serviceMesh.enabled=false AND
+    ## tls.enabled=true; the chart then builds Dgraph's --tls superflag from them.
+    ## They are ignored under a service mesh (mesh sidecars handle encryption).
+    # -- (bool) Encrypt inter-node traffic on port 7080 (internal-port=true). Synthesized into --tls only when serviceMesh.enabled=false.
+    internalPort: true
+    # -- (string) Client cert basename; selects client.<clientName>.crt/.key at /dgraph/tls. Empty omits the client cert from --tls.
+    clientName: ""
+    # -- (string) Dgraph client-auth-type for the external ports (e.g. REQUIREANDVERIFY). Empty omits the field.
+    clientAuthType: ""
 
   ## ACL Configuration
   ## ref: https://docs.dgraph.io/installation/configuration/enable-acl
@@ -1120,6 +1137,17 @@ tracing:
 ## (alpha<->zero, peer gossip) is always allowed via the chart's own pod
 ## selector; client access is granted only to pods carrying clientPodLabels.
 # -- (object) NetworkPolicy gating ingress to alpha/zero ports (gated production add-on).
+## Service mesh assumption. Istari's clusters run a strict-mTLS Istio mesh whose
+## sidecars encrypt traffic and supply pod identity, so Dgraph runs plaintext.
+## Leave enabled on those clusters. Set to false on a cluster with no mesh: the
+## chart then wires Dgraph-native TLS (from alpha.tls/zero.tls) and you rely on
+## networkPolicy below for segmentation. See docs/configuration-and-topology.md
+## ("Deploying without a service mesh").
+# -- (object) Service-mesh assumption that shapes encryption and identity.
+serviceMesh:
+  # -- (bool) When true, assume an ambient strict-mTLS mesh provides encryption and identity. When false, the chart synthesizes Dgraph's --tls superflag and switches probes to HTTPS for any tier with tls.enabled.
+  enabled: true
+
 networkPolicy:
   enabled: false
   ## Labels a pod must carry to reach the alpha client ports (8080/9080).
