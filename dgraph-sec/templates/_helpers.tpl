@@ -392,3 +392,30 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
     {{- end -}}
   {{ end }}
 {{- end -}}
+
+{{- /* native-TLS-active for a tier: no service mesh AND the tier's TLS is on.
+       Pass a dict {"ctx": ., "tls": .Values.alpha.tls}. Returns "true" or "".
+       This is the single predicate that gates --tls synthesis, the HTTPS probe
+       scheme, and the ACL bootstrap Job's TLS client. */}}
+{{- define "dgraph-sec.nativeTLS" -}}
+{{- if and (not .ctx.Values.serviceMesh.enabled) .tls.enabled -}}true{{- end -}}
+{{- end -}}
+
+{{- /* Compose Dgraph's --tls superflag from a tier's tls map. Pass a dict
+       {"tls": .Values.alpha.tls, "path": "/dgraph/tls"}. Filenames follow the
+       output of scripts/make_tls_secrets.sh (ca.crt, node.crt, node.key,
+       client.<name>.crt/.key). client-cert/key and client-auth-type are emitted
+       only when the corresponding values are set. */}}
+{{- define "dgraph-sec.tlsFlag" -}}
+{{- $tls := .tls -}}
+{{- $p := .path -}}
+{{- $opts := list (printf "ca-cert=%s/ca.crt" $p) (printf "server-cert=%s/node.crt" $p) (printf "server-key=%s/node.key" $p) (printf "internal-port=%v" (default false $tls.internalPort)) -}}
+{{- if $tls.clientName -}}
+{{- $opts = append $opts (printf "client-cert=%s/client.%s.crt" $p $tls.clientName) -}}
+{{- $opts = append $opts (printf "client-key=%s/client.%s.key" $p $tls.clientName) -}}
+{{- end -}}
+{{- if $tls.clientAuthType -}}
+{{- $opts = append $opts (printf "client-auth-type=%s" $tls.clientAuthType) -}}
+{{- end -}}
+{{- printf "--tls \"%s;\"" (join "; " $opts) -}}
+{{- end -}}
