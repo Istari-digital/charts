@@ -154,6 +154,9 @@ spec:
           httpGet:
             port: {{ .Values.zero.startupProbe.port }}
             path: {{ .Values.zero.startupProbe.path }}
+            {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true" }}
+            scheme: HTTPS
+            {{- end }}
           periodSeconds: {{ .Values.zero.startupProbe.periodSeconds }}
           timeoutSeconds: {{ .Values.zero.startupProbe.timeoutSeconds }}
           successThreshold: {{ .Values.zero.startupProbe.successThreshold }}
@@ -166,6 +169,9 @@ spec:
           httpGet:
             port: {{ .Values.zero.livenessProbe.port }}
             path: {{ .Values.zero.livenessProbe.path }}
+            {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true" }}
+            scheme: HTTPS
+            {{- end }}
           initialDelaySeconds: {{ .Values.zero.livenessProbe.initialDelaySeconds }}
           periodSeconds: {{ .Values.zero.livenessProbe.periodSeconds }}
           timeoutSeconds: {{ .Values.zero.livenessProbe.timeoutSeconds }}
@@ -179,6 +185,9 @@ spec:
           httpGet:
             port: {{ .Values.zero.readinessProbe.port }}
             path: {{ .Values.zero.readinessProbe.path }}
+            {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true" }}
+            scheme: HTTPS
+            {{- end }}
           initialDelaySeconds: {{ .Values.zero.readinessProbe.initialDelaySeconds }}
           periodSeconds: {{ .Values.zero.readinessProbe.periodSeconds }}
           timeoutSeconds: {{ .Values.zero.readinessProbe.timeoutSeconds }}
