@@ -16,8 +16,10 @@ It covers three layers, from most generic to most specific:
    stage, demo).
 
 A closing section, **[Deploying without a service mesh](#deploying-without-a-service-mesh)**,
-shows how to reach a production security posture on clusters that run no mesh —
-the case the chart's mesh-shaped defaults do not cover on their own.
+shows how to reach a production security posture on clusters that run no mesh. Set
+`serviceMesh.enabled: false` and the chart wires Dgraph-native TLS in place of the
+mesh's sidecar mTLS, switches the probes to HTTPS, and routes the ACL bootstrap over
+TLS — work you would otherwise do by hand.
 
 For the exhaustive, machine-generated list of every value, see the **Values**
 section of the [chart README](../README.md#values); helm-docs regenerates it
@@ -366,20 +368,24 @@ alpha:
 Istari Digital shaped this chart around its own clusters, which run a
 **strict-mTLS Istio mesh**. There, Envoy sidecars encrypt every connection
 transparently, so Dgraph speaks plaintext and the chart leaves its native TLS off.
-A few chart details serve only that mesh: the Alpha headless Service publishes its
-client ports (8080/9080) so the sidecar builds mTLS routes for them, and the ACL
-bootstrap Job carries its own sidecar so Alpha does not reset its login.
+`serviceMesh.enabled: true` (the default) expresses that assumption. A few chart
+details serve only the mesh: the Alpha headless Service publishes its client ports
+(8080/9080) so the sidecar builds mTLS routes for them, and the ACL bootstrap Job
+carries its own sidecar so Alpha does not reset its login.
 
-Many clusters run no mesh. Without one, you own the two jobs the mesh did —
-**encrypting traffic** and **deciding which pods may connect** — through
-Kubernetes-native mechanisms the chart already ships. The mesh-specific details
-above stay inert when no sidecar is present, so they never get in your way.
+Many clusters run no mesh. Set **`serviceMesh.enabled: false`** and the chart takes
+on the two jobs the mesh did — **encrypting traffic** and **deciding which pods may
+connect** — through Kubernetes-native mechanisms it already ships: it synthesizes
+Dgraph's `--tls` flag, switches the health probes to HTTPS, and routes the ACL
+bootstrap over TLS, while a standard `NetworkPolicy` segments the pods. The
+mesh-specific details above stay inert without a sidecar, so they never get in your
+way.
 
 ### Encryption in transit: Dgraph-native TLS
 
 A mesh hands every pod a cryptographic identity for free. Without one, Dgraph
-terminates TLS itself, from certificates you generate and mount. Three steps enable
-it, and the `*.tls.enabled` toggle is only the second.
+terminates TLS itself, from certificates you generate and mount. Two steps enable
+it; the chart builds the rest.
 
 **1. Generate the certificates.** `scripts/make_tls_secrets.sh` wraps `dgraph-sec
 cert` and writes a ready-to-apply values file. The certificates bind to the pods'
@@ -401,58 +407,60 @@ scripts/make_tls_secrets.sh \
 The script emits `ca.crt`, `node.crt`, `node.key`, and `client.dgraphuser.crt`/`.key`
 per tier, base64-encoded under `alpha.tls.files` and `zero.tls.files`.
 
-**2. Enable TLS so the chart mounts the certificates.** Supply the generated
-`secrets.yaml` with `-f` (or merge it into your values). Given `enabled: true` and a
-non-empty `files` map, the chart creates the TLS Secret and mounts it at
-**`/dgraph/tls`** on that tier:
+**2. Turn off the mesh assumption and configure TLS per tier.** Supply the generated
+`secrets.yaml` with `-f` (or merge it), set `serviceMesh.enabled: false`, and enable
+TLS on each tier. With `serviceMesh.enabled: false` and a tier's `tls.enabled: true`,
+the chart mounts the certificates at **`/dgraph/tls`**, **synthesizes Dgraph's `--tls`
+superflag** from the structured keys below, and switches that tier's probes to HTTPS:
 
 ```yaml
+serviceMesh:
+  enabled: false
 alpha:
   tls:
     enabled: true
-    files: { ... }   # from make_tls_secrets.sh
+    files: { ... }            # from make_tls_secrets.sh
+    internalPort: true        # encrypt inter-node traffic on 7080 (Raft/gossip)
+    clientName: dgraphuser    # selects client.dgraphuser.crt/.key
+    clientAuthType: REQUIREANDVERIFY
 zero:
   tls:
     enabled: true
     files: { ... }
+    internalPort: true
+    clientName: dgraphuser
+    clientAuthType: REQUIREANDVERIFY
 ```
 
-**3. Activate TLS in the Dgraph command.** The toggle mounts the certificates but
-never adds Dgraph's `--tls` superflag. Pass it through `extraFlags` on **both**
-tiers, pointing at the mounted paths (one line per tier, as the baseline writes its
-`--cache` flag):
-
-```yaml
-alpha:
-  extraFlags: '--tls "ca-cert=/dgraph/tls/ca.crt; server-cert=/dgraph/tls/node.crt; server-key=/dgraph/tls/node.key; internal-port=true; client-cert=/dgraph/tls/client.dgraphuser.crt; client-key=/dgraph/tls/client.dgraphuser.key; client-auth-type=REQUIREANDVERIFY;"'
-zero:
-  extraFlags: '--tls "ca-cert=/dgraph/tls/ca.crt; server-cert=/dgraph/tls/node.crt; server-key=/dgraph/tls/node.key; internal-port=true; client-cert=/dgraph/tls/client.dgraphuser.crt; client-key=/dgraph/tls/client.dgraphuser.key; client-auth-type=REQUIREANDVERIFY;"'
-```
-
-`internal-port=true` with the `client-*` pair encrypts **inter-node** traffic on
-port 7080 — the Raft and gossip the mesh used to protect. `server-cert`/`server-key`
-encrypt the **client-facing** ports, 8080 and 9080. Dgraph's
+You no longer hand-write `--tls` in `extraFlags`; the chart composes it from those
+keys. Leaving a `--tls` in `extraFlags` while `serviceMesh.enabled: false` fails the
+render, to stop a duplicate flag. `internalPort: true` with `clientName` encrypts
+**inter-node** traffic — the Raft and gossip the mesh used to protect. The server
+certificate encrypts the **client-facing** ports (8080/9080 on Alpha, 6080 on Zero).
+Dgraph's
 [TLS options](https://dgraph.io/docs/deploy/security/tls-configuration/) document
 every field.
 
-**What the mesh handled that you now own.** A sidecar gave every in-cluster caller
-an identity automatically. Native TLS does not, so each client that reaches Alpha
-becomes a TLS client you must provision:
+**What the mesh handled, now handled for you.** A sidecar gave every in-cluster
+caller an identity automatically. Native TLS does not, so the chart provisions the
+callers it controls:
 
-- **Health probes.** Once `--tls` is set, Dgraph serves its HTTP endpoints — health
-  checks included — over HTTPS, so the chart's default plaintext `httpGet` probes
-  fail. Switch them to HTTPS through `alpha.customReadinessProbe`,
-  `customLivenessProbe`, and `customStartupProbe`. `client-auth-type=REQUIREANDVERIFY`
-  makes this worse: an `httpGet` probe cannot present a client certificate, so the
-  probe is rejected outright. Relax `client-auth-type` on the external ports if you
+- **Health probes.** Once TLS is on, Dgraph serves its HTTP endpoints — health checks
+  included — over HTTPS. The chart switches its built-in probes to the HTTPS scheme
+  for you. One case still needs your attention: `clientAuthType: REQUIREANDVERIFY`
+  forces every caller, an `httpGet` probe included, to present a client certificate,
+  which an `httpGet` probe cannot do. Relax `clientAuthType` on the external ports, or
+  supply `customReadinessProbe`/`customLivenessProbe`/`customStartupProbe`, if you
   depend on the built-in probes.
-- **Backups and ACL bootstrap.** The backup CronJobs and the ACL bootstrap Job log
-  in to Alpha's `/admin`. Under TLS they need the CA, and under mutual TLS a client
-  certificate; set `backups.admin.tls_client` to the client name you generated
-  (`dgraphuser` above).
+- **ACL bootstrap.** The ACL bootstrap Job logs in to Alpha's `/admin`. Under native
+  TLS the chart mounts the CA and, when you set `clientName`, the client certificate,
+  and points the reconciler at HTTPS — no manual step.
+- **Backups.** The backup CronJobs also log in to `/admin`. Set
+  `backups.admin.tls_client` to the client name you generated (`dgraphuser` above) so
+  they present the same client certificate.
 
-`client-auth-type` governs only the external ports. A value that requires no client
-certificate keeps server-side encryption while sparing those in-cluster callers;
+`clientAuthType` governs only the external ports. A value that requires no client
+certificate keeps server-side encryption while sparing in-cluster callers;
 `REQUIREANDVERIFY` is the strongest posture but forces every caller, probes included,
 to present a valid client certificate.
 
