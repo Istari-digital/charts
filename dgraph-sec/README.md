@@ -1,6 +1,6 @@
 # Dgraph-sec
 
-![Version: 0.4.4](https://img.shields.io/badge/Version-0.4.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.4-sec.0.1.0](https://img.shields.io/badge/AppVersion-v25.3.4--sec.0.1.0-informational?style=flat-square)
+![Version: 0.4.5](https://img.shields.io/badge/Version-0.4.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.6-sec.0.2.1](https://img.shields.io/badge/AppVersion-v25.3.6--sec.0.2.1-informational?style=flat-square)
 
 Dgraph-sec — hardened Dgraph database for Istari platform
 
@@ -173,12 +173,12 @@ the agent runs.
 | alpha.extraInitContainers | list | `[]` | Extra init containers for the alpha StatefulSet. |
 | alpha.ingress | object | `{"enabled":false}` | HTTP Ingress for the alpha service (requires an ingress controller). |
 | alpha.ingress_grpc | object | `{"enabled":false}` | gRPC Ingress for the alpha service (requires an ingress controller). |
-| alpha.initContainers | object | `{"init":{"command":["bash","-c","trap \"exit\" SIGINT SIGTERM\necho \"Write to /dgraph/doneinit when ready.\"\nuntil [ -f /dgraph/doneinit ]; do sleep 2; done\n"],"enabled":false,"env":[],"envFrom":[],"image":{"<<":{"debug":false,"pullPolicy":"IfNotPresent","registry":"istaridigital.jfrog.io","repository":"main-docker-local/dgraph-sec","tag":"v25.3.4-sec.0.1.0"}}}}` | Optional alpha pre-start init container (e.g. restore or bulk load before Alpha starts). |
+| alpha.initContainers | object | `{"init":{"command":["bash","-c","trap \"exit\" SIGINT SIGTERM\necho \"Write to /dgraph/doneinit when ready.\"\nuntil [ -f /dgraph/doneinit ]; do sleep 2; done\n"],"enabled":false,"env":[],"envFrom":[],"image":{"<<":{"debug":false,"pullPolicy":"IfNotPresent","registry":"istaridigital.jfrog.io","repository":"main-docker-local/dgraph-sec","tag":"v25.3.6-sec.0.2.1"}}}}` | Optional alpha pre-start init container (e.g. restore or bulk load before Alpha starts). |
 | alpha.initContainers.init.image.<<.debug | bool | `false` | Enable verbose BASH/NAMI image debugging output. |
 | alpha.initContainers.init.image.<<.pullPolicy | string | `"IfNotPresent"` | Image pull policy for the dgraph-sec image. |
 | alpha.initContainers.init.image.<<.registry | string | `"istaridigital.jfrog.io"` | Container registry hosting the dgraph-sec image. |
 | alpha.initContainers.init.image.<<.repository | string | `"main-docker-local/dgraph-sec"` | Repository path for the hardened dgraph-sec image. |
-| alpha.initContainers.init.image.<<.tag | string | `"v25.3.4-sec.0.1.0"` | dgraph-sec image tag (matches the chart appVersion). |
+| alpha.initContainers.init.image.<<.tag | string | `"v25.3.6-sec.0.2.1"` | dgraph-sec image tag (matches the chart appVersion). |
 | alpha.livenessProbe | object | `{"enabled":true,"failureThreshold":6,"initialDelaySeconds":15,"path":"/health?live=1","periodSeconds":10,"port":8080,"successThreshold":1,"timeoutSeconds":5}` | Liveness probe for alpha (against the 8080 /health?live=1 endpoint). |
 | alpha.logDir | string | `""` | Directory for alpha glog file output (--log_dir); needs a writable mount. |
 | alpha.logLevel | string | `"normal"` | Alpha log verbosity: named level (normal|verbose|debug|trace) or a raw glog -v integer. |
@@ -209,12 +209,12 @@ the agent runs.
 | backups.admin | object | `{"auth_token":"","existingSecret":"","password":"","passwordSecretKey":"backup_admin_password","tls_client":"","user":""}` | Backup admin credentials/token used to trigger backups when ACLs are enabled. |
 | backups.destination | string | `"/dgraph/backups"` | Backup destination: a file path, s3://, or minio:// URI. |
 | backups.full | object | `{"debug":false,"enabled":false,"restartPolicy":"Never","schedule":"0 0 * * *"}` | Full-backup CronJob (enable, schedule, restart policy). |
-| backups.image | object | `{"<<":{"debug":false,"pullPolicy":"IfNotPresent","registry":"istaridigital.jfrog.io","repository":"main-docker-local/dgraph-sec","tag":"v25.3.4-sec.0.1.0"}}` | Image for backup CronJobs (defaults to the shared dgraph-sec image; needs curl). |
+| backups.image | object | `{"<<":{"debug":false,"pullPolicy":"IfNotPresent","registry":"istaridigital.jfrog.io","repository":"main-docker-local/dgraph-sec","tag":"v25.3.6-sec.0.2.1"}}` | Image for backup CronJobs (defaults to the shared dgraph-sec image; needs curl). |
 | backups.image.<<.debug | bool | `false` | Enable verbose BASH/NAMI image debugging output. |
 | backups.image.<<.pullPolicy | string | `"IfNotPresent"` | Image pull policy for the dgraph-sec image. |
 | backups.image.<<.registry | string | `"istaridigital.jfrog.io"` | Container registry hosting the dgraph-sec image. |
 | backups.image.<<.repository | string | `"main-docker-local/dgraph-sec"` | Repository path for the hardened dgraph-sec image. |
-| backups.image.<<.tag | string | `"v25.3.4-sec.0.1.0"` | dgraph-sec image tag (matches the chart appVersion). |
+| backups.image.<<.tag | string | `"v25.3.6-sec.0.2.1"` | dgraph-sec image tag (matches the chart appVersion). |
 | backups.incremental | object | `{"debug":false,"enabled":false,"restartPolicy":"Never","schedule":"0 1-23 * * *"}` | Incremental-backup CronJob (enable, schedule, restart policy). |
 | backups.keys | object | `{"minio":{"access":"","secret":""},"s3":{"access":"","secret":""}}` | MinIO/S3 access keys for the backup destination. |
 | backups.minioSecure | bool | `false` | Use HTTPS when the MinIO endpoint is TLS-enabled. |
@@ -233,7 +233,7 @@ the agent runs.
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for the dgraph-sec image. |
 | image.registry | string | `"istaridigital.jfrog.io"` | Container registry hosting the dgraph-sec image. |
 | image.repository | string | `"main-docker-local/dgraph-sec"` | Repository path for the hardened dgraph-sec image. |
-| image.tag | string | `"v25.3.4-sec.0.1.0"` | dgraph-sec image tag (matches the chart appVersion). |
+| image.tag | string | `"v25.3.6-sec.0.2.1"` | dgraph-sec image tag (matches the chart appVersion). |
 | networkPolicy | object | `{"clientPodLabels":{},"enabled":false,"extraIngress":[]}` | NetworkPolicy gating ingress to alpha/zero ports (gated production add-on). |
 | preUpgradeHook.enabled | bool | `true` | Run the v24-to-v25 StatefulSet selector migration Job on helm upgrade. |
 | preUpgradeHook.image | object | `{"registry":"istaridigital.jfrog.io","repository":"remote-docker-chainguard/istaridigital.com/kubectl-iamguarded-fips","tag":"1.32"}` | kubectl image used by the pre-upgrade migration Job. |
