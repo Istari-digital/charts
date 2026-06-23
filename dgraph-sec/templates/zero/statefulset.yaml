@@ -1,3 +1,6 @@
+{{- if and (eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true") (contains "--tls" (.Values.zero.extraFlags | default "")) }}
+{{- fail "zero.extraFlags contains --tls, but the chart synthesizes it when serviceMesh.enabled=false and zero.tls.enabled=true. Remove --tls from zero.extraFlags and set zero.tls.internalPort / clientName / clientAuthType instead." }}
+{{- end }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -140,9 +143,9 @@ spec:
               ordinal=${BASH_REMATCH[1]}
               idx=$(($ordinal + 1))
               if [[ $ordinal -eq 0 ]]; then
-                exec dgraph-sec zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 {{ template "dgraph-sec.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ template "dgraph-sec.logFlags" .Values.zero }} {{ .Values.zero.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
+                exec dgraph-sec zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 {{ template "dgraph-sec.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ template "dgraph-sec.logFlags" .Values.zero }} {{ .Values.zero.extraFlags }}{{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true" }} {{ include "dgraph-sec.tlsFlag" (dict "tls" .Values.zero.tls "path" "/dgraph/tls") }}{{- end }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
               else
-                exec dgraph-sec zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 --peer {{ template "dgraph-sec.peerZero" . }} {{ template "dgraph-sec.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ template "dgraph-sec.logFlags" .Values.zero }} {{ .Values.zero.extraFlags }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
+                exec dgraph-sec zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 --peer {{ template "dgraph-sec.peerZero" . }} {{ template "dgraph-sec.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ template "dgraph-sec.logFlags" .Values.zero }} {{ .Values.zero.extraFlags }}{{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true" }} {{ include "dgraph-sec.tlsFlag" (dict "tls" .Values.zero.tls "path" "/dgraph/tls") }}{{- end }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
               fi
         resources:
 {{ toYaml .Values.zero.resources | indent 10 }}
