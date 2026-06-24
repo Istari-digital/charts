@@ -1,5 +1,13 @@
 {{- if .Values.validation.enabled }}
 {{- /*
+  checkBackups reads the backup CronJobs via the Kubernetes API, which needs the
+  validator ServiceAccount/Role. Fail at render time rather than deploy a
+  validator that cannot satisfy the check it was asked to run.
+*/ -}}
+{{- if and .Values.validation.checkBackups (not .Values.validation.rbac.enabled) }}
+{{- fail "validation.checkBackups requires validation.rbac.enabled: the backup-CronJob check reads the Kubernetes API with the validator ServiceAccount." }}
+{{- end }}
+{{- /*
   Derive the validator's expected state from the chart's own values so it cannot
   drift from what was deployed. adminPasswordKey defaults to groot's key (the
   always-present superadmin); set validation.adminUser / adminPasswordSecretKey
@@ -20,7 +28,7 @@
 {{- end }}
 {{- $groups := list }}
 {{- range .Values.alpha.acl.bootstrap.groups }}
-  {{- $groups = append $groups (dict "name" .name "rules" (.rules | default list)) }}
+  {{- $groups = append $groups (dict "name" .name "rules" (.rules | default (list))) }}
 {{- end }}
 {{- $cronjobs := list }}
 {{- if .Values.validation.checkBackups }}
