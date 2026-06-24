@@ -5,6 +5,14 @@
 {{- if and (eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true") (contains "--tls" (.Values.alpha.extraFlags | default "")) }}
 {{- fail "alpha.extraFlags contains --tls, but the chart synthesizes it when serviceMesh.enabled=false and alpha.tls.enabled=true. Remove --tls from alpha.extraFlags and set alpha.tls.internalPort / clientName / clientAuthType instead." }}
 {{- end }}
+{{- if and (eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true") (eq .Values.alpha.tls.clientAuthType "REQUIREANDVERIFY") }}
+{{- if not .Values.alpha.tls.clientName }}
+{{- fail "alpha.tls.clientAuthType=REQUIREANDVERIFY requires alpha.tls.clientName so in-cluster callers (the ACL bootstrap Job and inter-node TLS) can present a client certificate." }}
+{{- end }}
+{{- if or (and .Values.alpha.startupProbe.enabled (not .Values.alpha.customStartupProbe)) (and .Values.alpha.livenessProbe.enabled (not .Values.alpha.customLivenessProbe)) (and .Values.alpha.readinessProbe.enabled (not .Values.alpha.customReadinessProbe)) }}
+{{- fail "alpha.tls.clientAuthType=REQUIREANDVERIFY forces every client to present a certificate, which the built-in httpGet probes cannot do (the kubelet has no client cert). Relax alpha.tls.clientAuthType (e.g. VERIFYIFGIVEN) on the external ports, or supply alpha.customStartupProbe / customLivenessProbe / customReadinessProbe (exec probes that present the client cert)." }}
+{{- end }}
+{{- end }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:

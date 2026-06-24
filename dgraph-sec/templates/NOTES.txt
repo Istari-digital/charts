@@ -26,12 +26,6 @@
    WARNING: serviceMesh.enabled=false and TLS is off on both tiers. Traffic is
    UNENCRYPTED. Set alpha.tls.enabled / zero.tls.enabled (use
    scripts/make_tls_secrets.sh) and enable networkPolicy.enabled for segmentation.
-{{- else if or (eq .Values.alpha.tls.clientAuthType "REQUIREANDVERIFY") (eq .Values.zero.tls.clientAuthType "REQUIREANDVERIFY") }}
-
-   NOTE: client-auth-type=REQUIREANDVERIFY forces every client — the built-in
-   httpGet probes included — to present a client certificate, which an httpGet
-   probe cannot do. Relax client-auth on the external ports, or supply
-   customReadinessProbe/customLivenessProbe/customStartupProbe.
 {{- end }}
 {{- if .Values.alpha.acl.enabled }}
 

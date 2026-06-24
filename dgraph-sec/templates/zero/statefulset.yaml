@@ -1,6 +1,14 @@
 {{- if and (eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true") (contains "--tls" (.Values.zero.extraFlags | default "")) }}
 {{- fail "zero.extraFlags contains --tls, but the chart synthesizes it when serviceMesh.enabled=false and zero.tls.enabled=true. Remove --tls from zero.extraFlags and set zero.tls.internalPort / clientName / clientAuthType instead." }}
 {{- end }}
+{{- if and (eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true") (eq .Values.zero.tls.clientAuthType "REQUIREANDVERIFY") }}
+{{- if not .Values.zero.tls.clientName }}
+{{- fail "zero.tls.clientAuthType=REQUIREANDVERIFY requires zero.tls.clientName so inter-node TLS can present a client certificate." }}
+{{- end }}
+{{- if or (and .Values.zero.startupProbe.enabled (not .Values.zero.customStartupProbe)) (and .Values.zero.livenessProbe.enabled (not .Values.zero.customLivenessProbe)) (and .Values.zero.readinessProbe.enabled (not .Values.zero.customReadinessProbe)) }}
+{{- fail "zero.tls.clientAuthType=REQUIREANDVERIFY forces every client to present a certificate, which the built-in httpGet probes cannot do (the kubelet has no client cert). Relax zero.tls.clientAuthType (e.g. VERIFYIFGIVEN) on the external ports, or supply zero.customStartupProbe / customLivenessProbe / customReadinessProbe (exec probes that present the client cert)." }}
+{{- end }}
+{{- end }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:

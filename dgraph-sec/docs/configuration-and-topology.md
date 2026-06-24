@@ -449,11 +449,12 @@ callers it controls:
 
 - **Health probes.** Once TLS is on, Dgraph serves its HTTP endpoints — health checks
   included — over HTTPS. The chart switches its built-in probes to the HTTPS scheme
-  for you. One case still needs your attention: `clientAuthType: REQUIREANDVERIFY`
-  forces every caller, an `httpGet` probe included, to present a client certificate,
-  which an `httpGet` probe cannot do. Relax `clientAuthType` on the external ports, or
-  supply `customReadinessProbe`/`customLivenessProbe`/`customStartupProbe`, if you
-  depend on the built-in probes.
+  for you. One case it cannot satisfy: `clientAuthType: REQUIREANDVERIFY` forces every
+  caller, an `httpGet` probe included, to present a client certificate, which the
+  kubelet's `httpGet` probe cannot do. The chart rejects that combination at render
+  time; relax `clientAuthType` on the external ports (for example `VERIFYIFGIVEN`), or
+  supply `customReadinessProbe`/`customLivenessProbe`/`customStartupProbe` (exec probes
+  that present the client cert).
 - **ACL bootstrap.** The ACL bootstrap Job logs in to Alpha's `/admin`. Under native
   TLS the chart mounts the CA and, when you set `clientName`, the client certificate,
   and points the reconciler at HTTPS — no manual step.
