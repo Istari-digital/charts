@@ -70,7 +70,15 @@ spec:
         command: ["/usr/bin/bash", "/scripts/reconcile.sh"]
         env:
         - name: ALPHA_HOST
+          {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true" }}
+          ## Native TLS: target the alpha-0 headless FQDN that scripts/make_tls_secrets.sh
+          ## lists in the cert SANs, so curl's hostname verification of Alpha's server
+          ## cert passes. The bare ClusterIP Service name is not a SAN. Matches the host
+          ## the backup CronJobs use.
+          value: {{ printf "%s-0.%s-headless.%s.svc.%s" (include "dgraph-sec.alpha.fullname" .) (include "dgraph-sec.alpha.fullname" .) (include "dgraph-sec.namespace" .) .Values.global.domain | quote }}
+          {{- else }}
           value: {{ include "dgraph-sec.alpha.fullname" . | quote }}
+          {{- end }}
         - name: GROOT_PASSWORD_KEY
           value: {{ .Values.alpha.acl.bootstrap.grootPasswordSecretKey | quote }}
         - name: USERS_JSON
