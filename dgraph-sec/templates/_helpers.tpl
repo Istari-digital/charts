@@ -409,7 +409,12 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
 {{- define "dgraph-sec.tlsFlag" -}}
 {{- $tls := .tls -}}
 {{- $p := .path -}}
-{{- $opts := list (printf "ca-cert=%s/ca.crt" $p) (printf "server-cert=%s/node.crt" $p) (printf "server-key=%s/node.key" $p) (printf "internal-port=%v" (default false $tls.internalPort)) -}}
+{{- /* internalPort defaults to true (values.yaml), but Helm's `default` treats a
+       boolean false as empty, so an explicit `false` would be flipped back to the
+       default. Use a nil check so nil -> true while honoring an explicit false. */ -}}
+{{- $ip := $tls.internalPort -}}
+{{- if kindIs "invalid" $ip -}}{{- $ip = true -}}{{- end -}}
+{{- $opts := list (printf "ca-cert=%s/ca.crt" $p) (printf "server-cert=%s/node.crt" $p) (printf "server-key=%s/node.key" $p) (printf "internal-port=%v" $ip) -}}
 {{- if $tls.clientName -}}
 {{- $opts = append $opts (printf "client-cert=%s/client.%s.crt" $p $tls.clientName) -}}
 {{- $opts = append $opts (printf "client-key=%s/client.%s.key" $p $tls.clientName) -}}
