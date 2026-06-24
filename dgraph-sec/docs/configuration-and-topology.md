@@ -87,12 +87,14 @@ user and the cluster defaults.
 
 The application-layer controls — authentication (ACL), encryption at rest, and
 NetworkPolicy — ship **off** and must be enabled for a production posture. TLS in
-transit is off as well, and it is **not** a single toggle: `*.tls.enabled` only
-provisions and mounts the certificate Secret, so encrypting traffic also requires
-passing Dgraph's `--tls` flags through `extraFlags` (or a `configFile`) on both
-Alpha and Zero. See the chart README's
-[Security posture](../README.md#security-posture) for the full FIPS and deployment
-detail.
+transit is off as well, and how you turn it on depends on the deployment mode. Under
+a service mesh (`serviceMesh.enabled: true`, the default), the mesh encrypts traffic
+and `*.tls.enabled` only provisions and mounts the certificate Secret. Without a mesh
+(`serviceMesh.enabled: false`), the chart synthesizes Dgraph's `--tls` flag from the
+`*.tls` keys and switches probes to HTTPS — see
+[Deploying without a service mesh](#deploying-without-a-service-mesh). See the chart
+README's [Security posture](../README.md#security-posture) for the full FIPS and
+deployment detail.
 
 For reference, here are the default values that produce the topology described
 above. You get this with no overrides at all; the snippet is a convenient starting
@@ -175,7 +177,7 @@ enumeration lives in the [chart README Values section](../README.md#values).
 | `alpha.pdb` | `enabled: true`, `minAvailable: 2` | PodDisruptionBudget protecting the Alpha group. |
 | `alpha.acl.enabled` | `false` | Access Control List (authentication). Off by default. |
 | `alpha.encryption.enabled` | `false` | Encryption at rest. Off by default. |
-| `alpha.tls.enabled` | `false` | Provisions and mounts the TLS cert Secret only — off by default. **Not** sufficient to enable TLS on its own: also pass Dgraph's `--tls` flags via `alpha.extraFlags`/`configFile` (and likewise for Zero). |
+| `alpha.tls.enabled` | `false` | Provisions and mounts the TLS cert Secret at `/dgraph/tls`. Under a service mesh the mesh encrypts, so that is all it does. With `serviceMesh.enabled: false`, the chart also synthesizes Dgraph's `--tls` flag from `alpha.tls.*` (and likewise for Zero). |
 | `alpha.logLevel` | `normal` | Log verbosity (see Zero). |
 | `alpha.service.type` | `ClusterIP` | Alpha Service type. |
 | `alpha.ingress.enabled` / `alpha.ingress_grpc.enabled` | `false` | HTTP / gRPC Ingress for Alpha. |

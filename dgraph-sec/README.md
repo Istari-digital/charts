@@ -161,11 +161,13 @@ ACL and encryption each need key or Secret material; see `values.yaml` and the
 post-install NOTES for the exact flags.
 
 > [!IMPORTANT]
-> **TLS needs more than the toggle.** `alpha.tls.enabled` / `zero.tls.enabled` only
-> create and mount the TLS Secret at `/dgraph/tls`; the chart does **not** add
-> Dgraph's `--tls` superflag to the Alpha or Zero command. To actually encrypt
-> traffic you must also supply the `--tls` settings through `extraFlags` (or a
-> `configFile`) on **both** Alpha and Zero.
+> **TLS in transit depends on the deployment mode.** Under a service mesh
+> (`serviceMesh.enabled: true`, the default), the mesh encrypts traffic, so
+> `alpha.tls.enabled` / `zero.tls.enabled` only create and mount the TLS Secret at
+> `/dgraph/tls`. Without a mesh, set `serviceMesh.enabled: false`: the chart then
+> synthesizes Dgraph's `--tls` superflag from the `*.tls` keys (`internalPort`,
+> `clientName`, `clientAuthType`) and switches the probes to HTTPS — no `extraFlags`
+> editing. See the chart docs, "Deploying without a service mesh."
 
 ## Backups & restore
 
