@@ -33,6 +33,13 @@
    probe cannot do. Relax client-auth on the external ports, or supply
    customReadinessProbe/customLivenessProbe/customStartupProbe.
 {{- end }}
+{{- if .Values.alpha.acl.enabled }}
+
+   NOTE: ACL without a mesh — whitelist your cluster's pod CIDR via Dgraph's
+   --security flag, e.g. alpha.extraFlags: '--security "whitelist=10.0.0.0/8;"'.
+   Otherwise the ACL bootstrap Job and backup CronJobs are rejected with
+   "unauthorized ip address" when reaching Alpha through its ClusterIP Service.
+{{- end }}
 {{- end }}
 
 {{- if .Values.alpha.acl.enabled }}

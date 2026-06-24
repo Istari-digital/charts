@@ -504,3 +504,21 @@ as the [shared baseline](#shared-baseline-all-environments) already does. Three
 Kubernetes-native parts then stand in for the mesh: ACL proves who the caller is,
 NetworkPolicy limits which pods may connect, and native TLS keeps the channel
 private.
+
+**Whitelist the cluster pod network.** Dgraph's ACL rejects admin logins from
+source addresses it does not trust. Inside a mesh the sidecar makes every caller
+look local, so this never surfaces. Without a mesh, the ACL bootstrap Job and the
+backup CronJobs reach Alpha through its ClusterIP Service, whose source address the
+CNI rewrites (SNAT) to a node IP the ACL does not trust; the login then fails with
+`unauthorized ip address` and the post-install bootstrap hangs. Whitelist your
+cluster's pod/node CIDR through Dgraph's `--security` flag so in-cluster callers are
+trusted:
+
+```yaml
+alpha:
+  extraFlags: '--security "whitelist=10.0.0.0/8;"'   # scope to your cluster's pod CIDR
+```
+
+Set the range to your cluster's actual pod network rather than `0.0.0.0/0`. This
+applies to the backup CronJobs as well, since they authenticate to `/admin` the same
+way.
