@@ -1,0 +1,25 @@
+{{- if .Values.validation.enabled }}
+{{- /*
+  `helm test` entrypoint. Runs the validator on demand (helm test <release>)
+  without gating install/upgrade. Carries networkPolicy.clientPodLabels so the
+  chart's own NetworkPolicy (when enabled) admits it to Alpha's client ports.
+*/}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "dgraph-sec.alpha.fullname" . }}-validate-test
+  namespace: {{ include "dgraph-sec.namespace" . }}
+  labels:
+    {{- include "dgraph-sec.labels" (dict "ctx" . "component" "validate") | nindent 4 }}
+    {{- with .Values.networkPolicy.clientPodLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- with .Values.validation.podAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- include "dgraph-sec.validation.podSpec" . | nindent 2 }}
+{{- end }}

@@ -139,3 +139,22 @@
 
    NOTE: Change "http://" to "https://" if TLS was added to the Ingress or Load Balancer.
 {{- end }}
+{{- if .Values.validation.enabled }}
+
+VALIDATION
+
+A post-install conformance validator is enabled. It asserts the running cluster
+matches what this chart rendered (health, cluster membership, ACL enforcement,
+admin/user login, an authenticated query, group rules{{ if .Values.validation.checkBackups }}, backup scheduling{{ end }}).
+
+  - Run it on demand:
+      helm test {{ .Release.Name }} -n {{ include "dgraph-sec.namespace" . }}
+{{- if .Values.validation.cronjob.enabled }}
+  - Trigger the in-cluster validator manually:
+      kubectl create job --from=cronjob/{{ include "dgraph-sec.alpha.fullname" . }}-validate \
+        -n {{ include "dgraph-sec.namespace" . }} {{ include "dgraph-sec.alpha.fullname" . }}-validate-manual
+{{- end }}
+{{- if .Values.validation.job.enabled }}
+  - The post-install hook Job already gated this release on a passing run.
+{{- end }}
+{{- end }}
