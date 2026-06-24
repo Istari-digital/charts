@@ -164,10 +164,11 @@ post-install NOTES for the exact flags.
 > **TLS in transit depends on the deployment mode.** Under a service mesh
 > (`serviceMesh.enabled: true`, the default), the mesh encrypts traffic, so
 > `alpha.tls.enabled` / `zero.tls.enabled` only create and mount the TLS Secret at
-> `/dgraph/tls`. Without a mesh, set `serviceMesh.enabled: false`: the chart then
-> synthesizes Dgraph's `--tls` superflag from the `*.tls` keys (`internalPort`,
-> `clientName`, `clientAuthType`) and switches the probes to HTTPS — no `extraFlags`
-> editing. See the chart docs, "Deploying without a service mesh."
+> `/dgraph/tls`. Without a mesh, set `serviceMesh.enabled: false` and enable TLS per
+> tier (`alpha.tls.enabled` / `zero.tls.enabled: true`): for each tier with TLS on,
+> the chart then synthesizes Dgraph's `--tls` superflag from the `*.tls` keys
+> (`internalPort`, `clientName`, `clientAuthType`) and switches the probes to HTTPS —
+> no `extraFlags` editing. See the chart docs, "Deploying without a service mesh."
 
 ## Backups & restore
 

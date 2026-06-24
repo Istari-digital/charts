@@ -13,7 +13,7 @@
 
      * Authentication (ACL) ... {{ if .Values.alpha.acl.enabled }}ENABLED{{ else }}DISABLED — anyone with network access to alpha can connect WITHOUT credentials{{ end }}
      * Encryption at rest ..... {{ if .Values.alpha.encryption.enabled }}ENABLED{{ else }}disabled{{ end }}
-     * TLS (in transit) ....... {{ if .Values.alpha.tls.enabled }}ENABLED{{ else }}disabled{{ end }}
+     * TLS (in transit) ....... {{ if .Values.serviceMesh.enabled }}handled by the service mesh (Dgraph runs plaintext){{ else if or .Values.alpha.tls.enabled .Values.zero.tls.enabled }}Dgraph-native TLS{{ else }}disabled — traffic is unencrypted{{ end }}
      * Service mesh ........... {{ if .Values.serviceMesh.enabled }}ASSUMED (ambient strict-mTLS mesh handles encryption + identity){{ else }}NONE — the chart wires Dgraph-native TLS for any tier with tls.enabled{{ end }}
      * NetworkPolicy .......... {{ if .Values.networkPolicy.enabled }}ENABLED{{ else }}disabled — pod-to-pod traffic is unrestricted{{ end }}
      * Binary backups ......... {{ if or .Values.backups.full.enabled .Values.backups.incremental.enabled }}ENABLED (destination: {{ .Values.backups.destination }}){{ else }}disabled — no backups are being taken{{ end }}
