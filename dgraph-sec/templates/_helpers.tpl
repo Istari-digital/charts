@@ -397,8 +397,9 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
        string: eq (include "dgraph-sec.nativeTLS" ...) "true". Callers store that
        result once in a $nativeTLS bool and reuse it. It is the single predicate
        that gates --tls synthesis, the HTTPS probe scheme, the ACL bootstrap Job's
-       TLS client, and the backup CronJobs' TLS client (CACERT, HTTPS, the
-       cert-Secret mount, and the alpha-0 FQDN). */}}
+       TLS client, and the backup CronJobs' TLS client (CACERT, HTTPS, and the
+       cert-Secret mount). The alpha-0 headless FQDN those Jobs target is set
+       unconditionally, not gated by this. */}}
 {{- define "dgraph-sec.nativeTLS" -}}
 {{- if and (not .ctx.Values.serviceMesh.enabled) .tls.enabled -}}true{{- end -}}
 {{- end -}}
