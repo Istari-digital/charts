@@ -396,8 +396,9 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
        Returns the STRING "true" or "" (empty) -- NOT a boolean. Compare it as a
        string: eq (include "dgraph-sec.nativeTLS" ...) "true". Callers store that
        result once in a $nativeTLS bool and reuse it. It is the single predicate
-       that gates --tls synthesis, the HTTPS probe scheme, and the ACL bootstrap
-       Job's TLS client. */}}
+       that gates --tls synthesis, the HTTPS probe scheme, the ACL bootstrap Job's
+       TLS client, and the backup CronJobs' TLS client (CACERT, HTTPS, the
+       cert-Secret mount, and the alpha-0 FQDN). */}}
 {{- define "dgraph-sec.nativeTLS" -}}
 {{- if and (not .ctx.Values.serviceMesh.enabled) .tls.enabled -}}true{{- end -}}
 {{- end -}}
