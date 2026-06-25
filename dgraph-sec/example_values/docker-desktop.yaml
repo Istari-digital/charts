@@ -27,6 +27,11 @@ zero:
   replicaCount: 1
   shardReplicaCount: 1
   antiAffinity: soft
+  # One replica locally, so disable the PodDisruptionBudget. The chart default
+  # (minAvailable: 2) can never be satisfied by a single pod, and Helm 4's --wait
+  # treats such a PDB as never-ready, which hangs `helm install --wait`.
+  pdb:
+    enabled: false
   persistence:
     enabled: false
   resources:
@@ -40,6 +45,10 @@ alpha:
   replicaCount: 1
   shardReplicaCount: 1
   antiAffinity: soft
+  # Single replica: disable the PDB (see the zero note above) so `helm install
+  # --wait` does not hang on an unsatisfiable minAvailable: 2.
+  pdb:
+    enabled: false
   # Without a mesh, in-cluster callers (the ACL bootstrap Job, the validator, the
   # backup CronJobs) reach Alpha through its ClusterIP Service and are SNAT'd to a
   # node IP that Dgraph's ACL rejects ("unauthorized ip address"). Whitelist the
