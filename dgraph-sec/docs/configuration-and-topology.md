@@ -15,6 +15,10 @@ It covers three layers, from most generic to most specific:
    infrastructure, both the shared baseline and the per-environment deltas (dev,
    stage, demo).
 
+A **[Network surface](#network-surface-ports-exposure-and-client-access)** section,
+between the topology and the reference, enumerates the ports the chart opens, what is
+exposed outside the cluster, and how an in-cluster client connects.
+
 A closing section, **[Deploying without a service mesh](#deploying-without-a-service-mesh)**,
 shows how to reach a production security posture on clusters that run no mesh. Set
 `serviceMesh.enabled: false` and the chart wires Dgraph-native TLS in place of the
@@ -126,6 +130,109 @@ alpha:
 ratel:
   enabled: false         # debug UI off by default
 ```
+
+---
+
+## Network surface: ports, exposure, and client access
+
+This section enumerates every port the chart opens, whether it leaves the cluster,
+and the transport and authentication on it. All three vary with independent toggles:
+the deployment mode (`serviceMesh.enabled`), transport TLS (`*.tls.enabled`, wired
+only off-mesh), and authentication (`alpha.acl.enabled`). The defaults are secure
+against *external* exposure — every Service is `ClusterIP`, and Ingress and
+NetworkPolicy are off — but not against unauthenticated *in-cluster* access until you
+enable ACL and NetworkPolicy.
+
+### Ports at a glance
+
+| Port | Component | Name | Protocol | Reachable by default | Purpose |
+|------|-----------|------|----------|----------------------|---------|
+| 8080 | Alpha | `http-alpha` | HTTP(S) | in-cluster (ClusterIP) | Client API: GraphQL/DQL query + mutation, `/admin`, `/alter`, `/health`, `/state`. |
+| 9080 | Alpha | `grpc-alpha` | gRPC | in-cluster (ClusterIP) | Client API over gRPC (the native Dgraph clients). |
+| 7080 | Alpha | `grpc-alpha-int` | gRPC | intra-cluster only (headless Service) | Inter-node Alpha↔Alpha / Alpha↔Zero traffic. Never a client port. |
+| 5080 | Zero | `grpc-zero` | gRPC | in-cluster (ClusterIP) | Internal: Alphas connect here to join the cluster. Not a client port. |
+| 6080 | Zero | `http-zero` | HTTP(S) | in-cluster (ClusterIP) | Zero admin: `/state`, `/removeNode`, `/moveTablet`. **No ACL — unauthenticated.** |
+| 80 → 8000 | Ratel | `http-ratel` | HTTP | only if `ratel.enabled` | Debug web UI; a browser client of Alpha, holds no data. Off by default. |
+
+Only Alpha's `8080`/`9080` are client ports. The internal ports (`7080`, `5080`) and
+Zero's admin (`6080`) carry cluster-control traffic and must never be exposed
+externally or opened to client pods.
+
+### What is exposed externally
+
+**Nothing, by default.** Every Service is `ClusterIP`, and `alpha.ingress.enabled`,
+`alpha.ingress_grpc.enabled`, and `global.ingress.enabled` are all `false`, so no port
+leaves the cluster. External exposure is opt-in, by one of two mechanisms:
+
+1. **Service type** — set `alpha.service.type` (or `zero` / `ratel`) to `LoadBalancer`
+   or `NodePort` to publish that Service's ports (`8080`/`9080` for Alpha) at the cloud
+   load balancer or node. Restrict the source with `alpha.service.loadBalancerSourceRanges`
+   and preserve the client IP with `externalTrafficPolicy: Local`.
+2. **Ingress** — set `alpha.ingress.enabled: true` (HTTP → `8080`) and/or
+   `alpha.ingress_grpc.enabled: true` (gRPC → `9080`), each with `ingressClassName`,
+   `hostname`, `annotations`, and a `tls:` block (`hosts` + `secretName`) that terminates
+   TLS at the ingress. Requires an ingress controller.
+
+Transport and auth on an exposed port follow the same rules as in-cluster (below). Two
+cautions: never expose Zero's `6080` (unauthenticated admin) or the internal
+`5080`/`7080`; and do not expose Alpha externally with ACL off, since `/alter` and
+`/admin` are then open to anyone who reaches the port.
+
+### Transport and authentication per mode
+
+Transport on the HTTP/gRPC ports depends on the deployment mode; authentication on
+Alpha's client API depends on ACL:
+
+| Mode | On-the-wire transport | A client must |
+|------|----------------------|---------------|
+| **Service mesh** (`serviceMesh.enabled: true`, default) | Dgraph speaks **plaintext** on the pod; the Istio sidecars supply mTLS between meshed pods. `*.tls.enabled` only provisions and mounts the cert Secret. | be in the mesh (carry a sidecar) so its traffic is mTLS, and satisfy the mesh `AuthorizationPolicy` — owned by the platform mesh; the chart ships no Istio CRDs. |
+| **No mesh + native TLS** (`serviceMesh.enabled: false`, `*.tls.enabled: true`) | Dgraph speaks **TLS** directly — HTTPS on `8080`, TLS gRPC on `9080` — from the synthesized `--tls`. With `tls.clientAuthType: REQUIREANDVERIFY` it is **mutual TLS**. | trust the chart CA, connect over TLS, and present a client certificate when `clientAuthType` requires one. |
+| **No mesh, no TLS** (`serviceMesh.enabled: false`, `*.tls.enabled: false`) | **Plaintext** HTTP/gRPC, no transport encryption (NOTES warns about this). | reach the port — segmentation is then the only control (see NetworkPolicy). |
+
+Authentication holds across all three modes: with `alpha.acl.enabled: true` the Alpha
+client API requires login — the client authenticates as a user from the ACL accounts
+Secret and sends the returned access token. With ACL off, the data API and `/alter` are
+unauthenticated. Zero's `6080` admin is unauthenticated regardless of ACL, which is why
+it must stay internal.
+
+### Letting another in-cluster service connect
+
+A client service connects only to **Alpha**, at its Service DNS name
+(`<release>-dgraph-sec-alpha` by default):
+
+```
+<release>-dgraph-sec-alpha.<namespace>.svc.cluster.local:8080   # HTTP / GraphQL / DQL
+<release>-dgraph-sec-alpha.<namespace>.svc.cluster.local:9080   # gRPC
+```
+
+Use `https://` and the TLS gRPC target under native TLS. Beyond DNS, what the client
+needs depends on the toggles you enabled:
+
+- **NetworkPolicy** (`networkPolicy.enabled: true`): the chart opens Alpha `8080`/`9080`
+  only to pods carrying **every** label in `networkPolicy.clientPodLabels`. Label the
+  client pod to match, or add a bespoke rule to `networkPolicy.extraIngress`. The policy
+  never opens Zero `5080`/`6080` or Alpha `7080` to clients, and it leaves egress
+  unrestricted.
+  ```yaml
+  networkPolicy:
+    enabled: true
+    clientPodLabels:
+      app.kubernetes.io/part-of: my-client-app   # this pod may reach 8080/9080
+  ```
+- **Service mesh** (`serviceMesh.enabled: true`): the client pod must be in the mesh
+  (carry an Istio sidecar) so its traffic to Alpha is mTLS, and the mesh
+  `AuthorizationPolicy` must allow the client's service-account principal. Those policies
+  live in the platform mesh, not this chart.
+- **Native TLS** (no mesh, `alpha.tls.enabled: true`): the client must connect over TLS
+  and trust the chart CA; with `alpha.tls.clientAuthType: REQUIREANDVERIFY` it must also
+  present a client certificate (basename `alpha.tls.clientName`, the
+  `client.<clientName>.crt/.key` pair).
+- **ACL** (`alpha.acl.enabled: true`): the client must log in as an ACL user and send the
+  access token on each request.
+
+Only Alpha `8080`/`9080` should ever be added to a client allow-list. The internal ports
+(`5080`, `6080`, `7080`) stay reachable only by the dgraph pods themselves — the
+NetworkPolicy's intra-cluster rule already covers that.
 
 ---
 
