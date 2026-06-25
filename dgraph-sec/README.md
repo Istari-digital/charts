@@ -215,6 +215,32 @@ backups:
     existingSecret: dgraph-sec-backup-admin  # holds the password; keeps it out of values/git
 ```
 
+When ACL is on, the CronJob logs in to Alpha as `backups.admin.user` to trigger each
+backup, so that user must exist and belong to the `guardians` group (the bootstrap's
+`istari-admin` qualifies). Supply its password through a pre-created Secret, not inline:
+
+```yaml
+backups:
+  admin:
+    user: istari-admin
+    existingSecret: dgraph-sec-acl-accounts   # the Secret holding the user's password
+    passwordSecretKey: istari-admin_password  # the key within it
+```
+
+For a **MinIO / S3-compatible** endpoint, use a `minio://` destination and supply
+`backups.keys.minio` (rendered as `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY`); set
+`backups.minioSecure: false` for a plain-HTTP MinIO:
+
+```yaml
+backups:
+  destination: minio://minio.my-namespace.svc:9000/dgraph-backups
+  minioSecure: false
+  keys:
+    minio:
+      access: <minio-access-key>
+      secret: <minio-secret-key>
+```
+
 ### S3 permissions
 
 When `backups.destination` is an `s3://` URI, the AWS credentials the backups use
@@ -249,6 +275,30 @@ still block it; off a mesh, confirm cluster egress to S3/STS is permitted.
 > Prefer External Secrets Operator or Sealed Secrets. When ACL is enabled the chart
 > **requires** `backups.admin.user` so backups can never silently fall back to the
 > well-known `groot` superadmin.
+
+### Reaching Alpha: service mesh vs native TLS
+
+The CronJob calls Alpha's `/admin` endpoint to start each backup, and how it connects
+depends on the deployment mode. The chart wires this automatically — you do not set the
+transport directly:
+
+- **Under a service mesh** (`serviceMesh.enabled: true`, the default): the CronJob
+  reaches Alpha over plain HTTP and the mesh sidecars encrypt the wire. No backup-side
+  TLS configuration is needed, even if `*.tls.enabled` is set (those certificates are
+  mounted but Dgraph stays plaintext on the pod).
+- **Without a mesh, with native TLS** (`serviceMesh.enabled: false`,
+  `alpha.tls.enabled: true`): the CronJob reaches Alpha over **HTTPS**, trusting the
+  chart CA and targeting the alpha-0 headless FQDN that the server certificate's SANs
+  cover. Under mutual TLS (`alpha.tls.clientAuthType: REQUIREANDVERIFY`) set
+  `backups.admin.tls_client` to a client-certificate name so the CronJob presents one.
+  The chart flips CACERT, HTTPS, and the FQDN on together through the `nativeTLS`
+  predicate, so the ACL bootstrap Job and the backups stay consistent.
+- **Without a mesh and without TLS**: the CronJob reaches Alpha over plain, unencrypted
+  HTTP. Acceptable only for local/dev; NOTES warns about it.
+
+In every mode the backup task itself runs on the **Alpha leader**, so the destination
+credentials (or Pod Identity / IRSA) must reach the Alpha pods — see
+[S3 permissions](#s3-permissions) above.
 
 ## Monitoring
 
