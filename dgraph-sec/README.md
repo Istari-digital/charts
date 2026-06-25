@@ -1,10 +1,6 @@
 # Dgraph-sec
 
-<<<<<<< HEAD
-![Version: 0.6.0](https://img.shields.io/badge/Version-0.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.7-sec.0.2.2](https://img.shields.io/badge/AppVersion-v25.3.7--sec.0.2.2-informational?style=flat-square)
-=======
-![Version: 0.6.1](https://img.shields.io/badge/Version-0.6.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.6-sec.0.2.1](https://img.shields.io/badge/AppVersion-v25.3.6--sec.0.2.1-informational?style=flat-square)
->>>>>>> 210641c (docs(dgraph-sec): configuration & topology reference + backup S3 IAM permissions (DGR-256, DGR-252))
+![Version: 0.6.1](https://img.shields.io/badge/Version-0.6.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.7-sec.0.2.2](https://img.shields.io/badge/AppVersion-v25.3.7--sec.0.2.2-informational?style=flat-square)
 
 Dgraph-sec — hardened Dgraph database for Istari platform
 

@@ -248,7 +248,7 @@ enumeration lives in the [chart README Values section](../README.md#values).
 |-----|---------|--------------|
 | `image.registry` | `istaridigital.jfrog.io` | Registry hosting the hardened image. |
 | `image.repository` | `main-docker-local/dgraph-sec` | Image repository path. |
-| `image.tag` | `v25.3.6-sec.0.2.1` | Image tag (tracks `Chart.appVersion`). |
+| `image.tag` | `v25.3.7-sec.0.2.2` | Image tag (tracks `Chart.appVersion`). |
 | `image.pullPolicy` | `IfNotPresent` | Image pull policy. |
 | `preUpgradeHook.enabled` | `true` | Run the v24→v25 StatefulSet-selector migration Job on each upgrade. |
 | `serviceAccount.create` | `true` | Create the dgraph ServiceAccount. |
