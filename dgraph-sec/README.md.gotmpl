@@ -849,6 +849,11 @@ directory.
    helm install dgraph-sec . -n dgraph-sec-test -f example_values/docker-desktop.yaml --wait --timeout 12m
    ```
 
+   > [!NOTE]
+   > Use Helm **4.2.2+** or **3.x**. Helm **4.2.1** has a regression where waits stall
+   > before the post-install hooks run, so on 4.2.1 both this `--wait` install and the
+   > `helm test` in the next step hang. `brew upgrade helm` (or any Helm 3.x) resolves it.
+
 5. Run the conformance validator on demand:
 
    ```sh
