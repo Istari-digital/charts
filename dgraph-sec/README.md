@@ -184,7 +184,7 @@ post-install NOTES for the exact flags.
 
 ## Backups & restore
 
-Dgraph takes binary backups. Turn them on with `backups.full.enabled` and
+Dgraph takes [binary backups](https://docs.dgraph.io/admin/admin-tasks/binary-backups). Turn them on with `backups.full.enabled` and
 `backups.incremental.enabled`, then point `backups.destination` at a file path, an
 NFS mount, or an S3/MinIO bucket. The chart runs two CronJobs from there: one full
 backup and one incremental, each on its own schedule.
@@ -653,7 +653,8 @@ way.
 
 A mesh hands every pod a cryptographic identity for free. Without one, Dgraph
 terminates TLS itself, from certificates you generate and mount. Two steps enable
-it; the chart builds the rest.
+it; the chart builds the rest. For the underlying feature, see Dgraph's [TLS
+configuration](https://docs.dgraph.io/admin/security/tls-configuration).
 
 **1. Generate the certificates.** `scripts/make_tls_secrets.sh` wraps `dgraph-sec
 cert` and writes a ready-to-apply values file. The certificates bind to the pods'
@@ -777,7 +778,7 @@ backup failed` error even when the IAM grant is correct. See the
 
 #### Authentication: Dgraph ACL
 
-Authentication needs no mesh. Enable `alpha.acl.enabled` for Dgraph's built-in ACL,
+Authentication needs no mesh. Enable `alpha.acl.enabled` for Dgraph's built-in [ACL](https://docs.dgraph.io/installation/configuration/enable-acl),
 as the [shared baseline](#shared-baseline-all-environments) already does. Three
 Kubernetes-native parts then stand in for the mesh: ACL proves who the caller is,
 NetworkPolicy limits which pods may connect, and native TLS keeps the channel
@@ -859,6 +860,20 @@ directory.
    helm uninstall dgraph-sec -n dgraph-sec-test
    kubectl delete namespace dgraph-sec-test
    ```
+
+## Further reference
+
+This chart wires up dgraph-sec; the upstream Dgraph documentation explains each
+feature it configures in depth. The most relevant deep dives:
+
+- **Authentication (ACL)** — [Access Control Lists](https://docs.dgraph.io/installation/configuration/enable-acl) and the [`dgraph acl` CLI](https://docs.dgraph.io/cli/acl).
+- **TLS / mTLS in transit** — [TLS configuration](https://docs.dgraph.io/admin/security/tls-configuration); securing the admin endpoint with an [auth token](https://docs.dgraph.io/admin/security/admin-endpoint-security).
+- **Encryption at rest** — [Encryption at rest](https://docs.dgraph.io/installation/configuration/encryption-at-rest).
+- **Binary backups & restore** — [Binary backups](https://docs.dgraph.io/admin/admin-tasks/binary-backups) and [`dgraph restore`](https://docs.dgraph.io/cli/restore).
+- **The database itself** — [What is Dgraph?](https://docs.dgraph.io/dgraph-overview).
+
+These pages describe the Dgraph features; this chart's values turn them on and wire
+them together — see [Configuration](#configuration) and the Backups & restore section above.
 
 ## Values
 
