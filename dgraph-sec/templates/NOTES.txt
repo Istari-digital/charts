@@ -144,7 +144,7 @@
 CONNECTING ANOTHER SERVICE IN THE CLUSTER
 
    This configuration requires setup before an in-cluster client can reach Alpha at
-   {{ include "dgraph-sec.alpha.fullname" . }}.{{ include "dgraph-sec.namespace" . }}.svc{{ include "dgraph-sec.domainSuffix" . }} on 8080 (HTTP) / 9080 (gRPC):
+   {{ include "dgraph-sec.alpha.fullname" . }}.{{ include "dgraph-sec.namespace" . }}.svc{{ include "dgraph-sec.domainSuffix" . }} on 8080 (HTTP/S) / 9080 (gRPC):
 {{- if .Values.networkPolicy.enabled }}
 
    * NetworkPolicy is ENABLED — only pods carrying every label in

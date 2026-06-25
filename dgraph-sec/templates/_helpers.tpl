@@ -341,11 +341,8 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
 {{- define "dgraph-sec.peerZero" -}}
   {{- $zeroFullName := include "dgraph-sec.zero.fullname" . -}}
 
-  {{- /* Append domain suffix if domain is used */}}
-  {{- $domainSuffix := "" -}}
-  {{- if .Values.global.domain -}}
-  {{- $domainSuffix = printf ".%s" .Values.global.domain -}}
-  {{- end -}}
+  {{- /* Append the cluster-domain suffix (trimmed, omitted when empty). */}}
+  {{- $domainSuffix := include "dgraph-sec.domainSuffix" . -}}
 
   {{- printf "%s-%d.%s-headless.${POD_NAMESPACE}.svc%s:5080" $zeroFullName 0 $zeroFullName $domainSuffix -}}
 {{- end -}}
@@ -376,11 +373,8 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
   {{- $zeroFullName := include "dgraph-sec.zero.fullname" . -}}
   {{- $max := int .Values.zero.replicaCount -}}
 
-  {{- /* Append domain suffix if domain is used */}}
-  {{- $domainSuffix := "" -}}
-  {{- if .Values.global.domain -}}
-  {{- $domainSuffix = printf ".%s" .Values.global.domain -}}
-  {{- end -}}
+  {{- /* Append the cluster-domain suffix (trimmed, omitted when empty). */}}
+  {{- $domainSuffix := include "dgraph-sec.domainSuffix" . -}}
 
   {{- /* Create comma-separated list of zeros */}}
   {{- range $idx := until $max }}
