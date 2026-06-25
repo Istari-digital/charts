@@ -7,20 +7,15 @@
 
 {{ template "chart.homepageLine" . }}
 
-This chart packages **dgraph-sec** — a distributed graph database — for the Istari
-platform. It deploys the two stateful Dgraph roles, **Zero** (cluster coordinator /
-Raft membership) and **Alpha** (data + query serving), plus optional Ratel UI,
-binary-backup CronJobs, Datadog autodiscovery, and OpenTelemetry tracing.
+This chart packages **Dgraph-sec**, the hardened fork of [Dgraph](https://dgraph.io/)
+— a distributed graph database — for the Istari platform. It deploys the two
+stateful Dgraph roles, **Zero** (cluster coordinator / Raft membership) and
+**Alpha** (data + query serving), plus optional Ratel UI, binary-backup CronJobs,
+Datadog autodiscovery, and OpenTelemetry tracing.
 
-> [!IMPORTANT]
-> The **`-sec`** suffix names the **dgraph-sec product** — the FIPS-hardened Dgraph
-> build that runs inside the container — **not** the chart. The chart is named after
-> the product it deploys. See [Security posture](#security-posture) for how the image
-> is hardened and how the chart deploys it.
-
-The chart began as a fork of the upstream Dgraph **Helm chart**, with Istari-specific
-changes: secure-by-default pod and container security contexts, the dgraph-sec binary
-and image, Datadog/OTEL wiring, a 3-tier service-naming convention, and gated
+The chart is a fork of the upstream Dgraph chart with Istari-specific changes:
+secure-by-default pod and container security contexts, the `dgraph-sec` binary and
+image, Datadog/OTEL wiring, a 3-tier service-naming convention, and gated
 production add-ons (PodDisruptionBudgets, NetworkPolicy, ServiceMonitor,
 PrometheusRule).
 
@@ -36,19 +31,11 @@ helm install dgraph-sec main-helm-local/dgraph-sec \
 ```
 
 This brings up a **working cluster out of the box**: 3 Zero + 3 Alpha replicas,
-non-root pods, and PodDisruptionBudgets. Because ACL is disabled by default, no login
-is required, so applications can connect immediately.
+non-root pods, PodDisruptionBudgets, and — because ACL is disabled by default — no
+login required, so applications can connect immediately.
 
-> [!WARNING]
-> A default install is **convenient, not production-secure**. The pods are hardened
-> (non-root, dropped capabilities, seccomp), but the data-path protections —
-> authentication (ACL), TLS in transit, encryption at rest, and NetworkPolicy — are
-> all **off** by default, so the database is unauthenticated, plaintext, and reachable
-> by any pod in the cluster. Turn these on before putting real data behind it; see
-> [Security posture](#security-posture).
-
-Istari Digital deploys this chart with Terraform and sets
-`fullnameOverride: dgraph-sec`, which is why the deployed objects are named
+In helm-stack this chart is consumed from Terraform (`istari-k8s-core/dgraph-sec.tf`)
+with `fullnameOverride: dgraph-sec`, which is why the deployed objects are named
 `dgraph-sec-alpha`, `dgraph-sec-zero`, etc.
 
 ## Architecture
@@ -63,12 +50,6 @@ Istari Digital deploys this chart with Terraform and sets
 `zero.shardReplicaCount` is the per-group replication factor (`--replicas`), **not** a
 pod count — keep it `<= alpha.replicaCount`.
 
-> [!TIP]
-> For the default cluster topology, a grouped reference of the chart's key
-> configuration values, and the per-environment overrides Istari Digital applies
-> on its own infrastructure (dev, stage, demo), see
-> [Configuration and topology](./docs/configuration-and-topology.md).
-
 ## Naming
 
 Everything uses a single identity: **`dgraph-sec`** — the chart name, the Helm
@@ -79,130 +60,34 @@ service names. The Datadog/tracing identity follows the 3-tier
 
 ## Security posture
 
-The `-sec` suffix names the **dgraph-sec product** — the FIPS-hardened Dgraph build
-that runs inside the container — not the chart. The chart is simply named after the
-product it deploys. Security therefore comes in two layers: the hardened **image**,
-and the way this **chart** runs it.
+This is the `-sec` fork, so secure defaults are baked in:
 
-### The image: FIPS-hardened Dgraph
+- Pods run **non-root** (`runAsNonRoot: true`, uid/gid 1001) with a `RuntimeDefault`
+  seccomp profile.
+- Containers **drop all Linux capabilities** and forbid privilege escalation.
+  `readOnlyRootFilesystem` is shipped `false` (dgraph writes scratch data outside its
+  mounted data dir); validate on a cluster before enabling.
+- `automountServiceAccountToken` is **off** everywhere — no workload calls the
+  Kubernetes API.
+- PodDisruptionBudgets (`minAvailable: 2`) protect Zero and Alpha quorum from
+  voluntary disruptions (node drains, autoscaler scale-down).
 
-The dgraph-sec image performs its cryptography through a FIPS 140-validated module
-rather than Go's built-in crypto:
-
-- It is compiled with the Microsoft Go FIPS toolchain and `GOEXPERIMENT=systemcrypto`
-  (with `CGO_ENABLED=1`), which routes Go's `crypto/*` calls to the system OpenSSL
-  FIPS provider instead of Go's native implementations.
-- The binary defaults to `GODEBUG=fips140=on`, and the runtime sets it again. This is
-  **fail-closed**: the process panics on startup if the validated FIPS provider is
-  missing, so it can never silently fall back to non-validated crypto.
-- It runs on Chainguard's `chainguard-base-fips` minimal base image, which ships the
-  OpenSSL FIPS provider validated under **NIST CMVP certificate #5132**.
-- The image's own default user is **non-root** (uid 65532).
-
-### The chart: deploying that image securely
-
-The chart defaults `image.*` to the hardened image and runs it under a restrictive
-Kubernetes security posture. You get this with no configuration, on the Alpha, Zero,
-and Ratel workloads:
-
-- Pods run as a **non-root** user (`runAsNonRoot: true`, uid/gid 1001) under a
-  `RuntimeDefault` seccomp profile.
-- Containers **drop every Linux capability** and cannot escalate privileges.
-  `readOnlyRootFilesystem` is left `false` because Dgraph writes scratch data outside
-  its mounted data directory. Validate on a cluster before turning it on.
-- `automountServiceAccountToken` is **off** on the long-running Dgraph workloads
-  (Alpha, Zero, Ratel, and the backup CronJobs), because none of them call the
-  Kubernetes API. The optional pre-upgrade hook Job is the one exception — it runs
-  `kubectl`, so it mounts a token by design.
-- PodDisruptionBudgets (`minAvailable: 2`) protect quorum during voluntary
-  disruptions (node drains, autoscaler scale-downs) for a 3-node Raft group — Zero,
-  and Alpha at its default 3 replicas. When you scale Alpha past 3 into multiple
-  groups, raise `alpha.pdb.minAvailable`, since a flat `minAvailable: 2` across all
-  Alpha pods could otherwise let a whole group be taken below quorum.
-
-The chart never touches the image's FIPS environment, so `fips140=on` stays in effect
-at runtime. One gap to know about: the backup CronJobs run the same image but set no
-pod or container securityContext of their own (they only disable token automount), so
-those pods fall back to the image's user and the cluster defaults rather than the
-explicit non-root / seccomp / dropped-capabilities context the Alpha and Zero pods
-receive.
-
-### Production toggles you must enable
-
-Four application-level protections stay **off** by default, because each one needs a
-deliberate decision or some external material (a key, a certificate, a Secret). Turn
-them on for a production posture:
-
-- **ACL** adds authentication and authorization.
-- **Encryption at rest** encrypts the on-disk data.
-- **TLS in transit** encrypts client and cluster traffic.
-- **NetworkPolicy** gates ingress to the Alpha and Zero pods: only in-chart dgraph
-  pods may reach Zero, and only pods you mark with `clientPodLabels` may reach
-  Alpha's client ports (8080/9080). Anything else needs `networkPolicy.extraIngress`.
-
-```yaml
-# values.yaml — production-posture toggles (each still needs its key/secret material)
-alpha:
-  acl:
-    enabled: true       # authentication + authorization (provide an HMAC secret)
-  encryption:
-    enabled: true       # encryption at rest (provide an encryption key)
-  tls:
-    enabled: true       # provisions + mounts TLS cert material — see the TLS note below
-zero:
-  tls:
-    enabled: true       # Zero needs TLS cert material too — see the TLS note below
-networkPolicy:
-  enabled: true         # gate ingress to the Alpha and Zero pods
-  clientPodLabels:      # these pods may reach Alpha's client ports 8080/9080 (Zero stays internal)
-    app.kubernetes.io/part-of: my-client-app
-```
-
-ACL and encryption each need key or Secret material; see `values.yaml` and the
-post-install NOTES for the exact flags.
-
-> [!IMPORTANT]
-> **TLS in transit depends on the deployment mode.** Under a service mesh
-> (`serviceMesh.enabled: true`, the default), the mesh encrypts traffic, so
-> `alpha.tls.enabled` / `zero.tls.enabled` only create and mount the TLS Secret at
-> `/dgraph/tls`. Without a mesh, set `serviceMesh.enabled: false` and enable TLS per
-> tier (`alpha.tls.enabled` / `zero.tls.enabled: true`): for each tier with TLS on,
-> the chart then synthesizes Dgraph's `--tls` superflag from the `*.tls` keys
-> (`internalPort`, `clientName`, `clientAuthType`) and switches the probes to HTTPS —
-> no `extraFlags` editing. See the chart docs, "Deploying without a service mesh."
+Defaults that are **off** and must be enabled for a production posture: ACL
+(authentication), encryption at rest, TLS in transit, and NetworkPolicy. See
+`values.yaml` and the post-install NOTES for the exact flags.
 
 ## Backups & restore
 
-Dgraph takes binary backups. Turn them on with `backups.full.enabled` and
-`backups.incremental.enabled`, then point `backups.destination` at a file path, an
-NFS mount, or an S3/MinIO bucket. The chart runs two CronJobs from there: one full
-backup and one incremental, each on its own schedule.
+Enable scheduled binary backups with `backups.full.enabled` / `backups.incremental.enabled`
+and a `backups.destination`. Restoring is a deliberate, operator-driven action — there
+is no automatic restore. The runbook lives in [`scripts/README.md`](./scripts/README.md#restoring-from-a-binary-backup).
 
-Restoring is never automatic. It is a deliberate, operator-driven action, and the
-step-by-step runbook lives in
-[`scripts/README.md`](./scripts/README.md#restoring-from-a-binary-backup).
-
-Each backup pod follows the Alpha it backs up. The CronJobs inherit
-`alpha.nodeSelector` and `alpha.tolerations`, so a backup pod lands on the same node
-group as Alpha, triggers the backup against `alpha-0`, and — for filesystem or NFS
-destinations — shares Alpha's backup volume. Pin Alpha to a dedicated, tainted node
-group and the backups follow it there. Leave Alpha scheduling unset and they
-schedule anywhere.
-
-```yaml
-# values.yaml — daily full + hourly incremental backups to S3
-backups:
-  destination: s3://s3.us-west-2.amazonaws.com/my-dgraph-backups
-  full:
-    enabled: true
-    schedule: "0 0 * * *"      # every day at midnight
-  incremental:
-    enabled: true
-    schedule: "0 1-23 * * *"   # every hour except midnight
-  admin:
-    user: backup-admin                       # required once ACL is on
-    existingSecret: dgraph-sec-backup-admin  # holds the password; keeps it out of values/git
-```
+The full and incremental backup CronJobs inherit `alpha.nodeSelector` and
+`alpha.tolerations`, so each backup pod schedules onto the same node group as the
+Alpha it backs up — it triggers the backup against `alpha-0` and, for filesystem/NFS
+destinations, shares Alpha's backup volume. Pin Alpha to a dedicated, tainted node
+group and the backups follow it there; leave `alpha` scheduling unset and they
+schedule anywhere, as before.
 
 > [!WARNING]
 > Credentials (`backups.admin.password`, `backups.admin.auth_token`, ACL secrets) set
@@ -213,36 +98,20 @@ backups:
 
 ## Monitoring
 
-Out of the box, the Alpha and Zero pods carry `prometheus.io/*` scrape annotations
-that point at Dgraph's metrics endpoint (`/debug/prometheus_metrics`). Any Prometheus
-configured for annotation-based discovery picks them up with no extra setup.
-
-The **Prometheus Operator** works differently — it discovers targets through
-`ServiceMonitor` objects, not annotations. Set `serviceMonitor.enabled` to have the
-chart create one, and `prometheusRule.enabled` to ship a set of default alerts.
-Separately, `datadog.enabled` adds Datadog autodiscovery annotations and unified
-service tags.
-
-```yaml
-# values.yaml — Prometheus Operator + Datadog
-serviceMonitor:
-  enabled: true
-prometheusRule:
-  enabled: true     # also ship the chart's default alert rules
-datadog:
-  enabled: true     # Datadog autodiscovery + unified service tags
-```
+Alpha and Zero pods carry `prometheus.io/*` scrape annotations
+(`/debug/prometheus_metrics`) for annotation-based discovery. For the Prometheus
+Operator, enable `serviceMonitor.enabled` (and `prometheusRule.enabled` for default
+alerts). Set `datadog.enabled` for Datadog autodiscovery + unified service tags.
 
 ## Logging
 
-Dgraph logs through glog. Every role always writes `INFO`, `WARNING`, and `ERROR`
-lines to stderr, where `kubectl logs` and the node log collector pick them up. You
-cannot turn those severities off. Raising the log level only *adds* finer detail on
-top of them, so a higher level shows you more but never hides a real warning or
-error.
+Dgraph uses glog. Each role writes `INFO` / `WARNING` / `ERROR` to stderr, where
+`kubectl logs` and the node log collector capture them. Those severities are always
+on; verbosity only adds finer detail on top, so a log level can climb above the
+baseline but never hide a severity.
 
-Set the level per role with `alpha.logLevel` and `zero.logLevel`, using either a
-named level or the equivalent raw glog `-v` integer:
+Set verbosity per role with `alpha.logLevel` / `zero.logLevel` — a named level or a
+raw glog `-v` integer:
 
 | Level | `-v` |
 |-------|------|
@@ -251,52 +120,26 @@ named level or the equivalent raw glog `-v` integer:
 | `debug` | 2 |
 | `trace` | 3 |
 
-A few finer controls sit alongside the level:
-
-- **`vmodule`** narrows the extra verbosity to specific subsystems, e.g.
-  `"server=3,raft=2"`, so you can dig into raft without flooding everything else.
-- **`logtostderr`** should stay `true` on Kubernetes. Set it `false` without a
-  writable `logDir` and a container restart loses its logs.
-- **`extraFlags`** is the escape hatch for any glog flag the chart does not expose
-  directly (`--stderrthreshold`, `--log_backtrace_at`, and the like). A `-v` placed
-  here overrides `logLevel`.
-
-```yaml
-# values.yaml — verbose Alpha focused on the raft subsystem; quiet Zero
-alpha:
-  logLevel: verbose           # named level, or a raw integer like 1
-  vmodule: "server=3,raft=2"  # extra detail for just these subsystems
-  logtostderr: true           # keep true so kubectl logs sees everything
-zero:
-  logLevel: normal
-```
+Target one subsystem with `vmodule` (e.g. `"server=3,raft=2"`). Keep
+`logtostderr: true` on Kubernetes; setting it `false` without a writable `logDir`
+loses logs when a container restarts. For any glog flag the chart does not expose
+(`--stderrthreshold`, `--log_backtrace_at`), append it to `extraFlags` — a `-v` set
+there overrides `logLevel`.
 
 ## Tracing (OpenTelemetry)
 
-Set `tracing.enabled` to export traces from Alpha and Zero. The chart assembles
-Dgraph's `--trace` superflag from the `tracing` block and sends spans over OTLP/HTTP
-to the collector you point it at:
+Set `tracing.enabled` to export traces from Alpha and Zero. The chart builds Dgraph's
+`--trace` superflag from the `tracing` block and sends OTLP/HTTP to the configured
+collector:
 
 | Value | Purpose |
 |-------|---------|
-| `tracing.endpoint` | OTLP/HTTP collector endpoint. Defaults to the Datadog agent on port 4318. |
-| `tracing.ratio` | Fraction of requests sampled. Defaults to `0.01` (1%). |
-| `tracing.alpha.service` / `tracing.zero.service` | Per-role service name reported to the collector (`dgraph-sec.alpha` / `dgraph-sec.zero`). |
+| `tracing.endpoint` | OTLP/HTTP collector — default the Datadog agent on port 4318 |
+| `tracing.ratio` | Sample fraction — default `0.01` |
+| `tracing.alpha.service` / `tracing.zero.service` | Per-role service name (`dgraph-sec.alpha` / `dgraph-sec.zero`) |
 
-```yaml
-# values.yaml — export 1% of traces to an OTLP collector
-tracing:
-  enabled: true
-  endpoint: "datadog-agent.datadog.svc.cluster.local:4318"
-  ratio: "0.01"               # sample 1% of requests
-  alpha:
-    service: "dgraph-sec.alpha"
-  zero:
-    service: "dgraph-sec.zero"
-```
-
-On Istari Digital's own clusters, `tracing.enabled` tracks the Datadog operator, so
-traces flow wherever the agent runs.
+In helm-stack `tracing.enabled` follows the Datadog operator, so traces flow wherever
+the agent runs.
 
 {{ template "chart.sourcesSection" . }}
 
