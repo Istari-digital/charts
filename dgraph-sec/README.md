@@ -224,6 +224,17 @@ so the credentials must be available to the Alpha pods — grant them via the ch
 ServiceAccount (EKS Pod Identity / IRSA) or set `backups.keys.s3` — not just to
 the backup Job pods.
 
+The chart does not provision the IAM role itself. In Istari's helm-stack the
+`dgraph_sec_backups_pod_identity` module grants these actions to the chart
+ServiceAccount via EKS Pod Identity; a standalone deployment must provision the
+equivalent role (Pod Identity / IRSA) or supply `backups.keys.s3`. The requirement
+is identical with or without a service mesh.
+
+Backups also need network egress from the Alpha pods to the S3 endpoint (and to STS
+when credentials come from IRSA). The chart's NetworkPolicy leaves egress
+unrestricted for this reason, but a service mesh or a cluster-wide egress policy can
+still block it; off a mesh, confirm cluster egress to S3/STS is permitted.
+
 > [!WARNING]
 > Credentials (`backups.admin.password`, `backups.admin.auth_token`, ACL secrets) set
 > inline in a values file are visible via `helm get values` and tend to leak into git.

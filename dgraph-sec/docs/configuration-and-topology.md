@@ -500,6 +500,15 @@ identity-aware rules, those same CNIs offer their own policy CRDs — Cilium's
 `CiliumNetworkPolicy`, Calico's `GlobalNetworkPolicy` — as a superset of the standard
 API.
 
+**The policy restricts ingress only; egress is deliberately left open.** Replacing
+mesh authorization with a `NetworkPolicy` segments who can *reach* the dgraph pods,
+not where those pods may connect out — so enabling it does not break backups, OTEL
+export, or NFS. If you add your own default-deny *egress* policy (a reasonable
+instinct once there is no mesh), you must then explicitly allow the Alpha pods'
+egress to the S3/STS endpoints, or backups fail with the misleading `resolving
+backup failed` error even when the IAM grant is correct. See the backup
+S3-permissions notes in the chart README.
+
 ### Authentication: Dgraph ACL
 
 Authentication needs no mesh. Enable `alpha.acl.enabled` for Dgraph's built-in ACL,
