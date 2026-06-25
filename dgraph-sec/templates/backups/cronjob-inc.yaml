@@ -65,7 +65,7 @@ spec:
                 ## Alpha-0 headless FQDN incl. the cluster domain, so it matches the
                 ## cert SANs make_tls_secrets.sh issues and the host the ACL bootstrap
                 ## Job targets — curl hostname verification under native TLS passes.
-                ALPHA_HOST="{{ template "dgraph-sec.alpha.fullname" . }}-0.{{ template "dgraph-sec.alpha.fullname" . }}-headless.${POD_NAMESPACE}.svc.{{ .Values.global.domain }}"
+                ALPHA_HOST="{{ template "dgraph-sec.alpha.fullname" . }}-0.{{ template "dgraph-sec.alpha.fullname" . }}-headless.${POD_NAMESPACE}.svc{{ include "dgraph-sec.domainSuffix" . }}"
 
                 BACKUP_DESTINATION={{ .Values.backups.destination }}
                 SUBPATH={{ .Values.backups.subpath }}
