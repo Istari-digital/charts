@@ -525,3 +525,62 @@ alpha:
 Set the range to your cluster's actual pod network rather than `0.0.0.0/0`. This
 applies to the backup CronJobs as well, since they authenticate to `/admin` the same
 way.
+
+### Running locally on Docker Desktop
+
+A complete, verified example of the mesh-free profile above is checked in at
+[`example_values/docker-desktop.yaml`](../example_values/docker-desktop.yaml): one
+Alpha and one Zero, ACL on, no persistence, shrunk resources, and the ACL whitelist
+set so in-cluster login works. It is a local/dev profile — ephemeral data, broad
+whitelist — not a production template. Run the commands below from the chart
+directory.
+
+1. Create the namespace:
+
+   ```sh
+   kubectl create namespace dgraph-sec-test
+   ```
+
+2. Create the image pull Secret from your Docker login (Docker must already be
+   authenticated to the registry):
+
+   ```sh
+   kubectl -n dgraph-sec-test create secret generic jfrog-pull \
+     --type=kubernetes.io/dockerconfigjson \
+     --from-file=.dockerconfigjson="$HOME/.docker/config.json"
+   ```
+
+3. Create the ACL credentials Secret the bootstrap reads. The HMAC key must be at
+   least 32 bytes:
+
+   ```sh
+   kubectl -n dgraph-sec-test create secret generic dgraph-sec-acl-local \
+     --from-literal=hmac_secret_file="$(openssl rand -hex 16)" \
+     --from-literal=groot_password="$(openssl rand -base64 18 | tr -d '/+=' | head -c 24)" \
+     --from-literal=istari-admin_password="$(openssl rand -base64 18 | tr -d '/+=' | head -c 24)"
+   ```
+
+4. Install. `--wait` brings up Alpha and Zero, then the ACL bootstrap rotates groot
+   and creates `istari-admin`, then the validator's post-install hook runs — a
+   failed conformance check fails the install:
+
+   ```sh
+   helm install dgraph-sec . -n dgraph-sec-test -f example_values/docker-desktop.yaml --wait --timeout 12m
+   ```
+
+5. Run the conformance validator on demand:
+
+   ```sh
+   helm test dgraph-sec -n dgraph-sec-test --logs
+   ```
+
+   It reports `dgraph-sec validation: PASS` with a `PASS` line for health,
+   admin-login, ACL enforcement, membership, an authenticated query, and per-user
+   login.
+
+6. Tear down:
+
+   ```sh
+   helm uninstall dgraph-sec -n dgraph-sec-test
+   kubectl delete namespace dgraph-sec-test
+   ```
