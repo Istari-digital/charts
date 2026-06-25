@@ -39,6 +39,17 @@ This brings up a **working cluster out of the box**: 3 Zero + 3 Alpha replicas,
 non-root pods, and PodDisruptionBudgets. Because ACL is disabled by default, no login
 is required, so applications can connect immediately.
 
+> [!IMPORTANT]
+> Several configuration options change this — once enabled, other services in the
+> cluster must be **explicitly allowed before they can connect** to Alpha:
+> **NetworkPolicy** (`networkPolicy.enabled`) admits only pods carrying every label in
+> `networkPolicy.clientPodLabels`; a **service mesh** requires the mesh
+> `AuthorizationPolicy` to admit the client; **native TLS** (`alpha.tls.enabled` with no
+> mesh) requires the client to trust the chart CA and, under `REQUIREANDVERIFY`, present
+> a client certificate; and **ACL** (`alpha.acl.enabled`) requires the client to log in.
+> See [Letting another in-cluster service connect](./docs/topology.md#letting-another-in-cluster-service-connect)
+> for the exact steps per option.
+
 > [!WARNING]
 > A default install is **convenient, not production-secure**. The pods are hardened
 > (non-root, dropped capabilities, seccomp), but the data-path protections —
