@@ -8,8 +8,8 @@
 #   - resources are shrunk to fit a laptop,
 #   - the ACL whitelist is broad (private ranges) rather than a tight pod CIDR.
 #
-# See "Running locally on Docker Desktop" in docs/configuration-and-topology.md for
-# the install walkthrough (namespace, pull Secret, ACL Secret, helm install).
+# See "Running locally on Docker Desktop" in the chart README's Configuration
+# section for the install walkthrough (namespace, pull Secret, ACL Secret, helm install).
 
 image:
   # Pull the dgraph-sec image from JFrog. Create this Secret first (see the docs):
@@ -44,7 +44,8 @@ alpha:
   # backup CronJobs) reach Alpha through its ClusterIP Service and are SNAT'd to a
   # node IP that Dgraph's ACL rejects ("unauthorized ip address"). Whitelist the
   # cluster's private ranges so admin login from other pods is trusted. Scope this
-  # to your real pod CIDR in production. See "Authentication: Dgraph ACL" below.
+  # to your real pod CIDR in production. See "Authentication: Dgraph ACL" in the
+  # chart README's Configuration section.
   extraFlags: '--security "whitelist=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"'
   persistence:
     enabled: false

@@ -1147,7 +1147,8 @@ tracing:
 ## sidecars encrypt traffic and supply pod identity, so Dgraph runs plaintext.
 ## Leave enabled on those clusters. Set to false on a cluster with no mesh: the
 ## chart then wires Dgraph-native TLS (from alpha.tls/zero.tls) and you rely on
-## networkPolicy below for segmentation.
+## networkPolicy below for segmentation. See the chart README's Configuration
+## section ("Deploying without a service mesh").
 # -- (object) Service-mesh assumption that shapes encryption and identity.
 serviceMesh:
   # -- (bool) When true, assume an ambient strict-mTLS mesh provides encryption and identity. When false, the chart synthesizes Dgraph's --tls superflag and switches probes to HTTPS for any tier with tls.enabled.
