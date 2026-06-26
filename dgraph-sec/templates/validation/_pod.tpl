@@ -37,7 +37,10 @@ securityContext:
 {{- end }}
 containers:
 - name: validate
-{{- if .Values.validation.image }}
+{{- /* Use the override only when registry, repository, and tag are all set; a
+       partial override would render an invalid image reference, so fall back to
+       the shared dgraph-sec image instead. */}}
+{{- if and .Values.validation.image .Values.validation.image.registry .Values.validation.image.repository .Values.validation.image.tag }}
   image: {{ printf "%s/%s:%s" .Values.validation.image.registry .Values.validation.image.repository (.Values.validation.image.tag | toString) }}
 {{- else }}
   image: {{ include "dgraph-sec.image" . }}
