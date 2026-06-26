@@ -1,8 +1,8 @@
 apiVersion: v2
 name: dgraph-sec
 type: application
-version: 0.4.5
-appVersion: v25.3.6-sec.0.2.1
+version: 0.4.6
+appVersion: v25.3.7-sec.0.2.2
 description: Dgraph-sec — hardened Dgraph database for Istari platform
 keywords:
 - dgraph

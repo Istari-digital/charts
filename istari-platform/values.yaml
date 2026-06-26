@@ -36,7 +36,7 @@ fileservice:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "fileservice2"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "10.17.4"
+  tag: "10.21.1"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -179,7 +179,7 @@ frontend:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "frontend-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "8.33.6"
+  tag: "8.34.1"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -320,7 +320,7 @@ mcp:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "mcp-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "0.3.3"
+  tag: "0.4.1"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -459,7 +459,7 @@ secureConnection:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "secure-connection-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "10.17.4"
+  tag: "10.21.1"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -602,7 +602,7 @@ identityService:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "identity-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "v1.0.0"
+  tag: "v1.0.1"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -768,7 +768,7 @@ docs:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "docs-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "6.13.2"
+  tag: "6.14.0"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Replica count
