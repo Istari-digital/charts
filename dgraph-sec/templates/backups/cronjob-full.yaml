@@ -62,7 +62,7 @@ spec:
                 ## Use Single Alpha in Cluster to avoid potential issues with concurrent backups
                 ## ref. https://discuss.dgraph.io/t/concurrent-backups-can-lead-to-issues/9934/2
                 ## Alpha-0 headless FQDN incl. the cluster domain, so it matches the
-                ## cert SANs make_tls_secrets.sh issues and the host the ACL bootstrap
+                ## cert SANs that scripts/make_tls_secrets.sh issues and the host the ACL bootstrap
                 ## Job targets — curl hostname verification under native TLS passes.
                 ALPHA_HOST="{{ template "dgraph-sec.alpha.fullname" . }}-0.{{ template "dgraph-sec.alpha.fullname" . }}-headless.${POD_NAMESPACE}.svc{{ include "dgraph-sec.domainSuffix" . }}"
 

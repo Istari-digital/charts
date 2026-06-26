@@ -28,8 +28,8 @@ zero:
   shardReplicaCount: 1
   antiAffinity: soft
   # One replica locally, so disable the PodDisruptionBudget. The chart default
-  # (minAvailable: 2) can never be satisfied by a single pod, and Helm 4's --wait
-  # treats such a PDB as never-ready, which hangs `helm install --wait`.
+  # (minAvailable: 2) can never be satisfied by a single pod, and `helm install
+  # --wait` treats such a PDB as never-ready, which hangs the install.
   pdb:
     enabled: false
   persistence:
