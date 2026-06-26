@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.19.0](https://img.shields.io/badge/Version-3.19.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.19.1](https://img.shields.io/badge/Version-3.19.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -175,7 +175,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | identityService.identityRouterClientRegistration.podAnnotations | object | `{}` | Annotations for the registration Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`). |
 | identityService.identityRouterClientRegistration.podLabels | object | `{}` | Extra labels for the registration Job Pod template only. |
 | identityService.identityRouterClientRegistration.resources | object | `{}` | Resources for the registration Job container. |
-| identityService.image | string | `"identity-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
+| identityService.image | string | `"identity-router"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | identityService.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | identityService.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
 | identityService.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
@@ -202,7 +202,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | identityService.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | identityService.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | identityService.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| identityService.tag | string | `"v1.0.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| identityService.tag | string | `"1.0.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | identityService.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | identityService.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | identityService.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
