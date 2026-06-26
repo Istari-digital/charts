@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.18.0](https://img.shields.io/badge/Version-3.18.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.19.0](https://img.shields.io/badge/Version-3.19.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -57,7 +57,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | docs.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | docs.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | docs.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| docs.tag | string | `"6.13.2"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| docs.tag | string | `"6.14.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | docs.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | docs.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | docs.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -104,7 +104,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | fileservice.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | fileservice.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | fileservice.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| fileservice.tag | string | `"10.17.4"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| fileservice.tag | string | `"10.21.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | fileservice.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | fileservice.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -146,7 +146,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | frontend.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | frontend.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | frontend.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| frontend.tag | string | `"8.33.6"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| frontend.tag | string | `"8.34.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | frontend.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | frontend.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | frontend.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -202,7 +202,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | identityService.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | identityService.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | identityService.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| identityService.tag | string | `"v1.0.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| identityService.tag | string | `"v1.0.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | identityService.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | identityService.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | identityService.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -245,7 +245,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | mcp.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | mcp.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | mcp.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| mcp.tag | string | `"0.3.3"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| mcp.tag | string | `"0.4.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | mcp.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | mcp.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -313,7 +313,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | secureConnection.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | secureConnection.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | secureConnection.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| secureConnection.tag | string | `"10.17.4"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| secureConnection.tag | string | `"10.21.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | secureConnection.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | secureConnection.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
