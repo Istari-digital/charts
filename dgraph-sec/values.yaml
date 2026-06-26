@@ -286,7 +286,7 @@ zero:
     files: {}
     ## Read only when serviceMesh.enabled=false AND tls.enabled=true; the chart
     ## then builds Dgraph's --tls superflag from them. Ignored under a mesh.
-    # -- (bool) Encrypt inter-node traffic on port 5080 (internal-port=true). Synthesized into --tls only when serviceMesh.enabled=false.
+    # -- (bool) Enable TLS on alpha's internal gRPC port (7080) for inter-node traffic. Boolean, not a port number -- the name mirrors Dgraph's --tls "internal-port=<bool>" option. Synthesized into --tls only when serviceMesh.enabled=false.
     internalPort: true
     # -- (string) Client cert basename; selects client.<clientName>.crt/.key at /dgraph/tls. Empty omits the client cert from --tls.
     clientName: ""
@@ -606,7 +606,7 @@ alpha:
     ## The three keys below are read only when serviceMesh.enabled=false AND
     ## tls.enabled=true; the chart then builds Dgraph's --tls superflag from them.
     ## They are ignored under a service mesh (mesh sidecars handle encryption).
-    # -- (bool) Encrypt inter-node traffic on port 7080 (internal-port=true). Synthesized into --tls only when serviceMesh.enabled=false.
+    # -- (bool) Enable TLS on zero's internal gRPC port (5080) for inter-node traffic. Boolean, not a port number -- the name mirrors Dgraph's --tls "internal-port=<bool>" option. Synthesized into --tls only when serviceMesh.enabled=false.
     internalPort: true
     # -- (string) Client cert basename; selects client.<clientName>.crt/.key at /dgraph/tls. Empty omits the client cert from --tls.
     clientName: ""

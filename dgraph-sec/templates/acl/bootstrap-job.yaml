@@ -6,6 +6,9 @@
 */}}
 {{- $bootstrap := .Values.alpha.acl.bootstrap }}
 {{- $secretName := $bootstrap.existingSecret | default .Values.alpha.acl.existingSecret | default (printf "%s-acl-secret" (include "dgraph-sec.alpha.fullname" .)) }}
+{{- /* native-TLS active (no mesh + alpha.tls on): the reconciler talks HTTPS to
+       Alpha's /admin and mounts the client cert. Reused at each TLS branch below. */}}
+{{- $nativeTLS := eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true" }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -70,7 +73,7 @@ spec:
         command: ["/usr/bin/bash", "/scripts/reconcile.sh"]
         env:
         - name: ALPHA_HOST
-          {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true" }}
+          {{- if $nativeTLS }}
           ## Native TLS: target the alpha-0 headless FQDN that scripts/make_tls_secrets.sh
           ## lists in the cert SANs, so curl's hostname verification of Alpha's server
           ## cert passes. The bare ClusterIP Service name is not a SAN. Matches the host
@@ -85,7 +88,7 @@ spec:
           value: {{ .Values.alpha.acl.bootstrap.users | toJson | quote }}
         - name: GROUPS_JSON
           value: {{ .Values.alpha.acl.bootstrap.groups | toJson | quote }}
-        {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true" }}
+        {{- if $nativeTLS }}
         ## Native TLS (serviceMesh.enabled=false): reconcile.sh reads these to talk
         ## HTTPS to Alpha's /admin and present a client cert under mutual TLS.
         - name: CACERT_PATH
@@ -103,7 +106,7 @@ spec:
         - name: creds
           mountPath: /creds
           readOnly: true
-        {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true" }}
+        {{- if $nativeTLS }}
         - name: tls-volume
           mountPath: /dgraph/tls
           readOnly: true
@@ -116,7 +119,7 @@ spec:
       - name: creds
         secret:
           secretName: {{ $secretName }}
-      {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true" }}
+      {{- if $nativeTLS }}
       - name: tls-volume
         secret:
           secretName: {{ include "dgraph-sec.alpha.fullname" . }}-tls-secret

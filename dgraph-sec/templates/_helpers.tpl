@@ -394,9 +394,12 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
 {{- end -}}
 
 {{- /* native-TLS-active for a tier: no service mesh AND the tier's TLS is on.
-       Pass a dict {"ctx": ., "tls": .Values.alpha.tls}. Returns "true" or "".
-       This is the single predicate that gates --tls synthesis, the HTTPS probe
-       scheme, and the ACL bootstrap Job's TLS client. */}}
+       Pass a dict {"ctx": ., "tls": .Values.alpha.tls}.
+       Returns the STRING "true" or "" (empty) -- NOT a boolean. Compare it as a
+       string: eq (include "dgraph-sec.nativeTLS" ...) "true". Callers store that
+       result once in a $nativeTLS bool and reuse it. It is the single predicate
+       that gates --tls synthesis, the HTTPS probe scheme, and the ACL bootstrap
+       Job's TLS client. */}}
 {{- define "dgraph-sec.nativeTLS" -}}
 {{- if and (not .ctx.Values.serviceMesh.enabled) .tls.enabled -}}true{{- end -}}
 {{- end -}}
@@ -407,20 +410,18 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
        client.<name>.crt/.key). client-cert/key and client-auth-type are emitted
        only when the corresponding values are set. */}}
 {{- define "dgraph-sec.tlsFlag" -}}
-{{- $tls := .tls -}}
-{{- $p := .path -}}
 {{- /* internalPort defaults to true (values.yaml), but Helm's `default` treats a
        boolean false as empty, so an explicit `false` would be flipped back to the
        default. Use a nil check so nil -> true while honoring an explicit false. */ -}}
-{{- $ip := $tls.internalPort -}}
+{{- $ip := .tls.internalPort -}}
 {{- if kindIs "invalid" $ip -}}{{- $ip = true -}}{{- end -}}
-{{- $opts := list (printf "ca-cert=%s/ca.crt" $p) (printf "server-cert=%s/node.crt" $p) (printf "server-key=%s/node.key" $p) (printf "internal-port=%v" $ip) -}}
-{{- if $tls.clientName -}}
-{{- $opts = append $opts (printf "client-cert=%s/client.%s.crt" $p $tls.clientName) -}}
-{{- $opts = append $opts (printf "client-key=%s/client.%s.key" $p $tls.clientName) -}}
+{{- $opts := list (printf "ca-cert=%s/ca.crt" .path) (printf "server-cert=%s/node.crt" .path) (printf "server-key=%s/node.key" .path) (printf "internal-port=%v" $ip) -}}
+{{- if .tls.clientName -}}
+{{- $opts = append $opts (printf "client-cert=%s/client.%s.crt" .path .tls.clientName) -}}
+{{- $opts = append $opts (printf "client-key=%s/client.%s.key" .path .tls.clientName) -}}
 {{- end -}}
-{{- if $tls.clientAuthType -}}
-{{- $opts = append $opts (printf "client-auth-type=%s" $tls.clientAuthType) -}}
+{{- if .tls.clientAuthType -}}
+{{- $opts = append $opts (printf "client-auth-type=%s" .tls.clientAuthType) -}}
 {{- end -}}
 {{- printf "--tls \"%s;\"" (join "; " $opts) -}}
 {{- end -}}

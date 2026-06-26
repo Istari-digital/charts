@@ -1,7 +1,11 @@
-{{- if and (eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true") (contains "--tls" (.Values.zero.extraFlags | default "")) }}
+{{- /* native-TLS is active for zero when there is no mesh and zero.tls is on.
+       Computed once here (a bool) and reused for the --tls superflag, the HTTPS
+       probe scheme, and the extraFlags/clientAuthType guards below. */}}
+{{- $nativeTLS := eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true" }}
+{{- if and $nativeTLS (contains "--tls" (.Values.zero.extraFlags | default "")) }}
 {{- fail "zero.extraFlags contains --tls, but the chart synthesizes it when serviceMesh.enabled=false and zero.tls.enabled=true. Remove --tls from zero.extraFlags and set zero.tls.internalPort / clientName / clientAuthType instead." }}
 {{- end }}
-{{- if and (eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true") (eq .Values.zero.tls.clientAuthType "REQUIREANDVERIFY") }}
+{{- if and $nativeTLS (eq .Values.zero.tls.clientAuthType "REQUIREANDVERIFY") }}
 {{- if not .Values.zero.tls.clientName }}
 {{- fail "zero.tls.clientAuthType=REQUIREANDVERIFY requires zero.tls.clientName so inter-node TLS can present a client certificate." }}
 {{- end }}
@@ -151,9 +155,9 @@ spec:
               ordinal=${BASH_REMATCH[1]}
               idx=$(($ordinal + 1))
               if [[ $ordinal -eq 0 ]]; then
-                exec dgraph-sec zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 {{ template "dgraph-sec.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ template "dgraph-sec.logFlags" .Values.zero }} {{ .Values.zero.extraFlags }}{{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true" }} {{ include "dgraph-sec.tlsFlag" (dict "tls" .Values.zero.tls "path" "/dgraph/tls") }}{{- end }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
+                exec dgraph-sec zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 {{ template "dgraph-sec.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ template "dgraph-sec.logFlags" .Values.zero }} {{ .Values.zero.extraFlags }}{{- if $nativeTLS }} {{ include "dgraph-sec.tlsFlag" (dict "tls" .Values.zero.tls "path" "/dgraph/tls") }}{{- end }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
               else
-                exec dgraph-sec zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 --peer {{ template "dgraph-sec.peerZero" . }} {{ template "dgraph-sec.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ template "dgraph-sec.logFlags" .Values.zero }} {{ .Values.zero.extraFlags }}{{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true" }} {{ include "dgraph-sec.tlsFlag" (dict "tls" .Values.zero.tls "path" "/dgraph/tls") }}{{- end }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
+                exec dgraph-sec zero --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):5080 --peer {{ template "dgraph-sec.peerZero" . }} {{ template "dgraph-sec.raftIndexFlag" . }}$idx --replicas {{ .Values.zero.shardReplicaCount }} {{ template "dgraph-sec.logFlags" .Values.zero }} {{ .Values.zero.extraFlags }}{{- if $nativeTLS }} {{ include "dgraph-sec.tlsFlag" (dict "tls" .Values.zero.tls "path" "/dgraph/tls") }}{{- end }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.zero.service }};"{{- end }}
               fi
         resources:
 {{ toYaml .Values.zero.resources | indent 10 }}
@@ -162,7 +166,7 @@ spec:
           httpGet:
             port: {{ .Values.zero.startupProbe.port }}
             path: {{ .Values.zero.startupProbe.path }}
-            {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true" }}
+            {{- if $nativeTLS }}
             scheme: HTTPS
             {{- end }}
           periodSeconds: {{ .Values.zero.startupProbe.periodSeconds }}
@@ -177,7 +181,7 @@ spec:
           httpGet:
             port: {{ .Values.zero.livenessProbe.port }}
             path: {{ .Values.zero.livenessProbe.path }}
-            {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true" }}
+            {{- if $nativeTLS }}
             scheme: HTTPS
             {{- end }}
           initialDelaySeconds: {{ .Values.zero.livenessProbe.initialDelaySeconds }}
@@ -193,7 +197,7 @@ spec:
           httpGet:
             port: {{ .Values.zero.readinessProbe.port }}
             path: {{ .Values.zero.readinessProbe.path }}
-            {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.zero.tls)) "true" }}
+            {{- if $nativeTLS }}
             scheme: HTTPS
             {{- end }}
           initialDelaySeconds: {{ .Values.zero.readinessProbe.initialDelaySeconds }}
