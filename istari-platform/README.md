@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.20.0](https://img.shields.io/badge/Version-3.20.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.20.1](https://img.shields.io/badge/Version-3.20.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -16,7 +16,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 | Repository | Name | Version |
 |------------|------|---------|
-| https://istaridigital.jfrog.io/artifactory/main-helm-local | dgraph-sec | 0.4.6 |
+| https://istaridigital.jfrog.io/artifactory/main-helm-local | dgraph-sec | 0.4.7 |
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |
 
 > [!NOTE]
@@ -67,10 +67,10 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | dgraph-sec.datadog.superservice | string | `"dgraph-sec"` |  |
 | dgraph-sec.enabled | bool | `false` | Enable / Disable the dgraph-sec subchart. When `false`, the subchart is not rendered at all. |
 | dgraph-sec.fullnameOverride | string | `"dgraph-sec"` | Override the resource name prefix. Production uses `dgraph-sec` so Services are `dgraph-sec-alpha`, etc. |
-| dgraph-sec.global.imagePullSecrets[0] | string | `"docker-pull-secret"` |  |
 | dgraph-sec.image.registry | string | `"istaridigital.jfrog.io"` |  |
 | dgraph-sec.image.repository | string | `"main-docker-local/dgraph-sec"` |  |
 | dgraph-sec.image.tag | string | `"v25.3.7-sec.0.2.2"` |  |
+| dgraph-sec.imagePullSecrets[0].name | string | `"docker-pull-secret"` |  |
 | dgraph-sec.preUpgradeHook.enabled | bool | `false` | Disable the v24-era selector-label migration hook (no-op on current clusters). |
 | dgraph-sec.ratel.enabled | bool | `false` |  |
 | dgraph-sec.tracing.alpha.service | string | `"dgraph-sec.alpha"` |  |

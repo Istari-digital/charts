@@ -977,9 +977,8 @@ dgraph-sec:
   enabled: false
   # -- Override the resource name prefix. Production uses `dgraph-sec` so Services are `dgraph-sec-alpha`, etc.
   fullnameOverride: "dgraph-sec"
-  global:
-    imagePullSecrets:
-    - docker-pull-secret
+  imagePullSecrets:
+  - name: docker-pull-secret
   image:
     registry: istaridigital.jfrog.io
     repository: main-docker-local/dgraph-sec
