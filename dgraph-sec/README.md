@@ -1,6 +1,6 @@
 # Dgraph-sec
 
-![Version: 0.4.6](https://img.shields.io/badge/Version-0.4.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.7-sec.0.2.2](https://img.shields.io/badge/AppVersion-v25.3.7--sec.0.2.2-informational?style=flat-square)
+![Version: 0.4.7](https://img.shields.io/badge/Version-0.4.7-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.7-sec.0.2.2](https://img.shields.io/badge/AppVersion-v25.3.7--sec.0.2.2-informational?style=flat-square)
 
 Dgraph-sec — hardened Dgraph database for Istari platform
 
@@ -234,6 +234,7 @@ the agent runs.
 | image.registry | string | `"istaridigital.jfrog.io"` | Container registry hosting the dgraph-sec image. |
 | image.repository | string | `"main-docker-local/dgraph-sec"` | Repository path for the hardened dgraph-sec image. |
 | image.tag | string | `"v25.3.7-sec.0.2.2"` | dgraph-sec image tag (matches the chart appVersion). |
+| imagePullSecrets | list | `[]` | Kubernetes-format image pull secrets applied to every Pod. Preferred over global.imagePullSecrets (legacy string list) and image.pullSecrets. |
 | networkPolicy | object | `{"clientPodLabels":{},"enabled":false,"extraIngress":[]}` | NetworkPolicy gating ingress to alpha/zero ports (gated production add-on). |
 | preUpgradeHook.enabled | bool | `true` | Run the v24-to-v25 StatefulSet selector migration Job on helm upgrade. |
 | preUpgradeHook.image | object | `{"registry":"istaridigital.jfrog.io","repository":"remote-docker-chainguard/istaridigital.com/kubectl-iamguarded-fips","tag":"1.32"}` | kubectl image used by the pre-upgrade migration Job. |

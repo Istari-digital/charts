@@ -965,3 +965,112 @@ nats:
         # -- `securityContext` applied to NATS Pods. `fsGroup: 65532` matches the rest of the chart so JetStream PVCs are writable by the non-root NATS user.
         securityContext:
           fsGroup: 65532
+
+# Optional dgraph-sec database deployment. Configured as a Helm subchart (Istari-digital/charts/dgraph-sec).
+#
+# When `dgraph-sec.enabled: true`, this chart deploys dgraph-sec in-cluster. ACL secrets, S3 backup
+# buckets, and Pod Identity are provisioned outside this chart (in the `istari` namespace) before install.
+#
+# Every key under `dgraph-sec:` here is passed directly to the dgraph-sec subchart. See
+# https://github.com/Istari-digital/charts/blob/main/dgraph-sec/values.yaml for the full values schema
+# and configuration options.
+dgraph-sec:
+  # -- Enable / Disable the dgraph-sec subchart. When `false`, the subchart is not rendered at all.
+  enabled: false
+  # -- Override the resource name prefix. Production uses `dgraph-sec` so Services are `dgraph-sec-alpha`, etc.
+  fullnameOverride: "dgraph-sec"
+  imagePullSecrets:
+  - name: docker-pull-secret
+  image:
+    registry: istaridigital.jfrog.io
+    repository: main-docker-local/dgraph-sec
+    tag: v25.3.7-sec.0.2.2
+  preUpgradeHook:
+    enabled: false
+  zero:
+    replicaCount: 3
+    logLevel: normal
+    shardReplicaCount: 3
+    antiAffinity: hard
+    # -- Node selector for zero pod scheduling.
+    nodeSelector: {}
+    # -- Tolerations for zero pod scheduling.
+    tolerations: []
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        memory: 2Gi
+    persistence:
+      # -- Enable persistent storage for zero data.
+      enabled: false
+      # Example when enabling persistence:
+      # size: 32Gi
+      # storageClass: ""
+      # persistentVolumeClaimRetentionPolicy:
+      #   whenDeleted: Delete  # or Retain
+      #   whenScaled: Delete    # or Retain
+  alpha:
+    replicaCount: 3
+    logLevel: normal
+    antiAffinity: hard
+    # -- Node selector for alpha pod scheduling.
+    nodeSelector: {}
+    # -- Tolerations for alpha pod scheduling.
+    tolerations: []
+    acl:
+      # -- Enable Dgraph ACL on alpha (--acl secret-file=…).
+      enabled: false
+      # -- Filename/key of the HMAC secret mounted at /dgraph/acl/<secretFile>.
+      secretFile: hmac_secret_file
+      # -- Pre-created Secret holding the HMAC; empty means the chart creates one from `file`.
+      existingSecret: ""
+      bootstrap:
+        # -- Run the ACL bootstrap/reconciler Job.
+        enabled: false
+        # -- Secret holding groot and user passwords for the bootstrap Job.
+        existingSecret: ""
+        # -- Key in the Secret holding groot's rotated password.
+        grootPasswordSecretKey: groot_password
+        # -- Opaque rotation token to force re-running the reconciler on upgrade.
+        rotation: ""
+        # -- ACL groups to ensure, with predicate rules.
+        groups: []
+        # Example when enabling bootstrap:
+        # users:
+        # - name: admin
+        #   passwordSecretKey: admin_password
+        #   groups:
+        #   - guardians
+        users: []
+    extraFlags: "--cache \"size-mb=4096; percentage=40,40,20;\""
+    extraEnvs:
+    - name: GOGC
+      value: "50"
+    - name: GOMEMLIMIT
+      value: 8GiB
+    resources:
+      requests:
+        cpu: 2000m
+        memory: 10Gi
+      limits:
+        memory: 10Gi
+    persistence:
+      # -- Enable persistent storage for alpha data.
+      enabled: false
+      # Example when enabling persistence:
+      # size: 100Gi
+      # storageClass: ""
+      # persistentVolumeClaimRetentionPolicy:
+      #   whenDeleted: Delete  # or Retain
+      #   whenScaled: Delete    # or Retain
+  ratel:
+    enabled: false
+  backups:
+    full:
+      enabled: true
+      schedule: "0 0 * * *"
+    incremental:
+      enabled: true
+      schedule: "0 1-23 * * *"
