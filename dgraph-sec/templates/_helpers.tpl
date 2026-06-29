@@ -130,25 +130,23 @@ Also, we can't use a single if because lazy evaluation is not an option
 
 {{/*
 Return the proper Docker Image Registry Secret Names
+Priority: imagePullSecrets (K8s object list) > global.imagePullSecrets (string list) > image.pullSecrets (string list)
 */}}
 {{- define "dgraph-sec.imagePullSecrets" -}}
-{{/*
-Helm 2.11 supports the assignment of a value to a variable defined in a different scope,
-but Helm 2.9 and 2.10 doesn't support it, so we need to implement this if-else logic.
-Also, we can't use a single if because lazy evaluation is not an option
-*/}}
-{{- if .Values.global }}
-{{- if .Values.global.imagePullSecrets }}
+{{- if .Values.imagePullSecrets }}
+imagePullSecrets:
+{{- range .Values.imagePullSecrets }}
+{{- if kindIs "map" . }}
+  - name: {{ .name }}
+{{- else }}
+  - name: {{ . }}
+{{- end }}
+{{- end }}
+{{- else if and .Values.global .Values.global.imagePullSecrets }}
 imagePullSecrets:
 {{- range .Values.global.imagePullSecrets }}
   - name: {{ . }}
 {{- end }}
-{{- else if .Values.image.pullSecrets }}
-imagePullSecrets:
-{{- range .Values.image.pullSecrets }}
-  - name: {{ . }}
-{{- end }}
-{{- end -}}
 {{- else if .Values.image.pullSecrets }}
 imagePullSecrets:
 {{- range .Values.image.pullSecrets }}

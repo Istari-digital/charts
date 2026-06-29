@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.19.1](https://img.shields.io/badge/Version-3.19.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.20.1](https://img.shields.io/badge/Version-3.20.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -16,16 +16,62 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 | Repository | Name | Version |
 |------------|------|---------|
+| https://istaridigital.jfrog.io/artifactory/main-helm-local | dgraph-sec | 0.4.7 |
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |
 
 > [!NOTE]
-> The `nats` dependency is **optional** and conditional on `nats.enabled` (default `false`). When NATS is disabled, the subchart is not rendered and no NATS resources are installed. `helm dependency update` will still fetch the chart so the lockfile resolves, but it has no effect at install time unless enabled. See the `nats:` block under [Values](#values) for details.
+> The `nats` and `dgraph-sec` dependencies are **optional** (`nats.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
 
 ## Values
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | commonLabels | object | `{}` | Additional labels to add to all resources of all services |
+| dgraph-sec.alpha.acl.bootstrap.enabled | bool | `false` | Run the ACL bootstrap/reconciler Job. |
+| dgraph-sec.alpha.acl.bootstrap.existingSecret | string | `""` | Secret holding groot and user passwords for the bootstrap Job. |
+| dgraph-sec.alpha.acl.bootstrap.grootPasswordSecretKey | string | `"groot_password"` | Key in the Secret holding groot's rotated password. |
+| dgraph-sec.alpha.acl.bootstrap.groups | list | `[]` | ACL groups to ensure, with predicate rules. |
+| dgraph-sec.alpha.acl.bootstrap.rotation | string | `""` | Opaque rotation token to force re-running the reconciler on upgrade. |
+| dgraph-sec.alpha.acl.bootstrap.users | list | `[]` |  |
+| dgraph-sec.alpha.acl.enabled | bool | `false` | Enable Dgraph ACL on alpha (--acl secret-file=…). |
+| dgraph-sec.alpha.acl.existingSecret | string | `""` | Pre-created Secret holding the HMAC; empty means the chart creates one from `file`. |
+| dgraph-sec.alpha.acl.secretFile | string | `"hmac_secret_file"` | Filename/key of the HMAC secret mounted at /dgraph/acl/<secretFile>. |
+| dgraph-sec.alpha.antiAffinity | string | `"hard"` |  |
+| dgraph-sec.alpha.extraEnvs[0].name | string | `"GOGC"` |  |
+| dgraph-sec.alpha.extraEnvs[0].value | string | `"50"` |  |
+| dgraph-sec.alpha.extraEnvs[1].name | string | `"GOMEMLIMIT"` |  |
+| dgraph-sec.alpha.extraEnvs[1].value | string | `"8GiB"` |  |
+| dgraph-sec.alpha.extraFlags | string | `"--cache \"size-mb=4096; percentage=40,40,20;\""` |  |
+| dgraph-sec.alpha.logLevel | string | `"normal"` |  |
+| dgraph-sec.alpha.nodeSelector | object | `{}` | Node selector for alpha pod scheduling. |
+| dgraph-sec.alpha.persistence.enabled | bool | `false` | Enable persistent storage for alpha data. |
+| dgraph-sec.alpha.replicaCount | int | `3` |  |
+| dgraph-sec.alpha.resources.limits.memory | string | `"10Gi"` |  |
+| dgraph-sec.alpha.resources.requests.cpu | string | `"2000m"` |  |
+| dgraph-sec.alpha.resources.requests.memory | string | `"10Gi"` |  |
+| dgraph-sec.alpha.tolerations | list | `[]` | Tolerations for alpha pod scheduling. |
+| dgraph-sec.backups.full.enabled | bool | `true` |  |
+| dgraph-sec.backups.full.schedule | string | `"0 0 * * *"` |  |
+| dgraph-sec.backups.incremental.enabled | bool | `true` |  |
+| dgraph-sec.backups.incremental.schedule | string | `"0 1-23 * * *"` |  |
+| dgraph-sec.enabled | bool | `false` | Enable / Disable the dgraph-sec subchart. When `false`, the subchart is not rendered at all. |
+| dgraph-sec.fullnameOverride | string | `"dgraph-sec"` | Override the resource name prefix. Production uses `dgraph-sec` so Services are `dgraph-sec-alpha`, etc. |
+| dgraph-sec.image.registry | string | `"istaridigital.jfrog.io"` |  |
+| dgraph-sec.image.repository | string | `"main-docker-local/dgraph-sec"` |  |
+| dgraph-sec.image.tag | string | `"v25.3.7-sec.0.2.2"` |  |
+| dgraph-sec.imagePullSecrets[0].name | string | `"docker-pull-secret"` |  |
+| dgraph-sec.preUpgradeHook.enabled | bool | `false` |  |
+| dgraph-sec.ratel.enabled | bool | `false` |  |
+| dgraph-sec.zero.antiAffinity | string | `"hard"` |  |
+| dgraph-sec.zero.logLevel | string | `"normal"` |  |
+| dgraph-sec.zero.nodeSelector | object | `{}` | Node selector for zero pod scheduling. |
+| dgraph-sec.zero.persistence.enabled | bool | `false` | Enable persistent storage for zero data. |
+| dgraph-sec.zero.replicaCount | int | `3` |  |
+| dgraph-sec.zero.resources.limits.memory | string | `"2Gi"` |  |
+| dgraph-sec.zero.resources.requests.cpu | string | `"500m"` |  |
+| dgraph-sec.zero.resources.requests.memory | string | `"2Gi"` |  |
+| dgraph-sec.zero.shardReplicaCount | int | `3` |  |
+| dgraph-sec.zero.tolerations | list | `[]` | Tolerations for zero pod scheduling. |
 | docs.affinity | object | `{}` | Affinity |
 | docs.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
 | docs.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
@@ -175,7 +221,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | identityService.identityRouterClientRegistration.podAnnotations | object | `{}` | Annotations for the registration Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`). |
 | identityService.identityRouterClientRegistration.podLabels | object | `{}` | Extra labels for the registration Job Pod template only. |
 | identityService.identityRouterClientRegistration.resources | object | `{}` | Resources for the registration Job container. |
-| identityService.image | string | `"identity-router"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
+| identityService.image | string | `"identity-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | identityService.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | identityService.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
 | identityService.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
@@ -202,7 +248,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | identityService.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | identityService.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | identityService.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| identityService.tag | string | `"1.0.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| identityService.tag | string | `"1.0.2"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | identityService.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | identityService.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | identityService.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
