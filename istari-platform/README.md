@@ -20,7 +20,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |
 
 > [!NOTE]
-> The `nats` dependency is **optional** and conditional on `nats.enabled` (default `false`). When NATS is disabled, the subchart is not rendered and no NATS resources are installed. `helm dependency update` will still fetch the chart so the lockfile resolves, but it has no effect at install time unless enabled. See the `nats:` block under [Values](#values) for details.
+> The `nats` and `dgraph-sec` dependencies are **optional** (`nats.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
 
 ## Values
 
@@ -70,7 +70,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | dgraph-sec.global.imagePullSecrets[0] | string | `"docker-pull-secret"` |  |
 | dgraph-sec.image.registry | string | `"istaridigital.jfrog.io"` |  |
 | dgraph-sec.image.repository | string | `"main-docker-local/dgraph-sec"` |  |
-| dgraph-sec.image.tag | string | `"v25.3.6-sec.0.2.1"` |  |
+| dgraph-sec.image.tag | string | `"v25.3.7-sec.0.2.2"` |  |
 | dgraph-sec.preUpgradeHook.enabled | bool | `false` | Disable the v24-era selector-label migration hook (no-op on current clusters). |
 | dgraph-sec.ratel.enabled | bool | `false` |  |
 | dgraph-sec.tracing.alpha.service | string | `"dgraph-sec.alpha"` |  |

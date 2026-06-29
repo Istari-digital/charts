@@ -983,7 +983,7 @@ dgraph-sec:
   image:
     registry: istaridigital.jfrog.io
     repository: main-docker-local/dgraph-sec
-    tag: v25.3.6-sec.0.2.1
+    tag: v25.3.7-sec.0.2.2
   preUpgradeHook:
     # -- Disable the v24-era selector-label migration hook (no-op on current clusters).
     enabled: false
