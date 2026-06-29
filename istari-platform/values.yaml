@@ -971,7 +971,9 @@ nats:
 # When `dgraph-sec.enabled: true`, this chart deploys dgraph-sec in-cluster. ACL secrets, S3 backup
 # buckets, and Pod Identity are provisioned outside this chart (in the `istari` namespace) before install.
 #
-# Every key under `dgraph-sec:` here is passed directly to the dgraph-sec subchart.
+# Every key under `dgraph-sec:` here is passed directly to the dgraph-sec subchart. See
+# https://github.com/Istari-digital/charts/blob/main/dgraph-sec/values.yaml for the full values schema
+# and configuration options.
 dgraph-sec:
   # -- Enable / Disable the dgraph-sec subchart. When `false`, the subchart is not rendered at all.
   enabled: false
@@ -984,20 +986,16 @@ dgraph-sec:
     repository: main-docker-local/dgraph-sec
     tag: v25.3.7-sec.0.2.2
   preUpgradeHook:
-    # -- Disable the v24-era selector-label migration hook (no-op on current clusters).
     enabled: false
   zero:
     replicaCount: 3
     logLevel: normal
     shardReplicaCount: 3
     antiAffinity: hard
-    nodeSelector:
-      nodegroup-kind: dgraph
-    tolerations:
-    - key: istari.k8s.io/role
-      operator: Equal
-      effect: NoSchedule
-      value: dgraph
+    # -- Node selector for zero pod scheduling.
+    nodeSelector: {}
+    # -- Tolerations for zero pod scheduling.
+    tolerations: []
     resources:
       requests:
         cpu: 500m
@@ -1005,38 +1003,47 @@ dgraph-sec:
       limits:
         memory: 2Gi
     persistence:
-      enabled: true
-      size: 32Gi
-      storageClass: istari-gp3
-      persistentVolumeClaimRetentionPolicy:
-        whenDeleted: Retain
-        whenScaled: Retain
+      # -- Enable persistent storage for zero data.
+      enabled: false
+      # Example when enabling persistence:
+      # size: 32Gi
+      # storageClass: ""
+      # persistentVolumeClaimRetentionPolicy:
+      #   whenDeleted: Delete  # or Retain
+      #   whenScaled: Delete    # or Retain
   alpha:
     replicaCount: 3
     logLevel: normal
     antiAffinity: hard
-    nodeSelector:
-      nodegroup-kind: dgraph
-    tolerations:
-    - key: istari.k8s.io/role
-      operator: Equal
-      effect: NoSchedule
-      value: dgraph
+    # -- Node selector for alpha pod scheduling.
+    nodeSelector: {}
+    # -- Tolerations for alpha pod scheduling.
+    tolerations: []
     acl:
-      enabled: true
+      # -- Enable Dgraph ACL on alpha (--acl secret-file=…).
+      enabled: false
+      # -- Filename/key of the HMAC secret mounted at /dgraph/acl/<secretFile>.
       secretFile: hmac_secret_file
-      existingSecret: dgraph-sec-acl-hmac
+      # -- Pre-created Secret holding the HMAC; empty means the chart creates one from `file`.
+      existingSecret: ""
       bootstrap:
-        enabled: true
+        # -- Run the ACL bootstrap/reconciler Job.
+        enabled: false
+        # -- Secret holding groot and user passwords for the bootstrap Job.
+        existingSecret: ""
+        # -- Key in the Secret holding groot's rotated password.
         grootPasswordSecretKey: groot_password
-        existingSecret: dgraph-sec-acl-accounts
-        rotation: "0"
-        users:
-        - name: istari-admin
-          passwordSecretKey: istari-admin_password
-          groups:
-          - guardians
+        # -- Opaque rotation token to force re-running the reconciler on upgrade.
+        rotation: ""
+        # -- ACL groups to ensure, with predicate rules.
         groups: []
+        # Example when enabling bootstrap:
+        # users:
+        # - name: admin
+        #   passwordSecretKey: admin_password
+        #   groups:
+        #   - guardians
+        users: []
     extraFlags: "--cache \"size-mb=4096; percentage=40,40,20;\""
     extraEnvs:
     - name: GOGC
@@ -1050,25 +1057,16 @@ dgraph-sec:
       limits:
         memory: 10Gi
     persistence:
-      enabled: true
-      size: 100Gi
-      storageClass: istari-gp3
-      persistentVolumeClaimRetentionPolicy:
-        whenDeleted: Retain
-        whenScaled: Retain
+      # -- Enable persistent storage for alpha data.
+      enabled: false
+      # Example when enabling persistence:
+      # size: 100Gi
+      # storageClass: ""
+      # persistentVolumeClaimRetentionPolicy:
+      #   whenDeleted: Delete  # or Retain
+      #   whenScaled: Delete    # or Retain
   ratel:
     enabled: false
-  datadog:
-    enabled: false
-    superservice: dgraph-sec
-  tracing:
-    enabled: false
-    endpoint: datadog-agent.datadog.svc.cluster.local:4318
-    ratio: "0.01"
-    alpha:
-      service: dgraph-sec.alpha
-    zero:
-      service: dgraph-sec.zero
   backups:
     full:
       enabled: true
