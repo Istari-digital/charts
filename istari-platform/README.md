@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.19.1](https://img.shields.io/badge/Version-3.19.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.20.0](https://img.shields.io/badge/Version-3.20.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -16,6 +16,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 | Repository | Name | Version |
 |------------|------|---------|
+| https://istaridigital.jfrog.io/artifactory/main-helm-local | dgraph-sec | 0.4.6 |
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |
 
 > [!NOTE]
@@ -26,6 +27,74 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | commonLabels | object | `{}` | Additional labels to add to all resources of all services |
+| dgraph-sec.alpha.acl.bootstrap.enabled | bool | `true` |  |
+| dgraph-sec.alpha.acl.bootstrap.existingSecret | string | `"dgraph-sec-acl-accounts"` |  |
+| dgraph-sec.alpha.acl.bootstrap.grootPasswordSecretKey | string | `"groot_password"` |  |
+| dgraph-sec.alpha.acl.bootstrap.groups | list | `[]` |  |
+| dgraph-sec.alpha.acl.bootstrap.rotation | string | `"0"` |  |
+| dgraph-sec.alpha.acl.bootstrap.users[0].groups[0] | string | `"guardians"` |  |
+| dgraph-sec.alpha.acl.bootstrap.users[0].name | string | `"istari-admin"` |  |
+| dgraph-sec.alpha.acl.bootstrap.users[0].passwordSecretKey | string | `"istari-admin_password"` |  |
+| dgraph-sec.alpha.acl.enabled | bool | `true` |  |
+| dgraph-sec.alpha.acl.existingSecret | string | `"dgraph-sec-acl-hmac"` |  |
+| dgraph-sec.alpha.acl.secretFile | string | `"hmac_secret_file"` |  |
+| dgraph-sec.alpha.antiAffinity | string | `"hard"` |  |
+| dgraph-sec.alpha.extraEnvs[0].name | string | `"GOGC"` |  |
+| dgraph-sec.alpha.extraEnvs[0].value | string | `"50"` |  |
+| dgraph-sec.alpha.extraEnvs[1].name | string | `"GOMEMLIMIT"` |  |
+| dgraph-sec.alpha.extraEnvs[1].value | string | `"8GiB"` |  |
+| dgraph-sec.alpha.extraFlags | string | `"--cache \"size-mb=4096; percentage=40,40,20;\""` |  |
+| dgraph-sec.alpha.logLevel | string | `"normal"` |  |
+| dgraph-sec.alpha.nodeSelector.nodegroup-kind | string | `"dgraph"` |  |
+| dgraph-sec.alpha.persistence.enabled | bool | `true` |  |
+| dgraph-sec.alpha.persistence.persistentVolumeClaimRetentionPolicy.whenDeleted | string | `"Retain"` |  |
+| dgraph-sec.alpha.persistence.persistentVolumeClaimRetentionPolicy.whenScaled | string | `"Retain"` |  |
+| dgraph-sec.alpha.persistence.size | string | `"100Gi"` |  |
+| dgraph-sec.alpha.persistence.storageClass | string | `"istari-gp3"` |  |
+| dgraph-sec.alpha.replicaCount | int | `3` |  |
+| dgraph-sec.alpha.resources.limits.memory | string | `"10Gi"` |  |
+| dgraph-sec.alpha.resources.requests.cpu | string | `"2000m"` |  |
+| dgraph-sec.alpha.resources.requests.memory | string | `"10Gi"` |  |
+| dgraph-sec.alpha.tolerations[0].effect | string | `"NoSchedule"` |  |
+| dgraph-sec.alpha.tolerations[0].key | string | `"istari.k8s.io/role"` |  |
+| dgraph-sec.alpha.tolerations[0].operator | string | `"Equal"` |  |
+| dgraph-sec.alpha.tolerations[0].value | string | `"dgraph"` |  |
+| dgraph-sec.backups.full.enabled | bool | `true` |  |
+| dgraph-sec.backups.full.schedule | string | `"0 0 * * *"` |  |
+| dgraph-sec.backups.incremental.enabled | bool | `true` |  |
+| dgraph-sec.backups.incremental.schedule | string | `"0 1-23 * * *"` |  |
+| dgraph-sec.datadog.enabled | bool | `false` |  |
+| dgraph-sec.datadog.superservice | string | `"dgraph-sec"` |  |
+| dgraph-sec.enabled | bool | `false` | Enable / Disable the dgraph-sec subchart. When `false`, the subchart is not rendered at all. |
+| dgraph-sec.fullnameOverride | string | `"dgraph-sec"` | Override the resource name prefix. Production uses `dgraph-sec` so Services are `dgraph-sec-alpha`, etc. |
+| dgraph-sec.global.imagePullSecrets[0] | string | `"docker-pull-secret"` |  |
+| dgraph-sec.image.registry | string | `"istaridigital.jfrog.io"` |  |
+| dgraph-sec.image.repository | string | `"main-docker-local/dgraph-sec"` |  |
+| dgraph-sec.image.tag | string | `"v25.3.6-sec.0.2.1"` |  |
+| dgraph-sec.preUpgradeHook.enabled | bool | `false` | Disable the v24-era selector-label migration hook (no-op on current clusters). |
+| dgraph-sec.ratel.enabled | bool | `false` |  |
+| dgraph-sec.tracing.alpha.service | string | `"dgraph-sec.alpha"` |  |
+| dgraph-sec.tracing.enabled | bool | `false` |  |
+| dgraph-sec.tracing.endpoint | string | `"datadog-agent.datadog.svc.cluster.local:4318"` |  |
+| dgraph-sec.tracing.ratio | string | `"0.01"` |  |
+| dgraph-sec.tracing.zero.service | string | `"dgraph-sec.zero"` |  |
+| dgraph-sec.zero.antiAffinity | string | `"hard"` |  |
+| dgraph-sec.zero.logLevel | string | `"normal"` |  |
+| dgraph-sec.zero.nodeSelector.nodegroup-kind | string | `"dgraph"` |  |
+| dgraph-sec.zero.persistence.enabled | bool | `true` |  |
+| dgraph-sec.zero.persistence.persistentVolumeClaimRetentionPolicy.whenDeleted | string | `"Retain"` |  |
+| dgraph-sec.zero.persistence.persistentVolumeClaimRetentionPolicy.whenScaled | string | `"Retain"` |  |
+| dgraph-sec.zero.persistence.size | string | `"32Gi"` |  |
+| dgraph-sec.zero.persistence.storageClass | string | `"istari-gp3"` |  |
+| dgraph-sec.zero.replicaCount | int | `3` |  |
+| dgraph-sec.zero.resources.limits.memory | string | `"2Gi"` |  |
+| dgraph-sec.zero.resources.requests.cpu | string | `"500m"` |  |
+| dgraph-sec.zero.resources.requests.memory | string | `"2Gi"` |  |
+| dgraph-sec.zero.shardReplicaCount | int | `3` |  |
+| dgraph-sec.zero.tolerations[0].effect | string | `"NoSchedule"` |  |
+| dgraph-sec.zero.tolerations[0].key | string | `"istari.k8s.io/role"` |  |
+| dgraph-sec.zero.tolerations[0].operator | string | `"Equal"` |  |
+| dgraph-sec.zero.tolerations[0].value | string | `"dgraph"` |  |
 | docs.affinity | object | `{}` | Affinity |
 | docs.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
 | docs.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |

@@ -965,3 +965,115 @@ nats:
         # -- `securityContext` applied to NATS Pods. `fsGroup: 65532` matches the rest of the chart so JetStream PVCs are writable by the non-root NATS user.
         securityContext:
           fsGroup: 65532
+
+# Optional dgraph-sec database deployment. Configured as a Helm subchart (Istari-digital/charts/dgraph-sec).
+#
+# When `dgraph-sec.enabled: true`, this chart deploys dgraph-sec in-cluster. ACL secrets, S3 backup
+# buckets, and Pod Identity are provisioned separately by helm-stack Terraform in the `istari` namespace.
+#
+# Every key under `dgraph-sec:` here is passed directly to the dgraph-sec subchart.
+dgraph-sec:
+  # -- Enable / Disable the dgraph-sec subchart. When `false`, the subchart is not rendered at all.
+  enabled: false
+  # -- Override the resource name prefix. Production uses `dgraph-sec` so Services are `dgraph-sec-alpha`, etc.
+  fullnameOverride: "dgraph-sec"
+  global:
+    imagePullSecrets:
+    - docker-pull-secret
+  image:
+    registry: istaridigital.jfrog.io
+    repository: main-docker-local/dgraph-sec
+    tag: v25.3.6-sec.0.2.1
+  preUpgradeHook:
+    # -- Disable the v24-era selector-label migration hook (no-op on current clusters).
+    enabled: false
+  zero:
+    replicaCount: 3
+    logLevel: normal
+    shardReplicaCount: 3
+    antiAffinity: hard
+    nodeSelector:
+      nodegroup-kind: dgraph
+    tolerations:
+    - key: istari.k8s.io/role
+      operator: Equal
+      effect: NoSchedule
+      value: dgraph
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        memory: 2Gi
+    persistence:
+      enabled: true
+      size: 32Gi
+      storageClass: istari-gp3
+      persistentVolumeClaimRetentionPolicy:
+        whenDeleted: Retain
+        whenScaled: Retain
+  alpha:
+    replicaCount: 3
+    logLevel: normal
+    antiAffinity: hard
+    nodeSelector:
+      nodegroup-kind: dgraph
+    tolerations:
+    - key: istari.k8s.io/role
+      operator: Equal
+      effect: NoSchedule
+      value: dgraph
+    acl:
+      enabled: true
+      secretFile: hmac_secret_file
+      existingSecret: dgraph-sec-acl-hmac
+      bootstrap:
+        enabled: true
+        grootPasswordSecretKey: groot_password
+        existingSecret: dgraph-sec-acl-accounts
+        rotation: "0"
+        users:
+        - name: istari-admin
+          passwordSecretKey: istari-admin_password
+          groups:
+          - guardians
+        groups: []
+    extraFlags: "--cache \"size-mb=4096; percentage=40,40,20;\""
+    extraEnvs:
+    - name: GOGC
+      value: "50"
+    - name: GOMEMLIMIT
+      value: 8GiB
+    resources:
+      requests:
+        cpu: 2000m
+        memory: 10Gi
+      limits:
+        memory: 10Gi
+    persistence:
+      enabled: true
+      size: 100Gi
+      storageClass: istari-gp3
+      persistentVolumeClaimRetentionPolicy:
+        whenDeleted: Retain
+        whenScaled: Retain
+  ratel:
+    enabled: false
+  datadog:
+    enabled: false
+    superservice: dgraph-sec
+  tracing:
+    enabled: false
+    endpoint: datadog-agent.datadog.svc.cluster.local:4318
+    ratio: "0.01"
+    alpha:
+      service: dgraph-sec.alpha
+    zero:
+      service: dgraph-sec.zero
+  backups:
+    full:
+      enabled: true
+      schedule: "0 0 * * *"
+    incremental:
+      enabled: true
+      schedule: "0 1-23 * * *"
