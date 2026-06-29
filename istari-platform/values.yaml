@@ -969,7 +969,7 @@ nats:
 # Optional dgraph-sec database deployment. Configured as a Helm subchart (Istari-digital/charts/dgraph-sec).
 #
 # When `dgraph-sec.enabled: true`, this chart deploys dgraph-sec in-cluster. ACL secrets, S3 backup
-# buckets, and Pod Identity are provisioned separately by helm-stack Terraform in the `istari` namespace.
+# buckets, and Pod Identity are provisioned outside this chart (in the `istari` namespace) before install.
 #
 # Every key under `dgraph-sec:` here is passed directly to the dgraph-sec subchart.
 dgraph-sec:
