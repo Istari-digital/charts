@@ -5,12 +5,17 @@
 {{- if and $nativeTLS (contains "--tls" (.Values.zero.extraFlags | default "")) }}
 {{- fail "zero.extraFlags contains --tls, but the chart synthesizes it when serviceMesh.enabled=false and zero.tls.enabled=true. Remove --tls from zero.extraFlags and set zero.tls.internalPort / clientName / clientAuthType instead." }}
 {{- end }}
-{{- if and $nativeTLS (eq .Values.zero.tls.clientAuthType "REQUIREANDVERIFY") }}
+{{- /* REQUIREANY and REQUIREANDVERIFY both force the client to present a cert
+       (REQUIREANY never verifies it, REQUIREANDVERIFY does); client-auth-type
+       applies to the external ports the built-in probes hit, so both modes break
+       the certless kubelet probe handshake. */}}
+{{- $certRequiringAuth := or (eq .Values.zero.tls.clientAuthType "REQUIREANDVERIFY") (eq .Values.zero.tls.clientAuthType "REQUIREANY") }}
+{{- if and $nativeTLS $certRequiringAuth }}
 {{- if not .Values.zero.tls.clientName }}
-{{- fail "zero.tls.clientAuthType=REQUIREANDVERIFY requires zero.tls.clientName so inter-node TLS can present a client certificate." }}
+{{- fail (printf "zero.tls.clientAuthType=%s requires zero.tls.clientName so inter-node TLS can present a client certificate." .Values.zero.tls.clientAuthType) }}
 {{- end }}
 {{- if or (and .Values.zero.startupProbe.enabled (not .Values.zero.customStartupProbe)) (and .Values.zero.livenessProbe.enabled (not .Values.zero.customLivenessProbe)) (and .Values.zero.readinessProbe.enabled (not .Values.zero.customReadinessProbe)) }}
-{{- fail "zero.tls.clientAuthType=REQUIREANDVERIFY forces every client to present a certificate, which the built-in httpGet probes cannot do (the kubelet has no client cert). Relax zero.tls.clientAuthType (e.g. VERIFYIFGIVEN) on the external ports, or supply zero.customStartupProbe / customLivenessProbe / customReadinessProbe (exec probes that present the client cert)." }}
+{{- fail (printf "zero.tls.clientAuthType=%s forces every client to present a certificate, which the built-in httpGet probes cannot do (the kubelet has no client cert). Relax zero.tls.clientAuthType (e.g. VERIFYIFGIVEN) on the external ports, or supply zero.customStartupProbe / customLivenessProbe / customReadinessProbe (exec probes that present the client cert)." .Values.zero.tls.clientAuthType) }}
 {{- end }}
 {{- end }}
 apiVersion: apps/v1

@@ -74,10 +74,10 @@ spec:
         env:
         - name: ALPHA_HOST
           {{- if $nativeTLS }}
-          ## Native TLS: target the alpha-0 headless FQDN that scripts/make_tls_secrets.sh
-          ## lists in the cert SANs, so curl's hostname verification of Alpha's server
-          ## cert passes. The bare ClusterIP Service name is not a SAN. Matches the host
-          ## the backup CronJobs use.
+          ## Native TLS: target the alpha-0 headless FQDN (…svc.<global.domain>) that
+          ## scripts/make_tls_secrets.sh lists in the cert SANs, so curl's hostname
+          ## verification of Alpha's server cert passes. The bare ClusterIP Service
+          ## name is not a SAN.
           value: {{ printf "%s-0.%s-headless.%s.svc.%s" (include "dgraph-sec.alpha.fullname" .) (include "dgraph-sec.alpha.fullname" .) (include "dgraph-sec.namespace" .) .Values.global.domain | quote }}
           {{- else }}
           value: {{ include "dgraph-sec.alpha.fullname" . | quote }}
