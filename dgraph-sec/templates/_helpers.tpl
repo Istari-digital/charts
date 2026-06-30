@@ -402,6 +402,14 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
 {{- if and (not .ctx.Values.serviceMesh.enabled) .tls.enabled -}}true{{- end -}}
 {{- end -}}
 
+{{- /* Cluster-domain suffix for in-cluster FQDNs: ".<global.domain>" with the
+       leading dot, or empty when global.domain is unset. Trims stray leading/
+       trailing dots so a host never renders "...svc." or "...svc..cluster.local".
+       Use as: ...svc{{ include "dgraph-sec.domainSuffix" . }} */}}
+{{- define "dgraph-sec.domainSuffix" -}}
+{{- with (.Values.global.domain | default "" | trimAll ".") }}.{{ . }}{{ end -}}
+{{- end -}}
+
 {{- /* Compose Dgraph's --tls superflag from a tier's tls map. Pass a dict
        {"tls": .Values.alpha.tls, "path": "/dgraph/tls"}. Filenames follow the
        output of scripts/make_tls_secrets.sh (ca.crt, node.crt, node.key,

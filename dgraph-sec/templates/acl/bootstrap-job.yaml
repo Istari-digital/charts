@@ -78,7 +78,7 @@ spec:
           ## scripts/make_tls_secrets.sh lists in the cert SANs, so curl's hostname
           ## verification of Alpha's server cert passes. The bare ClusterIP Service
           ## name is not a SAN.
-          value: {{ printf "%s-0.%s-headless.%s.svc.%s" (include "dgraph-sec.alpha.fullname" .) (include "dgraph-sec.alpha.fullname" .) (include "dgraph-sec.namespace" .) .Values.global.domain | quote }}
+          value: {{ printf "%s-0.%s-headless.%s.svc%s" (include "dgraph-sec.alpha.fullname" .) (include "dgraph-sec.alpha.fullname" .) (include "dgraph-sec.namespace" .) (include "dgraph-sec.domainSuffix" .) | quote }}
           {{- else }}
           value: {{ include "dgraph-sec.alpha.fullname" . | quote }}
           {{- end }}
