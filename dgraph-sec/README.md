@@ -1,6 +1,6 @@
 # Dgraph-sec
 
-![Version: 0.5.0](https://img.shields.io/badge/Version-0.5.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.7-sec.0.2.2](https://img.shields.io/badge/AppVersion-v25.3.7--sec.0.2.2-informational?style=flat-square)
+![Version: 0.6.0](https://img.shields.io/badge/Version-0.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v25.3.7-sec.0.2.2](https://img.shields.io/badge/AppVersion-v25.3.7--sec.0.2.2-informational?style=flat-square)
 
 Dgraph-sec — hardened Dgraph database for Istari platform
 
@@ -271,6 +271,24 @@ the agent runs.
 | tracing.endpoint | string | `"datadog-agent.datadog.svc.cluster.local:4318"` | OTLP/HTTP collector endpoint for traces (port 4318). |
 | tracing.ratio | string | `"0.01"` | Trace sampling ratio (fraction of requests traced). |
 | tracing.zero.service | string | `"dgraph-sec.zero"` | Trace service name reported for zero. |
+| validation | object | `{"adminPasswordSecretKey":"","adminUser":"groot","backupRoundtrip":false,"checkBackups":false,"cronjob":{"enabled":true},"enabled":false,"image":{},"job":{"backoffLimit":1,"enabled":true},"nodeSelector":{},"podAnnotations":{},"rbac":{"enabled":false},"retries":10,"retrySleep":12,"tolerations":[]}` | Post-install conformance validator (helm test + optional gating Job + manual CronJob). |
+| validation.adminPasswordSecretKey | string | `""` | Secret key holding adminUser's password. Empty derives it (groot's key, else <adminUser>_password). |
+| validation.adminUser | string | `"groot"` | Account the validator logs in as for auth-dependent checks. Defaults to the groot superadmin. |
+| validation.backupRoundtrip | bool | `false` | Trigger a live backup round-trip to S3 (side-effecting, slow; reserved for future use). Default off. |
+| validation.checkBackups | bool | `false` | Also assert the backup CronJobs exist with their expected schedules (requires rbac.enabled). |
+| validation.cronjob.enabled | bool | `true` | Render the manual-trigger CronJob. |
+| validation.enabled | bool | `false` | Master switch for all validator resources (ConfigMap, test Pod, Job, CronJob, RBAC). |
+| validation.image | object | `{}` | Validator image. Empty (the default) reuses the deployed dgraph-sec image (which bundles bash, curl, jq) so the validator always matches the running version. Set all three fields below only to pin an explicit override. |
+| validation.job | object | `{"backoffLimit":1,"enabled":true}` | Post-install/upgrade hook Job that gates the release on a passing validation. |
+| validation.job.backoffLimit | int | `1` | Job backoffLimit (also used by the manual CronJob's jobTemplate). |
+| validation.job.enabled | bool | `true` | Render the gating Job. |
+| validation.nodeSelector | object | `{}` | nodeSelector for validator pods. Empty falls back to alpha.nodeSelector. |
+| validation.podAnnotations | object | `{}` | Extra annotations for validator pods. |
+| validation.rbac | object | `{"enabled":false}` | RBAC for the backup-CronJob check (the validator reads CronJobs via the Kubernetes API). |
+| validation.rbac.enabled | bool | `false` | Create the validator ServiceAccount/Role/RoleBinding. Required by checkBackups. |
+| validation.retries | int | `10` | Per-check retry attempts before failing. |
+| validation.retrySleep | int | `12` | Seconds between retries. |
+| validation.tolerations | list | `[]` | tolerations for validator pods. Empty falls back to alpha.tolerations. |
 | zero.alsologtostderr | bool | `false` | Also write zero logs to files under logDir (--alsologtostderr). |
 | zero.antiAffinity | string | `"soft"` | Pod anti-affinity strength for zero (soft = best effort, hard = required). |
 | zero.automountServiceAccountToken | bool | `false` | Do not mount the API token on zero pods; zero never calls the K8s API. |

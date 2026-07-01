@@ -1159,6 +1159,59 @@ networkPolicy:
   ## Extra ingress rules appended verbatim (e.g. to allow a Prometheus scraper).
   extraIngress: []
 
+## Post-install validation: a conformance check that asserts the running cluster
+## matches what the chart rendered (health, cluster membership, ACL enforcement,
+## admin and per-user login, an authenticated query, group predicate rules, and
+## optionally backup CronJob scheduling). Mesh-, TLS-, and NetworkPolicy-aware:
+## it reuses serviceMesh / alpha.tls / networkPolicy to reach Alpha. Exposed as
+## `helm test <release>`, an optional post-install hook Job that gates the
+## release, and a suspended CronJob for manual on-demand runs.
+# -- (object) Post-install conformance validator (helm test + optional gating Job + manual CronJob).
+validation:
+  # -- (bool) Master switch for all validator resources (ConfigMap, test Pod, Job, CronJob, RBAC).
+  enabled: false
+  # -- (object) Validator image. Empty (the default) reuses the deployed dgraph-sec image (which bundles bash, curl, jq) so the validator always matches the running version. Set all three fields below only to pin an explicit override.
+  image: {}
+  #   registry: istaridigital.jfrog.io
+  #   repository: customer-docker/dgraph-sec
+  #   tag: v25.3.7-sec.0.2.2
+  # -- (string) Account the validator logs in as for auth-dependent checks. Defaults to the groot superadmin.
+  adminUser: groot
+  # -- (string) Secret key holding adminUser's password. Empty derives it (groot's key, else <adminUser>_password).
+  adminPasswordSecretKey: ""
+  ## The validator reads passwords from the ACL creds Secret (alpha.acl.bootstrap.existingSecret /
+  ## alpha.acl.existingSecret, else the chart-managed <fullname>-acl-secret). An external creds Secret
+  ## must carry the password keys the validator reads — adminPasswordSecretKey (or groot's key) and each
+  ## bootstrap user's passwordSecretKey — otherwise the admin/user-login checks FAIL the gating hook.
+  # -- (object) Post-install/upgrade hook Job that gates the release on a passing validation.
+  job:
+    # -- (bool) Render the gating Job.
+    enabled: true
+    # -- (int) Job backoffLimit (also used by the manual CronJob's jobTemplate).
+    backoffLimit: 1
+  # -- (object) Suspended manual-trigger CronJob (kubectl create job --from=cronjob/...).
+  cronjob:
+    # -- (bool) Render the manual-trigger CronJob.
+    enabled: true
+  # -- (object) RBAC for the backup-CronJob check (the validator reads CronJobs via the Kubernetes API).
+  rbac:
+    # -- (bool) Create the validator ServiceAccount/Role/RoleBinding. Required by checkBackups.
+    enabled: false
+  # -- (bool) Also assert the backup CronJobs exist with their expected schedules (requires rbac.enabled).
+  checkBackups: false
+  # -- (bool) Trigger a live backup round-trip to S3 (side-effecting, slow; reserved for future use). Default off.
+  backupRoundtrip: false
+  # -- (int) Per-check retry attempts before failing.
+  retries: 10
+  # -- (int) Seconds between retries.
+  retrySleep: 12
+  # -- (object) Extra annotations for validator pods.
+  podAnnotations: {}
+  # -- (object) nodeSelector for validator pods. Empty falls back to alpha.nodeSelector.
+  nodeSelector: {}
+  # -- (list) tolerations for validator pods. Empty falls back to alpha.tolerations.
+  tolerations: []
+
 ## Prometheus Operator ServiceMonitor. Default off; enable on clusters running
 ## the Prometheus Operator. The chart already emits prometheus.io/* scrape
 ## annotations for annotation-based discovery regardless of this setting.
