@@ -139,6 +139,45 @@
 
    NOTE: Change "http://" to "https://" if TLS was added to the Ingress or Load Balancer.
 {{- end }}
+{{- if or .Values.networkPolicy.enabled .Values.serviceMesh.enabled (and (not .Values.serviceMesh.enabled) .Values.alpha.tls.enabled) .Values.alpha.acl.enabled }}
+
+CONNECTING ANOTHER SERVICE IN THE CLUSTER
+
+   This configuration requires setup before an in-cluster client can reach Alpha at
+   {{ include "dgraph-sec.alpha.fullname" . }}.{{ include "dgraph-sec.namespace" . }}.svc{{ include "dgraph-sec.domainSuffix" . }} on 8080 (HTTP/S) / 9080 (gRPC):
+{{- if .Values.networkPolicy.enabled }}
+
+   * NetworkPolicy is ENABLED — only pods carrying every label in
+     networkPolicy.clientPodLabels may reach 8080/9080.
+{{- if .Values.networkPolicy.clientPodLabels }}
+     Label client pods with:
+{{- range $k, $v := .Values.networkPolicy.clientPodLabels }}
+         {{ $k }}: {{ $v }}
+{{- end }}
+{{- else }}
+     networkPolicy.clientPodLabels is EMPTY — no client pods are admitted yet. Set it
+     (or add a rule to networkPolicy.extraIngress) before any client can connect.
+{{- end }}
+{{- end }}
+{{- if .Values.serviceMesh.enabled }}
+
+   * Service mesh is ASSUMED — the client pod must be in the mesh (carry a sidecar),
+     and the mesh AuthorizationPolicy must admit its service-account principal. The
+     chart ships no Istio CRDs; that policy lives in the platform mesh.
+{{- end }}
+{{- if and (not .Values.serviceMesh.enabled) .Values.alpha.tls.enabled }}
+
+   * Native TLS is ON — the client must connect over TLS and trust the chart CA
+     (ca.crt from the alpha TLS Secret){{ if .Values.alpha.tls.clientAuthType }}, and present a client certificate (clientAuthType={{ .Values.alpha.tls.clientAuthType }}){{ end }}.
+{{- end }}
+{{- if .Values.alpha.acl.enabled }}
+
+   * ACL is ON — the client must also log in (see above) and send the returned access
+     token on every request.
+{{- end }}
+
+   Step-by-step for each: docs/topology.md, "Letting another in-cluster service connect".
+{{- end }}
 {{- if .Values.validation.enabled }}
 
 VALIDATION

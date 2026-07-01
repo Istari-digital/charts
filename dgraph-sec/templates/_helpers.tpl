@@ -341,11 +341,8 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
 {{- define "dgraph-sec.peerZero" -}}
   {{- $zeroFullName := include "dgraph-sec.zero.fullname" . -}}
 
-  {{- /* Append domain suffix if domain is used */}}
-  {{- $domainSuffix := "" -}}
-  {{- if .Values.global.domain -}}
-  {{- $domainSuffix = printf ".%s" .Values.global.domain -}}
-  {{- end -}}
+  {{- /* Append the cluster-domain suffix (trimmed, omitted when empty). */}}
+  {{- $domainSuffix := include "dgraph-sec.domainSuffix" . -}}
 
   {{- printf "%s-%d.%s-headless.${POD_NAMESPACE}.svc%s:5080" $zeroFullName 0 $zeroFullName $domainSuffix -}}
 {{- end -}}
@@ -376,11 +373,8 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
   {{- $zeroFullName := include "dgraph-sec.zero.fullname" . -}}
   {{- $max := int .Values.zero.replicaCount -}}
 
-  {{- /* Append domain suffix if domain is used */}}
-  {{- $domainSuffix := "" -}}
-  {{- if .Values.global.domain -}}
-  {{- $domainSuffix = printf ".%s" .Values.global.domain -}}
-  {{- end -}}
+  {{- /* Append the cluster-domain suffix (trimmed, omitted when empty). */}}
+  {{- $domainSuffix := include "dgraph-sec.domainSuffix" . -}}
 
   {{- /* Create comma-separated list of zeros */}}
   {{- range $idx := until $max }}
@@ -394,10 +388,13 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
 {{- /* native-TLS-active for a tier: no service mesh AND the tier's TLS is on.
        Pass a dict {"ctx": ., "tls": .Values.alpha.tls}.
        Returns the STRING "true" or "" (empty) -- NOT a boolean. Compare it as a
-       string: eq (include "dgraph-sec.nativeTLS" ...) "true". Callers store that
-       result once in a $nativeTLS bool and reuse it. It is the single predicate
-       that gates --tls synthesis, the HTTPS probe scheme, and the ACL bootstrap
-       Job's TLS client. */}}
+       string: eq (include "dgraph-sec.nativeTLS" ...) "true". Callers should
+       generally store that result once in a $nativeTLS bool and reuse it, though
+       a few inline the include directly. It is the single predicate
+       that gates --tls synthesis, the HTTPS probe scheme, the ACL bootstrap Job's
+       TLS client, and the backup CronJobs' TLS client (CACERT, HTTPS, and the
+       cert-Secret mount). The alpha-0 headless FQDN those Jobs target is set
+       unconditionally, not gated by this. */}}
 {{- define "dgraph-sec.nativeTLS" -}}
 {{- if and (not .ctx.Values.serviceMesh.enabled) .tls.enabled -}}true{{- end -}}
 {{- end -}}
