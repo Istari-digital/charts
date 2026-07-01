@@ -54,7 +54,7 @@ containers:
   env:
   - name: ALPHA_HOST
 {{- if $nativeTLS }}
-    value: {{ printf "%s-0.%s-headless.%s.svc.%s" (include "dgraph-sec.alpha.fullname" .) (include "dgraph-sec.alpha.fullname" .) (include "dgraph-sec.namespace" .) .Values.global.domain | quote }}
+    value: {{ printf "%s-0.%s-headless.%s.svc%s" (include "dgraph-sec.alpha.fullname" .) (include "dgraph-sec.alpha.fullname" .) (include "dgraph-sec.namespace" .) (include "dgraph-sec.domainSuffix" .) | quote }}
 {{- else }}
     value: {{ include "dgraph-sec.alpha.fullname" . | quote }}
 {{- end }}

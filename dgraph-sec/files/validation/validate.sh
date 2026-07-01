@@ -102,12 +102,17 @@ check_health() {
 
 # Admin JWT underpins membership/query/groups; fetch with retry before they run.
 ADMIN_JWT=""
+# Admin auth header args, populated once we hold a JWT. Stays empty when ACL is
+# disabled so we never send an empty X-Dgraph-AccessToken, which a proxy or mesh
+# could treat as a failed auth attempt and reject.
+AUTH_HDR=()
 get_admin_jwt() {
   _u="$(jq -r '.adminUser' "$EXPECTED_JSON")"
   _k="$(jq -r '.adminPasswordKey' "$EXPECTED_JSON")"
   _pw="$(read_pw "$_k")" || return 1
   ADMIN_JWT="$(login "$_u" "$_pw")" || return 1
-  [ -n "$ADMIN_JWT" ]
+  [ -n "$ADMIN_JWT" ] || return 1
+  AUTH_HDR=(-H "X-Dgraph-AccessToken: $ADMIN_JWT")
 }
 
 # B. Membership: counted Alphas/Zeros in /state match expected. As a
@@ -117,7 +122,7 @@ get_admin_jwt() {
 # over-count and FAIL. Not a concern for the install/upgrade gate, but a manual
 # CronJob run after a scale-down could surface it.
 check_membership() {
-  _state="$(curl_alpha "$ALPHA/state" -H "X-Dgraph-AccessToken: $ADMIN_JWT")" || return 1
+  _state="$(curl_alpha "$ALPHA/state" "${AUTH_HDR[@]}")" || return 1
   _a="$(printf '%s' "$_state" | jq '[.groups[].members | length] | add // 0')"
   _z="$(printf '%s' "$_state" | jq '(.zeros // {}) | length')"
   [ "$_a" = "$(jq -r '.expectedAlphas' "$EXPECTED_JSON")" ] &&
@@ -146,7 +151,7 @@ check_acl_enforcing() {
 check_query() {
   _resp="$(curl_alpha -X POST "$ALPHA/query" \
     -H 'Content-Type: application/dql' \
-    -H "X-Dgraph-AccessToken: $ADMIN_JWT" \
+    "${AUTH_HDR[@]}" \
     --data-binary 'schema {}')" || return 1
   printf '%s' "$_resp" | jq -e '.data' >/dev/null 2>&1
 }
@@ -181,7 +186,7 @@ check_groups() {
   _ng="$(jq -r '.groups | length' "$EXPECTED_JSON")"
   [ "$_ng" -eq 0 ] && return 0
   _resp="$(curl_alpha -X POST "$ALPHA/admin" -H 'Content-Type: application/json' \
-    -H "X-Dgraph-AccessToken: $ADMIN_JWT" \
+    "${AUTH_HDR[@]}" \
     -d '{"query":"{ queryGroup { name rules { predicate permission } } }"}')" || return 1
   _rc=0
   _i=0
