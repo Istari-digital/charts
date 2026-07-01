@@ -1151,7 +1151,7 @@ tracing:
 ## section ("Deploying without a service mesh").
 # -- (object) Service-mesh assumption that shapes encryption and identity.
 serviceMesh:
-  # -- (bool) When true, assume an ambient strict-mTLS mesh provides encryption and identity. When false, the chart synthesizes Dgraph's --tls superflag and switches probes to HTTPS for any tier with tls.enabled.
+  # -- (bool) When true, assume a strict-mTLS service mesh provides encryption and identity. When false, the chart synthesizes Dgraph's --tls superflag and switches probes to HTTPS for any tier with tls.enabled.
   enabled: true
 
 ## NetworkPolicy to restrict ingress to the alpha/zero ports.

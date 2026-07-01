@@ -388,8 +388,9 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
 {{- /* native-TLS-active for a tier: no service mesh AND the tier's TLS is on.
        Pass a dict {"ctx": ., "tls": .Values.alpha.tls}.
        Returns the STRING "true" or "" (empty) -- NOT a boolean. Compare it as a
-       string: eq (include "dgraph-sec.nativeTLS" ...) "true". Callers store that
-       result once in a $nativeTLS bool and reuse it. It is the single predicate
+       string: eq (include "dgraph-sec.nativeTLS" ...) "true". Callers should
+       generally store that result once in a $nativeTLS bool and reuse it, though
+       a few inline the include directly. It is the single predicate
        that gates --tls synthesis, the HTTPS probe scheme, the ACL bootstrap Job's
        TLS client, and the backup CronJobs' TLS client (CACERT, HTTPS, and the
        cert-Secret mount). The alpha-0 headless FQDN those Jobs target is set
