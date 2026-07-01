@@ -100,8 +100,8 @@ volumes:
     - key: validate.sh
       path: validate.sh
 - name: config
-  configMap:
-    name: {{ include "dgraph-sec.alpha.fullname" . }}-validate
+  secret:
+    secretName: {{ include "dgraph-sec.alpha.fullname" . }}-validate
     items:
     - key: expected.json
       path: expected.json

@@ -1168,15 +1168,19 @@ networkPolicy:
 validation:
   # -- (bool) Master switch for all validator resources (ConfigMap, test Pod, Job, CronJob, RBAC).
   enabled: false
-  # -- (object) Validator image. Empty reuses the dgraph-sec image (which bundles bash, curl, jq).
+  # -- (object) Validator image. Empty (the default) reuses the deployed dgraph-sec image (which bundles bash, curl, jq) so the validator always matches the running version. Set all three fields below only to pin an explicit override.
   image: {}
   #   registry: istaridigital.jfrog.io
-  #   repository: main-docker-local/dgraph-sec
-  #   tag: v25.3.6-sec.0.2.1
+  #   repository: customer-docker/dgraph-sec
+  #   tag: v25.3.7-sec.0.2.2
   # -- (string) Account the validator logs in as for auth-dependent checks. Defaults to the groot superadmin.
   adminUser: groot
   # -- (string) Secret key holding adminUser's password. Empty derives it (groot's key, else <adminUser>_password).
   adminPasswordSecretKey: ""
+  ## The validator reads passwords from the ACL creds Secret (alpha.acl.bootstrap.existingSecret /
+  ## alpha.acl.existingSecret, else the chart-managed <fullname>-acl-secret). An external creds Secret
+  ## must carry the password keys the validator reads — adminPasswordSecretKey (or groot's key) and each
+  ## bootstrap user's passwordSecretKey — otherwise the admin/user-login checks FAIL the gating hook.
   # -- (object) Post-install/upgrade hook Job that gates the release on a passing validation.
   job:
     # -- (bool) Render the gating Job.

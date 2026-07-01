@@ -277,7 +277,7 @@ the agent runs.
 | validation.checkBackups | bool | `false` | Also assert the backup CronJobs exist with their expected schedules (requires rbac.enabled). |
 | validation.cronjob.enabled | bool | `true` | Render the manual-trigger CronJob. |
 | validation.enabled | bool | `false` | Master switch for all validator resources (ConfigMap, test Pod, Job, CronJob, RBAC). |
-| validation.image | object | `{}` | Validator image. Empty reuses the dgraph-sec image (which bundles bash, curl, jq). |
+| validation.image | object | `{}` | Validator image. Empty (the default) reuses the deployed dgraph-sec image (which bundles bash, curl, jq) so the validator always matches the running version. Set all three fields below only to pin an explicit override. |
 | validation.job | object | `{"backoffLimit":1,"enabled":true}` | Post-install/upgrade hook Job that gates the release on a passing validation. |
 | validation.job.backoffLimit | int | `1` | Job backoffLimit (also used by the manual CronJob's jobTemplate). |
 | validation.job.enabled | bool | `true` | Render the gating Job. |
