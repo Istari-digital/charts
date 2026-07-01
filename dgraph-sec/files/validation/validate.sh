@@ -110,7 +110,12 @@ get_admin_jwt() {
   [ -n "$ADMIN_JWT" ]
 }
 
-# B. Membership: counted Alphas/Zeros in /state match expected.
+# B. Membership: counted Alphas/Zeros in /state match expected. As a
+# post-install/upgrade gate this compares against the just-rendered replicaCount,
+# so counts match. Note: the zeros count assumes /state lists only live members;
+# if a decommissioned zero lingered in /state after a scale-down it would
+# over-count and FAIL. Not a concern for the install/upgrade gate, but a manual
+# CronJob run after a scale-down could surface it.
 check_membership() {
   _state="$(curl_alpha "$ALPHA/state" -H "X-Dgraph-AccessToken: $ADMIN_JWT")" || return 1
   _a="$(printf '%s' "$_state" | jq '[.groups[].members | length] | add // 0')"
@@ -119,12 +124,22 @@ check_membership() {
     [ "$_z" = "$(jq -r '.expectedZeros' "$EXPECTED_JSON")" ]
 }
 
-# C. ACL enforcing: an unauthenticated admin query is rejected (GraphQL returns
-# 200 with a non-empty errors array).
+# C. ACL enforcing: an unauthenticated admin query is rejected. Rejection can be
+# a GraphQL 200 with a non-empty errors[] (current Dgraph) OR an HTTP 401/403
+# (an auth proxy, mesh policy, or a future Dgraph version). Deliberately not
+# curl_alpha here: its -f turns a 4xx rejection into a non-zero exit that would
+# read as "not enforcing" — exactly backwards. Assert on the status/body instead.
 check_acl_enforcing() {
-  _resp="$(curl_alpha -X POST "$ALPHA/admin" -H 'Content-Type: application/json' \
+  _out="$(/usr/bin/curl -sS -w '\n%{http_code}' "${CERTOPTS[@]}" \
+    -X POST "$ALPHA/admin" -H 'Content-Type: application/json' \
     -d '{"query":"{ queryGroup { name } }"}')" || return 1
-  [ "$(printf '%s' "$_resp" | jq -r '(.errors // []) | length')" -gt 0 ]
+  _code="${_out##*$'\n'}"
+  _body="${_out%$'\n'*}"
+  # A 401/403 is an explicit rejection => enforcing.
+  case "$_code" in 401 | 403) return 0 ;; esac
+  # A 200 counts only if the GraphQL response carries a non-empty errors[].
+  [ "$_code" = "200" ] &&
+    [ "$(printf '%s' "$_body" | jq -r '(.errors // []) | length' 2>/dev/null || echo 0)" -gt 0 ]
 }
 
 # D. Authenticated query: a DQL schema read through the auth path returns data.
@@ -228,6 +243,27 @@ run() {
   if retry "$_name" "$@"; then pass "$_name"; else fail "$_name"; fi
 }
 
+# run_reported LABEL FN...: retry wrapper for checks that emit their own per-item
+# PASS/FAIL and increment FAILURES (check_user_logins, check_groups,
+# check_backups). Bare, these get one shot and can FAIL on a still-propagating
+# ACL rule or a not-yet-visible CronJob while the run()-wrapped checks above them
+# would retry past the same window. Probe quietly in a subshell (its FAILURES
+# increments and output are discarded) until it passes or attempts run out, then
+# run once authoritatively so per-item detail and the failure count land exactly
+# once.
+run_reported() {
+  _name="$1"
+  shift
+  _i=1
+  while [ "$_i" -lt "$RETRIES" ]; do
+    if ("$@") >/dev/null 2>&1; then break; fi
+    log "$_name: not ready; retry $_i/$RETRIES in ${RETRY_SLEEP}s"
+    _i=$((_i + 1))
+    sleep "$RETRY_SLEEP"
+  done
+  "$@"
+}
+
 log "dgraph-sec validator -> $ALPHA (ns=$NS, aclEnabled=$ACL_ENABLED); up to $RETRIES x ${RETRY_SLEEP}s per check"
 run "health" check_health
 
@@ -236,8 +272,8 @@ if [ "$ACL_ENABLED" = "true" ]; then
   run "acl-enforcing" check_acl_enforcing
   run "membership" check_membership
   run "query" check_query
-  check_user_logins
-  check_groups
+  run_reported "user-logins" check_user_logins
+  run_reported "groups" check_groups
 else
   log "ACL disabled (expected.json aclEnabled != true); skipping login, ACL-enforcement, user-login, and group checks"
   run "membership" check_membership
@@ -245,7 +281,7 @@ else
 fi
 
 if [ "$(jq -r '.backups.check' "$EXPECTED_JSON")" = "true" ]; then
-  check_backups
+  run_reported "backups" check_backups
 fi
 
 echo "----"
