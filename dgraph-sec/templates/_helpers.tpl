@@ -130,25 +130,23 @@ Also, we can't use a single if because lazy evaluation is not an option
 
 {{/*
 Return the proper Docker Image Registry Secret Names
+Priority: imagePullSecrets (K8s object list) > global.imagePullSecrets (string list) > image.pullSecrets (string list)
 */}}
 {{- define "dgraph-sec.imagePullSecrets" -}}
-{{/*
-Helm 2.11 supports the assignment of a value to a variable defined in a different scope,
-but Helm 2.9 and 2.10 doesn't support it, so we need to implement this if-else logic.
-Also, we can't use a single if because lazy evaluation is not an option
-*/}}
-{{- if .Values.global }}
-{{- if .Values.global.imagePullSecrets }}
+{{- if .Values.imagePullSecrets }}
+imagePullSecrets:
+{{- range .Values.imagePullSecrets }}
+{{- if kindIs "map" . }}
+  - name: {{ .name }}
+{{- else }}
+  - name: {{ . }}
+{{- end }}
+{{- end }}
+{{- else if and .Values.global .Values.global.imagePullSecrets }}
 imagePullSecrets:
 {{- range .Values.global.imagePullSecrets }}
   - name: {{ . }}
 {{- end }}
-{{- else if .Values.image.pullSecrets }}
-imagePullSecrets:
-{{- range .Values.image.pullSecrets }}
-  - name: {{ . }}
-{{- end }}
-{{- end -}}
 {{- else if .Values.image.pullSecrets }}
 imagePullSecrets:
 {{- range .Values.image.pullSecrets }}
@@ -391,4 +389,45 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
       {{- print "," -}}
     {{- end -}}
   {{ end }}
+{{- end -}}
+
+{{- /* native-TLS-active for a tier: no service mesh AND the tier's TLS is on.
+       Pass a dict {"ctx": ., "tls": .Values.alpha.tls}.
+       Returns the STRING "true" or "" (empty) -- NOT a boolean. Compare it as a
+       string: eq (include "dgraph-sec.nativeTLS" ...) "true". Callers store that
+       result once in a $nativeTLS bool and reuse it. It is the single predicate
+       that gates --tls synthesis, the HTTPS probe scheme, and the ACL bootstrap
+       Job's TLS client. */}}
+{{- define "dgraph-sec.nativeTLS" -}}
+{{- if and (not .ctx.Values.serviceMesh.enabled) .tls.enabled -}}true{{- end -}}
+{{- end -}}
+
+{{- /* Cluster-domain suffix for in-cluster FQDNs: ".<global.domain>" with the
+       leading dot, or empty when global.domain is unset. Trims stray leading/
+       trailing dots so a host never renders "...svc." or "...svc..cluster.local".
+       Use as: ...svc{{ include "dgraph-sec.domainSuffix" . }} */}}
+{{- define "dgraph-sec.domainSuffix" -}}
+{{- with (.Values.global.domain | default "" | trimAll ".") }}.{{ . }}{{ end -}}
+{{- end -}}
+
+{{- /* Compose Dgraph's --tls superflag from a tier's tls map. Pass a dict
+       {"tls": .Values.alpha.tls, "path": "/dgraph/tls"}. Filenames follow the
+       output of scripts/make_tls_secrets.sh (ca.crt, node.crt, node.key,
+       client.<name>.crt/.key). client-cert/key and client-auth-type are emitted
+       only when the corresponding values are set. */}}
+{{- define "dgraph-sec.tlsFlag" -}}
+{{- /* internalPort defaults to true (values.yaml), but Helm's `default` treats a
+       boolean false as empty, so an explicit `false` would be flipped back to the
+       default. Use a nil check so nil -> true while honoring an explicit false. */ -}}
+{{- $ip := .tls.internalPort -}}
+{{- if kindIs "invalid" $ip -}}{{- $ip = true -}}{{- end -}}
+{{- $opts := list (printf "ca-cert=%s/ca.crt" .path) (printf "server-cert=%s/node.crt" .path) (printf "server-key=%s/node.key" .path) (printf "internal-port=%v" $ip) -}}
+{{- if .tls.clientName -}}
+{{- $opts = append $opts (printf "client-cert=%s/client.%s.crt" .path .tls.clientName) -}}
+{{- $opts = append $opts (printf "client-key=%s/client.%s.key" .path .tls.clientName) -}}
+{{- end -}}
+{{- if .tls.clientAuthType -}}
+{{- $opts = append $opts (printf "client-auth-type=%s" .tls.clientAuthType) -}}
+{{- end -}}
+{{- printf "--tls \"%s;\"" (join "; " $opts) -}}
 {{- end -}}

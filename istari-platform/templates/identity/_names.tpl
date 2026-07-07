@@ -15,3 +15,10 @@ identity default env var configmap name
 {{- define "identity.configmap.name" -}}
 {{ printf "%s-envvars" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}
+
+{{/*
+One-shot Job that registers the registry-service identity-router client in the ClientStore.
+*/}}
+{{- define "identity.routerClientRegistration.jobName" -}}
+{{- printf "%s-register-router-client" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end }}

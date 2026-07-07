@@ -13,12 +13,28 @@
 
      * Authentication (ACL) ... {{ if .Values.alpha.acl.enabled }}ENABLED{{ else }}DISABLED — anyone with network access to alpha can connect WITHOUT credentials{{ end }}
      * Encryption at rest ..... {{ if .Values.alpha.encryption.enabled }}ENABLED{{ else }}disabled{{ end }}
-     * TLS (in transit) ....... {{ if .Values.alpha.tls.enabled }}ENABLED{{ else }}disabled{{ end }}
+     * TLS (in transit) ....... {{ if .Values.serviceMesh.enabled }}handled by the service mesh (Dgraph runs plaintext){{ else if or .Values.alpha.tls.enabled .Values.zero.tls.enabled }}Dgraph-native TLS{{ else }}disabled — traffic is unencrypted{{ end }}
+     * Service mesh ........... {{ if .Values.serviceMesh.enabled }}ASSUMED (ambient strict-mTLS mesh handles encryption + identity){{ else }}NONE — the chart wires Dgraph-native TLS for any tier with tls.enabled{{ end }}
      * NetworkPolicy .......... {{ if .Values.networkPolicy.enabled }}ENABLED{{ else }}disabled — pod-to-pod traffic is unrestricted{{ end }}
      * Binary backups ......... {{ if or .Values.backups.full.enabled .Values.backups.incremental.enabled }}ENABLED (destination: {{ .Values.backups.destination }}){{ else }}disabled — no backups are being taken{{ end }}
      * Datadog autodiscovery .. {{ if .Values.datadog.enabled }}ENABLED (superservice: {{ .Values.datadog.superservice }}){{ else }}disabled{{ end }}
      * OTEL tracing ........... {{ if .Values.tracing.enabled }}ENABLED (endpoint: {{ .Values.tracing.endpoint }}){{ else }}disabled{{ end }}
      * Pods run as ............ {{ if .Values.alpha.securityContext.enabled }}non-root (securityContext enabled){{ else }}the image default (securityContext DISABLED){{ end }}
+{{- if not .Values.serviceMesh.enabled }}
+{{- if not (or .Values.alpha.tls.enabled .Values.zero.tls.enabled) }}
+
+   WARNING: serviceMesh.enabled=false and TLS is off on both tiers. Traffic is
+   UNENCRYPTED. Set alpha.tls.enabled / zero.tls.enabled (use
+   scripts/make_tls_secrets.sh) and enable networkPolicy.enabled for segmentation.
+{{- end }}
+{{- if .Values.alpha.acl.enabled }}
+
+   NOTE: ACL without a mesh — whitelist your cluster's pod CIDR via Dgraph's
+   --security flag, e.g. alpha.extraFlags: '--security "whitelist=10.0.0.0/8;"'.
+   Otherwise the ACL bootstrap Job and backup CronJobs are rejected with
+   "unauthorized ip address" when reaching Alpha through its ClusterIP Service.
+{{- end }}
+{{- end }}
 
 {{- if .Values.alpha.acl.enabled }}
    ACL is ENABLED, so every client must log in.
@@ -122,4 +138,23 @@
 {{- end }}
 
    NOTE: Change "http://" to "https://" if TLS was added to the Ingress or Load Balancer.
+{{- end }}
+{{- if .Values.validation.enabled }}
+
+VALIDATION
+
+A post-install conformance validator is enabled. It asserts the running cluster
+matches what this chart rendered (health, cluster membership, ACL enforcement,
+admin/user login, an authenticated query, group rules{{ if .Values.validation.checkBackups }}, backup scheduling{{ end }}).
+
+  - Run it on demand:
+      helm test {{ .Release.Name }} -n {{ include "dgraph-sec.namespace" . }}
+{{- if .Values.validation.cronjob.enabled }}
+  - Trigger the in-cluster validator manually:
+      kubectl create job --from=cronjob/{{ include "dgraph-sec.alpha.fullname" . }}-validate \
+        -n {{ include "dgraph-sec.namespace" . }} {{ include "dgraph-sec.alpha.fullname" . }}-validate-manual
+{{- end }}
+{{- if .Values.validation.job.enabled }}
+  - The post-install hook Job already gated this release on a passing run.
+{{- end }}
 {{- end }}

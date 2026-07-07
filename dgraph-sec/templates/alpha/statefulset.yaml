@@ -2,6 +2,26 @@
 {{- $hasMinioKeys := include "dgraph-sec.backups.keys.minio.enabled" . -}}
 {{- $backupsEnabled := or .Values.backups.full.enabled .Values.backups.incremental.enabled }}
 {{- $initContainerEnabled := or .Values.alpha.initContainers.init.enabled .Values.alpha.extraInitContainers }}
+{{- /* native-TLS is active for alpha when there is no mesh and alpha.tls is on.
+       Computed once here (a bool) and reused for the --tls superflag, the HTTPS
+       probe scheme, and the extraFlags/clientAuthType guards below. */}}
+{{- $nativeTLS := eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true" }}
+{{- if and $nativeTLS (contains "--tls" (.Values.alpha.extraFlags | default "")) }}
+{{- fail "alpha.extraFlags contains --tls, but the chart synthesizes it when serviceMesh.enabled=false and alpha.tls.enabled=true. Remove --tls from alpha.extraFlags and set alpha.tls.internalPort / clientName / clientAuthType instead." }}
+{{- end }}
+{{- /* REQUIREANY and REQUIREANDVERIFY both force the client to present a cert
+       (REQUIREANY never verifies it, REQUIREANDVERIFY does); client-auth-type
+       applies to the external ports the built-in probes hit, so both modes break
+       the certless kubelet probe handshake. */}}
+{{- $certRequiringAuth := or (eq .Values.alpha.tls.clientAuthType "REQUIREANDVERIFY") (eq .Values.alpha.tls.clientAuthType "REQUIREANY") }}
+{{- if and $nativeTLS $certRequiringAuth }}
+{{- if not .Values.alpha.tls.clientName }}
+{{- fail (printf "alpha.tls.clientAuthType=%s requires alpha.tls.clientName so in-cluster callers (the ACL bootstrap Job and inter-node TLS) can present a client certificate." .Values.alpha.tls.clientAuthType) }}
+{{- end }}
+{{- if or (and .Values.alpha.startupProbe.enabled (not .Values.alpha.customStartupProbe)) (and .Values.alpha.livenessProbe.enabled (not .Values.alpha.customLivenessProbe)) (and .Values.alpha.readinessProbe.enabled (not .Values.alpha.customReadinessProbe)) }}
+{{- fail (printf "alpha.tls.clientAuthType=%s forces every client to present a certificate, which the built-in httpGet probes cannot do (the kubelet has no client cert). Relax alpha.tls.clientAuthType (e.g. VERIFYIFGIVEN) on the external ports, or supply alpha.customStartupProbe / customLivenessProbe / customReadinessProbe (exec probes that present the client cert)." .Values.alpha.tls.clientAuthType) }}
+{{- end }}
+{{- end }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -210,7 +230,18 @@ spec:
             ## `alpha.acl.enabled`/`alpha.encryption.enabled`. Those keys provision the
             ## Secret and mount; the matching superflag below is what makes Dgraph use
             ## them. Keep the two in lockstep so "enabled" always means "active".
-            exec dgraph-sec alpha --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):7080 --zero {{ template "dgraph-sec.multiZeros" . }} {{ template "dgraph-sec.logFlags" .Values.alpha }} {{ .Values.alpha.extraFlags }}{{- if .Values.alpha.acl.enabled }} --acl "secret-file=/dgraph/acl/{{ .Values.alpha.acl.secretFile }};"{{- end }}{{- if .Values.alpha.encryption.enabled }} --encryption "key-file=/dgraph/enc/{{ .Values.alpha.encryption.keyFile }};"{{- end }}{{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.alpha.service }};"{{- end }}
+            {{- /* Built as one shell line. Base flags first; each optional flag group
+                   below appends inline (the leading space is inside each block, and the
+                   {{- trims the source newline) so output is unchanged when toggled off. */}}
+            exec dgraph-sec alpha --my=$(hostname -f | awk '{gsub(/\.$/,""); print $0}'):7080 --zero {{ template "dgraph-sec.multiZeros" . }} {{ template "dgraph-sec.logFlags" .Values.alpha }} {{ .Values.alpha.extraFlags }}
+              {{- /* native TLS: synthesize --tls from alpha.tls (ca/server/client certs) */}}
+              {{- if $nativeTLS }} {{ include "dgraph-sec.tlsFlag" (dict "tls" .Values.alpha.tls "path" "/dgraph/tls") }}{{- end }}
+              {{- /* ACL: point Dgraph at the mounted HMAC secret */}}
+              {{- if .Values.alpha.acl.enabled }} --acl "secret-file=/dgraph/acl/{{ .Values.alpha.acl.secretFile }};"{{- end }}
+              {{- /* encryption-at-rest: point Dgraph at the mounted encryption key */}}
+              {{- if .Values.alpha.encryption.enabled }} --encryption "key-file=/dgraph/enc/{{ .Values.alpha.encryption.keyFile }};"{{- end }}
+              {{- /* tracing: export OTEL/Jaeger traces */}}
+              {{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.alpha.service }};"{{- end }}
         resources:
 {{ toYaml .Values.alpha.resources | indent 10 }}
         {{- if .Values.alpha.startupProbe.enabled }}
@@ -218,6 +249,9 @@ spec:
           httpGet:
             port: {{ .Values.alpha.startupProbe.port }}
             path: {{ .Values.alpha.startupProbe.path }}
+            {{- if $nativeTLS }}
+            scheme: HTTPS
+            {{- end }}
           periodSeconds: {{ .Values.alpha.startupProbe.periodSeconds }}
           timeoutSeconds: {{ .Values.alpha.startupProbe.timeoutSeconds }}
           successThreshold: {{ .Values.alpha.startupProbe.successThreshold }}
@@ -230,6 +264,9 @@ spec:
           httpGet:
             port: {{ .Values.alpha.livenessProbe.port }}
             path: {{ .Values.alpha.livenessProbe.path }}
+            {{- if $nativeTLS }}
+            scheme: HTTPS
+            {{- end }}
           initialDelaySeconds: {{ .Values.alpha.livenessProbe.initialDelaySeconds }}
           periodSeconds: {{ .Values.alpha.livenessProbe.periodSeconds }}
           timeoutSeconds: {{ .Values.alpha.livenessProbe.timeoutSeconds }}
@@ -243,6 +280,9 @@ spec:
           httpGet:
             port: {{ .Values.alpha.readinessProbe.port }}
             path: {{ .Values.alpha.readinessProbe.path }}
+            {{- if $nativeTLS }}
+            scheme: HTTPS
+            {{- end }}
           initialDelaySeconds: {{ .Values.alpha.readinessProbe.initialDelaySeconds }}
           periodSeconds: {{ .Values.alpha.readinessProbe.periodSeconds }}
           timeoutSeconds: {{ .Values.alpha.readinessProbe.timeoutSeconds }}

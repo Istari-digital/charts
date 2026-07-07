@@ -15,6 +15,36 @@ data:
     ## against an empty result so a parse failure is a loud, non-zero exit rather
     ## than a backup POSTed with no auth header.
     ######
+    # require_json - guard a curl response before jq field extraction
+    #  params:
+    #    1: body - response body to validate
+    #    2: curl_status - exit status of the curl that produced the body
+    #    3: url - request URL, for the error message
+    #  A mesh or network failure returns a plaintext body (e.g. Envoy's
+    #  "upstream connect error...") that jq cannot parse; surface the curl
+    #  status, the URL, and the raw body instead of a cryptic jq parse error.
+    #  Only bodies that fail JSON validation are echoed, so a successful
+    #  login response (which carries an accessJWT) is never printed.
+    ##########################
+    require_json() {
+      BODY=${1}
+      CURL_STATUS=${2}
+      URL=${3}
+      if [[ "$CURL_STATUS" -ne 0 ]]; then
+        echo "ERROR: curl to ${URL} failed with exit ${CURL_STATUS}: ${BODY}" >&2
+        return 1
+      fi
+      if [[ -z "$BODY" ]]; then
+        echo "ERROR: empty response from ${URL}" >&2
+        return 1
+      fi
+      if ! jq -e . >/dev/null 2>&1 <<< "$BODY"; then
+        echo "ERROR: non-JSON response from ${URL}: ${BODY}" >&2
+        return 1
+      fi
+    }
+
+    ######
     # get_token_rest - get accessJWT token with REST command for Dgraph 1.x
     ##########################
     get_token_rest() {
@@ -22,6 +52,7 @@ data:
       ## backslashes, or newlines are escaped correctly instead of breaking the
       ## payload (string interpolation would corrupt the request).
       JSON=$(jq -n --arg userid "$USER" --arg password "$PASSWORD" '{userid: $userid, password: $password}')
+      CURL_STATUS=0
       RESULT=$(
         /usr/bin/curl --silent \
           "${HEADERS[@]}" \
@@ -29,7 +60,8 @@ data:
           --request POST \
           ${ALPHA_HOST}:8080/login \
           --data "${JSON}"
-      )
+      ) || CURL_STATUS=$?
+      require_json "$RESULT" "$CURL_STATUS" "${ALPHA_HOST}:8080/login" || return 1
 
       ERROR=$(jq -r '.errors[0].message // empty' <<< "$RESULT")
       if [[ -n "$ERROR" ]]; then
@@ -52,6 +84,7 @@ data:
       ## newlines correctly and removes any chance of query injection via the
       ## userid or password.
       GQL=$(jq -n --arg userId "$USER" --arg password "$PASSWORD" '{query: "mutation ($userId: String, $password: String) { login(userId: $userId, password: $password) { response { accessJWT } } }", variables: {userId: $userId, password: $password}}')
+      CURL_STATUS=0
       RESULT=$(
         /usr/bin/curl --silent \
           "${HEADERS[@]}" \
@@ -59,7 +92,8 @@ data:
           --request POST \
           ${ALPHA_HOST}:8080/admin \
           --data "${GQL}"
-      )
+      ) || CURL_STATUS=$?
+      require_json "$RESULT" "$CURL_STATUS" "${ALPHA_HOST}:8080/admin" || return 1
 
       ERROR=$(jq -r '.errors[0].message // empty' <<< "$RESULT")
       if [[ -n "$ERROR" ]]; then
@@ -215,13 +249,15 @@ data:
     backup_rest() {
       URL_PATH="admin/backup?force_full=$FORCE_FULL"
 
+      CURL_STATUS=0
       RESULT=$(/usr/bin/curl --silent \
         "${HEADERS[@]}" \
         "${CERTOPTS[@]}" \
         --request POST \
         ${ALPHA_HOST}:8080/$URL_PATH \
         --data "destination=$BACKUP_DESTINATION"
-      )
+      ) || CURL_STATUS=$?
+      require_json "$RESULT" "$CURL_STATUS" "${ALPHA_HOST}:8080/${URL_PATH}" || return 1
 
       ERROR=$(jq -r '.errors[0].message // empty' <<< "$RESULT")
       if [[ -n "$ERROR" ]]; then
@@ -244,13 +280,15 @@ data:
     backup_graphql() {
       GQL="{\"query\": \"mutation { backup(input: {destination: \\\"${BACKUP_DESTINATION}\\\" forceFull: $FORCE_FULL }) { response { message code } } }\"}"
 
+      CURL_STATUS=0
       RESULT=$(/usr/bin/curl --silent \
         "${HEADERS[@]}" \
         "${CERTOPTS[@]}" \
         --request POST \
         $ALPHA_HOST:8080/admin \
         --data "$GQL"
-      )
+      ) || CURL_STATUS=$?
+      require_json "$RESULT" "$CURL_STATUS" "${ALPHA_HOST}:8080/admin" || return 1
 
       ERROR=$(jq -r '.errors[0].message // empty' <<< "$RESULT")
       if [[ -n "$ERROR" ]]; then
