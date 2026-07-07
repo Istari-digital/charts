@@ -176,7 +176,7 @@ CONNECTING ANOTHER SERVICE IN THE CLUSTER
      token on every request.
 {{- end }}
 
-   Step-by-step for each: docs/topology.md, "Letting another in-cluster service connect".
+   See docs/topology.md ("Letting another in-cluster service connect") for the step-by-step requirements.
 {{- end }}
 {{- if .Values.validation.enabled }}
 

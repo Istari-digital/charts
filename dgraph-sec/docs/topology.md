@@ -189,7 +189,7 @@ it must stay internal.
 A client service connects only to **Alpha**, at its Service DNS name
 (`<release>-dgraph-sec-alpha` by default):
 
-```
+```text
 <release>-dgraph-sec-alpha.<namespace>.svc.cluster.local:8080   # HTTP / GraphQL / DQL
 <release>-dgraph-sec-alpha.<namespace>.svc.cluster.local:9080   # gRPC
 ```
