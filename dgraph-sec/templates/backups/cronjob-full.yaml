@@ -66,10 +66,10 @@ spec:
                 ## Job targets — curl hostname verification under native TLS passes.
                 ALPHA_HOST="{{ template "dgraph-sec.alpha.fullname" . }}-0.{{ template "dgraph-sec.alpha.fullname" . }}-headless.${POD_NAMESPACE}.svc{{ include "dgraph-sec.domainSuffix" . }}"
 
-                BACKUP_DESTINATION={{ .Values.backups.destination }}
-                SUBPATH={{ .Values.backups.subpath }}
-                API_TYPE={{ template "dgraph-sec.backupsApiType" . }}
-                MINIO_SECURE={{ .Values.backups.minioSecure }}
+                BACKUP_DESTINATION="{{ .Values.backups.destination }}"
+                SUBPATH="{{ .Values.backups.subpath }}"
+                API_TYPE="{{ template "dgraph-sec.backupsApiType" . }}"
+                MINIO_SECURE="{{ .Values.backups.minioSecure }}"
 
                 ## Get Tokens
                 {{- if .Values.backups.admin.auth_token }}

@@ -57,9 +57,9 @@ is required, so applications can connect immediately.
 > by any pod in the cluster. Turn these on before putting real data behind it; see
 > [Security posture](#security-posture).
 
-Istari Digital deploys this chart with Terraform and sets
-`fullnameOverride: dgraph-sec`, which is why the deployed objects are named
-`dgraph-sec-alpha`, `dgraph-sec-zero`, etc.
+Istari Digital deploys this chart via GitOps (Argo CD), with Terraform
+provisioning the prerequisites, and sets `fullnameOverride: dgraph-sec`, which is
+why the deployed objects are named `dgraph-sec-alpha`, `dgraph-sec-zero`, etc.
 
 ## Architecture
 
@@ -506,8 +506,8 @@ The table lists every value the baseline changes from the chart default.
 | `fullnameOverride` | _(chart fullname)_ | `dgraph-sec` | Stable object names (`dgraph-sec-alpha`, `-zero`). |
 | `preUpgradeHook.enabled` | `true` | `false` | Every cluster is past the v24→v25 migration; the hook is now pure overhead. |
 | `zero.antiAffinity` / `alpha.antiAffinity` | `soft` | `hard` | One Alpha per node; never co-schedule a tier's pods. |
-| `zero.nodeSelector` / `alpha.nodeSelector` | `{}` | `nodegroup-kind: dgraph` | Pin dgraph to its own node group. |
-| `zero.tolerations` / `alpha.tolerations` | `[]` | a toleration for the `istari.k8s.io/role=dgraph:NoSchedule` taint | Admit dgraph to the tainted node group. Set as a list of toleration objects — see the YAML below. |
+| `zero.nodeSelector` / `alpha.nodeSelector` | `{}` | `nodegroup-kind: main` | Pin dgraph to the `main` node group. |
+| `zero.tolerations` / `alpha.tolerations` | `[]` | a toleration for the `istari.k8s.io/role=main:NoSchedule` taint | Admit dgraph to the `main` node group. Set as a list of toleration objects — see the YAML below. |
 | `zero.resources.requests` | `cpu: 100m`, `memory: 256Mi` | `cpu: 500m`, `memory: 2Gi` | Size Zero for a production node. |
 | `zero.resources.limits` | `memory: 512Mi` | `memory: 2Gi` | Guaranteed-QoS memory for Zero. |
 | `alpha.resources.requests` | `cpu: 250m`, `memory: 1Gi` | `cpu: 2000m`, `memory: 10Gi` | Size Alpha to fill a dedicated node. |
@@ -536,11 +536,11 @@ preUpgradeHook:
 zero:
   antiAffinity: hard
   nodeSelector:
-    nodegroup-kind: dgraph
+    nodegroup-kind: main
   tolerations:
     - key: istari.k8s.io/role
       operator: Equal
-      value: dgraph
+      value: main
       effect: NoSchedule
   resources:
     requests:
@@ -554,11 +554,11 @@ zero:
 alpha:
   antiAffinity: hard
   nodeSelector:
-    nodegroup-kind: dgraph
+    nodegroup-kind: main
   tolerations:
     - key: istari.k8s.io/role
       operator: Equal
-      value: dgraph
+      value: main
       effect: NoSchedule
   acl:
     enabled: true
