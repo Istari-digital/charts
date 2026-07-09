@@ -399,6 +399,27 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
 {{- if and (not .ctx.Values.serviceMesh.enabled) .tls.enabled -}}true{{- end -}}
 {{- end -}}
 
+{{- /* Does this tls block force every client to present a certificate?
+
+       client-auth-type mirrors Go's crypto/tls.ClientAuthType, which separates
+       "require" from "verify". REQUIREANY and REQUIREANDVERIFY are the only values
+       that force a cert (REQUIREANY never verifies it, REQUIREANDVERIFY does).
+       VERIFYIFGIVEN leaves the cert optional but verifies one that is presented;
+       REQUEST asks for a cert and neither requires nor verifies it; "" and OFF
+       disable client auth outright.
+
+       Returns the STRING "true" or "" (empty) -- NOT a boolean, same contract as
+       dgraph-sec.nativeTLS above. Compare it as a string:
+       eq (include "dgraph-sec.tls.certRequired" (dict "tls" .Values.alpha.tls)) "true".
+
+       Single source of truth for the alpha/zero probe guards and for what NOTES.txt
+       tells operators to bring. Keep them reading from here: an inline re-derivation
+       drifts. */}}
+{{- define "dgraph-sec.tls.certRequired" -}}
+{{- $t := .tls.clientAuthType | default "" -}}
+{{- if or (eq $t "REQUIREANDVERIFY") (eq $t "REQUIREANY") -}}true{{- end -}}
+{{- end -}}
+
 {{- /* Cluster-domain suffix for in-cluster FQDNs: ".<global.domain>" with the
        leading dot, or empty when global.domain is unset. Trims stray leading/
        trailing dots so a host never renders "...svc." or "...svc..cluster.local".

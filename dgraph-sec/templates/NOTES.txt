@@ -166,9 +166,15 @@ CONNECTING ANOTHER SERVICE IN THE CLUSTER
      chart ships no Istio CRDs; that policy lives in the platform mesh.
 {{- end }}
 {{- if and (not .Values.serviceMesh.enabled) .Values.alpha.tls.enabled }}
+{{- $clientAuthType := .Values.alpha.tls.clientAuthType | default "" }}
+{{- $certRequired := eq (include "dgraph-sec.tls.certRequired" (dict "tls" .Values.alpha.tls)) "true" }}
 
    * Native TLS is ON — the client must connect over TLS and trust the chart CA
-     (ca.crt from the alpha TLS Secret){{ if .Values.alpha.tls.clientAuthType }}, and present a client certificate (clientAuthType={{ .Values.alpha.tls.clientAuthType }}){{ end }}.
+     (ca.crt from the alpha TLS Secret)
+     {{- if $certRequired }}, and present a client certificate (clientAuthType={{ $clientAuthType }})
+     {{- else if eq $clientAuthType "VERIFYIFGIVEN" }}. A client certificate is optional (clientAuthType=VERIFYIFGIVEN); Alpha verifies one that is presented against the chart CA
+     {{- else if eq $clientAuthType "REQUEST" }}. Alpha requests a client certificate but neither requires nor verifies it (clientAuthType=REQUEST)
+     {{- end }}.
 {{- end }}
 {{- if .Values.alpha.acl.enabled }}
 
