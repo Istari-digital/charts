@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.20.1](https://img.shields.io/badge/Version-3.20.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.21.0](https://img.shields.io/badge/Version-3.21.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -16,7 +16,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 | Repository | Name | Version |
 |------------|------|---------|
-| https://istaridigital.jfrog.io/artifactory/main-helm-local | dgraph-sec | 0.4.7 |
+| https://istaridigital.jfrog.io/artifactory/main-helm-local | dgraph-sec | 0.6.1 |
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |
 
 > [!NOTE]
