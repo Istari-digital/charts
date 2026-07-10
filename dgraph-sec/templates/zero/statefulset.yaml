@@ -5,11 +5,9 @@
 {{- if and $nativeTLS (contains "--tls" (.Values.zero.extraFlags | default "")) }}
 {{- fail "zero.extraFlags contains --tls, but the chart synthesizes it when serviceMesh.enabled=false and zero.tls.enabled=true. Remove --tls from zero.extraFlags and set zero.tls.internalPort / clientName / clientAuthType instead." }}
 {{- end }}
-{{- /* REQUIREANY and REQUIREANDVERIFY both force the client to present a cert
-       (REQUIREANY never verifies it, REQUIREANDVERIFY does); client-auth-type
-       applies to the external ports the built-in probes hit, so both modes break
-       the certless kubelet probe handshake. */}}
-{{- $certRequiringAuth := or (eq .Values.zero.tls.clientAuthType "REQUIREANDVERIFY") (eq .Values.zero.tls.clientAuthType "REQUIREANY") }}
+{{- /* client-auth-type applies to the external ports the built-in probes hit, so a
+       cert-requiring mode breaks the certless kubelet probe handshake. */}}
+{{- $certRequiringAuth := eq (include "dgraph-sec.tls.certRequired" (dict "tls" .Values.zero.tls)) "true" }}
 {{- if and $nativeTLS $certRequiringAuth }}
 {{- if not .Values.zero.tls.clientName }}
 {{- fail (printf "zero.tls.clientAuthType=%s requires zero.tls.clientName so inter-node TLS can present a client certificate." .Values.zero.tls.clientAuthType) }}
