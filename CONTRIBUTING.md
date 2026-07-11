@@ -1,0 +1,465 @@
+# Contributing to charts
+
+This repository holds the Helm charts Istari shares for running its platform —
+charts a customer can consume, published to Artifactory and deployed from there.
+This guide is the source of truth for how to propose changes so they merge
+quickly and safely; `AGENTS.md` and `CLAUDE.md` are the coding-agent copies and
+point back here.
+
+When you learn something the next contributor will need, add it here.
+
+## Contents
+
+- [Setup](#setup)
+- [Ask early on #team-infra](#ask-early-on-team-infra)
+- [Deliver in small, stacked pull requests](#deliver-in-small-stacked-pull-requests)
+  - [Start from a clean vendored chart, then layer by functional area](#start-from-a-clean-vendored-chart-then-layer-by-functional-area)
+- [Review expectations](#review-expectations)
+- [Chart conventions](#chart-conventions)
+- [Versioning and publishing](#versioning-and-publishing)
+- [Commit messages](#commit-messages)
+- [Harden a new chart](#harden-a-new-chart)
+  - [`securityContext`](#securitycontext)
+  - [Resource requests and limits](#resource-requests-and-limits)
+  - [NetworkPolicy](#networkpolicy)
+  - [PodDisruptionBudget](#poddisruptionbudget)
+  - [ServiceMonitor](#servicemonitor)
+  - [PrometheusRule](#prometheusrule)
+  - [Service-account token automounting disabled](#service-account-token-automounting-disabled)
+- [Test a chart locally](#test-a-chart-locally)
+- [Validate against the target mesh early](#validate-against-the-target-mesh-early)
+- [Where a chart belongs](#where-a-chart-belongs)
+- [Keep agent design, plan, and spec docs out of the repo](#keep-agent-design-plan-and-spec-docs-out-of-the-repo)
+- [Before you open a pull request](#before-you-open-a-pull-request)
+
+## Setup
+
+You need Helm, `helm-docs`, and `pre-commit` (which pulls in the hook tools —
+`yamlfmt`, `shellcheck`); install them with Homebrew or your package manager,
+then enable the hooks:
+
+```sh
+pre-commit install && pre-commit install-hooks
+```
+
+To install and exercise a chart you also need a Kubernetes cluster — see
+[Test a chart locally](#test-a-chart-locally) for a local one via Docker Desktop.
+For access to the shared clusters (kubectl contexts and AWS), follow the
+helm-stack [`devex/KUBECTL.md`](https://github.com/Istari-digital/helm-stack/blob/main/devex/KUBECTL.md)
+and [`devex/AWS.md`](https://github.com/Istari-digital/helm-stack/blob/main/devex/AWS.md)
+guides.
+
+## Ask early on #team-infra
+
+Raise questions on [`#team-infra`](https://istari-hq.slack.com/archives/C06721Q0LKZ) while you work, not after review opens. A
+best-guess decision that surfaces in review costs a full round-trip; the same
+question answered in chat costs minutes. Ask before you build on an assumption.
+
+When a conversation settles an ambiguity, record the answer in this document so
+the next contributor finds it here instead of asking again.
+
+## Deliver in small, stacked pull requests
+
+Split a large change into small pull requests that each do one thing and review
+on their own. A reviewer reads a focused diff in minutes; a sprawling branch
+invites stale approvals and churn.
+
+Stack the pull requests so each builds on the one below it while keeping its own
+diff small. [Graphite](https://graphite.dev/) creates and manages stacks well —
+request access from IT.
+
+### Start from a clean vendored chart, then layer by functional area
+
+Some charts here begin life as a clean chart vendored from upstream — dgraph-sec
+started as the upstream Dgraph chart. When that is the case, make the pristine
+import the **first** pull request in the stack. A reviewer can then diff it
+against its upstream source and trust the baseline. Add each Istari modification
+as its own stacked pull request, split by functional area — monitoring,
+telemetry, security hardening, mesh integration. Each layer then reviews against
+a known-good base rather than as one indivisible diff.
+
+## Review expectations
+
+- A first review should arrive within a few business days of a pull request
+  opening.
+- If a review stalls, re-request the reviewer and post in [`#team-infra`](https://istari-hq.slack.com/archives/C06721Q0LKZ).
+  Escalate rather than wait.
+- A security-sensitive chart should carry a second qualified reviewer, so
+  neither the wait nor the review load rests on one person.
+
+## Chart conventions
+
+- **Secrets never go in chart values.** Values often render into ConfigMaps or
+  other non-secret objects. Reference a Kubernetes secret with an
+  `existingSecret`/`secretKey` field, or mount it as a volume — never inline a
+  password, token, or key.
+- **Pull images through JFrog Artifactory**, not upstream registries, and prefer
+  the Chainguard FIPS variant where one exists
+  (`istaridigital.jfrog.io/remote-docker-chainguard/istaridigital.com/<image>-fips`).
+  Chainguard keeps only a rolling window of tags, so verify a tag exists before
+  pinning it.
+- **Don't hand-edit `README.md`.** Each chart's README is generated by `helm-docs`
+  from `README.md.gotmpl` + `values.yaml`. Edit the template or the values, let
+  the hook regenerate the README, and stage the result.
+- **YAML uses the `.yaml` extension** (the `yaml-extension` hook fails on `.yml`),
+  stays `yamlfmt`-clean, and templates stay `helmlint`-clean. A `.prettierc.json`
+  is provided for editors that run Prettier on `templates/*.yaml` (2-space indent,
+  100-column width); it is not enforced by a hook.
+
+## Versioning and publishing
+
+A chart publishes from `main` **only when its `Chart.yaml` changes** — the
+publish workflow is path-filtered to `<chart>/Chart.yaml`. So **bump the chart's
+`version` (SemVer) in the same pull request as any change you want released.** A
+values or template edit that leaves `Chart.yaml` untouched will merge green and
+still never republish — a silent no-op.
+
+- Bump **patch** for fixes, **minor** for backward-compatible features, and
+  **major** for breaking changes.
+- On merge to `main`, CI publishes the chart to Artifactory — the
+  `main-charts-local` OCI registry and the `main-helm-local` Helm repository.
+  `helm-stack` and `dev-cluster-gitops` consume the published artifact from
+  there, never the Git source.
+
+## Commit messages
+
+Use Conventional Commits scoped by chart, matching the existing history —
+`feat(dgraph-sec): …`, `fix(istari-platform): …`, `docs(charts): …`. Pull
+requests are squash-merged, so the PR title becomes the commit message; keep the
+title in the same form.
+
+## Harden a new chart
+
+Plan hardening up front, not as mid-review additions. Two of these are already
+standard across the charts here; the rest are not yet universal, so weigh them
+against the workload rather than treating them as hard requirements.
+
+**Expected of every chart** — the charts in this repository already meet this bar:
+
+- [ ] **Pod and container `securityContext`** — `runAsNonRoot: true`, a non-root UID/GID, `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true` (mount writable volumes where the app needs them), `capabilities.drop: [ALL]`, and `seccompProfile: RuntimeDefault`. Confirm the image actually runs as non-root before claiming it.
+- [ ] **Resource requests and limits** — set CPU and memory requests (they drive scheduling and the QoS class) and limits (they cap a noisy neighbor). Base them on observed usage and make them per-environment values. Mind the trade-offs: CPU limits throttle, memory limits OOM-kill.
+
+**Recommended, scaled to the workload** — as of June 2026 only the `dgraph-sec` chart ships these, so consider each based on what the chart does:
+
+- [ ] **NetworkPolicy** — for a long-running service, default-deny ingress, then allow only the clients that need it, plus the mesh sidecars and the Prometheus scraper; constrain egress where you can. A baseline most workloads should carry (see the note below).
+- [ ] **PodDisruptionBudget** — if the workload runs more than one replica, cap how many a voluntary disruption (node drain, upgrade) can remove via `minAvailable`/`maxUnavailable`, sized against any quorum requirement. A single-replica chart or a one-shot Job doesn't need one.
+- [ ] **ServiceMonitor** — where the Prometheus Operator is available, tell it which port and path to scrape; match the `Service`'s labels, and gate it behind a values flag so the chart still installs without the operator.
+- [ ] **PrometheusRule** — alongside a ServiceMonitor, ship a few meaningful alerts (availability, error rate, saturation) with severity labels, gated behind the same flag.
+- [ ] **Service-account token automounting disabled** — set `automountServiceAccountToken: false` unless the workload calls the Kubernetes API; most data and app workloads don't, and a mounted token widens the blast radius. Enable it only for components that genuinely need API access.
+
+When you skip a recommended item, say so in the PR with a reason, so the choice is visible rather than an omission.
+
+> **Known gap (tech debt).** The charts here are uneven: only `dgraph-sec` ships a
+> NetworkPolicy, PodDisruptionBudget, ServiceMonitor, or PrometheusRule —
+> `istari-platform` and `istari-zitadel-configurator` ship none of the four. A
+> NetworkPolicy in particular is a baseline a long-running workload should carry;
+> its absence from most charts is tech debt to backfill, not a sign the bar is
+> optional. Don't treat the current fleet as the standard to match.
+
+Each subsection below explains what the item is, why it matters, and an example
+stanza to adapt. Treat the example values as starting points — size them to the
+workload and make them configurable so an environment can override them.
+
+### `securityContext`
+
+A [`securityContext`](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) sets the privileges a pod and its containers run with.
+Kubernetes' defaults are permissive — a container may run as root, write to its
+own filesystem, and keep every Linux capability — so whoever compromises the
+process inherits all of it. Tightening it shrinks the blast radius: run as a
+non-root user, forbid privilege escalation, make the root filesystem read-only,
+drop every Linux capability, and apply the default seccomp profile.
+
+```yaml
+podSecurityContext:           # pod-level: identity and volume ownership
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:              # container-level: lock down the process
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+```
+
+`runAsNonRoot: true` makes the kubelet refuse to start a pod whose image would
+run as root, catching a misconfigured image early. `readOnlyRootFilesystem: true`
+means any path the app writes to needs an explicit `emptyDir` or volume mount.
+`fsGroup` sets the group that owns mounted volumes.
+
+### Resource requests and limits
+
+[Requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) declare how much CPU and memory a container needs and may
+use. The **request** reserves capacity and tells the scheduler where the pod
+fits; the **limit** caps consumption so one workload can't starve its neighbors.
+A container with neither competes for resources unpredictably and is the first
+killed when a node runs short.
+
+```yaml
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 512Mi            # match the request for a Guaranteed memory floor
+    # no cpu limit on purpose — see below
+```
+
+Setting the memory limit equal to the request gives the pod a hard ceiling and a
+predictable quality-of-service class. Many workloads deliberately omit the CPU
+limit: a hard CPU limit throttles the container under burst, while leaving it
+unset lets the pod use spare CPU. Always set a memory limit — without one a leak
+can evict its neighbors.
+
+### NetworkPolicy
+
+A [`NetworkPolicy`](https://kubernetes.io/docs/concepts/services-networking/network-policies/) is a firewall for pod traffic. By default every pod in the
+cluster can open a connection to every other pod; a policy restricts which
+sources may reach this workload — and, with an egress section, where it may
+connect out. Without one, a pod compromised anywhere in the cluster can reach the
+service.
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "<chart>.fullname" . }}
+spec:
+  podSelector:
+    matchLabels: {{- include "<chart>.selectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:                 # an in-cluster client
+            matchLabels:
+              app.kubernetes.io/name: some-client
+        - namespaceSelector:           # the Prometheus scraper's namespace
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - port: 8080
+```
+
+Declaring `policyTypes: [Ingress]` flips the pod to default-deny for ingress, so
+list every legitimate caller explicitly. Separate `from` entries are OR-ed; a
+`podSelector` and `namespaceSelector` inside one entry are AND-ed. Under STRICT
+mTLS, also allow the mesh sidecar's ports. Add an `egress` block to constrain
+outbound traffic.
+
+### PodDisruptionBudget
+
+A [`PodDisruptionBudget`](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/) (PDB) tells Kubernetes the minimum availability to keep
+during *voluntary* disruptions — node drains for upgrades, autoscaling, or
+maintenance. It doesn't guard against crashes; it stops a routine drain from
+evicting too many replicas at once and taking the service down.
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "<chart>.fullname" . }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: {{- include "<chart>.selectorLabels" . | nindent 6 }}
+```
+
+`maxUnavailable: 1` lets a node drain evict one pod at a time while keeping the
+rest serving. For a quorum service, size it so a drain can't break quorum (for a
+3-replica quorum, `minAvailable: 2`). Don't ship a PDB for a single-replica
+Deployment or a Job — it only blocks node drains.
+
+### ServiceMonitor
+
+A [`ServiceMonitor`](https://prometheus-operator.dev/docs/getting-started/design/#servicemonitor) is a Prometheus Operator custom resource that tells Prometheus
+which service to scrape for metrics, and on what port and path. It lets a chart
+opt into monitoring declaratively instead of someone hand-editing Prometheus
+config — but it works only where the Prometheus Operator's CRDs are installed.
+
+```yaml
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "<chart>.fullname" . }}
+spec:
+  selector:
+    matchLabels: {{- include "<chart>.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: metrics          # the Service's *named* port, not a number
+      path: /metrics
+      interval: 30s
+{{- end }}
+```
+
+Gate the whole object behind a values flag: without the Prometheus Operator's
+CRDs installed, Helm fails on the unknown `kind`. `port` references the named
+port on the `Service` that exposes metrics, and the selector must match that
+Service.
+
+### PrometheusRule
+
+A [`PrometheusRule`](https://prometheus-operator.dev/docs/getting-started/design/#prometheusrule) is a Prometheus Operator custom resource that defines the
+alerting rules for a chart's metrics, so the chart ships its own alerts and an
+operator hears about a problem from monitoring rather than from users. Like the
+ServiceMonitor, it needs the Prometheus Operator.
+
+```yaml
+{{- if .Values.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "<chart>.fullname" . }}
+spec:
+  groups:
+    - name: {{ include "<chart>.fullname" . }}
+      rules:
+        - alert: <Chart>Down
+          expr: up{job="{{ include "<chart>.fullname" . }}"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ include "<chart>.fullname" . }} is down"
+{{- end }}
+```
+
+Ship a handful of alerts that matter — availability (`up == 0`), error rate, and
+saturation. `for: 5m` avoids flapping on transient blips, and `severity` routes
+the alert. Gate it behind the same flag as the ServiceMonitor.
+
+### Service-account token automounting disabled
+
+By default Kubernetes mounts the pod's [ServiceAccount API token](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/) into every
+container, so code in the pod can call the Kubernetes API. Most workloads never
+do — which leaves a live credential in the pod for an attacker to use if they
+break in. Turning automounting off removes it.
+
+```yaml
+serviceAccount:
+  create: true
+  automountServiceAccountToken: false   # set on the ServiceAccount...
+# ...or on the pod template for a one-off:
+# spec:
+#   automountServiceAccountToken: false
+```
+
+Set it on the ServiceAccount to cover every pod that uses it. A mounted token is
+a credential an attacker can use against the API server if the pod is
+compromised, and most datastores and app servers never call the API. Enable it
+only for components that genuinely do (operators, controllers).
+
+## Test a chart locally
+
+Docker Desktop ships a single-node Kubernetes cluster — the quickest way to
+install and exercise a chart before review.
+
+1. **Enable the cluster.** Install [Docker Desktop](https://docs.docker.com/desktop/),
+   then open **Settings → Kubernetes → Enable Kubernetes → Apply & Restart** and
+   wait for the Kubernetes indicator to turn green.
+2. **Point `kubectl` at it and confirm it's up:**
+
+   ```sh
+   kubectl config use-context docker-desktop
+   kubectl get nodes
+   ```
+
+3. **Lint and render first** — catch errors before anything runs:
+
+   ```sh
+   helm lint <chart>
+   helm template <chart> -f <chart>/values.yaml | less
+   ```
+
+4. **Install into a throwaway namespace:**
+
+   ```sh
+   helm install <release> ./<chart> \
+     --namespace <chart>-test --create-namespace \
+     -f <chart>/values.yaml
+   kubectl get pods -n <chart>-test -w
+   ```
+
+5. **Exercise it.** Run the chart's test hooks if it defines any, and inspect
+   anything that didn't come up cleanly:
+
+   ```sh
+   helm test <release> -n <chart>-test
+   kubectl describe pod <pod> -n <chart>-test
+   kubectl logs <pod> -n <chart>-test
+   ```
+
+6. **Iterate** with `helm upgrade <release> ./<chart> -n <chart>-test -f <chart>/values.yaml`,
+   then **clean up:**
+
+   ```sh
+   helm uninstall <release> -n <chart>-test
+   kubectl delete namespace <chart>-test
+   ```
+
+What a local cluster can't show you:
+
+- **No Prometheus Operator** — the `ServiceMonitor`/`PrometheusRule` CRDs aren't
+  installed, so keep those behind their values flags (disabled by default) or the
+  install fails on an unknown `kind`.
+- **No service mesh** — STRICT mTLS and node-scheduling behaviour won't appear
+  locally; validate those against the target mesh (see below).
+- **Private images** — to pull Istari/JFrog images, run
+  `docker login istaridigital.jfrog.io` first, or point values at upstream images
+  for a smoke test.
+
+## Validate against the target mesh early
+
+Exercise the chart in a representative environment before final review,
+including STRICT mutual-TLS and node scheduling. These expose real defects —
+sidecar-less Jobs hanging under STRICT mTLS, or CronJobs landing on the wrong
+node group — that otherwise surface only at rollout.
+
+## Where a chart belongs
+
+The split below is provisional, pending a documented org decision. When unsure,
+ask in [`#team-infra`](https://istari-hq.slack.com/archives/C06721Q0LKZ) before creating the chart.
+
+- **`Istari-digital/charts`** (this repository) — **shared** charts a customer
+  can consume to run the Istari platform. The repository is MIT-licensed, and it
+  holds the customer-deployable platform set: `istari-platform` (the control-plane
+  umbrella), `dgraph-sec` (its datastore), and `istari-zitadel-configurator` (its
+  SSO setup).
+- **`Istari-digital/helm-charts`** — **Istari-internal-only** charts. It holds
+  internal tooling and deployments such as `customer-portal`, `istari-service`,
+  `fedgenius`, the deprecated `istari-helm` v1 umbrella, and
+  `istari-zitadel-configurator-overrides` (which configures Zitadel for "Istari
+  internal clusters").
+- The authoring repository is an ownership concern, not a deployment one: every
+  distributable chart publishes to Artifactory and is consumed from there.
+
+## Keep agent design, plan, and spec docs out of the repo
+
+Do not commit coding agent design specs, implementation plans, or agent scratch notes under
+`docs/`. No such documents belong in this repository. The following paths are
+gitignored to reduce accidental commits: `docs/aar/`, `docs/design/`, `docs/designs/`, `docs/specs/`, `docs/plans/`, and `docs/superpowers/`.
+
+**Tip:** With the Jira CLI or a Jira MCP tool configured, you can instruct your agent to
+store the artifacts it would otherwise write under `docs/` — plans, specs,
+designs — on the relevant Jira ticket instead, as the description or comments.
+The ticket then holds that context durably, reviewers find it alongside the
+work, and the repository stays free of agent scratch docs.
+
+## Before you open a pull request
+
+1. Bump the chart `version` in `Chart.yaml` if you want the change released (see
+   [Versioning and publishing](#versioning-and-publishing)).
+2. Run the full pre-commit suite locally — it mirrors CI and covers the standard
+   file checks, YAML formatting (`yamlfmt`), the `.yaml`-extension rule,
+   `shellcheck`, `helmlint`, and `helm-docs`:
+
+   ```sh
+   pre-commit run --all-files
+   ```
+
+   `helm-docs` regenerates each chart's `README.md` when you change its
+   `Chart.yaml` or `values.yaml`, and the hook fails the first run after such an
+   edit. Stage the regenerated `README.md` and run the commit again.
