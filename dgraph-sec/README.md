@@ -393,7 +393,7 @@ Alpha embeds a Zanzibar-style ReBAC (relationship-based access control) engine a
 serves it as the SpiceDB v1 gRPC API (`authzed.api.v1`: `SchemaService`,
 `PermissionsService`, and the rest) on Alpha's existing client gRPC port, 9080 — no
 new port opens, and there is no HTTP/REST gateway. This is a **dgraph-sec fork
-feature**, not part of stock upstream Dgraph, so no public Dgraph/Hypermode
+feature**, not part of stock upstream Dgraph, so no public Dgraph
 documentation page covers it. Call it **SpiceDB-compatible**, not a full drop-in: the
 `zed` CLI and the authzed SDKs work against it because they speak the same gRPC API,
 but nothing else about SpiceDB's deployment or storage model carries over.
