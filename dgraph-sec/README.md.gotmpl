@@ -417,17 +417,22 @@ but are not evaluated** (do not rely on a caveat to deny access), the `WatchServ
 returns `Unimplemented`, and `WriteSchema` is additive-only (definitions are never
 removed).
 
-Turn it on with `alpha.zanzibar.enabled: true` and `mode: preshared`, pointing
-`existingSecret` at a Terraform-managed Secret that holds the preshared key under the
-`zanzibar` key name:
+Turn it on with `alpha.zanzibar.enabled: true` and `mode: preshared`. In production,
+point `existingSecret` at a Terraform-managed Secret that holds the preshared key
+under the `zanzibar` data key. For a local run, supply the key inline under `file`
+instead; the chart then creates the Secret for you, named
+`dgraph-sec-alpha-zanzibar-secret`:
 
 ```yaml
-# values.yaml — enable the Zanzibar/SpiceDB API with a Terraform-managed key
+# values.yaml — enable the Zanzibar/SpiceDB API (dev: chart creates the key Secret)
 alpha:
   zanzibar:
     enabled: true
     mode: preshared               # "open" disables auth entirely; dev only, guarded by allowInsecureOpen
-    existingSecret: dgraph-sec-zanzibar   # holds the zanzibar key
+    file:
+      zanzibar: <base64 preshared key>   # chart creates Secret dgraph-sec-alpha-zanzibar-secret
+    # production: omit `file` and set existingSecret to your Terraform-managed Secret
+    # existingSecret: <your-zanzibar-secret>
 ```
 
 **Credential model.** Authentication is a single static RFC 6750 preshared bearer
@@ -450,8 +455,8 @@ With the API enabled, manage the schema, relationships, and permission checks wi
 from its Secret, forward Alpha's gRPC port, then point a `zed` context at it:
 
 ```sh
-NS=<namespace>            # e.g. istari
-SECRET=<existingSecret>   # alpha.zanzibar.existingSecret, e.g. dgraph-sec-zanzibar
+NS=<namespace>                            # e.g. istari
+SECRET=dgraph-sec-alpha-zanzibar-secret   # chart-created dev Secret; with existingSecret, use that name
 
 # Read the zanzibar preshared key from the cluster Secret.
 # The data key is alpha.zanzibar.keyName (default: zanzibar).
