@@ -40,6 +40,9 @@
 {{- if and .Values.alpha.zanzibar.existingSecret .Values.alpha.zanzibar.file }}
 {{- fail "Set only one of alpha.zanzibar.existingSecret or alpha.zanzibar.file, not both." }}
 {{- end }}
+{{- if and (eq .Values.alpha.zanzibar.mode "preshared") (not .Values.alpha.zanzibar.existingSecret) .Values.alpha.zanzibar.file (not (hasKey .Values.alpha.zanzibar.file .Values.alpha.zanzibar.keyName)) }}
+{{- fail (printf "alpha.zanzibar.file must contain a key matching alpha.zanzibar.keyName (%q) — it is mounted at /dgraph/zanzibar/%s and read via preshared-key-file. Rename the key in alpha.zanzibar.file or set alpha.zanzibar.keyName to match." .Values.alpha.zanzibar.keyName .Values.alpha.zanzibar.keyName) }}
+{{- end }}
 {{- end }}
 apiVersion: apps/v1
 kind: StatefulSet

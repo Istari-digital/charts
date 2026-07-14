@@ -87,7 +87,7 @@ alpha:
   #    enabled: true
   #    mode: preshared
   #    existingSecret: dgraph-sec-zanzibar-local   # holds key `zanzibar-admin`
-  #  # then: kubectl port-forward svc/dgraph-sec-alpha 9080:9080
+  #  # then: kubectl -n dgraph-sec-test port-forward svc/dgraph-sec-alpha 9080:9080
   #  #       zed context set dgraph localhost:9080 "<key>" --insecure && zed schema read
 
 # Backups need S3 + pod identity; off for local.
