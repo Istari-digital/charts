@@ -389,18 +389,36 @@ traces flow wherever the agent runs.
 
 ## Authorization API (Zanzibar / SpiceDB-compatible)
 
-Alpha embeds a Zanzibar-style ReBAC (relationship-based access control) engine and
-serves it as the SpiceDB v1 gRPC API (`authzed.api.v1`: `SchemaService`,
-`PermissionsService`, and the rest) on Alpha's existing client gRPC port, 9080 — no
-new port opens, and there is no HTTP/REST gateway. This is a **dgraph-sec fork
-feature**, not part of stock upstream Dgraph, so no public Dgraph
-documentation page covers it. Call it **SpiceDB-compatible**, not a full drop-in: the
-`zed` CLI and the authzed SDKs work against it because they speak the same gRPC API,
-but nothing else about SpiceDB's deployment or storage model carries over.
+[Zanzibar](https://www.usenix.org/conference/atc19/presentation/pang) is Google's
+global authorization system, the design most modern permission systems follow. It
+models authorization as *relationships* between objects and subjects
+(relationship-based access control, or ReBAC) and answers "can this subject perform
+this action on this object?" consistently and at scale.
+[SpiceDB](https://authzed.com/spicedb), from AuthZed, is the widely adopted
+open-source database built on that model, with a mature gRPC API and client ecosystem.
+
+When `alpha.zanzibar.enabled` is set, dgraph-sec serves that same **SpiceDB v1 gRPC
+API** directly from Alpha, so Dgraph can act as a drop-in permissions backend for a
+SpiceDB-based system: existing SpiceDB tooling and client libraries connect
+**unmodified**, because they speak the same protocol — the
+[`zed` CLI](https://github.com/authzed/zed), the Go client
+[`authzed-go`](https://github.com/authzed/authzed-go), and the Python, Node, Java, and
+other [authzed client libraries](https://authzed.com/docs/spicedb/getting-started/client-libraries).
+
+Alpha embeds the ReBAC engine and serves the API (`authzed.api.v1`: `SchemaService`,
+`PermissionsService`, and the rest) on its existing client gRPC port, 9080 — no new
+port opens, and there is no HTTP/REST gateway; it reuses SpiceDB's API, not its
+deployment or storage model. This is a **dgraph-sec fork feature**, not part of stock
+upstream Dgraph, so no public Dgraph documentation page covers it. It is
+**SpiceDB-compatible** across the core schema and permission-check surface rather than
+a reimplementation of every SpiceDB feature: at the shipped image, **caveats compile
+but are not evaluated** (do not rely on a caveat to deny access), the `WatchService`
+returns `Unimplemented`, and `WriteSchema` is additive-only (definitions are never
+removed).
 
 Turn it on with `alpha.zanzibar.enabled: true` and `mode: preshared`, pointing
 `existingSecret` at a Terraform-managed Secret that holds the preshared key under the
-`zanzibar-admin` key name:
+`zanzibar` key name:
 
 ```yaml
 # values.yaml — enable the Zanzibar/SpiceDB API with a Terraform-managed key
@@ -408,11 +426,11 @@ alpha:
   zanzibar:
     enabled: true
     mode: preshared               # "open" disables auth entirely; dev only, guarded by allowInsecureOpen
-    existingSecret: dgraph-sec-zanzibar-admin   # holds the zanzibar-admin key
+    existingSecret: dgraph-sec-zanzibar   # holds the zanzibar key
 ```
 
 **Credential model.** Authentication is a single static RFC 6750 preshared bearer
-key — the `zanzibar-admin` credential. It is **not** integrated with Dgraph ACL users
+key — the `zanzibar` credential. It is **not** integrated with Dgraph ACL users
 or groups, and it carries **no per-credential scoping**: whoever holds the key can
 read relationships, write relationships, and rewrite the schema alike — there is no
 read-only, read-write, or admin distinction, and the binary has no key rotation.
@@ -429,7 +447,7 @@ Manage the schema and relationships in-cluster with `zed` over a port-forward:
 
 ```sh
 kubectl -n <ns> port-forward svc/dgraph-sec-alpha 9080:9080 &
-zed context set dgraph localhost:9080 "<zanzibar-admin key>" --insecure
+zed context set dgraph localhost:9080 "<zanzibar key>" --insecure
 zed schema read
 ```
 
@@ -1015,10 +1033,10 @@ them together — see [Configuration](#configuration) and the Backups & restore 
 | alpha.tolerations | list | `[]` | Tolerations for alpha pod scheduling. |
 | alpha.updateStrategy | string | `"RollingUpdate"` | StatefulSet update strategy for alpha (RollingUpdate or OnDelete). |
 | alpha.vmodule | string | `""` | Alpha per-module glog verbosity (--vmodule); empty disables. |
-| alpha.zanzibar | object | `{"allowInsecureOpen":false,"enabled":false,"existingSecret":"","keyName":"zanzibar-admin","mode":"preshared","schemaCacheTTL":"30s"}` | Zanzibar / SpiceDB-compatible authorization API for alpha. |
+| alpha.zanzibar | object | `{"allowInsecureOpen":false,"enabled":false,"existingSecret":"","keyName":"zanzibar","mode":"preshared","schemaCacheTTL":"30s"}` | Zanzibar / SpiceDB-compatible authorization API for alpha. |
 | alpha.zanzibar.allowInsecureOpen | bool | `false` | Must be true to run mode=open (which disables all auth on the Zanzibar API). Guard against shipping an unauthenticated relationship store. |
 | alpha.zanzibar.existingSecret | string | `""` | Name of a pre-created (Terraform-managed) Secret holding the preshared key; empty means render one from `file` (dev only). |
-| alpha.zanzibar.keyName | string | `"zanzibar-admin"` | Secret data key AND mounted filename for the preshared key. The `preshared-key-file=` flag points at /dgraph/zanzibar/<keyName>. |
+| alpha.zanzibar.keyName | string | `"zanzibar"` | Secret data key AND mounted filename for the preshared key. The `preshared-key-file=` flag points at /dgraph/zanzibar/<keyName>. |
 | alpha.zanzibar.mode | string | `"preshared"` | Auth mode: "preshared" (production; RFC 6750 bearer key) or "open" (dev only; NO auth). "jwt" is reserved/unimplemented in the binary and rejected by the chart. |
 | alpha.zanzibar.schemaCacheTTL | string | `"30s"` | Schema-cache staleness bound (schema-cache-ttl superflag sub-key); 0 disables the cache. |
 | backups.admin | object | `{"auth_token":"","existingSecret":"","password":"","passwordSecretKey":"backup_admin_password","tls_client":"","user":""}` | Backup admin credentials/token used to trigger backups when ACLs are enabled. |
