@@ -79,7 +79,7 @@
 
    ZANZIBAR AUTHORIZATION API is ENABLED (mode: {{ .Values.alpha.zanzibar.mode }}).
    Alpha serves the SpiceDB v1 gRPC API on port 9080{{ if eq .Values.alpha.zanzibar.mode "preshared" }}, authenticated by
-   the single preshared `zanzibar-admin` key{{ else }} with NO authentication
+   the single preshared `{{ .Values.alpha.zanzibar.keyName }}` key{{ else }} with NO authentication
    (mode=open, dev only){{ end }}. Load your SpiceDB schema with `zed schema write`
    or an authzed SDK — this chart does not load it for you.
 {{- if and (eq .Values.alpha.zanzibar.mode "preshared") (not .Values.serviceMesh.enabled) (not .Values.alpha.tls.enabled) }}
