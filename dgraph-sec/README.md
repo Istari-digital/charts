@@ -421,8 +421,9 @@ dgraph-sec does not have yet.
 
 The SpiceDB schema (definitions, relations, permissions) is **application-owned**:
 load it at runtime through the `WriteSchema` RPC (`zed schema write` or an authzed
-SDK), not through this chart. The chart only bootstraps the underlying
-`dgraph.zanzibar.*` predicates at Alpha startup; it never writes your schema for you.
+SDK), not through this chart. Alpha itself bootstraps the underlying
+`dgraph.zanzibar.*` predicates at startup when the chart passes `--zanzibar-acl`;
+the chart never writes your schema for you.
 
 Manage the schema and relationships in-cluster with `zed` over a port-forward:
 
