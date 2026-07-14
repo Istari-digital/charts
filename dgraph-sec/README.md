@@ -394,11 +394,11 @@ global authorization system, the design most modern permission systems follow. I
 models authorization as *relationships* between objects and subjects
 (relationship-based access control, or ReBAC) and answers "can this subject perform
 this action on this object?" consistently and at scale.
-[SpiceDB](https://authzed.com/spicedb), from AuthZed, is the widely adopted
-open-source database built on that model, with a mature gRPC API and client ecosystem.
+[SpiceDB](https://authzed.com/spicedb), from AuthZed, is the widely used open-source
+implementation of that model; its gRPC API and client libraries are what dgraph-sec reuses.
 
-When `alpha.zanzibar.enabled` is set, dgraph-sec serves that same **SpiceDB v1 gRPC
-API** directly from Alpha, so Dgraph can act as a drop-in permissions backend for a
+When `alpha.zanzibar.enabled` is set, dgraph-sec serves that same SpiceDB v1 gRPC API
+directly from Alpha, so Dgraph can act as a drop-in permissions backend for a
 SpiceDB-based system: existing SpiceDB tooling and client libraries connect
 **unmodified**, because they speak the same protocol — the
 [`zed` CLI](https://github.com/authzed/zed), the Go client
@@ -408,9 +408,9 @@ other [authzed client libraries](https://authzed.com/docs/spicedb/getting-starte
 Alpha embeds the ReBAC engine and serves the API (`authzed.api.v1`: `SchemaService`,
 `PermissionsService`, and the rest) on its existing client gRPC port, 9080 — no new
 port opens, and there is no HTTP/REST gateway; it reuses SpiceDB's API, not its
-deployment or storage model. This is a **dgraph-sec fork feature**, not part of stock
+deployment or storage model. This is a dgraph-sec fork feature, not part of stock
 upstream Dgraph, so no public Dgraph documentation page covers it. It is
-**SpiceDB-compatible** across the core schema and permission-check surface rather than
+SpiceDB-compatible across the core schema and permission-check surface rather than
 a reimplementation of every SpiceDB feature: at the shipped image, **caveats compile
 but are not evaluated** (do not rely on a caveat to deny access), the `WatchService`
 returns `Unimplemented`, and `WriteSchema` is additive-only (definitions are never
@@ -434,8 +434,7 @@ key — the `zanzibar` credential. It is **not** integrated with Dgraph ACL user
 or groups, and it carries **no per-credential scoping**: whoever holds the key can
 read relationships, write relationships, and rewrite the schema alike — there is no
 read-only, read-write, or admin distinction, and the binary has no key rotation.
-Scoped credentials are a plausible future improvement, but they need binary support
-dgraph-sec does not have yet.
+Scoped credentials would need binary support dgraph-sec does not have yet.
 
 The SpiceDB schema (definitions, relations, permissions) is **application-owned**:
 load it at runtime through the `WriteSchema` RPC (`zed schema write` or an authzed
