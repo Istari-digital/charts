@@ -74,8 +74,14 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets }}
+        {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
+        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets $jaegerEnabled }}
         envFrom:
+        {{- end }}
+        {{- /* OTEL defaults FIRST so the user's Secret(s) below and explicit env override them */}}
+        {{- if $jaegerEnabled }}
+        - configMapRef:
+            name: {{ include "fileservice.otelConfigMap.name" . | quote }}
         {{- end }}
         {{- if $serviceValues.secretName }}
         - secretRef:
@@ -133,8 +139,13 @@ spec:
         - "alembic"
         - "upgrade"
         - "head"
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets }}
+        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets $jaegerEnabled }}
         envFrom:
+        {{- end }}
+        {{- /* OTEL defaults FIRST so the user's Secret(s) below and explicit env override them */}}
+        {{- if $jaegerEnabled }}
+        - configMapRef:
+            name: {{ include "fileservice.otelConfigMap.name" . | quote }}
         {{- end }}
         {{- if $serviceValues.secretName }}
         - secretRef:
