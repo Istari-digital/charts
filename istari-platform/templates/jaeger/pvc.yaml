@@ -24,7 +24,7 @@ spec:
   - ReadWriteOnce
   resources:
     requests:
-      storage: {{ dig "persistence" "size" "10Gi" $jaegerValues }}
+      storage: {{ dig "persistence" "size" "10Gi" $jaegerValues | quote }}
   {{- with dig "persistence" "storageClassName" "" $jaegerValues }}
   storageClassName: {{ . | quote }}
   {{- end }}

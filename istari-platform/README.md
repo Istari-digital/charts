@@ -21,7 +21,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |
 
 > [!NOTE]
-> The `nats` and `dgraph-sec` dependencies are **optional** (`nats.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
+> The `nats`, `jaeger`, and `dgraph-sec` dependencies are **optional** (`nats.enabled` / `jaeger.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
 
 ## Values
 
