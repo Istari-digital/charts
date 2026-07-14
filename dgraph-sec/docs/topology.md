@@ -137,7 +137,7 @@ enable ACL and NetworkPolicy.
 | Port | Component | Name | Protocol | Reachable by default | Purpose |
 |------|-----------|------|----------|----------------------|---------|
 | 8080 | Alpha | `http-alpha` | HTTP(S) | in-cluster (ClusterIP) | Client API: GraphQL/DQL query + mutation, `/admin`, `/alter`, `/health`, `/state`. |
-| 9080 | Alpha | `grpc-alpha` | gRPC | in-cluster (ClusterIP) | Client API over gRPC (the native Dgraph clients); also serves the Zanzibar/SpiceDB-compatible authorization API when `alpha.zanzibar.enabled`, independent of ACL. Authentication there is mode-dependent: `mode=preshared` is gated by the configured key (`alpha.zanzibar.keyName`, default `zanzibar-admin`); `mode=open` is unauthenticated (dev only). |
+| 9080 | Alpha | `grpc-alpha` | gRPC | in-cluster (ClusterIP) | Client API over gRPC (the native Dgraph clients); also serves the Zanzibar/SpiceDB-compatible authorization API when `alpha.zanzibar.enabled`, independent of ACL. Authentication there is mode-dependent: `mode=preshared` is gated by the configured key (`alpha.zanzibar.keyName`, default `zanzibar`); `mode=open` is unauthenticated (dev only). |
 | 7080 | Alpha | `grpc-alpha-int` | gRPC | intra-cluster only (headless Service) | Inter-node Alpha↔Alpha / Alpha↔Zero traffic. Never a client port. |
 | 5080 | Zero | `grpc-zero` | gRPC | in-cluster (ClusterIP) | Internal: Alphas connect here to join the cluster. Not a client port. |
 | 6080 | Zero | `http-zero` | HTTP(S) | in-cluster (ClusterIP) | Zero admin: `/state`, `/removeNode`, `/moveTablet`. **No ACL — unauthenticated.** |
@@ -192,7 +192,7 @@ When `alpha.zanzibar.enabled`, Alpha additionally serves the SpiceDB v1 gRPC API
 
 Authentication is mode-dependent and independent of Dgraph ACL. With `mode=preshared`
 (the default), a single preshared bearer key — the key configured via
-`alpha.zanzibar.keyName` (default `zanzibar-admin`) — gates the whole API, with no
+`alpha.zanzibar.keyName` (default `zanzibar`) — gates the whole API, with no
 scoping between reads, relationship writes, and schema writes, and no rotation built
 into the binary. With `mode=open`, the API is UNAUTHENTICATED (dev only; requires
 `alpha.zanzibar.allowInsecureOpen`). The key's confidentiality in transit follows the

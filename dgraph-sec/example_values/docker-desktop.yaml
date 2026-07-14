@@ -82,11 +82,11 @@ alpha:
   # one preshared key. Left off here: this profile has no Zanzibar conformance
   # step yet, so we have not run a live Zanzibar e2e against it. To try it locally:
   #   kubectl -n dgraph-sec-test create secret generic dgraph-sec-zanzibar-local \
-  #     --from-literal=zanzibar-admin="$(openssl rand -base64 24)"
+  #     --from-literal=zanzibar="$(openssl rand -base64 24)"
   #  zanzibar:
   #    enabled: true
   #    mode: preshared
-  #    existingSecret: dgraph-sec-zanzibar-local   # holds key `zanzibar-admin`
+  #    existingSecret: dgraph-sec-zanzibar-local   # holds key `zanzibar`
   #  # then: kubectl -n dgraph-sec-test port-forward svc/dgraph-sec-alpha 9080:9080
   #  #       zed context set dgraph localhost:9080 "<key>" --insecure && zed schema read
 
