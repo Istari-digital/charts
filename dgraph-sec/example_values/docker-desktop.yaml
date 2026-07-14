@@ -78,6 +78,18 @@ alpha:
         passwordSecretKey: istari-admin_password
         groups: [guardians]
 
+  # Zanzibar / SpiceDB-compatible API on Alpha's existing 9080, authenticated by
+  # one preshared key. Left off here: this profile has no Zanzibar conformance
+  # step yet, so we have not run a live Zanzibar e2e against it. To try it locally:
+  #   kubectl -n dgraph-sec-test create secret generic dgraph-sec-zanzibar-local \
+  #     --from-literal=zanzibar-admin="$(openssl rand -base64 24)"
+  #  zanzibar:
+  #    enabled: true
+  #    mode: preshared
+  #    existingSecret: dgraph-sec-zanzibar-local   # holds key `zanzibar-admin`
+  #  # then: kubectl port-forward svc/dgraph-sec-alpha 9080:9080
+  #  #       zed context set dgraph localhost:9080 "<key>" --insecure && zed schema read
+
 # Backups need S3 + pod identity; off for local.
 backups:
   full:
