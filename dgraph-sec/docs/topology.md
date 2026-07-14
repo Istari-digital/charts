@@ -137,7 +137,7 @@ enable ACL and NetworkPolicy.
 | Port | Component | Name | Protocol | Reachable by default | Purpose |
 |------|-----------|------|----------|----------------------|---------|
 | 8080 | Alpha | `http-alpha` | HTTP(S) | in-cluster (ClusterIP) | Client API: GraphQL/DQL query + mutation, `/admin`, `/alter`, `/health`, `/state`. |
-| 9080 | Alpha | `grpc-alpha` | gRPC | in-cluster (ClusterIP) | Client API over gRPC (the native Dgraph clients). |
+| 9080 | Alpha | `grpc-alpha` | gRPC | in-cluster (ClusterIP) | Client API over gRPC (the native Dgraph clients); also serves the Zanzibar/SpiceDB-compatible authorization API when `alpha.zanzibar.enabled` (key-gated, independent of ACL). |
 | 7080 | Alpha | `grpc-alpha-int` | gRPC | intra-cluster only (headless Service) | Inter-node Alpha↔Alpha / Alpha↔Zero traffic. Never a client port. |
 | 5080 | Zero | `grpc-zero` | gRPC | in-cluster (ClusterIP) | Internal: Alphas connect here to join the cluster. Not a client port. |
 | 6080 | Zero | `http-zero` | HTTP(S) | in-cluster (ClusterIP) | Zero admin: `/state`, `/removeNode`, `/moveTablet`. **No ACL — unauthenticated.** |
@@ -183,6 +183,31 @@ client API requires login — the client authenticates as a user from the ACL ac
 Secret and sends the returned access token. With ACL off, the data API and `/alter` are
 unauthenticated. Zero's `6080` admin is unauthenticated regardless of ACL, which is why
 it must stay internal.
+
+### Zanzibar authorization API
+
+When `alpha.zanzibar.enabled`, Alpha additionally serves the SpiceDB v1 gRPC API
+(`authzed.api.v1`) on the same port as the native client API — no new port opens.
+`zed` and the authzed SDKs connect the same way any other 9080 client does.
+
+Authentication is independent of Dgraph ACL: a single preshared bearer key (the
+`zanzibar-admin` credential) gates the whole API, with no scoping between reads,
+relationship writes, and schema writes, and no rotation built into the binary. The
+key's confidentiality in transit follows the same per-mode rules as the table
+above — protected by the mesh's mTLS or Dgraph-native TLS, plaintext under
+no-mesh-no-TLS.
+
+The SpiceDB schema is application-owned: a client loads it via the `WriteSchema`
+RPC (`zed schema write` or an authzed SDK) at runtime, not through this chart.
+
+An in-cluster client (for example, a `registry-service`) reaches the Zanzibar API
+the same way it reaches the native Dgraph API on 9080 — the same NetworkPolicy
+`clientPodLabels` or mesh `AuthorizationPolicy` requirements apply — plus it must
+present the preshared bearer key. See
+[Letting another in-cluster service connect](#letting-another-in-cluster-service-connect).
+
+External exposure is intentionally not wired: because Zanzibar shares 9080 with the
+native Dgraph gRPC API, opening 9080 externally would expose the native API too.
 
 ### Letting another in-cluster service connect
 
