@@ -387,6 +387,69 @@ tracing:
 On Istari Digital's own clusters, `tracing.enabled` tracks the Datadog operator, so
 traces flow wherever the agent runs.
 
+## Authorization API (Zanzibar / SpiceDB-compatible)
+
+Alpha embeds a Zanzibar-style ReBAC (relationship-based access control) engine and
+serves it as the SpiceDB v1 gRPC API (`authzed.api.v1`: `SchemaService`,
+`PermissionsService`, and the rest) on Alpha's existing client gRPC port, 9080 — no
+new port opens, and there is no HTTP/REST gateway. This is a **dgraph-sec fork
+feature**, not part of stock upstream Dgraph, so no public Dgraph/Hypermode
+documentation page covers it. Call it **SpiceDB-compatible**, not a full drop-in: the
+`zed` CLI and the authzed SDKs work against it because they speak the same gRPC API,
+but nothing else about SpiceDB's deployment or storage model carries over.
+
+Turn it on with `alpha.zanzibar.enabled: true` and `mode: preshared`, pointing
+`existingSecret` at a Terraform-managed Secret that holds the preshared key under the
+`zanzibar-admin` key name:
+
+```yaml
+# values.yaml — enable the Zanzibar/SpiceDB API with a Terraform-managed key
+alpha:
+  zanzibar:
+    enabled: true
+    mode: preshared               # "open" disables auth entirely; dev only, guarded by allowInsecureOpen
+    existingSecret: dgraph-sec-zanzibar-admin   # holds the zanzibar-admin key
+```
+
+**Credential model.** Authentication is a single static RFC 6750 preshared bearer
+key — the `zanzibar-admin` credential. It is **not** integrated with Dgraph ACL users
+or groups, and it carries **no per-credential scoping**: whoever holds the key can
+read relationships, write relationships, and rewrite the schema alike — there is no
+read-only, read-write, or admin distinction, and the binary has no key rotation.
+Scoped credentials are a plausible future improvement, but they need binary support
+dgraph-sec does not have yet.
+
+The SpiceDB schema (definitions, relations, permissions) is **application-owned**:
+load it at runtime through the `WriteSchema` RPC (`zed schema write` or an authzed
+SDK), not through this chart. The chart only bootstraps the underlying
+`dgraph.zanzibar.*` predicates at Alpha startup; it never writes your schema for you.
+
+Manage the schema and relationships in-cluster with `zed` over a port-forward:
+
+```sh
+kubectl -n <ns> port-forward svc/dgraph-sec-alpha 9080:9080 &
+zed context set dgraph localhost:9080 "<zanzibar-admin key>" --insecure
+zed schema read
+```
+
+Drop `--insecure` once you connect over Dgraph-native TLS or through the mesh.
+
+> [!WARNING]
+> The preshared key is only as private as its transport: under the service mesh
+> (default) or Dgraph-native TLS, mTLS/TLS protects it in transit; with neither, it
+> rides in gRPC metadata in plaintext. `mode: open` disables authentication on this
+> API entirely — dev only, and guarded by `allowInsecureOpen`. Reaching Alpha's 9080
+> follows the same client rules as the native Dgraph API — NetworkPolicy
+> `clientPodLabels` or the mesh `AuthorizationPolicy` — see
+> [Letting another in-cluster service connect](./docs/topology.md#letting-another-in-cluster-service-connect).
+> This chart wires Zanzibar for **in-cluster access only** — see
+> [Zanzibar authorization API](./docs/topology.md#zanzibar-authorization-api) for why.
+
+For the network surface this does (and does not) open, and how another in-cluster
+service reaches it, see
+[Zanzibar authorization API](./docs/topology.md#zanzibar-authorization-api) in the
+topology doc.
+
 ## Configuration
 
 This section is the operator-facing guide to configuring the chart: the settable
@@ -448,6 +511,7 @@ enumeration lives in the [Values section](#values).
 | `alpha.acl.enabled` | `false` | Access Control List (authentication). Off by default. |
 | `alpha.encryption.enabled` | `false` | Encryption at rest. Off by default. |
 | `alpha.tls.enabled` | `false` | Provisions and mounts the TLS cert Secret at `/dgraph/tls`. Under a service mesh the mesh encrypts, so that is all it does. With `serviceMesh.enabled: false`, the chart also synthesizes Dgraph's `--tls` flag from `alpha.tls.*` (and likewise for Zero). |
+| `alpha.zanzibar.enabled` | `false` | SpiceDB-compatible authorization API on Alpha's gRPC 9080, authenticated by a single preshared key. Off by default. |
 | `alpha.logLevel` | `normal` | Log verbosity (see Zero). |
 | `alpha.service.type` | `ClusterIP` | Alpha Service type. |
 | `alpha.ingress.enabled` / `alpha.ingress_grpc.enabled` | `false` | HTTP / gRPC Ingress for Alpha. |
@@ -950,6 +1014,12 @@ them together — see [Configuration](#configuration) and the Backups & restore 
 | alpha.tolerations | list | `[]` | Tolerations for alpha pod scheduling. |
 | alpha.updateStrategy | string | `"RollingUpdate"` | StatefulSet update strategy for alpha (RollingUpdate or OnDelete). |
 | alpha.vmodule | string | `""` | Alpha per-module glog verbosity (--vmodule); empty disables. |
+| alpha.zanzibar | object | `{"allowInsecureOpen":false,"enabled":false,"existingSecret":"","keyName":"zanzibar-admin","mode":"preshared","schemaCacheTTL":"30s"}` | Zanzibar / SpiceDB-compatible authorization API for alpha. |
+| alpha.zanzibar.allowInsecureOpen | bool | `false` | Must be true to run mode=open (which disables all auth on the Zanzibar API). Guard against shipping an unauthenticated relationship store. |
+| alpha.zanzibar.existingSecret | string | `""` | Name of a pre-created (Terraform-managed) Secret holding the preshared key; empty means render one from `file` (dev only). |
+| alpha.zanzibar.keyName | string | `"zanzibar-admin"` | Secret data key AND mounted filename for the preshared key. The `preshared-key-file=` flag points at /dgraph/zanzibar/<keyName>. |
+| alpha.zanzibar.mode | string | `"preshared"` | Auth mode: "preshared" (production; RFC 6750 bearer key) or "open" (dev only; NO auth). "jwt" is reserved/unimplemented in the binary and rejected by the chart. |
+| alpha.zanzibar.schemaCacheTTL | string | `"30s"` | Schema-cache staleness bound (schema-cache-ttl superflag sub-key); 0 disables the cache. |
 | backups.admin | object | `{"auth_token":"","existingSecret":"","password":"","passwordSecretKey":"backup_admin_password","tls_client":"","user":""}` | Backup admin credentials/token used to trigger backups when ACLs are enabled. |
 | backups.destination | string | `"/dgraph/backups"` | Backup destination: a file path, s3://, or minio:// URI. |
 | backups.full | object | `{"debug":false,"enabled":false,"restartPolicy":"Never","schedule":"0 0 * * *"}` | Full-backup CronJob (enable, schedule, restart policy). |
