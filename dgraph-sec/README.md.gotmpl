@@ -443,15 +443,40 @@ SDK), not through this chart. Alpha itself bootstraps the underlying
 `dgraph.zanzibar.*` predicates at startup when the chart passes `--zanzibar-acl`;
 the chart never writes your schema for you.
 
-Manage the schema and relationships in-cluster with `zed` over a port-forward:
+### Using the `zed` CLI
+
+With the API enabled, manage the schema, relationships, and permission checks with
+[`zed`](https://github.com/authzed/zed) over a port-forward. Read the preshared key
+from its Secret, forward Alpha's gRPC port, then point a `zed` context at it:
 
 ```sh
-kubectl -n <ns> port-forward svc/dgraph-sec-alpha 9080:9080 &
-zed context set dgraph localhost:9080 "<zanzibar key>" --insecure
-zed schema read
+NS=<namespace>            # e.g. istari
+SECRET=<existingSecret>   # alpha.zanzibar.existingSecret, e.g. dgraph-sec-zanzibar
+
+# Read the zanzibar preshared key from the cluster Secret.
+# The data key is alpha.zanzibar.keyName (default: zanzibar).
+KEY="$(kubectl -n "$NS" get secret "$SECRET" -o jsonpath='{.data.zanzibar}' | base64 -d)"
+
+# Forward Alpha's client gRPC port.
+kubectl -n "$NS" port-forward svc/dgraph-sec-alpha 9080:9080 &
+
+# Point zed at it. Drop --insecure once you connect over native TLS or through the mesh.
+zed context set dgraph localhost:9080 "$KEY" --insecure
 ```
 
-Drop `--insecure` once you connect over Dgraph-native TLS or through the mesh.
+With the context set, dump the schema, restore a schema, or run a permission check:
+
+```sh
+# Dump the current schema to a file.
+zed schema read > schema.zed
+
+# Restore (write) a schema from a file. WriteSchema is additive: it creates or updates
+# the definitions in the file, but never deletes definitions already present.
+zed schema write schema.zed
+
+# Check a permission: may user:alice view document:readme?
+zed permission check document:readme view user:alice
+```
 
 > [!WARNING]
 > The preshared key is only as private as its transport: under the service mesh
