@@ -1,0 +1,31 @@
+{{- $jaegerValues := default dict .Values.jaeger -}}
+{{/*
+Badger trace-storage PVC for the Jaeger subchart. The claim name `jaeger-badger` is
+intentionally static: the subchart consumes it via the literal claimName reference in the
+`jaeger.jaeger.extraVolumes` default value, which Helm cannot compute dynamically.
+Deleted on uninstall by design — trace history is disposable.
+*/}}
+{{- if and (dig "enabled" false $jaegerValues) (dig "persistence" "enabled" false $jaegerValues) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: "jaeger-badger"
+  labels:
+    helm.sh/chart: {{ include "istari-platform.chart" . }}
+    app.kubernetes.io/name: "jaeger"
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+  {{- with dig "persistence" "annotations" dict $jaegerValues }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ dig "persistence" "size" "10Gi" $jaegerValues }}
+  {{- with dig "persistence" "storageClassName" "" $jaegerValues }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+{{- end }}

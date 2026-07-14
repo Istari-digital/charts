@@ -67,3 +67,29 @@ Renders no leading conditional; callers gate the include behind their own `if $n
 - name: FILE_SERVICE_ALLOWED_IDS_CACHE_ENABLED
   value: "true"
 {{- end }}
+
+{{/*
+In-cluster Jaeger OTLP gRPC URL. Resolves to `http://<jaeger-service-name>:4317`. The service name mirrors the Jaeger subchart's own `jaeger.fullname` helper so this URL stays in sync regardless of whether the user sets `jaeger.fullnameOverride`, `jaeger.nameOverride`, or relies on the release-name-based default.
+
+Logic, in order:
+  1. `jaeger.fullnameOverride` set → use it, with `trunc 63 | trimSuffix "-"` to match the subchart.
+  2. Release name already contains the Jaeger name (`jaeger.nameOverride`, defaulting to `jaeger`) → use release name alone (subchart's "don't double-up" rule).
+  3. Otherwise → `<release>-<jaegerName>`, trunc/trimmed.
+
+Used by templates that auto-inject `OTEL_EXPORTER_OTLP_ENDPOINT` when `jaeger.enabled` is true.
+*/}}
+{{- define "istari-platform.jaeger.otlpUrl" -}}
+{{- $jaegerValues := default dict .Values.jaeger -}}
+{{- $fullname := "" -}}
+{{- if $jaegerValues.fullnameOverride -}}
+  {{- $fullname = $jaegerValues.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+  {{- $jaegerName := default "jaeger" $jaegerValues.nameOverride -}}
+  {{- if contains $jaegerName .Release.Name -}}
+    {{- $fullname = .Release.Name | trunc 63 | trimSuffix "-" -}}
+  {{- else -}}
+    {{- $fullname = printf "%s-%s" .Release.Name $jaegerName | trunc 63 | trimSuffix "-" -}}
+  {{- end -}}
+{{- end -}}
+{{- printf "http://%s:4317" $fullname -}}
+{{- end }}

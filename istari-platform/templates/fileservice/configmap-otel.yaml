@@ -1,0 +1,24 @@
+{{- $serviceValues := .Values.fileservice -}}
+{{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
+{{/*
+Default OTEL env vars for exporting fileservice APM to the in-cluster Jaeger instance.
+Delivered as a ConfigMap referenced FIRST in the containers' `envFrom` so that every value
+here can be overridden by the user's Secret(s) (`fileservice.secretName`,
+`fileservice.extraEnvSecrets` — later envFrom sources win) or by explicit `fileservice.env`
+entries (explicit env always beats envFrom).
+*/}}
+{{- if and $serviceValues.enabled $jaegerEnabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fileservice.otelConfigMap.name" . | quote }}
+  labels:
+    {{- include "fileservice.labels" . | nindent 4 }}
+data:
+  FILE_SERVICE_OPENTELEMETRY_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ include "istari-platform.jaeger.otlpUrl" . | quote }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+  OTEL_SERVICE_NAME: "registry-service"
+  OTEL_LOGS_EXPORTER: "none"
+  OTEL_METRICS_EXPORTER: "none"
+{{- end }}

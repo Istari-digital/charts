@@ -8,3 +8,10 @@ Default name/prefix for fileservice resources
         {{- printf "%s-%s" .Release.Name "fileservice" | trunc 63 | trimSuffix "-" | replace "_" "-" }}
     {{- end }}
 {{- end }}
+
+{{/*
+Name of the fileservice OTEL defaults configmap (rendered when jaeger.enabled is true)
+*/}}
+{{- define "fileservice.otelConfigMap.name" -}}
+{{ printf "%s-otel" (include "fileservice.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
