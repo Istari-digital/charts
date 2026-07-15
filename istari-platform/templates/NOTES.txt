@@ -1,0 +1,11 @@
+{{- if dig "enabled" false (default dict .Values.jaeger) }}
+Jaeger APM is enabled.
+
+The Jaeger UI is not exposed outside the cluster. Access it via port-forwarding:
+
+  kubectl port-forward svc/{{ include "istari-platform.jaeger.fullname" . }} -n {{ .Release.Namespace }} 16686:16686
+
+then open http://localhost:16686 in your browser.
+
+In-cluster services export traces to the OTLP gRPC endpoint at {{ include "istari-platform.jaeger.otlpUrl" . }}.
+{{- end -}}
