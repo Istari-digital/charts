@@ -93,3 +93,21 @@ Used by templates that auto-inject `OTEL_EXPORTER_OTLP_ENDPOINT` when `jaeger.en
 {{- end -}}
 {{- printf "http://%s:4317" $fullname -}}
 {{- end }}
+
+{{/*
+Per-workload OTEL identity env entries for the fileservice init-db initContainer and db-migrate
+migration Job. The context (.) is the container name, which doubles as the subservice suffix in
+the `<service>.<subservice>` naming convention (e.g. `registry-service.db-migrate`); the web
+container's identity (`registry-service.web` / `k8s.container.name=istari-platform`) comes from
+the OTEL defaults ConfigMap instead. Keeping these as explicit env lets each workload override
+the shared ConfigMap (env beats envFrom), and rendering them BEFORE the user's `fileservice.env`
+entries keeps the user override contract (Kubernetes keeps the last duplicate env name). They
+are therefore not overridable via the fileservice Secret(s), only via `fileservice.env`.
+Callers gate the include behind their own `if $jaegerEnabled`.
+*/}}
+{{- define "istari-platform.fileservice.otelWorkloadEnv" -}}
+- name: OTEL_SERVICE_NAME
+  value: {{ printf "registry-service.%s" . | quote }}
+- name: OTEL_RESOURCE_ATTRIBUTES
+  value: {{ printf "k8s.container.name=%s" . | quote }}
+{{- end }}

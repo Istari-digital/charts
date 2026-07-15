@@ -157,8 +157,12 @@ spec:
             name: {{ . | quote }}
         {{- end }}
         {{- end }}
-        {{- if or $serviceValues.env .Values.trustedCertBundle $natsEnabled }}
+        {{- if or $serviceValues.env .Values.trustedCertBundle $natsEnabled $jaegerEnabled }}
         env:
+        {{- /* Chart-injected OTEL identity FIRST so the user's env entries below override it */}}
+        {{- if $jaegerEnabled }}
+        {{- include "istari-platform.fileservice.otelWorkloadEnv" "init-db" | nindent 8 }}
+        {{- end }}
         {{- with $serviceValues.env }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
