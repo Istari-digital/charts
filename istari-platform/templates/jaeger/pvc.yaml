@@ -5,6 +5,15 @@ intentionally static: the subchart consumes it via the literal claimName referen
 `jaeger.jaeger.extraVolumes` default value, which Helm cannot compute dynamically.
 Deleted on uninstall by design — trace history is disposable.
 */}}
+{{- /* Fail fast on the half-configured state: persistence disabled but the Jaeger Pod still
+mounting the (now uncreated) chart-managed claim would deploy a Pod stuck Pending. */}}
+{{- if and (dig "enabled" false $jaegerValues) (not (dig "persistence" "enabled" false $jaegerValues)) }}
+{{- range dig "jaeger" "extraVolumes" list $jaegerValues }}
+{{- if eq (dig "persistentVolumeClaim" "claimName" "" .) "jaeger-badger" }}
+{{- fail "jaeger.persistence.enabled is false, but jaeger.jaeger.extraVolumes still references the chart-managed `jaeger-badger` PVC (which will not be created). To use in-memory storage, follow the full recipe in the jaeger.userconfig comment: switch the userconfig storage backend to memory and set jaeger.jaeger.extraVolumes / extraVolumeMounts to []." }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- if and (dig "enabled" false $jaegerValues) (dig "persistence" "enabled" false $jaegerValues) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
