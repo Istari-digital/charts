@@ -69,12 +69,9 @@ Renders no leading conditional; callers gate the include behind their own `if $n
 {{- end }}
 
 {{/*
-Name of the Jaeger Service created by the subchart. Mirrors the Jaeger subchart's own `jaeger.fullname` helper so the name stays in sync regardless of whether the user sets `jaeger.fullnameOverride`, `jaeger.nameOverride`, or relies on the release-name-based default.
-
-Logic, in order:
-  1. `jaeger.fullnameOverride` set → use it, with `trunc 63 | trimSuffix "-"` to match the subchart.
-  2. Release name already contains the Jaeger name (`jaeger.nameOverride`, defaulting to `jaeger`) → use release name alone (subchart's "don't double-up" rule).
-  3. Otherwise → `<release>-<jaegerName>`, trunc/trimmed.
+Name of the Jaeger Service created by the subchart. Must mirror the subchart's own
+`jaeger.fullname` helper (fullnameOverride, else nameOverride/release-name rules) so the name
+stays in sync however the user overrides naming.
 */}}
 {{- define "istari-platform.jaeger.fullname" -}}
 {{- $jaegerValues := default dict .Values.jaeger -}}
@@ -105,16 +102,11 @@ In-cluster Jaeger OTLP HTTP URL. Resolves to `http://<jaeger-service-name>:4318`
 {{- end }}
 
 {{/*
-Per-workload OTEL identity env entries for init/migration containers (fileservice and
-identity-service). Context is a dict: "service" is the logical service name and "container" is
-the container name, which doubles as the subservice suffix in the `<service>.<subservice>`
-naming convention (e.g. `registry-service.db-migrate`, `identity-service.init-db`); each
-service's web-container identity (`<service>.web`) comes from its OTEL defaults ConfigMap
-instead. Keeping these as explicit env lets each workload override the shared ConfigMap (env
-beats envFrom), and rendering them BEFORE the user's `env` entries keeps the user override
-contract (Kubernetes keeps the last duplicate env name). They are therefore not overridable via
-the service's Secret(s), only via its `env` values.
-Callers gate the include behind their own `if $jaegerEnabled`.
+Per-workload OTEL identity for init/migration containers, named `<service>.<subservice>`.
+Context is a dict of "service" and "container" (the container name doubles as the subservice);
+web containers get their identity from their service's defaults ConfigMap instead. Explicit env
+so it overrides that ConfigMap, rendered BEFORE user `env` so the service's `env` values still
+win (Secrets can't override these two). Callers gate behind their own `if $jaegerEnabled`.
 */}}
 {{- define "istari-platform.otelWorkloadEnv" -}}
 - name: OTEL_SERVICE_NAME

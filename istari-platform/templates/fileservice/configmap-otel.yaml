@@ -1,11 +1,9 @@
 {{- $serviceValues := .Values.fileservice -}}
 {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
 {{/*
-Default OTEL env vars for exporting fileservice APM to the in-cluster Jaeger instance.
-Delivered as a ConfigMap referenced FIRST in the containers' `envFrom` so that every value
-here can be overridden by the user's Secret(s) (`fileservice.secretName`,
-`fileservice.extraEnvSecrets` — later envFrom sources win) or by explicit `fileservice.env`
-entries (explicit env always beats envFrom).
+Default OTEL env for exporting fileservice APM to in-cluster Jaeger. Referenced FIRST in the
+consumers' `envFrom` so the user's Secret(s) and `fileservice.env` override every value here
+(precedence contract: see the `jaeger:` section comment in values.yaml).
 */}}
 {{- if and $serviceValues.enabled $jaegerEnabled }}
 apiVersion: v1
@@ -28,10 +26,8 @@ data:
   FILE_SERVICE_OPENTELEMETRY_ENABLED: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ include "istari-platform.jaeger.otlpUrl" . | quote }}
   OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
-  {{- /* Workload identity for the main web container. The init-db initContainer and db-migrate
-  Job override both keys with explicit env (see "istari-platform.fileservice.otelWorkloadEnv")
-  following the `<service>.<subservice>` naming convention. `istari-platform` is the main
-  container's actual name in the Pod spec. */}}
+  {{- /* Web-container identity; init-db/db-migrate override via "istari-platform.otelWorkloadEnv".
+  `istari-platform` is the main container's actual name in the Pod spec. */}}
   OTEL_SERVICE_NAME: "registry-service.web"
   OTEL_RESOURCE_ATTRIBUTES: "k8s.container.name=istari-platform"
   OTEL_LOGS_EXPORTER: "none"

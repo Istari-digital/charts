@@ -18,11 +18,9 @@ metadata:
 data:
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
   {{- if dig "enabled" false (default dict .Values.jaeger) }}
-  {{- /* Default OTEL env for exporting identity-service APM to the in-cluster Jaeger instance.
-  identity-service uses the OTLP/HTTP exporter, so this targets Jaeger's HTTP receiver (4318)
-  rather than the gRPC port (4317) fileservice uses. Workload identity below is for the main web
-  container ("istari-platform" is its actual name in the Pod spec); the init-db initContainer and
-  db-migrate Job override it with explicit env (see "istari-platform.otelWorkloadEnv"). */}}
+  {{- /* identity-service uses the OTLP/HTTP exporter → target Jaeger's 4318, not the gRPC 4317
+  fileservice uses. Web-container identity; init-db/db-migrate override via
+  "istari-platform.otelWorkloadEnv". */}}
   ISTARI_DIGITAL_IDENTITY_SERVICE_OTEL_ENABLED: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ include "istari-platform.jaeger.otlpHttpUrl" . | quote }}
   OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
