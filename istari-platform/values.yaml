@@ -992,6 +992,10 @@ jaeger:
       # -- Image pull secret names applied to the Jaeger Pod. The umbrella chart's top-level `imagePullSecrets` does not propagate to subcharts, so this is set explicitly. Defaults to `docker-pull-secret` to match the rest of the istari-platform chart.
       pullSecrets:
       - docker-pull-secret
+    # -- Extra env for the Jaeger container. `OTEL_TRACES_SAMPLER=always_off` disables Jaeger v2's self-tracing: the OpenTelemetry Collector SDK inside Jaeger otherwise traces its own query/ingest operations, storing them alongside real traces (every UI search generates `jaeger` spans) and exporting them to any external OTLP destination (e.g. an OpenTelemetry Collector fanning traces out to Datadog). Ingestion of application traces is unaffected — the sampler only governs Jaeger's own internal SDK. Remove this entry if you need Jaeger's internal traces to debug Jaeger itself.
+    extraEnv:
+    - name: OTEL_TRACES_SAMPLER
+      value: "always_off"
     # -- Container `securityContext` for the Jaeger container, matching the hardening applied to the rest of the istari-platform chart. The subchart's default Pod-level securityContext (uid/gid/fsGroup 10001) is kept so the Badger PVC is writable by the non-root user.
     securityContext:
       allowPrivilegeEscalation: false
