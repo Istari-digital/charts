@@ -7,5 +7,5 @@ The Jaeger UI is not exposed outside the cluster. Access it via port-forwarding:
 
 then open http://localhost:16686 in your browser.
 
-In-cluster services export traces to the OTLP gRPC endpoint at {{ include "istari-platform.jaeger.otlpUrl" . }}.
+In-cluster services export traces via OTLP to {{ include "istari-platform.jaeger.otlpUrl" . }} (gRPC) or {{ include "istari-platform.jaeger.otlpHttpUrl" . }} (HTTP).
 {{- end -}}
