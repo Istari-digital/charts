@@ -91,26 +91,34 @@ Logic, in order:
 {{- end }}
 
 {{/*
-In-cluster Jaeger OTLP gRPC URL. Resolves to `http://<jaeger-service-name>:4317` via the fullname helper above. Used by templates that auto-inject `OTEL_EXPORTER_OTLP_ENDPOINT` when `jaeger.enabled` is true.
+In-cluster Jaeger OTLP gRPC URL. Resolves to `http://<jaeger-service-name>:4317` via the fullname helper above. Used by templates that auto-inject `OTEL_EXPORTER_OTLP_ENDPOINT` for gRPC exporters (fileservice) when `jaeger.enabled` is true.
 */}}
 {{- define "istari-platform.jaeger.otlpUrl" -}}
 {{- printf "http://%s:4317" (include "istari-platform.jaeger.fullname" .) -}}
 {{- end }}
 
 {{/*
-Per-workload OTEL identity env entries for the fileservice init-db initContainer and db-migrate
-migration Job. The context (.) is the container name, which doubles as the subservice suffix in
-the `<service>.<subservice>` naming convention (e.g. `registry-service.db-migrate`); the web
-container's identity (`registry-service.web` / `k8s.container.name=istari-platform`) comes from
-the OTEL defaults ConfigMap instead. Keeping these as explicit env lets each workload override
-the shared ConfigMap (env beats envFrom), and rendering them BEFORE the user's `fileservice.env`
-entries keeps the user override contract (Kubernetes keeps the last duplicate env name). They
-are therefore not overridable via the fileservice Secret(s), only via `fileservice.env`.
+In-cluster Jaeger OTLP HTTP URL. Resolves to `http://<jaeger-service-name>:4318` via the fullname helper above. Used by templates that auto-inject `OTEL_EXPORTER_OTLP_ENDPOINT` for OTLP/HTTP exporters (identity-service) when `jaeger.enabled` is true.
+*/}}
+{{- define "istari-platform.jaeger.otlpHttpUrl" -}}
+{{- printf "http://%s:4318" (include "istari-platform.jaeger.fullname" .) -}}
+{{- end }}
+
+{{/*
+Per-workload OTEL identity env entries for init/migration containers (fileservice and
+identity-service). Context is a dict: "service" is the logical service name and "container" is
+the container name, which doubles as the subservice suffix in the `<service>.<subservice>`
+naming convention (e.g. `registry-service.db-migrate`, `identity-service.init-db`); each
+service's web-container identity (`<service>.web`) comes from its OTEL defaults ConfigMap
+instead. Keeping these as explicit env lets each workload override the shared ConfigMap (env
+beats envFrom), and rendering them BEFORE the user's `env` entries keeps the user override
+contract (Kubernetes keeps the last duplicate env name). They are therefore not overridable via
+the service's Secret(s), only via its `env` values.
 Callers gate the include behind their own `if $jaegerEnabled`.
 */}}
-{{- define "istari-platform.fileservice.otelWorkloadEnv" -}}
+{{- define "istari-platform.otelWorkloadEnv" -}}
 - name: OTEL_SERVICE_NAME
-  value: {{ printf "registry-service.%s" . | quote }}
+  value: {{ printf "%s.%s" .service .container | quote }}
 - name: OTEL_RESOURCE_ATTRIBUTES
-  value: {{ printf "k8s.container.name=%s" . | quote }}
+  value: {{ printf "k8s.container.name=%s" .container | quote }}
 {{- end }}

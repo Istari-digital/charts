@@ -151,8 +151,13 @@ spec:
             name: {{ . | quote }}
         {{- end }}
         {{- end }}
-        {{- if or $serviceValues.env .Values.trustedCertBundle }}
+        {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
+        {{- if or $serviceValues.env .Values.trustedCertBundle $jaegerEnabled }}
         env:
+        {{- /* Chart-injected OTEL identity FIRST so the user's env entries below override it */}}
+        {{- if $jaegerEnabled }}
+        {{- include "istari-platform.otelWorkloadEnv" (dict "service" "identity-service" "container" "init-db") | nindent 8 }}
+        {{- end }}
         {{- with $serviceValues.env }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
