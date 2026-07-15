@@ -972,13 +972,13 @@ nats:
 #
 # The injected values are DEFAULTS delivered via each service's ConfigMap listed first in `envFrom`: the same variable set in the service's Secret (`secretName`), `extraEnvSecrets`, or explicit `env` values wins — so to send APM elsewhere, set `OTEL_EXPORTER_OTLP_ENDPOINT` through any of those. One exception: the per-workload `OTEL_SERVICE_NAME` / `OTEL_RESOURCE_ATTRIBUTES` in init containers and migration Jobs are explicit env (a shared ConfigMap cannot vary per container) and are overridable only via the service's `env` values, not via Secrets.
 #
-# Traces are stored in Badger (Jaeger's embedded storage) on a PersistentVolumeClaim created by this chart (see `jaeger.persistence`), with a 72h span retention TTL. Badger is single-writer: keep `replicas` at 1. The Jaeger UI is not exposed outside the cluster; reach it with `kubectl port-forward svc/jaeger 16686:16686`.
+# Traces are stored in Badger (Jaeger's embedded storage) on a PersistentVolumeClaim created by this chart (see `jaeger.persistence`), with a 72h span retention TTL. Badger is single-writer: keep `replicas` at 1. The Jaeger UI is not exposed outside the cluster; the post-install notes print the exact `kubectl port-forward` command (the Service name follows `jaeger.fullnameOverride`, default `jaeger`).
 #
-# Every key under `jaeger:` EXCEPT `jaeger.persistence` is passed directly to the Jaeger subchart. See the upstream chart's `values.yaml` for the full schema.
+# Every key under `jaeger:` is passed to the Jaeger subchart (see the upstream chart's `values.yaml` for the full schema); `jaeger.persistence` is additionally consumed by this umbrella chart to create the Badger PVC (the subchart ignores it).
 jaeger:
-  # -- Enable / Disable the Jaeger subchart. When `false`, the subchart is not rendered at all and no OTEL env vars are injected into fileservice.
+  # -- Enable / Disable the Jaeger subchart. When `false`, the subchart is not rendered at all and no OTEL env vars are injected into fileservice or identity-service.
   enabled: false
-  # -- Override the Jaeger resource name prefix. With the default `jaeger`, the in-cluster OTLP gRPC endpoint is `http://jaeger:4317` (the URL this chart injects as `OTEL_EXPORTER_OTLP_ENDPOINT`). Change this only if you also override that endpoint via `fileservice.env` or the fileservice Secret.
+  # -- Override the Jaeger resource name prefix. With the default `jaeger`, the in-cluster OTLP endpoints are `http://jaeger:4317` (gRPC) and `http://jaeger:4318` (HTTP). The injected `OTEL_EXPORTER_OTLP_ENDPOINT` values and the post-install notes track this override automatically.
   fullnameOverride: "jaeger"
   # Settings for the all-in-one Jaeger Deployment created by the subchart.
   jaeger:
@@ -988,7 +988,7 @@ jaeger:
       # -- Jaeger image repository. Defaults to the Chainguard FIPS variant of Jaeger v2 (the `2.x` tags of this repo are the Jaeger v2 binary).
       repository: "istaridigital.com/jaeger-all-in-one-fips"
       # -- Jaeger image tag.
-      tag: "2.17"
+      tag: "2.17.0"
       # -- Image pull secret names applied to the Jaeger Pod. The umbrella chart's top-level `imagePullSecrets` does not propagate to subcharts, so this is set explicitly. Defaults to `docker-pull-secret` to match the rest of the istari-platform chart.
       pullSecrets:
       - docker-pull-secret

@@ -11,10 +11,12 @@ kind: PersistentVolumeClaim
 metadata:
   name: "jaeger-badger"
   labels:
-    helm.sh/chart: {{ include "istari-platform.chart" . }}
-    app.kubernetes.io/name: "jaeger"
+    app.kubernetes.io/component: "jaeger"
     app.kubernetes.io/instance: {{ .Release.Name | quote }}
-    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/name: {{ include "istari-platform.name" . }}
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    helm.sh/chart: {{ include "istari-platform.chart" . }}
     {{- with .Values.commonLabels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
