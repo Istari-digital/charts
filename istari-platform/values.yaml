@@ -898,10 +898,10 @@ docs:
 router:
   # -- Enable / Disable the whole deployment
   enabled: false
-  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS variant in the Istari customer-docker JFrog repo, pulled with the same credentials as the rest of the chart.
-  registry: "istaridigital.jfrog.io/customer-docker/istaridigital.com"
-  # -- Image name. The combination of registry, image, and tag will be used to pull the image.
-  image: "caddy-fips"
+  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
+  registry: "istaridigital.jfrog.io/customer-docker"
+  # -- Image name. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS Caddy variant in the Istari customer-docker JFrog repo, pulled with the same credentials as the rest of the chart.
+  image: "istaridigital.com/caddy-fips"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
   tag: "2.11.4"
   # -- Image pull policy
@@ -914,7 +914,7 @@ router:
   listen: 8080
   # Tracing -- optional per-request tracing through the router, viewable in the bundled Jaeger UI (see `jaeger.enabled`). Useful when troubleshooting routing or latency issues.
   tracing:
-    # -- Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires setting `OTEL_EXPORTER_OTLP_ENDPOINT` in `router.env`.
+    # -- (bool/null) Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires setting `OTEL_EXPORTER_OTLP_ENDPOINT` in `router.env`.
     # @default -- `null` (automatic: follows `jaeger.enabled`)
     enabled: null
   # -- Replica count

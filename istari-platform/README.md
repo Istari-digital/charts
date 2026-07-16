@@ -363,7 +363,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | router.enabled | bool | `false` | Enable / Disable the whole deployment |
 | router.env | list | `[]` | Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `router.tracing.enabled`). |
 | router.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
-| router.image | string | `"caddy-fips"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
+| router.image | string | `"istaridigital.com/caddy-fips"` | Image name. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS Caddy variant in the Istari customer-docker JFrog repo, pulled with the same credentials as the rest of the chart. |
 | router.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | router.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
 | router.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
@@ -377,7 +377,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | router.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | router.podLabels | object | `{}` | Additional labels to add to pods |
 | router.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
-| router.registry | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS variant in the Istari customer-docker JFrog repo, pulled with the same credentials as the rest of the chart. |
+| router.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | router.replicaCount | int | `1` | Replica count |
 | router.resources.limits.cpu | string | `nil` | CPU limit (e.g. `500m`). |
 | router.resources.limits.memory | string | `nil` | Memory limit (e.g. `256Mi`). |
@@ -389,7 +389,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | router.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
 | router.tag | string | `"2.11.4"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | router.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
-| router.tracing.enabled | string | `null` (automatic: follows `jaeger.enabled`) | Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires setting `OTEL_EXPORTER_OTLP_ENDPOINT` in `router.env`. |
+| router.tracing.enabled | bool/null | `null` (automatic: follows `jaeger.enabled`) | Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires setting `OTEL_EXPORTER_OTLP_ENDPOINT` in `router.env`. |
 | router.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | router.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
 | router.virtualService.gateways | list | `[]` | `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only. |
