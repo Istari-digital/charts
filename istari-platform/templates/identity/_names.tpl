@@ -28,10 +28,16 @@ One-shot Job that provisions an agent's tenant and registers its public key.
 Call with a dict: {"root": $, "name": <agent name>}.
 */}}
 {{- define "identity.agentRegistration.jobName" -}}
-{{- /* Bound the prefix and the agent-name suffix separately so a long release
-       name can't truncate the suffix away and collide two agents' Job names.
-       30 + len("-register-agent-")=16 + 16 = 62 <= 63 (the k8s name limit). */ -}}
-{{- $prefix := include "identity.fullname" .root | trunc 30 | trimSuffix "-" -}}
-{{- $agentName := .name | trunc 16 | trimSuffix "-" -}}
-{{- printf "%s-register-agent-%s" $prefix $agentName | trimSuffix "-" -}}
+{{- /* Build a DNS-1123-safe, collision-free Job name within the 63-char limit:
+       - bound the fullname prefix (24) so a long release name can't crowd out
+         the rest;
+       - a readable, sanitized slice of the agent name (underscores → hyphens,
+         lowercased, 12) purely for human legibility;
+       - an 8-char hash of the FULL agent name for uniqueness, so two agents whose
+         names share a prefix (or differ only past the 12-char slice) never collide.
+       24 + len("-register-agent-")=16 + 12 + 1 + 8 = 61 <= 63. */ -}}
+{{- $prefix := include "identity.fullname" .root | trunc 24 | trimSuffix "-" -}}
+{{- $slug := .name | lower | replace "_" "-" | trunc 12 | trimSuffix "-" -}}
+{{- $hash := .name | sha256sum | trunc 8 -}}
+{{- printf "%s-register-agent-%s-%s" $prefix $slug $hash | trimSuffix "-" -}}
 {{- end }}
