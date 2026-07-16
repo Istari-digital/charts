@@ -1,6 +1,9 @@
 {{- $serviceValues := .Values.router -}}
 {{- if $serviceValues.enabled }}
 {{- if $serviceValues.autoscaling.enabled }}
+{{- if not (or $serviceValues.autoscaling.cpuUtilization $serviceValues.autoscaling.memoryUtilization) }}
+{{- fail "router.autoscaling is enabled but cpuUtilization and memoryUtilization are both null — set at least one so the HPA has a metric to scale on" }}
+{{- end }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
