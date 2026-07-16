@@ -1,0 +1,159 @@
+{{- $serviceValues := .Values.router -}}
+{{- if $serviceValues.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "router.fullname" . | quote }}
+  labels:
+    {{- include "router.labels" . | nindent 4 }}
+  {{- with $serviceValues.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if not $serviceValues.autoscaling.enabled }}
+  replicas: {{ $serviceValues.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "router.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- /*
+        Caddy only reads the Caddyfile at startup, so a ConfigMap edit alone never
+        reaches running pods. This checksum changes with the rendered Caddyfile and
+        rolls the Deployment.
+        */}}
+        checksum/caddyfile: {{ include (print $.Template.BasePath "/router/configmap.yaml") . | sha256sum }}
+        {{- with $serviceValues.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "router.labels" . | nindent 8 }}
+        {{- with $serviceValues.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "router.fullname" . | quote }}
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: {{ .Chart.Name | quote }}
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        {{- /* Explicit command (matching the poc-service-router compose overlay) so the chart does not depend on any particular image's entrypoint/cmd defaults. */}}
+        command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+        ports:
+        - containerPort: {{ $serviceValues.listen }}
+          name: "http"
+          protocol: "TCP"
+        livenessProbe:
+          httpGet:
+            path: "/healthz"
+            port: {{ $serviceValues.listen }}
+        readinessProbe:
+          httpGet:
+            path: "/healthz"
+            port: {{ $serviceValues.listen }}
+        {{- with $serviceValues.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets }}
+        envFrom:
+        {{- if $serviceValues.secretName }}
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- end }}
+        {{- range $serviceValues.extraEnvSecrets }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        env:
+        {{- /* Caddy writes runtime state (autosaved config, storage) to the XDG dirs; point them at the emptyDir mounts so the root filesystem can stay read-only. */}}
+        - name: XDG_CONFIG_HOME
+          value: "/config"
+        - name: XDG_DATA_HOME
+          value: "/data"
+        {{- if $serviceValues.tracing.enabled }}
+        {{- /*
+        Caddy's `tracing` directive exports OTLP over gRPC, so this targets Jaeger's
+        4317 (not the 4318 identity-service uses). Rendered BEFORE user `env` so
+        `router.env` entries still override these.
+        */}}
+        - name: OTEL_SERVICE_NAME
+          value: "router"
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: "grpc"
+        {{- if dig "enabled" false (default dict .Values.jaeger) }}
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{ include "istari-platform.jaeger.otlpUrl" . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        {{- /* Go's crypto/x509 honors SSL_CERT_FILE / SSL_CERT_DIR; the Python-specific vars other services set are omitted. */}}
+        - name: SSL_CERT_DIR
+          value: /usr/lib/ssl/certs
+        - name: SSL_CERT_FILE
+          value: /usr/lib/ssl/cert.pem
+        {{- end }}
+        {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        volumeMounts:
+        - name: caddyfile
+          mountPath: "/etc/caddy"
+          readOnly: true
+        - name: caddy-config
+          mountPath: "/config"
+        - name: caddy-data
+          mountPath: "/data"
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+      volumes:
+      - name: caddyfile
+        configMap:
+          name: {{ include "router.configmap.name" . | quote }}
+      - name: caddy-config
+        emptyDir: {}
+      - name: caddy-data
+        emptyDir: {}
+      {{- with $serviceValues.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if .Values.trustedCertBundle }}
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" . | quote }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}

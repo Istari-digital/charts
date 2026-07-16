@@ -1,0 +1,46 @@
+{{- /*
+The Caddyfile is rendered from `router.routes` (structure from the poc-service-router
+sandbox, DPLAT-524). Each route declares a matcher covering the bare prefix and its
+subtree, strips the prefix, and forwards to the in-cluster Service; the backends serve
+these paths at root. A final catch-all returns 404 so an unmatched path is never
+proxied blindly.
+
+Mounted into the pod (not baked into the image) so the tracing values option can add
+the `tracing` directive — Caddy enables OTEL tracing only through the Caddyfile,
+not through environment variables alone.
+*/}}
+{{- $serviceValues := .Values.router -}}
+{{- if $serviceValues.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "router.configmap.name" . | quote }}
+  labels:
+    {{- include "router.labels" . | nindent 4 }}
+data:
+  {{- /* The body below indents with TABS (after the 4-space YAML block indent) — the canonical `caddy fmt` style — so Caddy doesn't log a "Caddyfile input is not formatted" warning at startup. */}}
+  Caddyfile: |
+    :{{ $serviceValues.listen }} {
+    {{- if $serviceValues.tracing.enabled }}
+    	tracing
+
+    {{- end }}
+    	# Router self-health; used by the Deployment's liveness/readiness probes.
+    	handle /healthz {
+    		respond "OK" 200
+    	}
+    {{- range $serviceValues.routes }}
+
+    	@{{ trimPrefix "/" .prefix | replace "/" "-" }} path {{ .prefix }} {{ .prefix }}/*
+    	handle @{{ trimPrefix "/" .prefix | replace "/" "-" }} {
+    		uri strip_prefix {{ .prefix }}
+    		reverse_proxy {{ tpl .service $ }}:{{ .port }}
+    	}
+    {{- end }}
+
+    	# Everything else: no route. Return 404 rather than proxying blindly.
+    	handle {
+    		respond "no route" 404
+    	}
+    }
+{{- end }}

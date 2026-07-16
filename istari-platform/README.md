@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.22.0](https://img.shields.io/badge/Version-3.22.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.23.0](https://img.shields.io/badge/Version-3.23.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -337,6 +337,50 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | nats.reloader.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-server-config-reloader-fips"` | Config-reloader image repository. Defaults to the Chainguard FIPS variant. |
 | nats.reloader.image.tag | string | `"0.23.0"` | Config-reloader image tag. |
 | nats.statefulSet.merge.spec.persistentVolumeClaimRetentionPolicy | object | `{"whenDeleted":"Delete","whenScaled":"Delete"}` | Delete the JetStream PVCs when the StatefulSet is deleted or scaled down. Set to `Retain` if you need the data to outlive the StatefulSet. |
+| router.affinity | object | `{}` | Affinity |
+| router.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
+| router.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
+| router.autoscaling.maxReplicas | int | `3` | Maximum number of replicas |
+| router.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
+| router.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
+| router.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
+| router.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context. Unlike the other services, the root filesystem is read-only: Caddy only writes to the XDG state dirs, which the chart mounts as emptyDirs. |
+| router.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
+| router.enabled | bool | `false` | Enable / Disable the whole deployment |
+| router.env | list | `[]` |  |
+| router.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
+| router.image | string | `"caddy-fips"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
+| router.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| router.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
+| router.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
+| router.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
+| router.ingress.hosts | list | `[{"host":"api.istari.customer-domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
+| router.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard router labels). |
+| router.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
+| router.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
+| router.listen | int | `8080` | Port the Caddy container listens on. The router's `kind: Service` forwards port 80 to it. |
+| router.nodeSelector | object | `{}` | Node selector |
+| router.podAnnotations | object | `{}` | Additional annotations to add to pods |
+| router.podLabels | object | `{}` | Additional labels to add to pods |
+| router.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
+| router.registry | string | `"istaridigital.jfrog.io/remote-docker-chainguard/istaridigital.com"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS registry proxied through JFrog. |
+| router.replicaCount | int | `1` | Replica count |
+| router.resources | object | `{}` |  |
+| router.routes | list | routes for fileservice (`/registry`) and identity-service (`/identity`) | Path-prefix routes rendered into the Caddyfile. Each entry maps an external path prefix to an in-cluster Service: the router matches the bare prefix and its subtree (`/registry` and `/registry/*`), strips the prefix, and forwards to `service:port`. `service` is rendered through `tpl`, so the defaults below track this chart's actual Service names whatever the release is called; plain service-name strings also work. Unmatched paths get a 404 from the router itself. |
+| router.secretName | string | `""` | Optional secret with extra environment variables (e.g. `OTEL_EXPORTER_OTLP_HEADERS`). The router needs no secrets by default. |
+| router.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
+| router.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
+| router.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
+| router.tag | string | `"2.11.4"` | Image tag. The combination of registry, image, and tag will be used to pull the image. Chainguard keeps a rolling window of active versions — verify tag availability (`skopeo list-tags docker://cgr.dev/istaridigital.com/caddy-fips`) before changing. |
+| router.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
+| router.tracing.enabled | bool | `false` | Add Caddy's `tracing` directive to the rendered Caddyfile so every request is traced. When `jaeger.enabled` is also true, OTLP gRPC export is auto-wired to the in-cluster Jaeger; otherwise set `OTEL_EXPORTER_OTLP_ENDPOINT` via `router.env`. |
+| router.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
+| router.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
+| router.virtualService.gateways | list | `[]` | `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only. |
+| router.virtualService.hosts | list | `["api.example.com"]` | `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). The default below is an EXAMPLE — you MUST replace it with your actual hostname(s) before enabling the VirtualService. Clearing this list while `enabled: true` will cause the chart to fail to render. |
+| router.virtualService.labels | object | `{}` | Additional labels on the VirtualService (in addition to the standard router labels). |
+| router.volumeMounts | list | `[]` | Volume Mounts for pod containers |
+| router.volumes | list | `[]` | Pod Volumes |
 | secureConnection.affinity | object | `{}` | Affinity |
 | secureConnection.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
 | secureConnection.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |

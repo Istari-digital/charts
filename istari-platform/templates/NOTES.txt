@@ -8,4 +8,11 @@ The Jaeger UI is not exposed outside the cluster. Access it via port-forwarding:
 then open http://localhost:16686 in your browser.
 
 In-cluster services export traces via OTLP to {{ include "istari-platform.jaeger.otlpUrl" . }} (gRPC) or {{ include "istari-platform.jaeger.otlpHttpUrl" . }} (HTTP).
+{{- end }}
+{{- if .Values.router.enabled }}
+
+The Service Router is enabled. In-cluster clients reach it at http://{{ include "router.fullname" . }} with these routes:
+{{- range .Values.router.routes }}
+  {{ .prefix }} -> {{ tpl .service $ }}:{{ .port }}
+{{- end }}
 {{- end -}}

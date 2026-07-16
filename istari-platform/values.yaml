@@ -882,6 +882,142 @@ docs:
     # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
     gateways: []
 
+# Default values for the Service Router, a Caddy reverse proxy exposing platform services
+# under a single external host via path-prefix routing (e.g. /registry, /identity). The
+# Caddyfile is rendered from `router.routes` into a ConfigMap mounted into the pod.
+router:
+  # -- Enable / Disable the whole deployment
+  enabled: false
+  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS registry proxied through JFrog.
+  registry: "istaridigital.jfrog.io/remote-docker-chainguard/istaridigital.com"
+  # -- Image name. The combination of registry, image, and tag will be used to pull the image.
+  image: "caddy-fips"
+  # -- Image tag. The combination of registry, image, and tag will be used to pull the image. Chainguard keeps a rolling window of active versions — verify tag availability (`skopeo list-tags docker://cgr.dev/istaridigital.com/caddy-fips`) before changing.
+  tag: "2.11.4"
+  # -- Image pull policy
+  imagePullPolicy: "IfNotPresent"
+  # -- Optional secret with extra environment variables (e.g. `OTEL_EXPORTER_OTLP_HEADERS`). The router needs no secrets by default.
+  secretName: ""
+  # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
+  extraEnvSecrets: []
+  # -- Port the Caddy container listens on. The router's `kind: Service` forwards port 80 to it.
+  listen: 8080
+  # -- Path-prefix routes rendered into the Caddyfile. Each entry maps an external path prefix to an in-cluster Service: the router matches the bare prefix and its subtree (`/registry` and `/registry/*`), strips the prefix, and forwards to `service:port`. `service` is rendered through `tpl`, so the defaults below track this chart's actual Service names whatever the release is called; plain service-name strings also work. Unmatched paths get a 404 from the router itself.
+  # @default -- routes for fileservice (`/registry`) and identity-service (`/identity`)
+  routes:
+  - prefix: /registry
+    service: '{{ include "fileservice.fullname" . }}'
+    port: 80
+  - prefix: /identity
+    service: '{{ include "identity.fullname" . }}'
+    port: 80
+  # OpenTelemetry tracing for the router (default disabled).
+  tracing:
+    # -- Add Caddy's `tracing` directive to the rendered Caddyfile so every request is traced. When `jaeger.enabled` is also true, OTLP gRPC export is auto-wired to the in-cluster Jaeger; otherwise set `OTEL_EXPORTER_OTLP_ENDPOINT` via `router.env`.
+    enabled: false
+  # -- Replica count
+  replicaCount: 1
+  # -- Additional labels to add to all of this service's resources
+  commonLabels: {}
+  # -- Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName.
+  serviceType: "ClusterIP"
+  # -- Additional annotations to apply to the service, note the following annotations for duplicate keys.
+  serviceAnnotations: {}
+  # -- Additional annotations to add to the deployment
+  deploymentAnnotations: {}
+  # -- Additional annotations to add to pods
+  podAnnotations: {}
+  # -- Additional labels to add to pods
+  podLabels: {}
+  # -- Pod security context
+  podSecurityContext:
+    fsGroup: 65532
+  # -- Primary container's security context. Unlike the other services, the root filesystem is read-only: Caddy only writes to the XDG state dirs, which the chart mounts as emptyDirs.
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 65532
+  # -- Additional annotations to apply to the service account
+  serviceAccountAnnotations: {}
+  # Environment variables
+  ###############################
+  # This has the same schema as the standard `env:` block in a pod's container's definition. For example:
+  # env:
+  # - name: OTEL_EXPORTER_OTLP_ENDPOINT
+  #   value: http://my-collector:4317
+  ###############################
+  env: []
+  # Autoscaling -- set autoscaling (HPA) parameters
+  autoscaling:
+    # -- Enable/Disable autoscaling
+    enabled: false
+    # -- Minimum number of replicas
+    minReplicas: 1
+    # -- Maximum number of replicas
+    maxReplicas: 3
+    # -- Average CPU utilization percentage. Set to `null` to disable.
+    cpuUtilization: 80
+    # -- Average Memory utilization percentage. Set to `null` to disable.
+    memoryUtilization: 80
+  # Resources -- set resources
+  resources: {}
+  # -- Pod Volumes
+  volumes: []
+  # -- Volume Mounts for pod containers
+  volumeMounts: []
+  # -- Tolerations.
+  # Example:
+  #
+  # ```
+  # tolerations:
+  # - "effect": "NoSchedule"
+  #   "key": "istari.k8s.io/role"
+  #   "operator": "Equal"
+  #   "value": "main"
+  # ```
+  tolerations: []
+  # -- Node selector
+  nodeSelector: {}
+  # -- Affinity
+  affinity: {}
+  # Ingress -- optional Kubernetes Ingress for this service.
+  ingress:
+    # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
+    enabled: false
+    # -- `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass.
+    className: ""
+    # -- Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.).
+    annotations: {}
+    # -- Additional labels on the Ingress (in addition to the standard router labels).
+    labels: {}
+    # -- One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host.
+    hosts:
+    - host: api.istari.customer-domain.com
+      paths:
+      - path: /
+        pathType: Prefix
+    # -- TLS configuration; passed through to `spec.tls[]` verbatim.
+    tls: []
+    # -- Service port the Ingress targets. Defaults to 80.
+    servicePort: 80
+  # VirtualService -- optional Istio VirtualService for this service. The chart generates a single HTTP route sending all traffic (for the listed `hosts`) to this service's `kind: Service` on port 80. For custom routing logic (URL rewriting, retries, CORS, etc.), create a separate VirtualService alongside this chart.
+  virtualService:
+    # -- Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+).
+    enabled: false
+    # -- Additional labels on the VirtualService (in addition to the standard router labels).
+    labels: {}
+    # -- Annotations on the VirtualService.
+    annotations: {}
+    # -- `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). The default below is an EXAMPLE — you MUST replace it with your actual hostname(s) before enabling the VirtualService. Clearing this list while `enabled: true` will cause the chart to fail to render.
+    hosts:
+    - api.example.com
+    # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
+    gateways: []
+
 # Optional NATS messaging deployment. Configured as a Helm subchart (https://github.com/nats-io/k8s/tree/main/helm/charts/nats).
 #
 # BETA: NATS integration is currently in beta and disabled by default. It will eventually become a required component of the istari-platform deployment; the `nats.enabled: false` default will be flipped and this section will lose its "optional" framing in a future release.
