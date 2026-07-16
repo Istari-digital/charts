@@ -5,8 +5,8 @@
 {{- if and $tracingEnabled (not $jaegerEnabled) }}
 {{- $hasEndpoint := false }}
 {{- range $serviceValues.env }}{{- if eq .name "OTEL_EXPORTER_OTLP_ENDPOINT" }}{{- $hasEndpoint = true }}{{- end }}{{- end }}
-{{- if not (or $hasEndpoint $serviceValues.secretName $serviceValues.extraEnvSecrets) }}
-{{- fail "router.tracing.enabled is true but jaeger.enabled is false and no OTEL_EXPORTER_OTLP_ENDPOINT is set via router.env (or router.secretName / router.extraEnvSecrets) — traces would have nowhere to go. Enable the bundled Jaeger, provide an endpoint, or leave router.tracing.enabled unset." }}
+{{- if not (or $hasEndpoint $serviceValues.extraEnvSecrets) }}
+{{- fail "router.tracing.enabled is true but jaeger.enabled is false and no OTEL_EXPORTER_OTLP_ENDPOINT is set via router.env (or a Secret in router.extraEnvSecrets) — traces would have nowhere to go. Enable the bundled Jaeger, provide an endpoint, or leave router.tracing.enabled unset." }}
 {{- end }}
 {{- end }}
 apiVersion: apps/v1
@@ -92,13 +92,9 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets }}
+        {{- with $serviceValues.extraEnvSecrets }}
         envFrom:
-        {{- if $serviceValues.secretName }}
-        - secretRef:
-            name: {{ $serviceValues.secretName | quote }}
-        {{- end }}
-        {{- range $serviceValues.extraEnvSecrets }}
+        {{- range . }}
         - secretRef:
             name: {{ . | quote }}
         {{- end }}
