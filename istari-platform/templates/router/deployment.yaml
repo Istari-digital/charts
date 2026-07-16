@@ -1,5 +1,14 @@
 {{- $serviceValues := .Values.router -}}
 {{- if $serviceValues.enabled }}
+{{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
+{{- $tracingEnabled := eq (include "router.tracing.enabled" .) "true" -}}
+{{- if and $tracingEnabled (not $jaegerEnabled) }}
+{{- $hasEndpoint := false }}
+{{- range $serviceValues.env }}{{- if eq .name "OTEL_EXPORTER_OTLP_ENDPOINT" }}{{- $hasEndpoint = true }}{{- end }}{{- end }}
+{{- if not (or $hasEndpoint $serviceValues.secretName $serviceValues.extraEnvSecrets) }}
+{{- fail "router.tracing.enabled is true but jaeger.enabled is false and no OTEL_EXPORTER_OTLP_ENDPOINT is set via router.env (or router.secretName / router.extraEnvSecrets) — traces would have nowhere to go. Enable the bundled Jaeger, provide an endpoint, or leave router.tracing.enabled unset." }}
+{{- end }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,11 +30,11 @@ spec:
     metadata:
       annotations:
         {{- /*
-        Caddy only reads the Caddyfile at startup, so a ConfigMap edit alone never
-        reaches running pods. This checksum changes with the rendered Caddyfile and
-        rolls the Deployment.
+        The proxy only reads its config at startup, so a ConfigMap edit alone never
+        reaches running pods. This checksum changes with the rendered proxy config
+        and rolls the Deployment.
         */}}
-        checksum/caddyfile: {{ include (print $.Template.BasePath "/router/configmap.yaml") . | sha256sum }}
+        checksum/proxy-config: {{ include (print $.Template.BasePath "/router/configmap.yaml") . | sha256sum }}
         {{- with $serviceValues.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -66,7 +75,20 @@ spec:
           httpGet:
             path: "/healthz"
             port: {{ $serviceValues.listen }}
-        {{- with $serviceValues.resources }}
+        {{- /*
+        values.yaml spells out the resources structure with null placeholders for
+        documentation; prune the nulls here so the API server never receives them
+        (a null quantity is not the same as an unset one).
+        */}}
+        {{- $resources := dict }}
+        {{- range $tier, $quantities := $serviceValues.resources }}
+        {{- $clean := dict }}
+        {{- range $metric, $qty := $quantities }}
+        {{- if $qty }}{{- $_ := set $clean $metric $qty }}{{- end }}
+        {{- end }}
+        {{- if $clean }}{{- $_ := set $resources $tier $clean }}{{- end }}
+        {{- end }}
+        {{- with $resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
@@ -87,7 +109,7 @@ spec:
           value: "/config"
         - name: XDG_DATA_HOME
           value: "/data"
-        {{- if $serviceValues.tracing.enabled }}
+        {{- if $tracingEnabled }}
         {{- /*
         Caddy's `tracing` directive exports OTLP over gRPC, so this targets Jaeger's
         4317 (not the 4318 identity-service uses). Rendered BEFORE user `env` so
@@ -97,7 +119,7 @@ spec:
           value: "router"
         - name: OTEL_EXPORTER_OTLP_PROTOCOL
           value: "grpc"
-        {{- if dig "enabled" false (default dict .Values.jaeger) }}
+        {{- if $jaegerEnabled }}
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: {{ include "istari-platform.jaeger.otlpUrl" . | quote }}
         {{- end }}

@@ -882,39 +882,41 @@ docs:
     # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
     gateways: []
 
-# Default values for the Service Router, a Caddy reverse proxy exposing platform services
-# under a single external host via path-prefix routing (e.g. /registry, /identity). The
-# Caddyfile is rendered from `router.routes` into a ConfigMap mounted into the pod.
+# Default values for the Service Router: a reverse proxy that lets clients reach every
+# platform service through one external API host (the URL clients configure as
+# ISTARI_DIGITAL_API_URL) using path prefixes — /registry for the registry service,
+# /identity for the identity service. The router matches each prefix, strips it, and
+# forwards the request to the right in-cluster service; unrecognized paths get a 404.
+#
+# Routes are managed by the chart and need no configuration here: a service's route is
+# served automatically while that service is enabled (e.g. /identity appears once
+# identityService.enabled is true).
+#
+# The proxy software inside the router (currently Caddy) is an internal detail and may
+# change in a future release; such a change will never require values changes beyond
+# `registry`/`image`/`tag`.
 router:
   # -- Enable / Disable the whole deployment
   enabled: false
-  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS registry proxied through JFrog.
-  registry: "istaridigital.jfrog.io/remote-docker-chainguard/istaridigital.com"
+  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS variant in the Istari customer-docker JFrog repo, pulled with the same credentials as the rest of the chart.
+  registry: "istaridigital.jfrog.io/customer-docker/istaridigital.com"
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "caddy-fips"
-  # -- Image tag. The combination of registry, image, and tag will be used to pull the image. Chainguard keeps a rolling window of active versions — verify tag availability (`skopeo list-tags docker://cgr.dev/istaridigital.com/caddy-fips`) before changing.
+  # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
   tag: "2.11.4"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
-  # -- Optional secret with extra environment variables (e.g. `OTEL_EXPORTER_OTLP_HEADERS`). The router needs no secrets by default.
+  # -- Optional Kubernetes Secret with extra environment variables for the proxy container. Not needed for a standard deployment.
   secretName: ""
   # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
   extraEnvSecrets: []
-  # -- Port the Caddy container listens on. The router's `kind: Service` forwards port 80 to it.
+  # -- Port the proxy container listens on. The router's `kind: Service` receives traffic on port 80 and forwards it here; you should never need to change this.
   listen: 8080
-  # -- Path-prefix routes rendered into the Caddyfile. Each entry maps an external path prefix to an in-cluster Service: the router matches the bare prefix and its subtree (`/registry` and `/registry/*`), strips the prefix, and forwards to `service:port`. `service` is rendered through `tpl`, so the defaults below track this chart's actual Service names whatever the release is called; plain service-name strings also work. Unmatched paths get a 404 from the router itself.
-  # @default -- routes for fileservice (`/registry`) and identity-service (`/identity`)
-  routes:
-  - prefix: /registry
-    service: '{{ include "fileservice.fullname" . }}'
-    port: 80
-  - prefix: /identity
-    service: '{{ include "identity.fullname" . }}'
-    port: 80
-  # OpenTelemetry tracing for the router (default disabled).
+  # Tracing -- optional per-request tracing through the router, viewable in the bundled Jaeger UI (see `jaeger.enabled`). Useful when troubleshooting routing or latency issues.
   tracing:
-    # -- Add Caddy's `tracing` directive to the rendered Caddyfile so every request is traced. When `jaeger.enabled` is also true, OTLP gRPC export is auto-wired to the in-cluster Jaeger; otherwise set `OTEL_EXPORTER_OTLP_ENDPOINT` via `router.env`.
-    enabled: false
+    # -- Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires setting `OTEL_EXPORTER_OTLP_ENDPOINT` in `router.env`.
+    # @default -- `null` (automatic: follows `jaeger.enabled`)
+    enabled: null
   # -- Replica count
   replicaCount: 1
   # -- Additional labels to add to all of this service's resources
@@ -943,15 +945,9 @@ router:
     runAsUser: 65532
   # -- Additional annotations to apply to the service account
   serviceAccountAnnotations: {}
-  # Environment variables
-  ###############################
-  # This has the same schema as the standard `env:` block in a pod's container's definition. For example:
-  # env:
-  # - name: OTEL_EXPORTER_OTLP_ENDPOINT
-  #   value: http://my-collector:4317
-  ###############################
+  # -- Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `router.tracing.enabled`).
   env: []
-  # Autoscaling -- set autoscaling (HPA) parameters
+  # Autoscaling -- set autoscaling (HPA) parameters. NOTE: utilization-based scaling only works when the matching `router.resources.requests` values are set — with no requests, the HPA has nothing to compute a percentage against and will never scale.
   autoscaling:
     # -- Enable/Disable autoscaling
     enabled: false
@@ -963,8 +959,18 @@ router:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set resources
-  resources: {}
+  # Resources -- CPU/memory for the proxy container. All values default to `null` (unset); the router is lightweight, so a small allocation goes a long way when you do set them. `null` entries are omitted from the rendered manifest.
+  resources:
+    requests:
+      # -- CPU request (e.g. `100m`). Required for CPU-based autoscaling.
+      cpu: null
+      # -- Memory request (e.g. `128Mi`). Required for memory-based autoscaling.
+      memory: null
+    limits:
+      # -- CPU limit (e.g. `500m`).
+      cpu: null
+      # -- Memory limit (e.g. `256Mi`).
+      memory: null
   # -- Pod Volumes
   volumes: []
   # -- Volume Mounts for pod containers
@@ -984,7 +990,7 @@ router:
   nodeSelector: {}
   # -- Affinity
   affinity: {}
-  # Ingress -- optional Kubernetes Ingress for this service.
+  # Ingress -- optional Kubernetes Ingress for this service. Most deployments expose the router the same way as the registry service — an external load balancer or existing ingress controller routing the API host to the router's `kind: Service` on port 80, with TLS terminating there (the router itself serves plain HTTP) — and don't need this Ingress at all.
   ingress:
     # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
     enabled: false
@@ -994,13 +1000,13 @@ router:
     annotations: {}
     # -- Additional labels on the Ingress (in addition to the standard router labels).
     labels: {}
-    # -- One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host.
+    # -- One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. The default host is an EXAMPLE — you MUST replace it with your actual API hostname (or remove `host`) before enabling, or the Ingress will silently ignore requests to your real hostname.
     hosts:
     - host: api.istari.customer-domain.com
       paths:
       - path: /
         pathType: Prefix
-    # -- TLS configuration; passed through to `spec.tls[]` verbatim.
+    # -- TLS configuration; passed through to `spec.tls[]` verbatim. TLS terminates at the Ingress controller — the router behind it serves plain HTTP. Example: `tls: [{hosts: [api.customer-domain.com], secretName: api-tls-cert}]`, where the Secret is a standard TLS Secret (`kubectl create secret tls ...`) or is issued by cert-manager via annotations above.
     tls: []
     # -- Service port the Ingress targets. Defaults to 80.
     servicePort: 80

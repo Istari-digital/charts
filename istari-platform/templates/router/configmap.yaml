@@ -1,13 +1,17 @@
 {{- /*
-The Caddyfile is rendered from `router.routes` (structure from the poc-service-router
-sandbox, DPLAT-524). Each route declares a matcher covering the bare prefix and its
-subtree, strips the prefix, and forwards to the in-cluster Service; the backends serve
-these paths at root. A final catch-all returns 404 so an unmatched path is never
-proxied blindly.
+Proxy configuration for the Service Router, rendered from the chart-managed route
+table in "router.routes" (see _helpers.tpl). Each route declares a matcher covering
+the bare prefix and its subtree, strips the prefix, and forwards to the in-cluster
+Service; the backends serve these paths at root. A final catch-all returns 404 so an
+unmatched path is never proxied blindly.
 
-Mounted into the pod (not baked into the image) so the tracing values option can add
-the `tracing` directive — Caddy enables OTEL tracing only through the Caddyfile,
-not through environment variables alone.
+The config is mounted into the pod (not baked into the image) so the tracing option
+can toggle the `tracing` directive — Caddy enables OTEL tracing only through its
+config file, not through environment variables alone.
+
+The proxy implementation (currently Caddy) is an internal detail: swapping it for
+another sanctioned proxy (Envoy, nginx — see the service-router engspec) must not
+change the chart's values interface beyond router.registry/image/tag.
 */}}
 {{- $serviceValues := .Values.router -}}
 {{- if $serviceValues.enabled }}
@@ -20,8 +24,14 @@ metadata:
 data:
   {{- /* The body below indents with TABS (after the 4-space YAML block indent) — the canonical `caddy fmt` style — so Caddy doesn't log a "Caddyfile input is not formatted" warning at startup. */}}
   Caddyfile: |
+    {
+    	# The admin API is unused: config changes roll the Deployment (see the
+    	# checksum annotation), never reconfigure a live process.
+    	admin off
+    }
+
     :{{ $serviceValues.listen }} {
-    {{- if $serviceValues.tracing.enabled }}
+    {{- if eq (include "router.tracing.enabled" .) "true" }}
     	tracing
 
     {{- end }}
@@ -29,12 +39,12 @@ data:
     	handle /healthz {
     		respond "OK" 200
     	}
-    {{- range $serviceValues.routes }}
+    {{- range (include "router.routes" . | fromJsonArray) }}
 
-    	@{{ trimPrefix "/" .prefix | replace "/" "-" }} path {{ .prefix }} {{ .prefix }}/*
-    	handle @{{ trimPrefix "/" .prefix | replace "/" "-" }} {
+    	@{{ trimPrefix "/" .prefix }} path {{ .prefix }} {{ .prefix }}/*
+    	handle @{{ trimPrefix "/" .prefix }} {
     		uri strip_prefix {{ .prefix }}
-    		reverse_proxy {{ tpl .service $ }}:{{ .port }}
+    		reverse_proxy {{ .service }}:{{ .port }}
     	}
     {{- end }}
 

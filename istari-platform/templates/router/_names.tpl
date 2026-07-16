@@ -10,8 +10,9 @@ Default name/prefix for router resources
 {{- end }}
 
 {{/*
-router Caddyfile configmap name
+router proxy-config configmap name. Deliberately proxy-agnostic (not "-caddyfile"):
+swapping the proxy implementation must not rename chart resources.
 */}}
 {{- define "router.configmap.name" -}}
-{{ printf "%s-caddyfile" (include "router.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{ printf "%s-config" (include "router.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}
