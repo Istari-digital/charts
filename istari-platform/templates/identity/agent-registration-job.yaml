@@ -1,0 +1,209 @@
+{{- $serviceValues := .Values.identityService -}}
+{{- $registration := dig "identityRouterAgentRegistration" dict $serviceValues -}}
+{{- $registrationEnabled := dig "enabled" false $registration -}}
+{{- $agents := dig "agents" list $registration -}}
+{{- if and $serviceValues.enabled $registrationEnabled $agents }}
+{{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.identityRouterAgentRegistration.enabled is true" -}}
+{{- $registrationPodAnnotations := dig "podAnnotations" dict $registration -}}
+{{- $registrationPodLabels := dig "podLabels" dict $registration -}}
+{{- $registrationResources := dig "resources" dict $registration -}}
+{{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
+{{- $backoffLimit := dig "backoffLimit" 6 $registration | int -}}
+{{- range $agent := $agents }}
+{{- $_ := $agent.name | required "each identityService.identityRouterAgentRegistration.agents entry must set name" -}}
+{{- $_ := $agent.tenantSlug | required (printf "identityRouterAgentRegistration agent %q must set tenantSlug" $agent.name) -}}
+{{- $_ := $agent.keySecretKey | required (printf "identityRouterAgentRegistration agent %q must set keySecretKey" $agent.name) -}}
+{{- if and $agent.providerTenantId (not $agent.providerName) }}{{ fail (printf "identityRouterAgentRegistration agent %q sets providerTenantId but not providerName (create-tenant needs both)" $agent.name) }}{{ end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "identity.agentRegistration.jobName" (dict "root" $ "name" $agent.name) | quote }}
+  labels:
+    {{- include "identity.labels" $ | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    # After migrations (weight 5) and the router-client registration (weight 10):
+    # both create-tenant and register-agent need the schema in place.
+    helm.sh/hook-weight: "20"
+    helm.sh/hook-delete-policy: {{ if $autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+spec:
+  backoffLimit: {{ $backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "identity.labels" $ | nindent 8 }}
+        {{- with $registrationPodLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        sidecar.istio.io/inject: "false"
+        {{- with $registrationPodAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "identity.fullname" $ | quote }}
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default $.Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      # The tenant must exist before the agent references it by slug, so
+      # create-tenant runs (idempotently) as an init container and the agent is
+      # registered only after it succeeds. Both talk only to the database.
+      initContainers:
+      - name: create-tenant
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command:
+        - "/create-tenant"
+        args:
+        - "-database-url"
+        - "$(DATABASE_URL)"
+        - "-slug"
+        - {{ $agent.tenantSlug | quote }}
+        {{- with $agent.tenantDisplayName }}
+        - "-display-name"
+        - {{ . | quote }}
+        {{- end }}
+        {{- if $agent.providerTenantId }}
+        - "-provider-name"
+        - {{ $agent.providerName | quote }}
+        - "-provider-tenant-id"
+        - {{ $agent.providerTenantId | quote }}
+        {{- end }}
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: {{ $serviceValues.secretName | quote }}
+              key: "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"
+        {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.trustedCertBundle }}
+        - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
+          value: /usr/lib/ssl/cert.pem
+        - name: REQUESTS_CA_BUNDLE
+          value: /usr/lib/ssl/cert.pem
+        - name: SSL_CERT_DIR
+          value: /usr/lib/ssl/certs
+        - name: SSL_CERT_FILE
+          value: /usr/lib/ssl/cert.pem
+        {{- end }}
+        {{- with $registrationResources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if or $serviceValues.volumeMounts $.Values.trustedCertBundle }}
+        volumeMounts:
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+        {{- end }}
+      containers:
+      - name: register-agent
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command:
+        - "/register-agent"
+        # $(VAR) is expanded by Kubernetes from the env vars below, so neither the
+        # DB URL nor the agent blob appears in plaintext in the pod manifest. The
+        # agent blob is public-key material only (no private key) — register-agent
+        # verifies against, and stores, only the public half.
+        args:
+        - "-secret"
+        - "$(AGENT_KEY_BLOB)"
+        - "-database-url"
+        - "$(DATABASE_URL)"
+        - "-tenant"
+        - {{ $agent.tenantSlug | quote }}
+        {{- with $agent.username }}
+        - "-username"
+        - {{ . | quote }}
+        {{- end }}
+        {{- with $agent.displayName }}
+        - "-display-name"
+        - {{ . | quote }}
+        {{- end }}
+        env:
+        - name: AGENT_KEY_BLOB
+          valueFrom:
+            secretKeyRef:
+              name: {{ $serviceValues.secretName | quote }}
+              key: {{ $agent.keySecretKey | quote }}
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: {{ $serviceValues.secretName | quote }}
+              key: "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"
+        {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.trustedCertBundle }}
+        - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
+          value: /usr/lib/ssl/cert.pem
+        - name: REQUESTS_CA_BUNDLE
+          value: /usr/lib/ssl/cert.pem
+        - name: SSL_CERT_DIR
+          value: /usr/lib/ssl/certs
+        - name: SSL_CERT_FILE
+          value: /usr/lib/ssl/cert.pem
+        {{- end }}
+        {{- with $registrationResources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if or $serviceValues.volumeMounts $.Values.trustedCertBundle }}
+        volumeMounts:
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+        {{- end }}
+      {{- if or $serviceValues.volumes $.Values.trustedCertBundle }}
+      volumes:
+      {{- with $serviceValues.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if $.Values.trustedCertBundle }}
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" $ | quote }}
+      {{- end }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}
+{{- end }}

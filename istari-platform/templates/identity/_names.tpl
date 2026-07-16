@@ -22,3 +22,11 @@ One-shot Job that registers the registry-service identity-router client in the C
 {{- define "identity.routerClientRegistration.jobName" -}}
 {{- printf "%s-register-router-client" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end }}
+
+{{/*
+One-shot Job that provisions an agent's tenant and registers its public key.
+Call with a dict: {"root": $, "name": <agent name>}.
+*/}}
+{{- define "identity.agentRegistration.jobName" -}}
+{{- printf "%s-register-agent-%s" (include "identity.fullname" .root) .name | trunc 63 | trimSuffix "-" -}}
+{{- end }}
