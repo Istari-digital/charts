@@ -1,7 +1,7 @@
 apiVersion: v2
 name: istari-platform
 description: An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
-version: 3.21.0
+version: 3.22.0
 appVersion: 10.x.x
 type: application
 maintainers:
@@ -16,3 +16,7 @@ dependencies:
   version: "2.14.0"
   repository: "https://nats-io.github.io/k8s/helm/charts/"
   condition: nats.enabled
+- name: jaeger
+  version: "4.11.1"
+  repository: "https://jaegertracing.github.io/helm-charts"
+  condition: jaeger.enabled

@@ -17,4 +17,16 @@ metadata:
   {{- end }}
 data:
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+  {{- if dig "enabled" false (default dict .Values.jaeger) }}
+  {{- /* identity-service uses the OTLP/HTTP exporter → target Jaeger's 4318, not the gRPC 4317
+  fileservice uses. Web-container identity; init-db/db-migrate override via
+  "istari-platform.otelWorkloadEnv". */}}
+  ISTARI_DIGITAL_IDENTITY_SERVICE_OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ include "istari-platform.jaeger.otlpHttpUrl" . | quote }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+  OTEL_SERVICE_NAME: "identity-service.web"
+  OTEL_RESOURCE_ATTRIBUTES: "k8s.container.name=istari-platform"
+  OTEL_LOGS_EXPORTER: "none"
+  OTEL_METRICS_EXPORTER: "none"
+  {{- end }}
 {{- end }}
