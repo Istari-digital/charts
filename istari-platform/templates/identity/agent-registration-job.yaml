@@ -25,6 +25,7 @@
 {{- if and $agent.providerTenantId $providerTenantRef }}{{ fail (printf "identityRouterAgentRegistration agent %q sets both providerTenantId and providerTenantIdSecretKeyRef (pick one)" $agent.name) }}{{ end }}
 {{- if and $agent.username $usernameRef }}{{ fail (printf "identityRouterAgentRegistration agent %q sets both username and usernameSecretKeyRef (pick one)" $agent.name) }}{{ end }}
 {{- if and $hasProviderTenant (not $agent.providerName) }}{{ fail (printf "identityRouterAgentRegistration agent %q sets a provider tenant but not providerName (create-tenant needs both)" $agent.name) }}{{ end }}
+{{- if and $agent.providerName (not $hasProviderTenant) }}{{ fail (printf "identityRouterAgentRegistration agent %q sets providerName but no providerTenantId/providerTenantIdSecretKeyRef (both are needed to map the tenant to an upstream org)" $agent.name) }}{{ end }}
 {{- if and $providerTenantRef (or (not $providerTenantRef.name) (not $providerTenantRef.key)) }}{{ fail (printf "identityRouterAgentRegistration agent %q providerTenantIdSecretKeyRef needs both name and key" $agent.name) }}{{ end }}
 {{- if and $usernameRef (or (not $usernameRef.name) (not $usernameRef.key)) }}{{ fail (printf "identityRouterAgentRegistration agent %q usernameSecretKeyRef needs both name and key" $agent.name) }}{{ end }}
 ---

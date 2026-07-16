@@ -28,5 +28,10 @@ One-shot Job that provisions an agent's tenant and registers its public key.
 Call with a dict: {"root": $, "name": <agent name>}.
 */}}
 {{- define "identity.agentRegistration.jobName" -}}
-{{- printf "%s-register-agent-%s" (include "identity.fullname" .root) .name | trunc 63 | trimSuffix "-" -}}
+{{- /* Bound the prefix and the agent-name suffix separately so a long release
+       name can't truncate the suffix away and collide two agents' Job names.
+       30 + len("-register-agent-")=16 + 16 = 62 <= 63 (the k8s name limit). */ -}}
+{{- $prefix := include "identity.fullname" .root | trunc 30 | trimSuffix "-" -}}
+{{- $agentName := .name | trunc 16 | trimSuffix "-" -}}
+{{- printf "%s-register-agent-%s" $prefix $agentName | trimSuffix "-" -}}
 {{- end }}
