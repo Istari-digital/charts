@@ -32,8 +32,8 @@ so pre-sorting makes overlap resolution identical however the config is rendered
 {{- fail "router.extraRoutes: /healthz is reserved for the router's own health endpoint" -}}
 {{- end -}}
 {{- $service := required (printf "router.extraRoutes: service is required for prefix %s" $prefix) .service | toString -}}
-{{- if not (regexMatch "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$" $service) -}}
-{{- fail (printf "router.extraRoutes: service %q (prefix %s) is not a valid Kubernetes Service name" $service $prefix) -}}
+{{- if or (gt (len $service) 63) (not (regexMatch "^[a-z]([-a-z0-9]*[a-z0-9])?$" $service)) -}}
+{{- fail (printf "router.extraRoutes: service %q (prefix %s) is not a valid Kubernetes Service name (a DNS-1035 label: max 63 chars, lowercase letters, digits, and hyphens, starting with a letter)" $service $prefix) -}}
 {{- end -}}
 {{- $port := int (required (printf "router.extraRoutes: port is required for prefix %s" $prefix) .port) -}}
 {{- if or (lt $port 1) (gt $port 65535) -}}
@@ -52,7 +52,7 @@ so pre-sorting makes overlap resolution identical however the config is rendered
 {{- $keys := list -}}
 {{- $byKey := dict -}}
 {{- range $routes -}}
-{{- $key := printf "%03d %s" (sub 999 (len .prefix)) .prefix -}}
+{{- $key := printf "%04d %s" (sub 9999 (len .prefix)) .prefix -}}
 {{- $_ := set $byKey $key . -}}
 {{- $keys = append $keys $key -}}
 {{- end -}}
