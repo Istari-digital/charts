@@ -1,5 +1,8 @@
 {{- $serviceValues := .Values.router -}}
 {{- if and $serviceValues.enabled $serviceValues.ingress.enabled }}
+{{- if not $serviceValues.ingress.hosts -}}
+{{- fail "router.ingress.hosts must contain at least one entry when router.ingress.enabled is true" -}}
+{{- end }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
