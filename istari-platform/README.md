@@ -27,10 +27,11 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 The Service Router (`router.enabled`, default `false`) is a reverse proxy that lets clients reach every platform service through **one external API host** — the URL clients configure as `ISTARI_DIGITAL_API_URL` — instead of one DNS name per service. It routes by path prefix (`/registry` to the registry service, `/identity` to the identity service), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
 
-Routes for the platform's services are managed by the chart: a service's route is served automatically while that service is enabled, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `router.extraRoutes`. Enabling the router is one flag:
+Routes for the platform's services are managed by the chart: a service's route is served automatically while that service is enabled, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `router.extraRoutes`. Enabling the router is one line in your values file:
 
-```shell
---set router.enabled=true
+```yaml
+router:
+  enabled: true
 ```
 
 Expose it the same way as the registry service: point your external load balancer or existing ingress controller at the router's `kind: Service` on port 80, terminating TLS there (the router itself serves plain HTTP and requires no Istio). The chart can also create a Kubernetes Ingress (`router.ingress`) or Istio VirtualService (`router.virtualService`) for you. Optional per-request tracing lights up automatically when the bundled Jaeger is enabled (`jaeger.enabled`); see `router.tracing.enabled`.
