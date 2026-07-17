@@ -12,11 +12,13 @@ output "secret_file" {
     rs_zitadel_project_grant_id          = zitadel_project_grant.default.id
     rs_zitadel_secret                    = base64encode(zitadel_application_key.registry-service-key.key_details)
     rs_zitadel_user_manager_secret       = base64encode(zitadel_machine_key.registry-service-machine-key.key_details)
-    scs_zitadel_project_id               = zitadel_project.istari.id
     scs_zitadel_project_grant_id         = zitadel_project_grant.default.id
+    scs_zitadel_project_id               = zitadel_project.istari.id
     scs_zitadel_role_name                = zitadel_project_role.secure_connection_service_account.role_key
+    scs_zitadel_user_id                  = zitadel_machine_user.secure-connection-service-user.id
     scs_zitadel_user_manager_secret      = base64encode(zitadel_machine_key.secure-connection-service-machine-key.key_details)
     zitadel_domain                       = "https://${trimsuffix(var.zitadel_domain, "/")}"
+    zitadel_org_id                       = zitadel_org.default.id
   })
   sensitive = true
 }
