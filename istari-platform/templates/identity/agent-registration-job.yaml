@@ -1,18 +1,18 @@
 {{- $serviceValues := .Values.identityService -}}
-{{- $registration := dig "identityRouterAgentRegistration" dict $serviceValues -}}
+{{- $registration := dig "agentRegistration" dict $serviceValues -}}
 {{- $registrationEnabled := dig "enabled" false $registration -}}
 {{- $agents := dig "agents" list $registration -}}
 {{- if and $serviceValues.enabled $registrationEnabled $agents }}
-{{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.identityRouterAgentRegistration.enabled is true" -}}
+{{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.agentRegistration.enabled is true" -}}
 {{- $registrationPodAnnotations := dig "podAnnotations" dict $registration -}}
 {{- $registrationPodLabels := dig "podLabels" dict $registration -}}
 {{- $registrationResources := dig "resources" dict $registration -}}
 {{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
 {{- $backoffLimit := dig "backoffLimit" 6 $registration | int -}}
 {{- range $agent := $agents }}
-{{- $_ := $agent.name | required "each identityService.identityRouterAgentRegistration.agents entry must set name" -}}
-{{- $_ := $agent.tenantSlug | required (printf "identityRouterAgentRegistration agent %q must set tenantSlug" $agent.name) -}}
-{{- $_ := $agent.keySecretKey | required (printf "identityRouterAgentRegistration agent %q must set keySecretKey" $agent.name) -}}
+{{- $_ := $agent.name | required "each identityService.agentRegistration.agents entry must set name" -}}
+{{- $_ := $agent.tenantSlug | required (printf "agentRegistration agent %q must set tenantSlug" $agent.name) -}}
+{{- $_ := $agent.keySecretKey | required (printf "agentRegistration agent %q must set keySecretKey" $agent.name) -}}
 {{- /* username and providerTenantId may be given literally OR sourced from a
        secret key (usernameSecretKeyRef / providerTenantIdSecretKeyRef, each a
        {name,key}). The secret form keeps environment-specific Zitadel ids out
@@ -22,12 +22,12 @@
 {{- $providerTenantRef := $agent.providerTenantIdSecretKeyRef -}}
 {{- $hasProviderTenant := or $agent.providerTenantId $providerTenantRef -}}
 {{- $hasUsername := or $agent.username $usernameRef -}}
-{{- if and $agent.providerTenantId $providerTenantRef }}{{ fail (printf "identityRouterAgentRegistration agent %q sets both providerTenantId and providerTenantIdSecretKeyRef (pick one)" $agent.name) }}{{ end }}
-{{- if and $agent.username $usernameRef }}{{ fail (printf "identityRouterAgentRegistration agent %q sets both username and usernameSecretKeyRef (pick one)" $agent.name) }}{{ end }}
-{{- if and $hasProviderTenant (not $agent.providerName) }}{{ fail (printf "identityRouterAgentRegistration agent %q sets a provider tenant but not providerName (create-tenant needs both)" $agent.name) }}{{ end }}
-{{- if and $agent.providerName (not $hasProviderTenant) }}{{ fail (printf "identityRouterAgentRegistration agent %q sets providerName but no providerTenantId/providerTenantIdSecretKeyRef (both are needed to map the tenant to an upstream org)" $agent.name) }}{{ end }}
-{{- if and $providerTenantRef (or (not $providerTenantRef.name) (not $providerTenantRef.key)) }}{{ fail (printf "identityRouterAgentRegistration agent %q providerTenantIdSecretKeyRef needs both name and key" $agent.name) }}{{ end }}
-{{- if and $usernameRef (or (not $usernameRef.name) (not $usernameRef.key)) }}{{ fail (printf "identityRouterAgentRegistration agent %q usernameSecretKeyRef needs both name and key" $agent.name) }}{{ end }}
+{{- if and $agent.providerTenantId $providerTenantRef }}{{ fail (printf "agentRegistration agent %q sets both providerTenantId and providerTenantIdSecretKeyRef (pick one)" $agent.name) }}{{ end }}
+{{- if and $agent.username $usernameRef }}{{ fail (printf "agentRegistration agent %q sets both username and usernameSecretKeyRef (pick one)" $agent.name) }}{{ end }}
+{{- if and $hasProviderTenant (not $agent.providerName) }}{{ fail (printf "agentRegistration agent %q sets a provider tenant but not providerName (create-tenant needs both)" $agent.name) }}{{ end }}
+{{- if and $agent.providerName (not $hasProviderTenant) }}{{ fail (printf "agentRegistration agent %q sets providerName but no providerTenantId/providerTenantIdSecretKeyRef (both are needed to map the tenant to an upstream org)" $agent.name) }}{{ end }}
+{{- if and $providerTenantRef (or (not $providerTenantRef.name) (not $providerTenantRef.key)) }}{{ fail (printf "agentRegistration agent %q providerTenantIdSecretKeyRef needs both name and key" $agent.name) }}{{ end }}
+{{- if and $usernameRef (or (not $usernameRef.name) (not $usernameRef.key)) }}{{ fail (printf "agentRegistration agent %q usernameSecretKeyRef needs both name and key" $agent.name) }}{{ end }}
 ---
 apiVersion: batch/v1
 kind: Job
