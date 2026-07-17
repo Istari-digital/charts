@@ -91,10 +91,15 @@ spec:
         {{- if $hasProviderTenant }}
         - "-provider-name"
         - {{ $agent.providerName | quote }}
-        - "-provider-tenant-id"
         {{- if $providerTenantRef }}
-        - "$(CT_PROVIDER_TENANT_ID)"
+        # Read the id from the (optional) env var below by name. When the
+        # integration is disabled the secret key is absent, so create-tenant
+        # sees an empty value and skips the provider mapping (the tenant is
+        # still ensured) instead of receiving the literal "$(CT_PROVIDER_TENANT_ID)".
+        - "-provider-tenant-id-env"
+        - "CT_PROVIDER_TENANT_ID"
         {{- else }}
+        - "-provider-tenant-id"
         - {{ $agent.providerTenantId | quote }}
         {{- end }}
         {{- end }}
@@ -110,6 +115,10 @@ spec:
             secretKeyRef:
               name: {{ $providerTenantRef.name | quote }}
               key: {{ $providerTenantRef.key | quote }}
+              # optional so a disabled integration (key not yet provisioned)
+              # leaves the var unset and create-tenant skips the mapping, rather
+              # than the pod failing to start with a missing-secret-key error.
+              optional: true
         {{- end }}
         {{- with $serviceValues.env }}
         {{- toYaml . | nindent 8 }}
@@ -149,22 +158,26 @@ spec:
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         command:
         - "/register-agent"
-        # $(VAR) is expanded by Kubernetes from the env vars below, so neither the
-        # DB URL nor the agent blob appears in plaintext in the pod manifest. The
-        # agent blob is public-key material only (no private key) — register-agent
-        # verifies against, and stores, only the public half.
+        # The agent blob and (ref-sourced) username are read from the optional env
+        # vars below BY NAME (-secret-env / -username-env), not via $(VAR): when the
+        # integration is disabled the secret keys are absent, so register-agent sees
+        # an empty value and skips as a no-op. A $(VAR) reference to a missing var
+        # would instead pass the literal "$(AGENT_KEY_BLOB)" and fail the Job. The
+        # DB URL stays a $(VAR) arg (always present). The agent blob is public-key
+        # material only (no private key) — register-agent stores only the public half.
         args:
-        - "-secret"
-        - "$(AGENT_KEY_BLOB)"
+        - "-secret-env"
+        - "AGENT_KEY_BLOB"
         - "-database-url"
         - "$(DATABASE_URL)"
         - "-tenant"
         - {{ $agent.tenantSlug | quote }}
         {{- if $hasUsername }}
-        - "-username"
         {{- if $usernameRef }}
-        - "$(RA_USERNAME)"
+        - "-username-env"
+        - "RA_USERNAME"
         {{- else }}
+        - "-username"
         - {{ $agent.username | quote }}
         {{- end }}
         {{- end }}
@@ -178,6 +191,10 @@ spec:
             secretKeyRef:
               name: {{ $serviceValues.secretName | quote }}
               key: {{ $agent.keySecretKey | quote }}
+              # optional so a disabled integration (agent key not yet provisioned)
+              # leaves the var unset and register-agent skips as a no-op, rather
+              # than the pod failing to start with a missing-secret-key error.
+              optional: true
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
@@ -189,6 +206,7 @@ spec:
             secretKeyRef:
               name: {{ $usernameRef.name | quote }}
               key: {{ $usernameRef.key | quote }}
+              optional: true
         {{- end }}
         {{- with $serviceValues.env }}
         {{- toYaml . | nindent 8 }}
