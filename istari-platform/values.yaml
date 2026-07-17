@@ -888,9 +888,10 @@ docs:
 # /identity for the identity service. The router matches each prefix, strips it, and
 # forwards the request to the right in-cluster service; unrecognized paths get a 404.
 #
-# Routes are managed by the chart and need no configuration here: a service's route is
-# served automatically while that service is enabled (e.g. /identity appears once
-# identityService.enabled is true).
+# Routes for the platform's services are managed by the chart and need no configuration
+# here: a service's route is served automatically while that service is enabled (e.g.
+# /identity appears once identityService.enabled is true). Prefixes for services this
+# chart does not deploy can be attached via `router.extraRoutes`.
 #
 # The proxy software inside the router (currently Caddy) is an internal detail and may
 # change in a future release; such a change will never require values changes beyond
@@ -910,6 +911,13 @@ router:
   extraEnvSecrets: []
   # -- Port the proxy container listens on. The router's `kind: Service` receives traffic on port 80 and forwards it here; you should never need to change this.
   listen: 8080
+  # -- Additional path-prefix routes served alongside the chart-managed ones, for reaching in-cluster services this chart does not deploy. Each entry maps a URL path prefix to a Kubernetes Service: the router matches the prefix and everything under it (never other prefixes that merely share its leading characters), strips it, and forwards the request to `service:port` over plain HTTP. A prefix must start with `/`, must not end with `/`, may use letters, digits, `-`, `_`, and `/` segment separators, and may not duplicate a chart-managed route or the reserved `/healthz` — invalid entries fail the render. When prefixes overlap, the longest match wins. Most deployments should leave this empty: routes for platform services are built into the chart and appear automatically.
+  extraRoutes: []
+  # # Example:
+  # extraRoutes:
+  # - prefix: /jobs
+  #   service: my-jobs-service
+  #   port: 8080
   # Tracing -- optional per-request tracing through the router, viewable in the bundled Jaeger UI (see `jaeger.enabled`). Useful when troubleshooting routing or latency issues.
   tracing:
     # -- (bool/null) Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `router.env`, or via a Secret listed in `router.extraEnvSecrets`.

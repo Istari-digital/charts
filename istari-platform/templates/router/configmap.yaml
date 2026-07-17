@@ -1,9 +1,10 @@
 {{- /*
-Proxy configuration for the Service Router, rendered from the chart-managed route
-table in "router.routes" (see _helpers.tpl). Each route declares a matcher covering
-the bare prefix and its subtree, strips the prefix, and forwards to the in-cluster
-Service; the backends serve these paths at root. A final catch-all returns 404 so an
-unmatched path is never proxied blindly.
+Proxy configuration for the Service Router, rendered from the route table in
+"router.routes" (see _helpers.tpl: chart-managed routes plus validated
+`router.extraRoutes`, sorted longest-prefix-first). Each route declares a matcher
+covering the bare prefix and its subtree, strips the prefix, and forwards to the
+in-cluster Service; the backends serve these paths at root. A final catch-all
+returns 404 so an unmatched path is never proxied blindly.
 
 The config is mounted into the pod (not baked into the image) so the tracing option
 can toggle the `tracing` directive — Caddy enables OTEL tracing only through its
@@ -40,9 +41,11 @@ data:
     		respond "OK" 200
     	}
     {{- range (include "router.routes" . | fromJsonArray) }}
+    {{- /* Matcher names can't contain "/", so multi-segment prefixes flatten to dashes. */}}
+    {{- $matcher := trimPrefix "/" .prefix | replace "/" "-" }}
 
-    	@{{ trimPrefix "/" .prefix }} path {{ .prefix }} {{ .prefix }}/*
-    	handle @{{ trimPrefix "/" .prefix }} {
+    	@{{ $matcher }} path {{ .prefix }} {{ .prefix }}/*
+    	handle @{{ $matcher }} {
     		uri strip_prefix {{ .prefix }}
     		reverse_proxy {{ .service }}:{{ .port }}
     	}

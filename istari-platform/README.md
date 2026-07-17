@@ -27,7 +27,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 The Service Router (`router.enabled`, default `false`) is a reverse proxy that lets clients reach every platform service through **one external API host** — the URL clients configure as `ISTARI_DIGITAL_API_URL` — instead of one DNS name per service. It routes by path prefix (`/registry` to the registry service, `/identity` to the identity service), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
 
-Routes are managed by the chart: a service's route is served automatically while that service is enabled, and no route configuration is needed or possible in values. Enabling the router is one flag:
+Routes for the platform's services are managed by the chart: a service's route is served automatically while that service is enabled, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `router.extraRoutes`. Enabling the router is one flag:
 
 ```shell
 --set router.enabled=true
@@ -363,6 +363,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | router.enabled | bool | `false` | Enable / Disable the whole deployment |
 | router.env | list | `[]` | Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `router.tracing.enabled`). |
 | router.extraEnvSecrets | list | `[]` | Names of Kubernetes Secrets whose keys become environment variables in the proxy container. Not needed for a standard deployment. (Unlike the other services, the router has no separate `secretName` — this list is the only Secret mechanism.) |
+| router.extraRoutes | list | `[]` | Additional path-prefix routes served alongside the chart-managed ones, for reaching in-cluster services this chart does not deploy. Each entry maps a URL path prefix to a Kubernetes Service: the router matches the prefix and everything under it (never other prefixes that merely share its leading characters), strips it, and forwards the request to `service:port` over plain HTTP. A prefix must start with `/`, must not end with `/`, may use letters, digits, `-`, `_`, and `/` segment separators, and may not duplicate a chart-managed route or the reserved `/healthz` — invalid entries fail the render. When prefixes overlap, the longest match wins. Most deployments should leave this empty: routes for platform services are built into the chart and appear automatically. |
 | router.image | string | `"istaridigital.com/caddy-fips"` | Image name. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS Caddy variant in the Istari customer-docker JFrog repo, pulled with the same credentials as the rest of the chart. |
 | router.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | router.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
