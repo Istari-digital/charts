@@ -11,6 +11,10 @@
 {{- $backoffLimit := dig "backoffLimit" 6 $registration | int -}}
 {{- range $agent := $agents }}
 {{- $_ := $agent.name | required "each identityService.agentRegistration.agents entry must set name" -}}
+{{- /* name is used to build the Job name (see _names.tpl, which lowercases and
+       maps "_"→"-"), but other characters (spaces, dots, slashes) would render an
+       invalid resource name that only fails at apply time — validate up front. */ -}}
+{{- if not (regexMatch "^[A-Za-z0-9_-]+$" $agent.name) }}{{ fail (printf "agentRegistration agent %q: name must be a DNS-safe identifier (letters, digits, hyphens, underscores only)" $agent.name) }}{{ end }}
 {{- $_ := $agent.tenantSlug | required (printf "agentRegistration agent %q must set tenantSlug" $agent.name) -}}
 {{- $_ := $agent.keySecretKey | required (printf "agentRegistration agent %q must set keySecretKey" $agent.name) -}}
 {{- /* username and providerTenantId may be given literally OR sourced from a
