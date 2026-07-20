@@ -67,3 +67,50 @@ Renders no leading conditional; callers gate the include behind their own `if $n
 - name: FILE_SERVICE_ALLOWED_IDS_CACHE_ENABLED
   value: "true"
 {{- end }}
+
+{{/*
+Name of the Jaeger Service created by the subchart. Must mirror the subchart's own
+`jaeger.fullname` helper (fullnameOverride, else nameOverride/release-name rules) so the name
+stays in sync however the user overrides naming.
+*/}}
+{{- define "istari-platform.jaeger.fullname" -}}
+{{- $jaegerValues := default dict .Values.jaeger -}}
+{{- if $jaegerValues.fullnameOverride -}}
+  {{- $jaegerValues.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+  {{- $jaegerName := default "jaeger" $jaegerValues.nameOverride -}}
+  {{- if contains $jaegerName .Release.Name -}}
+    {{- .Release.Name | trunc 63 | trimSuffix "-" -}}
+  {{- else -}}
+    {{- printf "%s-%s" .Release.Name $jaegerName | trunc 63 | trimSuffix "-" -}}
+  {{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+In-cluster Jaeger OTLP gRPC URL. Resolves to `http://<jaeger-service-name>:4317` via the fullname helper above. Used by templates that auto-inject `OTEL_EXPORTER_OTLP_ENDPOINT` for gRPC exporters (fileservice) when `jaeger.enabled` is true.
+*/}}
+{{- define "istari-platform.jaeger.otlpUrl" -}}
+{{- printf "http://%s:4317" (include "istari-platform.jaeger.fullname" .) -}}
+{{- end }}
+
+{{/*
+In-cluster Jaeger OTLP HTTP URL. Resolves to `http://<jaeger-service-name>:4318` via the fullname helper above. Used by templates that auto-inject `OTEL_EXPORTER_OTLP_ENDPOINT` for OTLP/HTTP exporters (identity-service) when `jaeger.enabled` is true.
+*/}}
+{{- define "istari-platform.jaeger.otlpHttpUrl" -}}
+{{- printf "http://%s:4318" (include "istari-platform.jaeger.fullname" .) -}}
+{{- end }}
+
+{{/*
+Per-workload OTEL identity for init/migration containers, named `<service>.<subservice>`.
+Context is a dict of "service" and "container" (the container name doubles as the subservice);
+web containers get their identity from their service's defaults ConfigMap instead. Explicit env
+so it overrides that ConfigMap, rendered BEFORE user `env` so the service's `env` values still
+win (Secrets can't override these two). Callers gate behind their own `if $jaegerEnabled`.
+*/}}
+{{- define "istari-platform.otelWorkloadEnv" -}}
+- name: OTEL_SERVICE_NAME
+  value: {{ printf "%s.%s" .service .container | quote }}
+- name: OTEL_RESOURCE_ATTRIBUTES
+  value: {{ printf "k8s.container.name=%s" .container | quote }}
+{{- end }}

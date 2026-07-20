@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.20.1](https://img.shields.io/badge/Version-3.20.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.22.0](https://img.shields.io/badge/Version-3.22.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -16,11 +16,12 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 | Repository | Name | Version |
 |------------|------|---------|
-| https://istaridigital.jfrog.io/artifactory/main-helm-local | dgraph-sec | 0.4.7 |
+| https://istaridigital.jfrog.io/artifactory/main-helm-local | dgraph-sec | 0.6.1 |
+| https://jaegertracing.github.io/helm-charts | jaeger | 4.11.1 |
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |
 
 > [!NOTE]
-> The `nats` and `dgraph-sec` dependencies are **optional** (`nats.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
+> The `nats`, `jaeger`, and `dgraph-sec` dependencies are **optional** (`nats.enabled` / `jaeger.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
 
 ## Values
 
@@ -260,6 +261,21 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | identityService.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | identityService.volumes | list | `[]` | Pod Volumes |
 | imagePullSecrets[0].name | string | `"docker-pull-secret"` |  |
+| jaeger.enabled | bool | `false` | Enable / Disable the Jaeger subchart. When `false`, the subchart is not rendered at all and no OTEL env vars are injected into fileservice or identity-service. |
+| jaeger.fullnameOverride | string | `"jaeger"` | Override the Jaeger resource name prefix. With the default `jaeger`, the in-cluster OTLP endpoints are `http://jaeger:4317` (gRPC) and `http://jaeger:4318` (HTTP). The injected `OTEL_EXPORTER_OTLP_ENDPOINT` values and the post-install notes track this override automatically. |
+| jaeger.jaeger.extraEnv | list | `[{"name":"OTEL_TRACES_SAMPLER","value":"always_off"}]` | Extra env for the Jaeger container. `OTEL_TRACES_SAMPLER=always_off` disables Jaeger v2's self-tracing: the OpenTelemetry Collector SDK inside Jaeger otherwise traces its own query/ingest operations, storing them alongside real traces (every UI search generates `jaeger` spans) and exporting them to any external OTLP destination (e.g. an OpenTelemetry Collector fanning traces out to Datadog). Ingestion of application traces is unaffected — the sampler only governs Jaeger's own internal SDK. Remove this entry if you need Jaeger's internal traces to debug Jaeger itself. |
+| jaeger.jaeger.extraVolumeMounts | list | `[{"mountPath":"/badger","name":"badger-data"}]` | Mounts the Badger storage volume at the path referenced by `jaeger.userconfig`. |
+| jaeger.jaeger.extraVolumes | list | `[{"name":"badger-data","persistentVolumeClaim":{"claimName":"jaeger-badger"}}]` | Volumes for the Badger storage directories. References the `jaeger-badger` PVC created by this chart when `jaeger.persistence.enabled` is true — keep the claim name in sync if you change `jaeger.persistence`. |
+| jaeger.jaeger.image.pullSecrets | list | `["docker-pull-secret"]` | Image pull secret names applied to the Jaeger Pod. The umbrella chart's top-level `imagePullSecrets` does not propagate to subcharts, so this is set explicitly. Defaults to `docker-pull-secret` to match the rest of the istari-platform chart. |
+| jaeger.jaeger.image.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Jaeger image registry. Defaults to the Istari customer-docker JFrog repo. |
+| jaeger.jaeger.image.repository | string | `"istaridigital.com/jaeger-all-in-one-fips"` | Jaeger image repository. Defaults to the Chainguard FIPS variant of Jaeger v2 (the `2.x` tags of this repo are the Jaeger v2 binary). |
+| jaeger.jaeger.image.tag | string | `"2.17.0"` | Jaeger image tag. |
+| jaeger.jaeger.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"runAsNonRoot":true}` | Container `securityContext` for the Jaeger container, matching the hardening applied to the rest of the istari-platform chart. The subchart's default Pod-level securityContext (uid/gid/fsGroup 10001) is kept so the Badger PVC is writable by the non-root user. |
+| jaeger.persistence.annotations | object | `{}` | Additional annotations for the Badger PVC. |
+| jaeger.persistence.enabled | bool | `true` | Create a PersistentVolumeClaim named `jaeger-badger` for Badger trace storage. The PVC is deleted on `helm uninstall` (trace history is disposable). Note: block-storage PVCs are zonal on AWS/Azure — the Jaeger Pod becomes pinned to the volume's availability zone (on Azure, a ZRS storage class avoids this). Disable only if you also switch `jaeger.userconfig` to in-memory storage and set `jaeger.jaeger.extraVolumes` / `jaeger.jaeger.extraVolumeMounts` to `[]` (see the `jaeger.userconfig` comment for the full recipe; the chart refuses to render a half-configured state). |
+| jaeger.persistence.size | string | `"10Gi"` | Size of the Badger PVC. Retention is TIME-based only (`ttl.spans` in `jaeger.userconfig`, default 72h): Badger does NOT evict old data under disk pressure. A full volume stops trace collection and can wedge Badger's garbage collection (reclaiming space itself needs free disk), potentially crash-looping the Pod. Size with headroom — 10Gi over 72h ≈ 40 KB/s of stored spans, and expired data is reclaimed lazily — and alert on PVC usage (`kubelet_volume_stats_used_bytes`) around 80%. Increasing this value expands the volume in place when the StorageClass allows expansion; to reduce trace volume, lower `ttl.spans` or sample at the source. Trace history is disposable: deleting the PVC and restarting the Pod is a valid recovery. |
+| jaeger.persistence.storageClassName | string | `""` | StorageClass for the Badger PVC. Empty string uses the cluster's default StorageClass. |
+| jaeger.userconfig | object | `{"exporters":{"jaeger_storage_exporter":{"trace_storage":"primary_store"}},"extensions":{"healthcheckv2":{"http":{"endpoint":"0.0.0.0:13133"},"use_v2":true},"jaeger_query":{"storage":{"traces":"primary_store"}},"jaeger_storage":{"backends":{"primary_store":{"badger":{"directories":{"keys":"/badger/keys","values":"/badger/values"},"ephemeral":false,"ttl":{"spans":"72h"}}}}}},"processors":{"batch":{}},"receivers":{"otlp":{"protocols":{"grpc":{"endpoint":"0.0.0.0:4317"},"http":{"endpoint":"0.0.0.0:4318"}}}},"service":{"extensions":["jaeger_storage","jaeger_query","healthcheckv2"],"pipelines":{"traces":{"exporters":["jaeger_storage_exporter"],"processors":["batch"],"receivers":["otlp"]}}}}` | Jaeger v2 configuration (passed to the binary via `--config`). REQUIRED: without a config file Jaeger v2 binds OTLP to localhost only (unreachable from other Pods) and serves no health endpoint on port 13133, so the subchart's probes would crash-loop the Pod. This default enables OTLP gRPC/HTTP ingest on all interfaces, the query UI, and Badger storage with a 72h span TTL. To use ephemeral in-memory storage instead: replace the `badger:` block with `memory: {max_traces: 100000}`, set `jaeger.jaeger.extraVolumes`/`extraVolumeMounts` to `[]`, and set `jaeger.persistence.enabled: false`. |
 | mcp.affinity | object | `{}` | Affinity |
 | mcp.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
 | mcp.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |

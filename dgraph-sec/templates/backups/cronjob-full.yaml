@@ -61,12 +61,15 @@ spec:
 
                 ## Use Single Alpha in Cluster to avoid potential issues with concurrent backups
                 ## ref. https://discuss.dgraph.io/t/concurrent-backups-can-lead-to-issues/9934/2
-                ALPHA_HOST="{{ template "dgraph-sec.alpha.fullname" . }}-0.{{ template "dgraph-sec.alpha.fullname" . }}-headless.${POD_NAMESPACE}.svc"
+                ## Alpha-0 headless FQDN incl. the cluster domain, so it matches the
+                ## cert SANs that scripts/make_tls_secrets.sh issues and the host the ACL bootstrap
+                ## Job targets — curl hostname verification under native TLS passes.
+                ALPHA_HOST="{{ template "dgraph-sec.alpha.fullname" . }}-0.{{ template "dgraph-sec.alpha.fullname" . }}-headless.${POD_NAMESPACE}.svc{{ include "dgraph-sec.domainSuffix" . }}"
 
-                BACKUP_DESTINATION={{ .Values.backups.destination }}
-                SUBPATH={{ .Values.backups.subpath }}
-                API_TYPE={{ template "dgraph-sec.backupsApiType" . }}
-                MINIO_SECURE={{ .Values.backups.minioSecure }}
+                BACKUP_DESTINATION="{{ .Values.backups.destination }}"
+                SUBPATH="{{ .Values.backups.subpath }}"
+                API_TYPE="{{ template "dgraph-sec.backupsApiType" . }}"
+                MINIO_SECURE="{{ .Values.backups.minioSecure }}"
 
                 ## Get Tokens
                 {{- if .Values.backups.admin.auth_token }}
@@ -85,7 +88,7 @@ spec:
             volumeMounts:
             - name: backup-config-volume
               mountPath: /scripts
-            {{- if .Values.alpha.tls.enabled }}
+            {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true" }}
             - name: tls-volume
               mountPath: /dgraph/tls
             {{- end }}
@@ -108,7 +111,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            {{- if .Values.alpha.tls.enabled }}
+            {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true" }}
             - name: CACERT_PATH
               value: /dgraph/tls/ca.crt
             {{- if .Values.backups.admin.tls_client }}
@@ -123,7 +126,7 @@ spec:
           - name: backup-config-volume
             configMap:
               name: {{ template "dgraph-sec.backups.fullname" . }}-config
-          {{- if .Values.alpha.tls.enabled }}
+          {{- if eq (include "dgraph-sec.nativeTLS" (dict "ctx" . "tls" .Values.alpha.tls)) "true" }}
           - name: tls-volume
             secret:
               secretName: {{ template "dgraph-sec.alpha.fullname" . }}-tls-secret

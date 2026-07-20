@@ -341,11 +341,8 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
 {{- define "dgraph-sec.peerZero" -}}
   {{- $zeroFullName := include "dgraph-sec.zero.fullname" . -}}
 
-  {{- /* Append domain suffix if domain is used */}}
-  {{- $domainSuffix := "" -}}
-  {{- if .Values.global.domain -}}
-  {{- $domainSuffix = printf ".%s" .Values.global.domain -}}
-  {{- end -}}
+  {{- /* Append the cluster-domain suffix (trimmed, omitted when empty). */}}
+  {{- $domainSuffix := include "dgraph-sec.domainSuffix" . -}}
 
   {{- printf "%s-%d.%s-headless.${POD_NAMESPACE}.svc%s:5080" $zeroFullName 0 $zeroFullName $domainSuffix -}}
 {{- end -}}
@@ -376,11 +373,8 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
   {{- $zeroFullName := include "dgraph-sec.zero.fullname" . -}}
   {{- $max := int .Values.zero.replicaCount -}}
 
-  {{- /* Append domain suffix if domain is used */}}
-  {{- $domainSuffix := "" -}}
-  {{- if .Values.global.domain -}}
-  {{- $domainSuffix = printf ".%s" .Values.global.domain -}}
-  {{- end -}}
+  {{- /* Append the cluster-domain suffix (trimmed, omitted when empty). */}}
+  {{- $domainSuffix := include "dgraph-sec.domainSuffix" . -}}
 
   {{- /* Create comma-separated list of zeros */}}
   {{- range $idx := until $max }}
@@ -394,12 +388,36 @@ tags.datadoghq.com/{{ $containerName }}.service: {{ $fullService }}
 {{- /* native-TLS-active for a tier: no service mesh AND the tier's TLS is on.
        Pass a dict {"ctx": ., "tls": .Values.alpha.tls}.
        Returns the STRING "true" or "" (empty) -- NOT a boolean. Compare it as a
-       string: eq (include "dgraph-sec.nativeTLS" ...) "true". Callers store that
-       result once in a $nativeTLS bool and reuse it. It is the single predicate
-       that gates --tls synthesis, the HTTPS probe scheme, and the ACL bootstrap
-       Job's TLS client. */}}
+       string: eq (include "dgraph-sec.nativeTLS" ...) "true". Callers should
+       generally store that result once in a $nativeTLS bool and reuse it, though
+       a few inline the include directly. It is the single predicate
+       that gates --tls synthesis, the HTTPS probe scheme, the ACL bootstrap Job's
+       TLS client, and the backup CronJobs' TLS client (CACERT, HTTPS, and the
+       cert-Secret mount). The alpha-0 headless FQDN those Jobs target is set
+       unconditionally, not gated by this. */}}
 {{- define "dgraph-sec.nativeTLS" -}}
 {{- if and (not .ctx.Values.serviceMesh.enabled) .tls.enabled -}}true{{- end -}}
+{{- end -}}
+
+{{- /* Does this tls block force every client to present a certificate?
+
+       client-auth-type mirrors Go's crypto/tls.ClientAuthType, which separates
+       "require" from "verify". REQUIREANY and REQUIREANDVERIFY are the only values
+       that force a cert (REQUIREANY never verifies it, REQUIREANDVERIFY does).
+       VERIFYIFGIVEN leaves the cert optional but verifies one that is presented;
+       REQUEST asks for a cert and neither requires nor verifies it; "" and OFF
+       disable client auth outright.
+
+       Returns the STRING "true" or "" (empty) -- NOT a boolean, same contract as
+       dgraph-sec.nativeTLS above. Compare it as a string:
+       eq (include "dgraph-sec.tls.certRequired" (dict "tls" .Values.alpha.tls)) "true".
+
+       Single source of truth for the alpha/zero probe guards and for what NOTES.txt
+       tells operators to bring. Keep them reading from here: an inline re-derivation
+       drifts. */}}
+{{- define "dgraph-sec.tls.certRequired" -}}
+{{- $t := .tls.clientAuthType | default "" -}}
+{{- if or (eq $t "REQUIREANDVERIFY") (eq $t "REQUIREANY") -}}true{{- end -}}
 {{- end -}}
 
 {{- /* Cluster-domain suffix for in-cluster FQDNs: ".<global.domain>" with the

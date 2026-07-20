@@ -1,0 +1,103 @@
+# Reference values for running dgraph-sec locally on a Docker Desktop Kubernetes
+# cluster, without a service mesh. Verified end to end: a single Alpha + Zero with
+# ACL on, the post-install bootstrap, and the conformance validator all come up and
+# pass.
+#
+# This is a LOCAL/DEV profile, not a production template:
+#   - persistence is off (data is ephemeral, lost on pod restart),
+#   - resources are shrunk to fit a laptop,
+#   - the ACL whitelist is broad (private ranges) rather than a tight pod CIDR.
+#
+# See "Running locally on Docker Desktop" in the chart README's Configuration
+# section for the install walkthrough (namespace, pull Secret, ACL Secret, helm install).
+
+image:
+  # Pull the dgraph-sec image from JFrog. Create this Secret first (see the docs):
+  #   kubectl create secret generic jfrog-pull --type=kubernetes.io/dockerconfigjson \
+  #     --from-file=.dockerconfigjson="$HOME/.docker/config.json" -n <namespace>
+  pullSecrets:
+  - jfrog-pull
+
+# No mesh locally. serviceMesh.enabled=true keeps Dgraph plaintext on 8080 and the
+# in-cluster clients talk http; there is no mTLS to enforce without a mesh.
+serviceMesh:
+  enabled: true
+
+zero:
+  replicaCount: 1
+  shardReplicaCount: 1
+  antiAffinity: soft
+  # One replica locally, so disable the PodDisruptionBudget. The chart default
+  # (minAvailable: 2) can never be satisfied by a single pod, and `helm install
+  # --wait` treats such a PDB as never-ready, which hangs the install.
+  pdb:
+    enabled: false
+  persistence:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+alpha:
+  replicaCount: 1
+  shardReplicaCount: 1
+  antiAffinity: soft
+  # Single replica: disable the PDB (see the zero note above) so `helm install
+  # --wait` does not hang on an unsatisfiable minAvailable: 2.
+  pdb:
+    enabled: false
+  # Without a mesh, in-cluster callers (the ACL bootstrap Job, the validator, the
+  # backup CronJobs) reach Alpha through its ClusterIP Service and are SNAT'd to a
+  # node IP that Dgraph's ACL rejects ("unauthorized ip address"). Whitelist the
+  # cluster's private ranges so admin login from other pods is trusted. Scope this
+  # to your real pod CIDR in production. See "Authentication: Dgraph ACL" in the
+  # chart README's Configuration section.
+  extraFlags: '--security "whitelist=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"'
+  persistence:
+    enabled: false
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      memory: 2Gi
+  acl:
+    enabled: true
+    # Pre-create this Secret with hmac_secret_file (>=32 bytes), groot_password,
+    # and istari-admin_password (see the docs). The chart does not generate it here.
+    existingSecret: dgraph-sec-acl-local
+    bootstrap:
+      enabled: true
+      existingSecret: dgraph-sec-acl-local
+      grootPasswordSecretKey: groot_password
+      users:
+      - name: istari-admin
+        passwordSecretKey: istari-admin_password
+        groups: [guardians]
+
+# Backups need S3 + pod identity; off for local.
+backups:
+  full:
+    enabled: false
+  incremental:
+    enabled: false
+
+# Post-install conformance validator: a hook Job that gates the release (a failed
+# check fails the install) plus `helm test`. Logs in as istari-admin and checks
+# health, membership, ACL enforcement, an authenticated query, and per-user login.
+validation:
+  enabled: true
+  job:
+    enabled: true  # post-install hook that gates the release
+  cronjob:
+    enabled: true  # suspended manual-trigger CronJob
+  rbac:
+    enabled: false  # no backup-CronJob check locally, so no API RBAC needed
+  checkBackups: false
+  adminUser: istari-admin
+  adminPasswordSecretKey: istari-admin_password
+  retries: 30
+  retrySleep: 6
