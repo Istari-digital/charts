@@ -45,6 +45,8 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ include "router.fullname" . | quote }}
+      {{- /* The router never talks to the Kubernetes API, and it is the pod most exposed to external traffic — don't mount an API token into it. */}}
+      automountServiceAccountToken: false
       {{- with $serviceValues.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
