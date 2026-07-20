@@ -63,6 +63,9 @@ spec:
     spec:
       restartPolicy: Never
       serviceAccountName: {{ include "identity.fullname" $ | quote }}
+      # create-tenant/register-agent only read secrets (secretKeyRef) and talk to
+      # the database; they never call the Kubernetes API, so don't mount an SA token.
+      automountServiceAccountToken: false
       {{- with $serviceValues.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
