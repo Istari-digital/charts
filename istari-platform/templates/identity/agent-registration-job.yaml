@@ -4,35 +4,40 @@
 {{- $agents := dig "agents" list $registration -}}
 {{- if and $serviceValues.enabled $registrationEnabled $agents }}
 {{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.agentRegistration.enabled is true" -}}
+{{- /* The hook (weight 20) assumes the DB schema exists. That only holds when
+       migrations run as a pre-upgrade hook (weight 5), i.e. migrations.runAsJob=true.
+       With runAsJob=false migrations run as a Deployment initContainer — after all
+       hooks — so create-tenant/register-agent would hit a missing schema on a fresh
+       install or schema-changing upgrade. Require the safe mode up front. */ -}}
+{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identityService.agentRegistration.enabled requires identityService.migrations.runAsJob=true, so DB migrations run as a pre-upgrade hook before the agent-registration hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and create-tenant/register-agent would run against a missing schema" }}{{ end }}
 {{- $registrationPodAnnotations := dig "podAnnotations" dict $registration -}}
 {{- $registrationPodLabels := dig "podLabels" dict $registration -}}
 {{- $registrationResources := dig "resources" dict $registration -}}
 {{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
 {{- $backoffLimit := dig "backoffLimit" 6 $registration | int -}}
+{{- /* Secrets mounted (envFrom) into every agent Job, in addition to
+       identityService.secretName. Put the secret(s) holding each agent's blob and
+       — via the configurator — its username/org id here, the same way services
+       mount config with secretName + extraEnvSecrets. */ -}}
+{{- $registrationExtraEnvSecrets := dig "extraEnvSecrets" list $registration -}}
+{{- /* Canonical identity-service DB URL key; present in secretName, surfaced as an
+       env var by envFrom and read via the CLIs' -database-url-env flag. */ -}}
+{{- $dbURLEnv := "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" -}}
 {{- range $agent := $agents }}
 {{- $_ := $agent.name | required "each identityService.agentRegistration.agents entry must set name" -}}
-{{- /* The agent name feeds identity.agentRegistration.jobName, which lowercases it
-       and maps "_"→"-" when building the Job name; other characters (spaces, dots,
-       slashes) would produce an invalid resource name that only fails at apply
-       time, so validate the allowed set up front. */ -}}
+{{- /* name feeds identity.agentRegistration.jobName, which lowercases it and maps
+       "_"→"-" for the Job name; other characters (spaces, dots, slashes) would
+       produce an invalid resource name that only fails at apply time. */ -}}
 {{- if not (regexMatch "^[A-Za-z0-9_-]+$" $agent.name) }}{{ fail (printf "agentRegistration agent %q: name may contain only letters, digits, hyphens, and underscores" $agent.name) }}{{ end }}
 {{- $_ := $agent.tenantSlug | required (printf "agentRegistration agent %q must set tenantSlug" $agent.name) -}}
-{{- $_ := $agent.keySecretKey | required (printf "agentRegistration agent %q must set keySecretKey" $agent.name) -}}
-{{- /* username and providerTenantId may be given literally OR sourced from a
-       secret key (usernameSecretKeyRef / providerTenantIdSecretKeyRef, each a
-       {name,key}). The secret form keeps environment-specific Zitadel ids out
-       of values — the configurator publishes them; the hook reads them by key
-       (DPLAT-513). Literal and ref are mutually exclusive per field. */ -}}
-{{- $usernameRef := $agent.usernameSecretKeyRef -}}
-{{- $providerTenantRef := $agent.providerTenantIdSecretKeyRef -}}
-{{- $hasProviderTenant := or $agent.providerTenantId $providerTenantRef -}}
-{{- $hasUsername := or $agent.username $usernameRef -}}
-{{- if and $agent.providerTenantId $providerTenantRef }}{{ fail (printf "agentRegistration agent %q sets both providerTenantId and providerTenantIdSecretKeyRef (pick one)" $agent.name) }}{{ end }}
-{{- if and $agent.username $usernameRef }}{{ fail (printf "agentRegistration agent %q sets both username and usernameSecretKeyRef (pick one)" $agent.name) }}{{ end }}
-{{- if and $hasProviderTenant (not $agent.providerName) }}{{ fail (printf "agentRegistration agent %q sets a provider tenant but not providerName (create-tenant needs both)" $agent.name) }}{{ end }}
-{{- if and $agent.providerName (not $hasProviderTenant) }}{{ fail (printf "agentRegistration agent %q sets providerName but no providerTenantId/providerTenantIdSecretKeyRef (both are needed to map the tenant to an upstream org)" $agent.name) }}{{ end }}
-{{- if and $providerTenantRef (or (not $providerTenantRef.name) (not $providerTenantRef.key)) }}{{ fail (printf "agentRegistration agent %q providerTenantIdSecretKeyRef needs both name and key" $agent.name) }}{{ end }}
-{{- if and $usernameRef (or (not $usernameRef.name) (not $usernameRef.key)) }}{{ fail (printf "agentRegistration agent %q usernameSecretKeyRef needs both name and key" $agent.name) }}{{ end }}
+{{- $_ := $agent.keyEnv | required (printf "agentRegistration agent %q must set keyEnv (the env var, from secretName or extraEnvSecrets, holding the base64 public-only agent credential blob)" $agent.name) -}}
+{{- /* providerName maps the tenant to an upstream org and needs that org's id; the
+       two are supplied together. The id is read from providerTenantIdEnv (an env
+       var, typically published by the configurator) so environment-specific ids
+       stay out of values; an empty/absent value makes create-tenant skip the
+       mapping rather than fail (DPLAT-513). */ -}}
+{{- if and $agent.providerName (not $agent.providerTenantIdEnv) }}{{ fail (printf "agentRegistration agent %q sets providerName but not providerTenantIdEnv (both are needed to map the tenant to an upstream org)" $agent.name) }}{{ end }}
+{{- if and $agent.providerTenantIdEnv (not $agent.providerName) }}{{ fail (printf "agentRegistration agent %q sets providerTenantIdEnv but not providerName" $agent.name) }}{{ end }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -42,8 +47,9 @@ metadata:
     {{- include "identity.labels" $ | nindent 4 }}
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
-    # After migrations (weight 5) and the router-client registration (weight 10):
-    # both create-tenant and register-agent need the schema in place.
+    # Weight 20: after the migration hook (weight 5, requires migrations.runAsJob=true
+    # — enforced above) and the router-client registration (weight 10), so the schema
+    # exists before create-tenant/register-agent run.
     helm.sh/hook-weight: "20"
     helm.sh/hook-delete-policy: {{ if $autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
 spec:
@@ -63,8 +69,9 @@ spec:
     spec:
       restartPolicy: Never
       serviceAccountName: {{ include "identity.fullname" $ | quote }}
-      # create-tenant/register-agent only read secrets (secretKeyRef) and talk to
-      # the database; they never call the Kubernetes API, so don't mount an SA token.
+      # create-tenant/register-agent only read env (from the mounted secrets) and
+      # talk to the database; they never call the Kubernetes API, so don't mount an
+      # SA token.
       automountServiceAccountToken: false
       {{- with $serviceValues.podSecurityContext }}
       securityContext:
@@ -87,59 +94,45 @@ spec:
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         command:
         - "/create-tenant"
+        # All inputs are read from env vars provided by envFrom below (the CLI's
+        # -*-env flags do os.Getenv), so nothing is wired as an explicit
+        # secretKeyRef and operators supply the secrets via secretName /
+        # extraEnvSecrets like any other service.
         args:
-        - "-database-url"
-        - "$(DATABASE_URL)"
+        - "-database-url-env"
+        - {{ $dbURLEnv | quote }}
         - "-slug"
         - {{ $agent.tenantSlug | quote }}
         {{- with $agent.tenantDisplayName }}
         - "-display-name"
         - {{ . | quote }}
         {{- end }}
-        {{- if $hasProviderTenant }}
+        {{- if $agent.providerName }}
         - "-provider-name"
         - {{ $agent.providerName | quote }}
-        {{- if $providerTenantRef }}
-        # Read the id from the (optional) env var below by name. When the
-        # integration is disabled the secret key is absent, so create-tenant
-        # sees an empty value and skips the provider mapping (the tenant is
-        # still ensured) instead of receiving the literal "$(CT_PROVIDER_TENANT_ID)".
         - "-provider-tenant-id-env"
-        - "CT_PROVIDER_TENANT_ID"
-        {{- else }}
-        - "-provider-tenant-id"
-        - {{ $agent.providerTenantId | quote }}
+        - {{ $agent.providerTenantIdEnv | quote }}
         {{- end }}
+        envFrom:
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- range $s := $registrationExtraEnvSecrets }}
+        - secretRef:
+            name: {{ $s | quote }}
+            optional: true
         {{- end }}
+        {{- if or $serviceValues.env $.Values.trustedCertBundle }}
         env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: {{ $serviceValues.secretName | quote }}
-              key: "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"
-        {{- if $providerTenantRef }}
-        - name: CT_PROVIDER_TENANT_ID
-          valueFrom:
-            secretKeyRef:
-              name: {{ $providerTenantRef.name | quote }}
-              key: {{ $providerTenantRef.key | quote }}
-              # optional so a disabled integration (key not yet provisioned)
-              # leaves the var unset and create-tenant skips the mapping, rather
-              # than the pod failing to start with a missing-secret-key error.
-              optional: true
-        {{- end }}
         {{- with $serviceValues.env }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if $.Values.trustedCertBundle }}
-        - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
-          value: /usr/lib/ssl/cert.pem
-        - name: REQUESTS_CA_BUNDLE
-          value: /usr/lib/ssl/cert.pem
+        # Go honors SSL_CERT_FILE / SSL_CERT_DIR for a custom CA bundle.
         - name: SSL_CERT_DIR
           value: /usr/lib/ssl/certs
         - name: SSL_CERT_FILE
           value: /usr/lib/ssl/cert.pem
+        {{- end }}
         {{- end }}
         {{- with $registrationResources }}
         resources:
@@ -166,68 +159,45 @@ spec:
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         command:
         - "/register-agent"
-        # The agent blob and (ref-sourced) username are read from the optional env
-        # vars below BY NAME (-secret-env / -username-env), not via $(VAR): when the
-        # integration is disabled the secret keys are absent, so register-agent sees
-        # an empty value and skips as a no-op. A $(VAR) reference to a missing var
-        # would instead pass the literal "$(AGENT_KEY_BLOB)" and fail the Job. The
-        # DB URL stays a $(VAR) arg (always present). The agent blob is public-key
-        # material only (no private key) — register-agent stores only the public half.
+        # Inputs come from env vars (envFrom below); the CLI's -*-env flags read
+        # them via os.Getenv. An empty/absent agent blob makes register-agent no-op,
+        # so a disabled integration leaves the release green. The blob is public-key
+        # material only — register-agent stores just the public half.
         args:
         - "-secret-env"
-        - "AGENT_KEY_BLOB"
-        - "-database-url"
-        - "$(DATABASE_URL)"
+        - {{ $agent.keyEnv | quote }}
+        - "-database-url-env"
+        - {{ $dbURLEnv | quote }}
         - "-tenant"
         - {{ $agent.tenantSlug | quote }}
-        {{- if $hasUsername }}
-        {{- if $usernameRef }}
+        {{- with $agent.usernameEnv }}
         - "-username-env"
-        - "RA_USERNAME"
-        {{- else }}
-        - "-username"
-        - {{ $agent.username | quote }}
-        {{- end }}
+        - {{ . | quote }}
         {{- end }}
         {{- with $agent.displayName }}
         - "-display-name"
         - {{ . | quote }}
         {{- end }}
-        env:
-        - name: AGENT_KEY_BLOB
-          valueFrom:
-            secretKeyRef:
-              name: {{ $serviceValues.secretName | quote }}
-              key: {{ $agent.keySecretKey | quote }}
-              # optional so a disabled integration (agent key not yet provisioned)
-              # leaves the var unset and register-agent skips as a no-op, rather
-              # than the pod failing to start with a missing-secret-key error.
-              optional: true
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: {{ $serviceValues.secretName | quote }}
-              key: "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"
-        {{- if $usernameRef }}
-        - name: RA_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: {{ $usernameRef.name | quote }}
-              key: {{ $usernameRef.key | quote }}
-              optional: true
+        envFrom:
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- range $s := $registrationExtraEnvSecrets }}
+        - secretRef:
+            name: {{ $s | quote }}
+            optional: true
         {{- end }}
+        {{- if or $serviceValues.env $.Values.trustedCertBundle }}
+        env:
         {{- with $serviceValues.env }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if $.Values.trustedCertBundle }}
-        - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
-          value: /usr/lib/ssl/cert.pem
-        - name: REQUESTS_CA_BUNDLE
-          value: /usr/lib/ssl/cert.pem
+        # Go honors SSL_CERT_FILE / SSL_CERT_DIR for a custom CA bundle.
         - name: SSL_CERT_DIR
           value: /usr/lib/ssl/certs
         - name: SSL_CERT_FILE
           value: /usr/lib/ssl/cert.pem
+        {{- end }}
         {{- end }}
         {{- with $registrationResources }}
         resources:
