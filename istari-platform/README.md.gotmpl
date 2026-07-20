@@ -24,7 +24,9 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 ## Service Router
 
-The Service Router (`router.enabled`, default `false`) is a reverse proxy that lets clients reach every platform service through **one external API host** — the URL clients configure as `ISTARI_DIGITAL_API_URL` — instead of one DNS name per service. It routes by path prefix (`/registry` to the registry service, `/identity` to the identity service), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
+The Service Router (`router.enabled`, default `false`) is a reverse proxy that lets clients reach every platform service through **one external API host** — the URL clients configure as `ISTARI_DIGITAL_API_URL` — instead of one DNS name per service. It routes by path prefix (`/registry` to the registry service — the `fileservice` block in values — and `/identity` to the identity service), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
+
+Enabling the router is additive and optional: the existing per-service endpoints keep working unchanged, so you can adopt it at your own pace. Once DNS and TLS for the API host are in place, point clients' `ISTARI_DIGITAL_API_URL` at `https://<your-api-host>` with no path — clients append the `/registry`, `/identity`, … prefixes themselves.
 
 Routes for the platform's services are managed by the chart: a service's route is served automatically while that service is enabled, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `router.extraRoutes`. Enabling the router is one line in your values file:
 

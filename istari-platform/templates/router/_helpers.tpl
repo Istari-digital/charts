@@ -23,7 +23,12 @@ so pre-sorting makes overlap resolution identical however the config is rendered
 {{- if .Values.identityService.enabled -}}
 {{- $routes = append $routes (dict "prefix" "/identity" "service" (include "identity.fullname" .) "port" 80) -}}
 {{- end -}}
-{{- range .Values.router.extraRoutes -}}
+{{- range $entry := .Values.router.extraRoutes -}}
+{{- range $key, $unused := $entry -}}
+{{- if not (has $key (list "prefix" "service" "port")) -}}
+{{- fail (printf "router.extraRoutes: unsupported key %q (entry with prefix %q) — entries accept only prefix, service, and port, and the target Service must be in this release's namespace" $key (default "<unset>" $entry.prefix)) -}}
+{{- end -}}
+{{- end -}}
 {{- $prefix := required "router.extraRoutes: every entry needs a prefix" .prefix -}}
 {{- if not (regexMatch "^(/[a-zA-Z0-9_-]+)+$" $prefix) -}}
 {{- fail (printf "router.extraRoutes: prefix %q is invalid — it must start with \"/\", may not end with \"/\", and its segments may contain only letters, digits, \"-\", and \"_\"" $prefix) -}}
@@ -33,11 +38,12 @@ so pre-sorting makes overlap resolution identical however the config is rendered
 {{- end -}}
 {{- $service := required (printf "router.extraRoutes: service is required for prefix %s" $prefix) .service | toString -}}
 {{- if or (gt (len $service) 63) (not (regexMatch "^[a-z]([-a-z0-9]*[a-z0-9])?$" $service)) -}}
-{{- fail (printf "router.extraRoutes: service %q (prefix %s) is not a valid Kubernetes Service name (a DNS-1035 label: max 63 chars, lowercase letters, digits, and hyphens, starting with a letter)" $service $prefix) -}}
+{{- fail (printf "router.extraRoutes: service %q (prefix %s) is not a valid Kubernetes Service name (a DNS-1035 label: max 63 chars, lowercase letters, digits, and hyphens, starting with a letter). Use the Service's short name only — dotted/FQDN and cross-namespace targets are not supported, and the Service must live in this release's namespace" $service $prefix) -}}
 {{- end -}}
-{{- $port := int (required (printf "router.extraRoutes: port is required for prefix %s" $prefix) .port) -}}
-{{- if or (lt $port 1) (gt $port 65535) -}}
-{{- fail (printf "router.extraRoutes: port %v (prefix %s) must be an integer between 1 and 65535" .port $prefix) -}}
+{{- $rawPort := required (printf "router.extraRoutes: port is required for prefix %s" $prefix) .port -}}
+{{- $port := int $rawPort -}}
+{{- if or (lt $port 1) (gt $port 65535) (ne ($rawPort | toString) ($port | toString)) -}}
+{{- fail (printf "router.extraRoutes: port %v (prefix %s) must be a whole number between 1 and 65535" $rawPort $prefix) -}}
 {{- end -}}
 {{- $routes = append $routes (dict "prefix" $prefix "service" $service "port" $port) -}}
 {{- end -}}
@@ -74,7 +80,10 @@ a user has to do (matching how the other services wire up to it).
 {{- $setting := dig "tracing" "enabled" "" (default dict .Values.router) -}}
 {{- if kindIs "bool" $setting -}}
 {{- $setting -}}
-{{- else -}}
+{{- else if or (kindIs "invalid" $setting) (eq ($setting | toString) "") -}}
 {{- $jaegerEnabled -}}
+{{- else -}}
+{{- /* A quoted "true"/"false" (or any other non-bool) silently inverting the operator's intent is worse than failing the render. */ -}}
+{{- fail (printf "router.tracing.enabled must be true, false, or left unset (null); got %q — quoted strings are not booleans" ($setting | toString)) -}}
 {{- end -}}
 {{- end }}

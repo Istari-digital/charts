@@ -67,14 +67,28 @@ spec:
         - containerPort: {{ $serviceValues.listen }}
           name: "http"
           protocol: "TCP"
+        {{- /*
+        Deliberately tighter than the sibling services' probe settings (failureThreshold
+        30 / period 8, sized for slow-starting apps): the proxy starts near-instantly and
+        sits on the request path, so an unhealthy pod should leave rotation in seconds,
+        not minutes.
+        */}}
         livenessProbe:
           httpGet:
             path: "/healthz"
             port: {{ $serviceValues.listen }}
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: "/healthz"
             port: {{ $serviceValues.listen }}
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 3
         {{- /*
         values.yaml spells out the resources structure with null placeholders for
         documentation; prune the nulls here so the API server never receives them

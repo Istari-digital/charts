@@ -25,7 +25,9 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 ## Service Router
 
-The Service Router (`router.enabled`, default `false`) is a reverse proxy that lets clients reach every platform service through **one external API host** — the URL clients configure as `ISTARI_DIGITAL_API_URL` — instead of one DNS name per service. It routes by path prefix (`/registry` to the registry service, `/identity` to the identity service), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
+The Service Router (`router.enabled`, default `false`) is a reverse proxy that lets clients reach every platform service through **one external API host** — the URL clients configure as `ISTARI_DIGITAL_API_URL` — instead of one DNS name per service. It routes by path prefix (`/registry` to the registry service — the `fileservice` block in values — and `/identity` to the identity service), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
+
+Enabling the router is additive and optional: the existing per-service endpoints keep working unchanged, so you can adopt it at your own pace. Once DNS and TLS for the API host are in place, point clients' `ISTARI_DIGITAL_API_URL` at `https://<your-api-host>` with no path — clients append the `/registry`, `/identity`, … prefixes themselves.
 
 Routes for the platform's services are managed by the chart: a service's route is served automatically while that service is enabled, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `router.extraRoutes`. Enabling the router is one line in your values file:
 
@@ -381,16 +383,16 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | router.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | router.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | router.replicaCount | int | `1` | Replica count |
-| router.resources.limits.cpu | string | `nil` | CPU limit (e.g. `500m`). |
-| router.resources.limits.memory | string | `nil` | Memory limit (e.g. `256Mi`). |
-| router.resources.requests.cpu | string | `nil` | CPU request (e.g. `100m`). Required for CPU-based autoscaling. |
-| router.resources.requests.memory | string | `nil` | Memory request (e.g. `128Mi`). Required for memory-based autoscaling. |
+| router.resources.limits.cpu | string | `nil` | CPU limit. Deliberately `null` (unbounded) until real usage metrics justify a cap — a throttled router slows every routed request. |
+| router.resources.limits.memory | string | `"512Mi"` | Memory limit. |
+| router.resources.requests.cpu | string | `"500m"` | CPU request. Required for CPU-based autoscaling. |
+| router.resources.requests.memory | string | `"256Mi"` | Memory request. Required for memory-based autoscaling. |
 | router.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | router.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | router.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
 | router.tag | string | `"2.11.4"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | router.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
-| router.tracing.enabled | bool/null | `null` (automatic: follows `jaeger.enabled`) | Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `router.env`, or via a Secret listed in `router.extraEnvSecrets`. |
+| router.tracing.enabled | bool/null | `null` (automatic: follows `jaeger.enabled`) | Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `router.env`, or via a Secret listed in `router.extraEnvSecrets`. If you rely on a Secret, make sure it actually contains `OTEL_EXPORTER_OTLP_ENDPOINT`: the chart cannot inspect Secret contents, and without the variable traces are silently dropped. |
 | router.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | router.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
 | router.virtualService.gateways | list | `[]` | `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only. |

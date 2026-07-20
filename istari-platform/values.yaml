@@ -920,7 +920,7 @@ router:
   #   port: 8080
   # Tracing -- optional per-request tracing through the router, viewable in the bundled Jaeger UI (see `jaeger.enabled`). Useful when troubleshooting routing or latency issues.
   tracing:
-    # -- (bool/null) Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `router.env`, or via a Secret listed in `router.extraEnvSecrets`.
+    # -- (bool/null) Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `router.env`, or via a Secret listed in `router.extraEnvSecrets`. If you rely on a Secret, make sure it actually contains `OTEL_EXPORTER_OTLP_ENDPOINT`: the chart cannot inspect Secret contents, and without the variable traces are silently dropped.
     # @default -- `null` (automatic: follows `jaeger.enabled`)
     enabled: null
   # -- Replica count
@@ -953,7 +953,7 @@ router:
   serviceAccountAnnotations: {}
   # -- Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `router.tracing.enabled`).
   env: []
-  # Autoscaling -- set autoscaling (HPA) parameters. NOTE: utilization-based scaling only works when the matching `router.resources.requests` values are set — with no requests, the HPA has nothing to compute a percentage against and will never scale.
+  # Autoscaling -- set autoscaling (HPA) parameters. NOTE: utilization-based scaling only works when the matching `router.resources.requests` values are set (the defaults qualify) — with no requests, the HPA has nothing to compute a percentage against and will never scale.
   autoscaling:
     # -- Enable/Disable autoscaling
     enabled: false
@@ -965,18 +965,18 @@ router:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- CPU/memory for the proxy container. All values default to `null` (unset); the router is lightweight, so a small allocation goes a long way when you do set them. `null` entries are omitted from the rendered manifest.
+  # Resources -- CPU/memory for the proxy container. The defaults are deliberate high-side estimates — the router is lightweight, but until real usage metrics exist it is safer to over-provision; tune down once you have data. `null` entries are omitted from the rendered manifest.
   resources:
     requests:
-      # -- CPU request (e.g. `100m`). Required for CPU-based autoscaling.
-      cpu: null
-      # -- Memory request (e.g. `128Mi`). Required for memory-based autoscaling.
-      memory: null
+      # -- CPU request. Required for CPU-based autoscaling.
+      cpu: 500m
+      # -- Memory request. Required for memory-based autoscaling.
+      memory: 256Mi
     limits:
-      # -- CPU limit (e.g. `500m`).
+      # -- CPU limit. Deliberately `null` (unbounded) until real usage metrics justify a cap — a throttled router slows every routed request.
       cpu: null
-      # -- Memory limit (e.g. `256Mi`).
-      memory: null
+      # -- Memory limit.
+      memory: 512Mi
   # -- Pod Volumes
   volumes: []
   # -- Volume Mounts for pod containers
