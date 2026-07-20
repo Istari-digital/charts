@@ -100,7 +100,8 @@ spec:
         {{- range $tier, $quantities := $serviceValues.resources }}
         {{- $clean := dict }}
         {{- range $metric, $qty := $quantities }}
-        {{- if $qty }}{{- $_ := set $clean $metric $qty }}{{- end }}
+        {{- /* Prune only null/empty — a plain truthiness test would also drop a legitimate quantity of 0. */}}
+        {{- if and (not (kindIs "invalid" $qty)) (ne ($qty | toString) "") }}{{- $_ := set $clean $metric $qty }}{{- end }}
         {{- end }}
         {{- if $clean }}{{- $_ := set $resources $tier $clean }}{{- end }}
         {{- end }}
