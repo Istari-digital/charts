@@ -1,0 +1,241 @@
+{{- $serviceValues := .Values.identityService -}}
+{{- $registration := dig "agentRegistration" dict $serviceValues -}}
+{{- $registrationEnabled := dig "enabled" false $registration -}}
+{{- $agents := dig "agents" list $registration -}}
+{{- if and $serviceValues.enabled $registrationEnabled $agents }}
+{{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.agentRegistration.enabled is true" -}}
+{{- /* The hook (weight 20) assumes the DB schema exists. That only holds when
+       migrations run as a pre-upgrade hook (weight 5), i.e. migrations.runAsJob=true.
+       With runAsJob=false migrations run as a Deployment initContainer — after all
+       hooks — so create-tenant/register-agent would hit a missing schema on a fresh
+       install or schema-changing upgrade. Require the safe mode up front. */ -}}
+{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identityService.agentRegistration.enabled requires identityService.migrations.runAsJob=true, so DB migrations run as a pre-upgrade hook before the agent-registration hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and create-tenant/register-agent would run against a missing schema" }}{{ end }}
+{{- $registrationPodAnnotations := dig "podAnnotations" dict $registration -}}
+{{- $registrationPodLabels := dig "podLabels" dict $registration -}}
+{{- $registrationResources := dig "resources" dict $registration -}}
+{{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
+{{- $backoffLimit := dig "backoffLimit" 6 $registration | int -}}
+{{- /* Secrets mounted (envFrom) into every agent Job, in addition to
+       identityService.secretName. Put the secret(s) holding each agent's blob and
+       — via the configurator — its username/org id here, the same way services
+       mount config with secretName + extraEnvSecrets. */ -}}
+{{- $registrationExtraEnvSecrets := dig "extraEnvSecrets" list $registration -}}
+{{- /* Canonical identity-service DB URL key; present in secretName, surfaced as an
+       env var by envFrom and read via the CLIs' -database-url-env flag. */ -}}
+{{- $dbURLEnv := "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" -}}
+{{- range $agent := $agents }}
+{{- $_ := $agent.name | required "each identityService.agentRegistration.agents entry must set name" -}}
+{{- /* name feeds identity.agentRegistration.jobName, which lowercases it and maps
+       "_"→"-" for the Job name; other characters (spaces, dots, slashes) would
+       produce an invalid resource name that only fails at apply time. */ -}}
+{{- if not (regexMatch "^[A-Za-z0-9_-]+$" $agent.name) }}{{ fail (printf "agentRegistration agent %q: name may contain only letters, digits, hyphens, and underscores" $agent.name) }}{{ end }}
+{{- $_ := $agent.tenantSlug | required (printf "agentRegistration agent %q must set tenantSlug" $agent.name) -}}
+{{- $_ := $agent.keyEnv | required (printf "agentRegistration agent %q must set keyEnv (the env var, from secretName or extraEnvSecrets, holding the base64 public-only agent credential blob)" $agent.name) -}}
+{{- /* providerName maps the tenant to an upstream org and needs that org's id; the
+       two are supplied together. The id is read from providerTenantIdEnv (an env
+       var, typically published by the configurator) so environment-specific ids
+       stay out of values; an empty/absent value makes create-tenant skip the
+       mapping rather than fail (DPLAT-513). */ -}}
+{{- if and $agent.providerName (not $agent.providerTenantIdEnv) }}{{ fail (printf "agentRegistration agent %q sets providerName but not providerTenantIdEnv (both are needed to map the tenant to an upstream org)" $agent.name) }}{{ end }}
+{{- if and $agent.providerTenantIdEnv (not $agent.providerName) }}{{ fail (printf "agentRegistration agent %q sets providerTenantIdEnv but not providerName" $agent.name) }}{{ end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "identity.agentRegistration.jobName" (dict "root" $ "name" $agent.name) | quote }}
+  labels:
+    {{- include "identity.labels" $ | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    # Weight 20: after the migration hook (weight 5, requires migrations.runAsJob=true
+    # — enforced above) and the router-client registration (weight 10), so the schema
+    # exists before create-tenant/register-agent run.
+    helm.sh/hook-weight: "20"
+    helm.sh/hook-delete-policy: {{ if $autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+spec:
+  backoffLimit: {{ $backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "identity.labels" $ | nindent 8 }}
+        {{- with $registrationPodLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        sidecar.istio.io/inject: "false"
+        {{- with $registrationPodAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "identity.fullname" $ | quote }}
+      # create-tenant/register-agent only read env (from the mounted secrets) and
+      # talk to the database; they never call the Kubernetes API, so don't mount an
+      # SA token.
+      automountServiceAccountToken: false
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default $.Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      # The tenant must exist before the agent references it by slug, so
+      # create-tenant runs (idempotently) as an init container and the agent is
+      # registered only after it succeeds. Both talk only to the database.
+      initContainers:
+      - name: create-tenant
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command:
+        - "/create-tenant"
+        # All inputs are read from env vars provided by envFrom below (the CLI's
+        # -*-env flags do os.Getenv), so nothing is wired as an explicit
+        # secretKeyRef and operators supply the secrets via secretName /
+        # extraEnvSecrets like any other service.
+        args:
+        - "-database-url-env"
+        - {{ $dbURLEnv | quote }}
+        - "-slug"
+        - {{ $agent.tenantSlug | quote }}
+        {{- with $agent.tenantDisplayName }}
+        - "-display-name"
+        - {{ . | quote }}
+        {{- end }}
+        {{- if $agent.providerName }}
+        - "-provider-name"
+        - {{ $agent.providerName | quote }}
+        - "-provider-tenant-id-env"
+        - {{ $agent.providerTenantIdEnv | quote }}
+        {{- end }}
+        envFrom:
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- range $s := $registrationExtraEnvSecrets }}
+        - secretRef:
+            name: {{ $s | quote }}
+            optional: true
+        {{- end }}
+        {{- if or $serviceValues.env $.Values.trustedCertBundle }}
+        env:
+        {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.trustedCertBundle }}
+        # Go honors SSL_CERT_FILE / SSL_CERT_DIR for a custom CA bundle.
+        - name: SSL_CERT_DIR
+          value: /usr/lib/ssl/certs
+        - name: SSL_CERT_FILE
+          value: /usr/lib/ssl/cert.pem
+        {{- end }}
+        {{- end }}
+        {{- with $registrationResources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if or $serviceValues.volumeMounts $.Values.trustedCertBundle }}
+        volumeMounts:
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+        {{- end }}
+      containers:
+      - name: register-agent
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command:
+        - "/register-agent"
+        # Inputs come from env vars (envFrom below); the CLI's -*-env flags read
+        # them via os.Getenv. An empty/absent agent blob makes register-agent no-op,
+        # so a disabled integration leaves the release green. The blob is public-key
+        # material only — register-agent stores just the public half.
+        args:
+        - "-secret-env"
+        - {{ $agent.keyEnv | quote }}
+        - "-database-url-env"
+        - {{ $dbURLEnv | quote }}
+        - "-tenant"
+        - {{ $agent.tenantSlug | quote }}
+        {{- with $agent.usernameEnv }}
+        - "-username-env"
+        - {{ . | quote }}
+        {{- end }}
+        {{- with $agent.displayName }}
+        - "-display-name"
+        - {{ . | quote }}
+        {{- end }}
+        envFrom:
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- range $s := $registrationExtraEnvSecrets }}
+        - secretRef:
+            name: {{ $s | quote }}
+            optional: true
+        {{- end }}
+        {{- if or $serviceValues.env $.Values.trustedCertBundle }}
+        env:
+        {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.trustedCertBundle }}
+        # Go honors SSL_CERT_FILE / SSL_CERT_DIR for a custom CA bundle.
+        - name: SSL_CERT_DIR
+          value: /usr/lib/ssl/certs
+        - name: SSL_CERT_FILE
+          value: /usr/lib/ssl/cert.pem
+        {{- end }}
+        {{- end }}
+        {{- with $registrationResources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if or $serviceValues.volumeMounts $.Values.trustedCertBundle }}
+        volumeMounts:
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+        {{- end }}
+      {{- if or $serviceValues.volumes $.Values.trustedCertBundle }}
+      volumes:
+      {{- with $serviceValues.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if $.Values.trustedCertBundle }}
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" $ | quote }}
+      {{- end }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}
+{{- end }}
