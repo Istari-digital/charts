@@ -385,10 +385,10 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | router.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | router.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | router.replicaCount | int | `2` | Replica count. Defaults to 2, unlike the other services: the router is the single entry point for all routed traffic, so one pod failing (or rolling during an upgrade) must not sever every routed service at once. Whenever the effective minimum replica count (this value, or `autoscaling.minReplicas` when autoscaling) is 2 or more, the chart also creates a PodDisruptionBudget keeping at least one router pod up through node drains; at 1 replica no budget is created, so drains are never blocked. |
-| router.resources.limits.cpu | string | `nil` | CPU limit. Deliberately `null` (unbounded) until real usage metrics justify a cap — a throttled router slows every routed request. |
-| router.resources.limits.memory | string | `"512Mi"` | Memory limit. |
-| router.resources.requests.cpu | string | `"500m"` | CPU request. Required for CPU-based autoscaling. |
-| router.resources.requests.memory | string | `"256Mi"` | Memory request. Required for memory-based autoscaling. |
+| router.resources.limits.cpu | string | `nil` | CPU limit (e.g. `500m`). Consider leaving unset — a throttled router slows every routed request. |
+| router.resources.limits.memory | string | `nil` | Memory limit (e.g. `256Mi`). |
+| router.resources.requests.cpu | string | `nil` | CPU request (e.g. `100m`). Required for CPU-based autoscaling. |
+| router.resources.requests.memory | string | `nil` | Memory request (e.g. `128Mi`). Required for memory-based autoscaling. |
 | router.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | router.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | router.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
