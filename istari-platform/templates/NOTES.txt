@@ -8,4 +8,26 @@ The Jaeger UI is not exposed outside the cluster. Access it via port-forwarding:
 then open http://localhost:16686 in your browser.
 
 In-cluster services export traces via OTLP to {{ include "istari-platform.jaeger.otlpUrl" . }} (gRPC) or {{ include "istari-platform.jaeger.otlpHttpUrl" . }} (HTTP).
+{{- end }}
+{{- if .Values.router.enabled }}
+{{- $routes := include "router.routes" . | fromJsonArray }}
+
+The Service Router is enabled. In-cluster clients reach it at http://{{ include "router.fullname" . }} (port 80) with these routes:
+{{- range $routes }}
+  {{ .prefix }} -> {{ .service }}:{{ .port }}
+{{- end }}
+{{- if not $routes }}
+  (none yet — routes appear automatically as their backing services are enabled)
+{{- end }}
+
+To verify it from your workstation:
+
+  kubectl port-forward svc/{{ include "router.fullname" . }} -n {{ .Release.Namespace }} 8080:80
+
+then open http://localhost:8080/healthz — you should see "OK".
+
+To expose the router to clients, point your external load balancer or existing ingress
+controller at the {{ include "router.fullname" . }} Service on port 80, the same way the
+registry service is exposed. TLS terminates there — the router itself serves plain HTTP.
+The chart can also create these for you: see `router.ingress` and `router.virtualService`.
 {{- end -}}

@@ -1,0 +1,219 @@
+{{- $serviceValues := .Values.router -}}
+{{- if $serviceValues.enabled }}
+{{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
+{{- $tracingEnabled := eq (include "router.tracing.enabled" .) "true" -}}
+{{- if and $tracingEnabled (not $jaegerEnabled) }}
+{{- $hasEndpoint := false }}
+{{- range $serviceValues.env }}{{- if eq .name "OTEL_EXPORTER_OTLP_ENDPOINT" }}{{- $hasEndpoint = true }}{{- end }}{{- end }}
+{{- if not (or $hasEndpoint $serviceValues.extraEnvSecrets) }}
+{{- fail "router.tracing.enabled is true but jaeger.enabled is false and no OTEL_EXPORTER_OTLP_ENDPOINT is set via router.env (or a Secret in router.extraEnvSecrets) — traces would have nowhere to go. Enable the bundled Jaeger, provide an endpoint, or leave router.tracing.enabled unset." }}
+{{- end }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "router.fullname" . | quote }}
+  labels:
+    {{- include "router.labels" . | nindent 4 }}
+  {{- with $serviceValues.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if not $serviceValues.autoscaling.enabled }}
+  replicas: {{ $serviceValues.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "router.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- /*
+        The proxy only reads its config at startup, so a ConfigMap edit alone never
+        reaches running pods. This checksum changes with the rendered proxy config
+        and rolls the Deployment.
+        */}}
+        checksum/proxy-config: {{ include (print $.Template.BasePath "/router/configmap.yaml") . | sha256sum }}
+        {{- with $serviceValues.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "router.labels" . | nindent 8 }}
+        {{- with $serviceValues.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "router.fullname" . | quote }}
+      {{- /* The router never talks to the Kubernetes API, and it is the pod most exposed to external traffic — don't mount an API token into it. */}}
+      automountServiceAccountToken: false
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: {{ .Chart.Name | quote }}
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        {{- /* Explicit command (matching the poc-service-router compose overlay) so the chart does not depend on any particular image's entrypoint/cmd defaults. */}}
+        command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+        ports:
+        - containerPort: {{ $serviceValues.listen }}
+          name: "http"
+          protocol: "TCP"
+        {{- /*
+        Deliberately tighter than the sibling services' probe settings (failureThreshold
+        30 / period 8, sized for slow-starting apps): the proxy starts near-instantly and
+        sits on the request path, so an unhealthy pod should leave rotation in seconds,
+        not minutes.
+        */}}
+        livenessProbe:
+          httpGet:
+            path: "/healthz"
+            port: {{ $serviceValues.listen }}
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: "/healthz"
+            port: {{ $serviceValues.listen }}
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 3
+        {{- /*
+        values.yaml spells out the resources structure with null placeholders for
+        documentation; prune the nulls here so the API server never receives them
+        (a null quantity is not the same as an unset one).
+        */}}
+        {{- $resources := dict }}
+        {{- range $tier, $quantities := $serviceValues.resources }}
+        {{- $clean := dict }}
+        {{- range $metric, $qty := $quantities }}
+        {{- /* Prune only null/empty — a plain truthiness test would also drop a legitimate quantity of 0. */}}
+        {{- if and (not (kindIs "invalid" $qty)) (ne ($qty | toString) "") }}{{- $_ := set $clean $metric $qty }}{{- end }}
+        {{- end }}
+        {{- if $clean }}{{- $_ := set $resources $tier $clean }}{{- end }}
+        {{- end }}
+        {{- with $resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with $serviceValues.extraEnvSecrets }}
+        envFrom:
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        env:
+        {{- /* Caddy writes runtime state (autosaved config, storage) to the XDG dirs; point them at the emptyDir mounts so the root filesystem can stay read-only. */}}
+        - name: XDG_CONFIG_HOME
+          value: "/config"
+        - name: XDG_DATA_HOME
+          value: "/data"
+        {{- if $tracingEnabled }}
+        {{- /*
+        Caddy's `tracing` directive exports OTLP over gRPC, so this targets Jaeger's
+        4317 (not the 4318 identity-service uses). Rendered BEFORE user `env` so
+        `router.env` entries still override these.
+        */}}
+        - name: OTEL_SERVICE_NAME
+          value: "router"
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: "grpc"
+        {{- if $jaegerEnabled }}
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{ include "istari-platform.jaeger.otlpUrl" . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        {{- /*
+        Lets the proxy make outbound TLS calls to endpoints fronted by an internally-
+        trusted CA (e.g. an external OTLP collector behind a self-signed cert). Go's
+        crypto/x509 honors SSL_CERT_FILE for the bundle and still reads the system
+        roots from /etc/ssl/certs, so public CAs remain trusted alongside it. The
+        mount lives under /etc/ssl (which exists in the image — /usr/lib/ssl, used by
+        the Python siblings, does not) as a plain directory mount so it cannot depend
+        on subPath-into-missing-parent behavior on the read-only rootfs.
+        */}}
+        - name: SSL_CERT_FILE
+          value: /etc/ssl/istari/bundle.crt
+        {{- end }}
+        {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        volumeMounts:
+        - name: caddyfile
+          mountPath: "/etc/caddy"
+          readOnly: true
+        - name: caddy-config
+          mountPath: "/config"
+        - name: caddy-data
+          mountPath: "/data"
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /etc/ssl/istari
+          readOnly: true
+        {{- end }}
+      volumes:
+      - name: caddyfile
+        configMap:
+          name: {{ include "router.configmap.name" . | quote }}
+      - name: caddy-config
+        emptyDir: {}
+      - name: caddy-data
+        emptyDir: {}
+      {{- with $serviceValues.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if .Values.trustedCertBundle }}
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" . | quote }}
+      {{- end }}
+      {{- $spread := $serviceValues.topologySpreadConstraints }}
+      {{- if kindIs "invalid" $spread }}
+      {{- /*
+      Chart default: prefer spreading replicas across nodes so one node failure
+      can't take down every router pod at once. Soft (ScheduleAnyway) so clusters
+      with fewer nodes than replicas — single-node self-hosted installs included —
+      still schedule everything.
+      */}}
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            {{- include "router.selectorLabels" . | nindent 12 }}
+      {{- else if $spread }}
+      topologySpreadConstraints:
+      {{- toYaml $spread | nindent 6 }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}

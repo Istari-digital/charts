@@ -901,6 +901,161 @@ docs:
     # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
     gateways: []
 
+# Default values for the Service Router: a reverse proxy that lets clients reach every
+# platform service through one external API host (the URL clients configure as
+# ISTARI_DIGITAL_API_URL) using path prefixes — /registry for the registry service,
+# /identity for the identity service. The router matches each prefix, strips it, and
+# forwards the request to the right in-cluster service; unrecognized paths get a 404.
+#
+# Routes for the platform's services are managed by the chart and need no configuration
+# here: a service's route is served automatically while that service is enabled (e.g.
+# /identity appears once identityService.enabled is true). Prefixes for services this
+# chart does not deploy can be attached via `router.extraRoutes`.
+#
+# The proxy software inside the router (currently Caddy) is an internal detail and may
+# change in a future release; such a change will never require values changes beyond
+# `registry`/`image`/`tag`.
+router:
+  # -- Enable / Disable the whole deployment
+  enabled: false
+  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
+  registry: "istaridigital.jfrog.io/customer-docker"
+  # -- Image name. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS Caddy variant in the Istari customer-docker JFrog repo, pulled with the same credentials as the rest of the chart. The `istaridigital.com/` path segment is part of the repository path — not a typo.
+  image: "istaridigital.com/caddy-fips"
+  # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
+  tag: "2.11.4"
+  # -- Image pull policy
+  imagePullPolicy: "IfNotPresent"
+  # -- Names of Kubernetes Secrets whose keys become environment variables in the proxy container. Not needed for a standard deployment. (Unlike the other services, the router has no separate `secretName` — this list is the only Secret mechanism.)
+  extraEnvSecrets: []
+  # -- Port the proxy container listens on. The router's `kind: Service` receives traffic on port 80 and forwards it here; you should never need to change this.
+  listen: 8080
+  # -- Additional path-prefix routes served alongside the chart-managed ones, for reaching in-cluster services this chart does not deploy. Each entry maps a URL path prefix to a Kubernetes Service in the same namespace as this release (cross-namespace and FQDN targets are not supported): the router matches the prefix and everything under it (never other prefixes that merely share its leading characters), strips it, and forwards the request to `service:port` over plain HTTP. A prefix must start with `/`, must not end with `/`, may use letters, digits, `-`, `_`, and `/` segment separators, and may not duplicate a chart-managed route or the reserved `/healthz` — invalid entries fail the render. When prefixes overlap, the longest match wins. Most deployments should leave this empty: routes for platform services are built into the chart and appear automatically.
+  extraRoutes: []
+  # # Example:
+  # extraRoutes:
+  # - prefix: /jobs
+  #   service: my-jobs-service
+  #   port: 8080
+  # Tracing -- optional per-request tracing through the router, viewable in the bundled Jaeger UI (see `jaeger.enabled`). Useful when troubleshooting routing or latency issues.
+  tracing:
+    # -- (bool/null) Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `router.env`, or via a Secret listed in `router.extraEnvSecrets`. If you rely on a Secret, make sure it actually contains `OTEL_EXPORTER_OTLP_ENDPOINT`: the chart cannot inspect Secret contents, and without the variable traces are silently dropped. The chart exports over gRPC by default; a collector that only accepts OTLP/HTTP additionally needs `OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf` in `router.env`.
+    # @default -- `null` (automatic: follows `jaeger.enabled`)
+    enabled: null
+  # -- Replica count. Defaults to 2, unlike the other services: the router is the single entry point for all routed traffic, so one pod failing (or rolling during an upgrade) must not sever every routed service at once. Whenever the effective minimum replica count (this value, or `autoscaling.minReplicas` when autoscaling) is 2 or more, the chart also creates a PodDisruptionBudget keeping at least one router pod up through node drains; at 1 replica no budget is created, so drains are never blocked.
+  replicaCount: 2
+  # -- Additional labels to add to all of this service's resources
+  commonLabels: {}
+  # -- Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName.
+  serviceType: "ClusterIP"
+  # -- Additional annotations to apply to the service, note the following annotations for duplicate keys.
+  serviceAnnotations: {}
+  # -- Additional annotations to add to the deployment
+  deploymentAnnotations: {}
+  # -- Additional annotations to add to pods
+  podAnnotations: {}
+  # -- Additional labels to add to pods
+  podLabels: {}
+  # -- Pod security context
+  podSecurityContext:
+    fsGroup: 65532
+  # -- Primary container's security context. Unlike the other services, the root filesystem is read-only: Caddy only writes to the XDG state dirs, which the chart mounts as emptyDirs.
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 65532
+  # -- Additional annotations to apply to the service account
+  serviceAccountAnnotations: {}
+  # -- Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `router.tracing.enabled`).
+  env: []
+  # Autoscaling -- set autoscaling (HPA) parameters. NOTE: utilization-based scaling requires the matching `router.resources.requests` values — the HPA has nothing to compute a percentage against without them, so the chart fails the render if autoscaling is enabled while they are unset.
+  autoscaling:
+    # -- Enable/Disable autoscaling
+    enabled: false
+    # -- Minimum number of replicas. Defaults to 2 for the same reason as `router.replicaCount`: the router is the single entry point for all routed traffic.
+    minReplicas: 2
+    # -- Maximum number of replicas
+    maxReplicas: 3
+    # -- Average CPU utilization percentage. Set to `null` to disable.
+    cpuUtilization: 80
+    # -- Average Memory utilization percentage. Set to `null` to disable.
+    memoryUtilization: 80
+  # Resources -- CPU/memory for the proxy container. All values deliberately default to `null` (unset) until real usage data exists to base defaults on; the router is lightweight, so a small allocation goes a long way when you set them. `null` entries are omitted from the rendered manifest.
+  resources:
+    requests:
+      # -- CPU request (e.g. `100m`). Required for CPU-based autoscaling.
+      cpu: null
+      # -- Memory request (e.g. `128Mi`). Required for memory-based autoscaling.
+      memory: null
+    limits:
+      # -- CPU limit (e.g. `500m`). Consider leaving unset — a throttled router slows every routed request.
+      cpu: null
+      # -- Memory limit (e.g. `256Mi`).
+      memory: null
+  # -- Pod Volumes
+  volumes: []
+  # -- Volume Mounts for pod containers
+  volumeMounts: []
+  # -- Tolerations.
+  # Example:
+  #
+  # ```
+  # tolerations:
+  # - "effect": "NoSchedule"
+  #   "key": "istari.k8s.io/role"
+  #   "operator": "Equal"
+  #   "value": "main"
+  # ```
+  tolerations: []
+  # -- Node selector
+  nodeSelector: {}
+  # -- Affinity
+  affinity: {}
+  # -- (list/null) Topology spread constraints for router pods. Leave unset (`null`) for the chart default: a soft preference (`whenUnsatisfiable: ScheduleAnyway`) to spread replicas across nodes, so one node failure doesn't take every router pod down while clusters with a single node still schedule normally. Set `[]` to disable, or supply your own list — entries must include their own `labelSelector`.
+  # @default -- `null` (chart-managed soft spread across nodes)
+  topologySpreadConstraints: null
+  # Ingress -- optional Kubernetes Ingress for this service. Most deployments expose the router the same way as the registry service — an external load balancer or existing ingress controller routing the API host to the router's `kind: Service` on port 80, with TLS terminating there (the router itself serves plain HTTP) — and don't need this Ingress at all.
+  ingress:
+    # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
+    enabled: false
+    # -- `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass.
+    className: ""
+    # -- Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.).
+    annotations: {}
+    # -- Additional labels on the Ingress (in addition to the standard router labels).
+    labels: {}
+    # -- One entry per `spec.rules[]`. Empty by default so that enabling the Ingress without supplying your real API hostname fails the render instead of shipping a rule for a hostname that isn't yours. `host` is optional within an entry — omit it to match any hostname.
+    hosts: []
+    # # Example:
+    # hosts:
+    # - host: api.your-domain.com
+    #   paths:
+    #   - path: /
+    #     pathType: Prefix
+    # -- TLS configuration; passed through to `spec.tls[]` verbatim. TLS terminates at the Ingress controller — the router behind it serves plain HTTP. Example: `tls: [{hosts: [api.customer-domain.com], secretName: api-tls-cert}]`, where the Secret is a standard TLS Secret (`kubectl create secret tls ...`) or is issued by cert-manager via annotations above.
+    tls: []
+    # -- Service port the Ingress targets. Defaults to 80.
+    servicePort: 80
+  # VirtualService -- optional Istio VirtualService for this service. The chart generates a single HTTP route sending all traffic (for the listed `hosts`) to this service's `kind: Service` on port 80. For custom routing logic (URL rewriting, retries, CORS, etc.), create a separate VirtualService alongside this chart.
+  virtualService:
+    # -- Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+).
+    enabled: false
+    # -- Additional labels on the VirtualService (in addition to the standard router labels).
+    labels: {}
+    # -- Annotations on the VirtualService.
+    annotations: {}
+    # -- `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). Empty by default so that enabling the VirtualService without supplying your real hostname(s) fails the render instead of shipping a route for a hostname that isn't yours.
+    hosts: []
+    # # Example:
+    # hosts:
+    # - api.your-domain.com
+    # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
+    gateways: []
+
 # Optional NATS messaging deployment. Configured as a Helm subchart (https://github.com/nats-io/k8s/tree/main/helm/charts/nats).
 #
 # BETA: NATS integration is currently in beta and disabled by default. It will eventually become a required component of the istari-platform deployment; the `nats.enabled: false` default will be flipped and this section will lose its "optional" framing in a future release.

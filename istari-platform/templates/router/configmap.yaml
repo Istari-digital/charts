@@ -1,0 +1,67 @@
+{{- /*
+Proxy configuration for the Service Router, rendered from the route table in
+"router.routes" (see _helpers.tpl: chart-managed routes plus validated
+`router.extraRoutes`, sorted longest-prefix-first). Each route declares a matcher
+covering the bare prefix and its subtree, strips the prefix, and forwards to the
+in-cluster Service; the backends serve these paths at root. A final catch-all
+returns 404 so an unmatched path is never proxied blindly.
+
+The config is mounted into the pod (not baked into the image) so the tracing option
+can toggle the `tracing` directive — Caddy enables OTEL tracing only through its
+config file, not through environment variables alone.
+
+The proxy implementation (currently Caddy) is an internal detail: swapping it for
+another sanctioned proxy (Envoy, nginx — see the service-router engspec) must not
+change the chart's values interface beyond router.registry/image/tag.
+*/}}
+{{- $serviceValues := .Values.router -}}
+{{- if $serviceValues.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "router.configmap.name" . | quote }}
+  labels:
+    {{- include "router.labels" . | nindent 4 }}
+data:
+  {{- /* The body below indents with TABS (after the 4-space YAML block indent) — the canonical `caddy fmt` style — so Caddy doesn't log a "Caddyfile input is not formatted" warning at startup. */}}
+  Caddyfile: |
+    {
+    	# The admin API is unused: config changes roll the Deployment (see the
+    	# checksum annotation), never reconfigure a live process.
+    	admin off
+    }
+
+    :{{ $serviceValues.listen }} {
+    {{- if eq (include "router.tracing.enabled" .) "true" }}
+    	# Trace proxied requests, but not the kubelet's /healthz probes — at the
+    	# default probe cadence those would emit dozens of no-value spans per minute.
+    	@nothealthz not path /healthz
+    	tracing @nothealthz
+
+    {{- end }}
+    	# Router self-health; used by the Deployment's liveness/readiness probes.
+    	handle /healthz {
+    		respond "OK" 200
+    	}
+    {{- range $i, $route := (include "router.routes" . | fromJsonArray) }}
+    {{- /* Matcher names are index-based: flattening the prefix into the name would let
+    distinct prefixes (e.g. /foo/bar and /foo-bar) collide. The prefix itself is
+    visible on the matcher's own line. */}}
+    {{- $matcher := printf "route-%d" $i }}
+
+    	@{{ $matcher }} path {{ $route.prefix }} {{ $route.prefix }}/*
+    	handle @{{ $matcher }} {
+    		uri strip_prefix {{ $route.prefix }}
+    		# A bare-prefix request strips to an empty path; normalize it to "/"
+    		# explicitly rather than relying on the proxy's implicit behavior.
+    		uri path_regexp ^$ /
+    		reverse_proxy {{ $route.service }}:{{ $route.port }}
+    	}
+    {{- end }}
+
+    	# Everything else: no route. Return 404 rather than proxying blindly.
+    	handle {
+    		respond "no route" 404
+    	}
+    }
+{{- end }}

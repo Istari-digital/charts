@@ -1,0 +1,46 @@
+{{- $serviceValues := .Values.router -}}
+{{- if $serviceValues.enabled }}
+{{- if $serviceValues.autoscaling.enabled }}
+{{- if not (or $serviceValues.autoscaling.cpuUtilization $serviceValues.autoscaling.memoryUtilization) }}
+{{- fail "router.autoscaling is enabled but cpuUtilization and memoryUtilization are both null — set at least one so the HPA has a metric to scale on" }}
+{{- end }}
+{{- /* Utilization is a percentage of the pod's request; without the matching request the HPA silently never scales. */}}
+{{- $requests := dig "resources" "requests" (dict) $serviceValues }}
+{{- if and $serviceValues.autoscaling.cpuUtilization (not (dig "cpu" "" $requests)) }}
+{{- fail "router.autoscaling scales on CPU utilization but router.resources.requests.cpu is not set — the HPA cannot compute a percentage without a request. Set router.resources.requests.cpu (e.g. 100m), or set router.autoscaling.cpuUtilization to null" }}
+{{- end }}
+{{- if and $serviceValues.autoscaling.memoryUtilization (not (dig "memory" "" $requests)) }}
+{{- fail "router.autoscaling scales on memory utilization but router.resources.requests.memory is not set — the HPA cannot compute a percentage without a request. Set router.resources.requests.memory (e.g. 128Mi), or set router.autoscaling.memoryUtilization to null" }}
+{{- end }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "router.fullname" . | quote }}
+  labels:
+    {{- include "router.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "router.fullname" . | quote }}
+  minReplicas: {{ $serviceValues.autoscaling.minReplicas }}
+  maxReplicas: {{ $serviceValues.autoscaling.maxReplicas }}
+  metrics:
+  {{- if $serviceValues.autoscaling.cpuUtilization }}
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ $serviceValues.autoscaling.cpuUtilization }}
+  {{- end }}
+  {{- if $serviceValues.autoscaling.memoryUtilization }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ $serviceValues.autoscaling.memoryUtilization }}
+  {{- end }}
+{{- end }}
+{{- end }}
