@@ -138,11 +138,17 @@ spec:
         {{- end }}
         {{- end }}
         {{- if .Values.trustedCertBundle }}
-        {{- /* Go's crypto/x509 honors SSL_CERT_FILE / SSL_CERT_DIR; the Python-specific vars other services set are omitted. */}}
-        - name: SSL_CERT_DIR
-          value: /usr/lib/ssl/certs
+        {{- /*
+        Lets the proxy make outbound TLS calls to endpoints fronted by an internally-
+        trusted CA (e.g. an external OTLP collector behind a self-signed cert). Go's
+        crypto/x509 honors SSL_CERT_FILE for the bundle and still reads the system
+        roots from /etc/ssl/certs, so public CAs remain trusted alongside it. The
+        mount lives under /etc/ssl (which exists in the image — /usr/lib/ssl, used by
+        the Python siblings, does not) as a plain directory mount so it cannot depend
+        on subPath-into-missing-parent behavior on the read-only rootfs.
+        */}}
         - name: SSL_CERT_FILE
-          value: /usr/lib/ssl/cert.pem
+          value: /etc/ssl/istari/bundle.crt
         {{- end }}
         {{- with $serviceValues.env }}
         {{- toYaml . | nindent 8 }}
@@ -160,8 +166,8 @@ spec:
         {{- end }}
         {{- if .Values.trustedCertBundle }}
         - name: trusted-certs
-          mountPath: /usr/lib/ssl/cert.pem
-          subPath: bundle.crt
+          mountPath: /etc/ssl/istari
+          readOnly: true
         {{- end }}
       volumes:
       - name: caddyfile

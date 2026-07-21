@@ -33,7 +33,10 @@ data:
 
     :{{ $serviceValues.listen }} {
     {{- if eq (include "router.tracing.enabled" .) "true" }}
-    	tracing
+    	# Trace proxied requests, but not the kubelet's /healthz probes — at the
+    	# default probe cadence those would emit dozens of no-value spans per minute.
+    	@nothealthz not path /healthz
+    	tracing @nothealthz
 
     {{- end }}
     	# Router self-health; used by the Deployment's liveness/readiness probes.
