@@ -923,7 +923,7 @@ router:
     # -- (bool/null) Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `router.env`, or via a Secret listed in `router.extraEnvSecrets`. If you rely on a Secret, make sure it actually contains `OTEL_EXPORTER_OTLP_ENDPOINT`: the chart cannot inspect Secret contents, and without the variable traces are silently dropped. The chart exports over gRPC by default; a collector that only accepts OTLP/HTTP additionally needs `OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf` in `router.env`.
     # @default -- `null` (automatic: follows `jaeger.enabled`)
     enabled: null
-  # -- Replica count. Defaults to 2, unlike the other services: the router is the single entry point for all routed traffic, so one pod failing (or rolling during an upgrade) must not sever every routed service at once.
+  # -- Replica count. Defaults to 2, unlike the other services: the router is the single entry point for all routed traffic, so one pod failing (or rolling during an upgrade) must not sever every routed service at once. Whenever the effective minimum replica count (this value, or `autoscaling.minReplicas` when autoscaling) is 2 or more, the chart also creates a PodDisruptionBudget keeping at least one router pod up through node drains; at 1 replica no budget is created, so drains are never blocked.
   replicaCount: 2
   # -- Additional labels to add to all of this service's resources
   commonLabels: {}
@@ -996,6 +996,9 @@ router:
   nodeSelector: {}
   # -- Affinity
   affinity: {}
+  # -- (list/null) Topology spread constraints for router pods. Leave unset (`null`) for the chart default: a soft preference (`whenUnsatisfiable: ScheduleAnyway`) to spread replicas across nodes, so one node failure doesn't take every router pod down while clusters with a single node still schedule normally. Set `[]` to disable, or supply your own list — entries must include their own `labelSelector`.
+  # @default -- `null` (chart-managed soft spread across nodes)
+  topologySpreadConstraints: null
   # Ingress -- optional Kubernetes Ingress for this service. Most deployments expose the router the same way as the registry service — an external load balancer or existing ingress controller routing the API host to the router's `kind: Service` on port 80, with TLS terminating there (the router itself serves plain HTTP) — and don't need this Ingress at all.
   ingress:
     # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.

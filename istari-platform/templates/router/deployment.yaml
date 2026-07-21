@@ -185,6 +185,25 @@ spec:
         configMap:
           name: {{ include "shared.trustedCerts.name" . | quote }}
       {{- end }}
+      {{- $spread := $serviceValues.topologySpreadConstraints }}
+      {{- if kindIs "invalid" $spread }}
+      {{- /*
+      Chart default: prefer spreading replicas across nodes so one node failure
+      can't take down every router pod at once. Soft (ScheduleAnyway) so clusters
+      with fewer nodes than replicas — single-node self-hosted installs included —
+      still schedule everything.
+      */}}
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            {{- include "router.selectorLabels" . | nindent 12 }}
+      {{- else if $spread }}
+      topologySpreadConstraints:
+      {{- toYaml $spread | nindent 6 }}
+      {{- end }}
       {{- with $serviceValues.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
