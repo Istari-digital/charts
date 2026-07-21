@@ -52,6 +52,9 @@ data:
     	@{{ $matcher }} path {{ $route.prefix }} {{ $route.prefix }}/*
     	handle @{{ $matcher }} {
     		uri strip_prefix {{ $route.prefix }}
+    		# A bare-prefix request strips to an empty path; normalize it to "/"
+    		# explicitly rather than relying on the proxy's implicit behavior.
+    		uri path_regexp ^$ /
     		reverse_proxy {{ $route.service }}:{{ $route.port }}
     	}
     {{- end }}
