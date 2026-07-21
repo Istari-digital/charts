@@ -16,9 +16,6 @@ The Service Router is enabled. In-cluster clients reach it at http://{{ include 
 {{- range $routes }}
   {{ .prefix }} -> {{ .service }}:{{ .port }}
 {{- end }}
-{{- if not $routes }}
-  (none yet — routes appear automatically as their backing services are enabled)
-{{- end }}
 
 To verify it from your workstation:
 

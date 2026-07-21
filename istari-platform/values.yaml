@@ -908,9 +908,8 @@ docs:
 # forwards the request to the right in-cluster service; unrecognized paths get a 404.
 #
 # Routes for the platform's services are managed by the chart and need no configuration
-# here: a service's route is served automatically while that service is enabled (e.g.
-# /identity appears once identityService.enabled is true). Prefixes for services this
-# chart does not deploy can be attached via `router.extraRoutes`.
+# here: /registry and /identity are always served. Prefixes for services this chart does
+# not deploy can be attached via `router.extraRoutes`.
 #
 # The proxy software inside the router (currently Caddy) is an internal detail and may
 # change in a future release; such a change will never require values changes beyond
