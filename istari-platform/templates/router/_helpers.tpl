@@ -4,12 +4,12 @@ Emits a JSON array of {prefix, service, port} objects.
 
 Routes for the platform's own services are managed by the chart: per the
 service-router engspec, adding a platform service behind the router is a chart
-change, not customer configuration. Each renders only while its backing service is
-enabled, so the router never advertises (or 502s on) a path whose backend does not
-exist in the release. `router.extraRoutes` entries are appended after strict
-validation — the {prefix, service, port} triple is the entire schema, and every
-constraint below keeps the table expressible in any of the engspec's sanctioned
-proxy implementations, not just the current one.
+change, not customer configuration. They are always present, whatever this release
+enables — the route table is a stable contract for clients, and a prefix whose
+backend is not deployed answers 502 at the router. `router.extraRoutes` entries are
+appended after strict validation — the {prefix, service, port} triple is the entire
+schema, and every constraint below keeps the table expressible in any of the
+engspec's sanctioned proxy implementations, not just the current one.
 
 The final table is sorted longest-prefix-first: Caddy handle blocks and Envoy routes
 are first-match-in-declaration-order while nginx picks the longest matching location,
@@ -17,12 +17,8 @@ so pre-sorting makes overlap resolution identical however the config is rendered
 */}}
 {{- define "router.routes" -}}
 {{- $routes := list -}}
-{{- if .Values.fileservice.enabled -}}
 {{- $routes = append $routes (dict "prefix" "/registry" "service" (include "fileservice.fullname" .) "port" 80) -}}
-{{- end -}}
-{{- if .Values.identityService.enabled -}}
 {{- $routes = append $routes (dict "prefix" "/identity" "service" (include "identity.fullname" .) "port" 80) -}}
-{{- end -}}
 {{- range $entry := .Values.router.extraRoutes -}}
 {{- range $key, $unused := $entry -}}
 {{- if not (has $key (list "prefix" "service" "port")) -}}
