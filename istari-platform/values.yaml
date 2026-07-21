@@ -710,6 +710,23 @@ identityService:
       limits:
         cpu: 500m
         memory: 1Gi
+  # -- Backend database for identity-service: `postgres` or `dgraph`. When set, the chart injects
+  # `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_TYPE` into the identity env `ConfigMap`. Leave empty to omit it
+  # (the service defaults to `postgres`) or to supply it yourself via `env`/`secretName`; a raw `env`/secret
+  # entry overrides this. `helm` fails the render for any value other than `""`, `postgres`, or `dgraph`.
+  databaseType: ""
+  # -- Dgraph connection string for `dgraph` mode, e.g. `dgraph://<host>:9080`. When set, the chart injects
+  # `ISTARI_DIGITAL_IDENTITY_SERVICE_DGRAPH_URL` into the identity env `ConfigMap`, reaching both the main
+  # container and the `init-dgraph` init container. Leave empty to supply it via `env`/`secretName`. The
+  # `ConfigMap` is plaintext; route a credential-bearing URL through `secretName` instead.
+  dgraphUrl: ""
+  dgraphMigrations:
+    # -- Apply the Dgraph schema (`migrate-dgraph up`) as a Deployment `initContainer` before the main container starts.
+    # Enable for the Dgraph cutover (set `identityService.databaseType: dgraph`) so the Dgraph schema is present before the service reads/writes Dgraph. Requires `ISTARI_DIGITAL_IDENTITY_SERVICE_DGRAPH_URL` reachable from the env `ConfigMap`/`secretName` (set `identityService.dgraphUrl`, or supply it via `env`/`secretName`). The step is idempotent (the migration runner tracks applied migrations), so it is safe to leave enabled across deploys. This service does not migrate data from Postgres to Dgraph; only the schema is applied.
+    enabled: false
+    # -- Resources for the `init-dgraph` init container. Falls back to `migrations.resources` when unset, so the two migration containers stay in sync unless this is overridden.
+    # @default -- `migrations.resources`
+    resources: {}
   # -- Settings for the `register-client` one-shot hook Job (pre-install/pre-upgrade) that registers the registry-service's identity-service client in the identity-service ClientStore (required once the deployed identity-service image enforces client authentication on `/oauth/v2/introspect`). The Job is rendered only when BOTH `identityService.enabled` and `identityService.identityRouterClientRegistration.enabled` are `true`. It reads both `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT` (the public-only client blob) and `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` from `identityService.secretName`, so the identity-service never needs read access to the registry-service's secret.
   # @default -- (see fields below)
   identityRouterClientRegistration:

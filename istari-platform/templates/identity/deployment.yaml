@@ -119,8 +119,12 @@ spec:
           subPath: bundle.crt
         {{- end }}
         {{- end }}
-      {{- if not (dig "migrations" "runAsJob" false $serviceValues) }}
+      {{- $runMigrationsInline := not (dig "migrations" "runAsJob" false $serviceValues) }}
+      {{- $dgraphMigrateEnabled := dig "dgraphMigrations" "enabled" false $serviceValues }}
+      {{- $dgraphMigrateResources := dig "dgraphMigrations" "resources" dict $serviceValues | default $migrationResources }}
+      {{- if or $runMigrationsInline $dgraphMigrateEnabled }}
       initContainers:
+      {{- if $runMigrationsInline }}
       - name: "init-db"
         {{- with $serviceValues.containerSecurityContext }}
         securityContext:
@@ -183,6 +187,71 @@ spec:
           subPath: bundle.crt
         {{- end }}
         {{- end }}
+      {{- end }}
+      {{- /*
+      Dgraph schema migration (gated on identityService.dgraphMigrations.enabled):
+      apply the Dgraph schema before the main container starts. The binary ships
+      in the same image. Enable when identityService.databaseType=dgraph with the
+      Dgraph URL (ISTARI_DIGITAL_IDENTITY_SERVICE_DGRAPH_URL) in scope. migrate-dgraph
+      up is idempotent, so re-running on every pod start is safe. Ordered after
+      init-db so both schema systems are current.
+      */}}
+      {{- if $dgraphMigrateEnabled }}
+      - name: "init-dgraph"
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command:
+        - "/migrate-dgraph"
+        - "up"
+        {{- with $dgraphMigrateResources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        envFrom:
+        - configMapRef:
+            name: {{ include "identity.configmap.name" . | quote }}
+        {{- if $serviceValues.secretName }}
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- end }}
+        {{- with $serviceValues.extraEnvSecrets }}
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if or $serviceValues.env .Values.trustedCertBundle }}
+        env:
+        {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
+          value: /usr/lib/ssl/cert.pem
+        - name: REQUESTS_CA_BUNDLE
+          value: /usr/lib/ssl/cert.pem
+        - name: SSL_CERT_DIR
+          value: /usr/lib/ssl/certs
+        - name: SSL_CERT_FILE
+          value: /usr/lib/ssl/cert.pem
+        {{- end }}
+        {{- end }}
+        {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
+        volumeMounts:
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+        {{- end }}
+      {{- end }}
       {{- end }}
       {{- if or $serviceValues.volumes .Values.trustedCertBundle }}
       volumes:

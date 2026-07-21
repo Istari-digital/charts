@@ -3,6 +3,9 @@ We put the generated default env vars in this config map so that user-defined va
 'identityService.secretName', 'identityService.extraEnvSecrets', and 'identityService.env' will always override them.
 */}}
 {{- $serviceValues := .Values.identityService -}}
+{{- if and $serviceValues.databaseType (not (has $serviceValues.databaseType (list "postgres" "dgraph"))) }}
+{{- fail (printf "identityService.databaseType must be \"postgres\" or \"dgraph\" (got %q)" $serviceValues.databaseType) }}
+{{- end }}
 {{- if $serviceValues.enabled }}
 apiVersion: v1
 kind: ConfigMap
@@ -17,6 +20,12 @@ metadata:
   {{- end }}
 data:
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+  {{- with $serviceValues.databaseType }}
+  ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_TYPE: {{ . | quote }}
+  {{- end }}
+  {{- with $serviceValues.dgraphUrl }}
+  ISTARI_DIGITAL_IDENTITY_SERVICE_DGRAPH_URL: {{ . | quote }}
+  {{- end }}
   {{- if dig "enabled" false (default dict .Values.jaeger) }}
   {{- /* identity-service uses the OTLP/HTTP exporter → target Jaeger's 4318, not the gRPC 4317
   fileservice uses. Web-container identity; init-db/db-migrate override via
