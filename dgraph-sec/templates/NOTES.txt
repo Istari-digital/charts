@@ -19,6 +19,7 @@
      * Binary backups ......... {{ if or .Values.backups.full.enabled .Values.backups.incremental.enabled }}ENABLED (destination: {{ .Values.backups.destination }}){{ else }}disabled — no backups are being taken{{ end }}
      * Datadog autodiscovery .. {{ if .Values.datadog.enabled }}ENABLED (superservice: {{ .Values.datadog.superservice }}){{ else }}disabled{{ end }}
      * OTEL tracing ........... {{ if .Values.tracing.enabled }}ENABLED (endpoint: {{ .Values.tracing.endpoint }}){{ else }}disabled{{ end }}
+     * Zanzibar authz API ..... {{ if .Values.alpha.zanzibar.enabled }}ENABLED (mode: {{ .Values.alpha.zanzibar.mode }}; SpiceDB gRPC on 9080){{ else }}disabled{{ end }}
      * Pods run as ............ {{ if .Values.alpha.securityContext.enabled }}non-root (securityContext enabled){{ else }}the image default (securityContext DISABLED){{ end }}
 {{- if not .Values.serviceMesh.enabled }}
 {{- if not (or .Values.alpha.tls.enabled .Values.zero.tls.enabled) }}
@@ -72,6 +73,21 @@
         (see the SECRET HANDLING note in values.yaml — prefer a managed Secret).
      4. NetworkPolicy — restrict access on a CNI that enforces it:
           --set networkPolicy.enabled=true
+{{- end }}
+
+{{- if .Values.alpha.zanzibar.enabled }}
+
+   ZANZIBAR AUTHORIZATION API is ENABLED (mode: {{ .Values.alpha.zanzibar.mode }}).
+   Alpha serves the SpiceDB v1 gRPC API on port 9080{{ if eq .Values.alpha.zanzibar.mode "preshared" }}, authenticated by
+   the single preshared `{{ .Values.alpha.zanzibar.keyName }}` key{{ else }} with NO authentication
+   (mode=open, dev only){{ end }}. Load your SpiceDB schema with `zed schema write`
+   or an authzed SDK — this chart does not load it for you.
+{{- if and (eq .Values.alpha.zanzibar.mode "preshared") (not .Values.serviceMesh.enabled) (not .Values.alpha.tls.enabled) }}
+
+   WARNING: serviceMesh.enabled=false and alpha.tls.enabled=false, so the Zanzibar
+   preshared key rides the wire in PLAINTEXT. Enable the service mesh or
+   alpha.tls.enabled before relying on this key for real authorization.
+{{- end }}
 {{- end }}
 
 2. Get the Dgraph Alpha HTTP/S endpoint by running these commands.
