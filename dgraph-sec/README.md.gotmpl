@@ -413,9 +413,18 @@ deployment or storage model. This is a dgraph-sec fork feature, not part of stoc
 upstream Dgraph, so no public Dgraph documentation page covers it. It is
 SpiceDB-compatible across the core schema and permission-check surface rather than
 a reimplementation of every SpiceDB feature: at the shipped image, **caveats compile
-but are not evaluated** (do not rely on a caveat to deny access), the `WatchService`
-returns `Unimplemented`, and `WriteSchema` is additive-only (definitions are never
-removed).
+but are not evaluated** — any permission check that traverses a caveated relationship
+returns `NO_PERMISSION`, so a caveated relationship never grants access (do not model
+a permission that depends on one); the `WatchService` returns `Unimplemented`, and
+`WriteSchema` is additive-only (definitions are never removed).
+
+ZedTokens are likewise dgraph-sec's own format: SpiceDB-issued tokens are rejected
+with `INVALID_ARGUMENT`, so a deployment migrating from SpiceDB must purge any
+persisted tokens (client caches, stored watermarks) at cutover. An upcoming release
+softens this — an undecodable `at_least_as_fresh` token will degrade to a fresh-local
+read, since the freshness floor is a best-effort hint — but `at_exact_snapshot` will
+keep rejecting foreign tokens, as repeatable-read semantics cannot be faked against a
+token dgraph-sec cannot decode.
 
 Turn it on with `alpha.zanzibar.enabled: true` and `mode: preshared`. In production,
 point `existingSecret` at a Terraform-managed Secret that holds the preshared key
