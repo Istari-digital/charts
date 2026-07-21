@@ -55,7 +55,15 @@ data:
     		# A bare-prefix request strips to an empty path; normalize it to "/"
     		# explicitly rather than relying on the proxy's implicit behavior.
     		uri path_regexp ^$ /
-    		reverse_proxy {{ $route.service }}:{{ $route.port }}
+    		reverse_proxy {{ $route.service }}:{{ $route.port }} {
+    			# Send the upstream's own name as Host (nginx's default behavior;
+    			# Caddy's default is to preserve the client's Host). Service meshes
+    			# route sidecar-intercepted HTTP by authority, so the original
+    			# external Host would fall through to plaintext passthrough and be
+    			# reset by strict mTLS. The client's Host is still forwarded as
+    			# X-Forwarded-Host, which Caddy sets automatically.
+    			header_up Host {upstream_hostport}
+    		}
     	}
     {{- end }}
 
