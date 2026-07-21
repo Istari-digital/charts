@@ -191,12 +191,13 @@ spec:
       {{- /*
       Dgraph schema migration (gated on identityService.dgraphMigrations.enabled):
       apply the Dgraph schema before the main container starts. The binary ships
-      in the same image. Enable when STORE_MODE=dgraph-only with DGRAPH_URL in
-      scope. migrate-dgraph up is idempotent, so re-running on every pod start is
-      safe. Ordered after init-db so both schema systems are current.
+      in the same image. Enable when identityService.databaseType=dgraph with the
+      Dgraph URL (ISTARI_DIGITAL_IDENTITY_SERVICE_DGRAPH_URL) in scope. migrate-dgraph
+      up is idempotent, so re-running on every pod start is safe. Ordered after
+      init-db so both schema systems are current.
       */}}
       {{- if $dgraphMigrateEnabled }}
-      - name: "dgraph-migrate"
+      - name: "init-dgraph"
         {{- with $serviceValues.containerSecurityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}
