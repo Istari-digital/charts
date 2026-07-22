@@ -81,7 +81,7 @@ spec:
         {{- /* OTEL defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
         {{- if $jaegerEnabled }}
         - configMapRef:
-            name: {{ include "fileservice.otelConfigMap.name" . | quote }}
+            name: {{ include "fileservice.configmap.name" . | quote }}
         {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
@@ -151,7 +151,7 @@ spec:
         {{- /* OTEL defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
         {{- if $jaegerEnabled }}
         - configMapRef:
-            name: {{ include "fileservice.otelConfigMap.name" . | quote }}
+            name: {{ include "fileservice.configmap.name" . | quote }}
         {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
