@@ -41,6 +41,8 @@ fileservice:
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
   secretName: "istari-fileservice"
+  # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
+  extraEnvConfigMaps: []
   # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
   extraEnvSecrets: []
   # -- Replica count
@@ -184,6 +186,8 @@ frontend:
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
   secretName: "istari-frontend"
+  # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
+  extraEnvConfigMaps: []
   # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
   extraEnvSecrets: []
   # -- Replica count
@@ -326,6 +330,8 @@ mcp:
   # -- Secret name. The secret should contain the environment variables required by the service.
   # Note that a ConfigMap is also automatically created & used with the correct value for ISTARI_DIGITAL_REGISTRY_SERVICE_URL
   secretName: istari-mcp
+  # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
+  extraEnvConfigMaps: []
   # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
   extraEnvSecrets: []
   # -- Replica count
@@ -464,6 +470,8 @@ secureConnection:
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
   secretName: "istari-secure-connection"
+  # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
+  extraEnvConfigMaps: []
   # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
   extraEnvSecrets: []
   # -- Replica count
@@ -607,6 +615,8 @@ identityService:
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
   secretName: "istari-identity-service"
+  # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
+  extraEnvConfigMaps: []
   # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
   extraEnvSecrets: []
   # -- Replica count
@@ -790,6 +800,10 @@ docs:
   tag: "6.14.0"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
+  # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
+  extraEnvConfigMaps: []
+  # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
+  extraEnvSecrets: []
   # -- Replica count
   replicaCount: 1
   # -- Restart policy
@@ -925,6 +939,8 @@ router:
   tag: "2.11.4"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
+  # -- Extra ConfigMaps whose entries become environment variables in the proxy container (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
+  extraEnvConfigMaps: []
   # -- Names of Kubernetes Secrets whose keys become environment variables in the proxy container. Not needed for a standard deployment. (Unlike the other services, the router has no separate `secretName` — this list is the only Secret mechanism.)
   extraEnvSecrets: []
   # -- Port the proxy container listens on. The router's `kind: Service` receives traffic on port 80 and forwards it here; you should never need to change this.
@@ -938,7 +954,7 @@ router:
   #   port: 8080
   # Tracing -- optional per-request tracing through the router, viewable in the bundled Jaeger UI (see `jaeger.enabled`). Useful when troubleshooting routing or latency issues.
   tracing:
-    # -- (bool/null) Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `router.env`, or via a Secret listed in `router.extraEnvSecrets`. If you rely on a Secret, make sure it actually contains `OTEL_EXPORTER_OTLP_ENDPOINT`: the chart cannot inspect Secret contents, and without the variable traces are silently dropped. The chart exports over gRPC by default; a collector that only accepts OTLP/HTTP additionally needs `OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf` in `router.env`.
+    # -- (bool/null) Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `router.env`, a ConfigMap in `router.extraEnvConfigMaps`, or a Secret in `router.extraEnvSecrets`. If you rely on a ConfigMap or Secret, make sure it actually contains `OTEL_EXPORTER_OTLP_ENDPOINT`: the chart cannot inspect their contents, and without the variable traces are silently dropped. The chart exports over gRPC by default; a collector that only accepts OTLP/HTTP additionally needs `OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf` in `router.env`.
     # @default -- `null` (automatic: follows `jaeger.enabled`)
     enabled: null
   # -- Replica count. Defaults to 2, unlike the other services: the router is the single entry point for all routed traffic, so one pod failing (or rolling during an upgrade) must not sever every routed service at once. Whenever the effective minimum replica count (this value, or `autoscaling.minReplicas` when autoscaling) is 2 or more, the chart also creates a PodDisruptionBudget keeping at least one router pod up through node drains; at 1 replica no budget is created, so drains are never blocked.
@@ -1143,7 +1159,7 @@ nats:
 #
 # When `jaeger.enabled: true`, this chart deploys Jaeger in-cluster AND automatically injects the `OTEL_*` exporter/identity env vars, plus each service's enable flag (`FILE_SERVICE_OPENTELEMETRY_ENABLED` / `ISTARI_DIGITAL_IDENTITY_SERVICE_OTEL_ENABLED`), into the main container, init container, and migration Job of fileservice (registry-service; OTLP gRPC, `http://jaeger:4317`) and identity-service (OTLP/HTTP, `http://jaeger:4318`). Each workload gets its own service name, `<service>.<subservice>` (e.g. `registry-service.web`, `identity-service.db-migrate`), plus a matching `k8s.container.name` resource attribute, so web traffic, migrations, and init runs are distinguishable in the Jaeger UI. identity-service's register-client hook Job is not wired (it does not initialize the OTEL SDK).
 #
-# The injected values are DEFAULTS delivered via each service's ConfigMap listed first in `envFrom`: the same variable set in the service's Secret (`secretName`), `extraEnvSecrets`, or explicit `env` values wins — so to send APM elsewhere, set `OTEL_EXPORTER_OTLP_ENDPOINT` through any of those. One exception: the per-workload `OTEL_SERVICE_NAME` / `OTEL_RESOURCE_ATTRIBUTES` in init containers and migration Jobs are explicit env (a shared ConfigMap cannot vary per container) and are overridable only via the service's `env` values, not via Secrets.
+# The injected values are DEFAULTS delivered via each service's ConfigMap listed first in `envFrom`: the same variable set in the service's `extraEnvConfigMaps`, Secret (`secretName`), `extraEnvSecrets`, or explicit `env` values wins — so to send APM elsewhere, set `OTEL_EXPORTER_OTLP_ENDPOINT` through any of those. One exception: the per-workload `OTEL_SERVICE_NAME` / `OTEL_RESOURCE_ATTRIBUTES` in init containers and migration Jobs are explicit env (a shared ConfigMap cannot vary per container) and are overridable only via the service's `env` values, not via Secrets.
 #
 # Traces are stored in Badger (Jaeger's embedded storage) on a PersistentVolumeClaim created by this chart (see `jaeger.persistence`), with a 72h span retention TTL. Badger is single-writer: keep `replicas` at 1. The Jaeger UI is not exposed outside the cluster; the post-install notes print the exact `kubectl port-forward` command (the Service name follows `jaeger.fullnameOverride`, default `jaeger`).
 #

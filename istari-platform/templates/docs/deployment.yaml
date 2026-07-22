@@ -62,12 +62,20 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets }}
+        {{- if or $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps }}
         envFrom:
         {{- end }}
-        {{- if $serviceValues.secretName }}
+        {{- with $serviceValues.extraEnvConfigMaps }}
+        {{- range . }}
+        - configMapRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- with $serviceValues.extraEnvSecrets }}
+        {{- range . }}
         - secretRef:
-            name: {{ $serviceValues.secretName | quote }}
+            name: {{ . | quote }}
+        {{- end }}
         {{- end }}
         {{- with $serviceValues.env }}
         env:
