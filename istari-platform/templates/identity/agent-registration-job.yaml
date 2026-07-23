@@ -45,6 +45,8 @@ metadata:
   name: {{ include "identity.agentRegistration.jobName" (dict "root" $ "name" $agent.name) | quote }}
   labels:
     {{- include "identity.labels" $ | nindent 4 }}
+    istari.digital/job-type: "agent-registration"
+    istari.digital/agent: {{ $agent.name | quote }}
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     # Weight 20: after the migration hook (weight 5, requires migrations.runAsJob=true
@@ -58,6 +60,8 @@ spec:
     metadata:
       labels:
         {{- include "identity.labels" $ | nindent 8 }}
+        istari.digital/job-type: "agent-registration"
+        istari.digital/agent: {{ $agent.name | quote }}
         {{- with $registrationPodLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
