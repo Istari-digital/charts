@@ -13,6 +13,8 @@ metadata:
   name: {{ include "identity.routerClientRegistration.jobName" . | quote }}
   labels:
     {{- include "identity.labels" . | nindent 4 }}
+    istari.digital/job-type: "client-registration"
+    istari.digital/client: "registry"
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "10"
@@ -23,6 +25,8 @@ spec:
     metadata:
       labels:
         {{- include "identity.labels" . | nindent 8 }}
+        istari.digital/job-type: "client-registration"
+        istari.digital/client: "registry"
         {{- with $registrationPodLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -34,6 +38,8 @@ spec:
     spec:
       restartPolicy: Never
       serviceAccountName: {{ include "identity.fullname" . | quote }}
+      # The Job only talks to PostgreSQL; it never needs the Kubernetes API.
+      automountServiceAccountToken: false
       {{- with $serviceValues.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}

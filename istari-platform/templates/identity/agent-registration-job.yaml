@@ -25,10 +25,12 @@
 {{- $dbURLEnv := "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" -}}
 {{- range $agent := $agents }}
 {{- $_ := $agent.name | required "each identityService.agentRegistration.agents entry must set name" -}}
-{{- /* name feeds identity.agentRegistration.jobName, which lowercases it and maps
-       "_"→"-" for the Job name; other characters (spaces, dots, slashes) would
-       produce an invalid resource name that only fails at apply time. */ -}}
-{{- if not (regexMatch "^[A-Za-z0-9_-]+$" $agent.name) }}{{ fail (printf "agentRegistration agent %q: name may contain only letters, digits, hyphens, and underscores" $agent.name) }}{{ end }}
+{{- /* name is used as the istari.digital/agent label value and (lowercased,
+       "_"→"-") in identity.agentRegistration.jobName. Constrain it to the
+       intersection valid for both — a Kubernetes label value that is also a
+       DNS-1123 segment after conversion — so an invalid input fails at render
+       time rather than at apply time. */ -}}
+{{- if not (regexMatch "^[A-Za-z0-9]([A-Za-z0-9_-]{0,61}[A-Za-z0-9])?$" $agent.name) }}{{ fail (printf "agentRegistration agent %q: name must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, and be at most 63 characters (it is used as the istari.digital/agent label)" $agent.name) }}{{ end }}
 {{- $_ := $agent.tenantSlug | required (printf "agentRegistration agent %q must set tenantSlug" $agent.name) -}}
 {{- $_ := $agent.keyEnv | required (printf "agentRegistration agent %q must set keyEnv (the env var, from secretName or extraEnvSecrets, holding the base64 public-only agent credential blob)" $agent.name) -}}
 {{- /* providerName maps the tenant to an upstream org and needs that org's id; the
@@ -45,6 +47,8 @@ metadata:
   name: {{ include "identity.agentRegistration.jobName" (dict "root" $ "name" $agent.name) | quote }}
   labels:
     {{- include "identity.labels" $ | nindent 4 }}
+    istari.digital/job-type: "agent-registration"
+    istari.digital/agent: {{ $agent.name | quote }}
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     # Weight 20: after the migration hook (weight 5, requires migrations.runAsJob=true
@@ -58,6 +62,8 @@ spec:
     metadata:
       labels:
         {{- include "identity.labels" $ | nindent 8 }}
+        istari.digital/job-type: "agent-registration"
+        istari.digital/agent: {{ $agent.name | quote }}
         {{- with $registrationPodLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
