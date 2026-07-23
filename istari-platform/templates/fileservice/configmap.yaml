@@ -21,7 +21,7 @@ data:
   OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
   {{- /* Web-container identity; init-db/db-migrate override via "istari-platform.otelWorkloadEnv".
   `istari-platform` is the main container's actual name in the Pod spec. */}}
-  OTEL_SERVICE_NAME: "registry-service.web"
+  OTEL_SERVICE_NAME: "registry.web"
   OTEL_RESOURCE_ATTRIBUTES: "k8s.container.name=istari-platform"
   OTEL_LOGS_EXPORTER: "none"
   OTEL_METRICS_EXPORTER: "none"
