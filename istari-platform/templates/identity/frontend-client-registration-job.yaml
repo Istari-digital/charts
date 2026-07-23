@@ -8,11 +8,11 @@
 {{- if and $serviceValues.enabled $registrationEnabled }}
 {{- /* This hook runs pre-install/pre-upgrade; the columns register-client
        -public-client-id writes (client_type, redirect_uris — identity-service
-       migration 00012) only exist if migrations run as a pre-upgrade hook
-       (weight 5), i.e. migrations.runAsJob=true. With runAsJob=false
+       migration 00012) only exist if migrations run as a pre-install/pre-upgrade
+       hook (weight 5), i.e. migrations.runAsJob=true. With runAsJob=false
        migrations run as a Deployment initContainer — after all hooks — so a
        fresh install would run this Job against a missing schema. */ -}}
-{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identityService.frontendClientRegistration.enabled requires identityService.migrations.runAsJob=true, so DB migrations run as a pre-upgrade hook before this registration hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and register-client would run against a missing schema" }}{{ end }}
+{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identityService.frontendClientRegistration.enabled requires identityService.migrations.runAsJob=true, so DB migrations run as a pre-install/pre-upgrade hook (weight 5) before this registration hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and register-client would run against a missing schema" }}{{ end }}
 {{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.frontendClientRegistration.enabled is true" -}}
 apiVersion: batch/v1
 kind: Job
