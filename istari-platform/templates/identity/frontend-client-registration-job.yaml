@@ -6,6 +6,13 @@
 {{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
 {{- $registrationEnabled := dig "enabled" false $registration -}}
 {{- if and $serviceValues.enabled $registrationEnabled }}
+{{- /* This hook runs pre-install/pre-upgrade; the columns register-client
+       -public-client-id writes (client_type, redirect_uris — identity-service
+       migration 00012) only exist if migrations run as a pre-upgrade hook
+       (weight 5), i.e. migrations.runAsJob=true. With runAsJob=false
+       migrations run as a Deployment initContainer — after all hooks — so a
+       fresh install would run this Job against a missing schema. */ -}}
+{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identityService.frontendClientRegistration.enabled requires identityService.migrations.runAsJob=true, so DB migrations run as a pre-upgrade hook before this registration hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and register-client would run against a missing schema" }}{{ end }}
 {{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.frontendClientRegistration.enabled is true" -}}
 apiVersion: batch/v1
 kind: Job
@@ -13,6 +20,8 @@ metadata:
   name: {{ include "identity.frontendClientRegistration.jobName" . | quote }}
   labels:
     {{- include "identity.labels" . | nindent 4 }}
+    istari.digital/job-type: "client-registration"
+    istari.digital/client: "frontend"
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "10"
@@ -23,6 +32,8 @@ spec:
     metadata:
       labels:
         {{- include "identity.labels" . | nindent 8 }}
+        istari.digital/job-type: "client-registration"
+        istari.digital/client: "frontend"
         {{- with $registrationPodLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -34,6 +45,8 @@ spec:
     spec:
       restartPolicy: Never
       serviceAccountName: {{ include "identity.fullname" . | quote }}
+      # The Job only talks to PostgreSQL; it never needs the Kubernetes API.
+      automountServiceAccountToken: false
       {{- with $serviceValues.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
