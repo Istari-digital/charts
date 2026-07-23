@@ -24,10 +24,11 @@ One-shot Job that registers the registry-service identity-router client in the C
 {{- end }}
 
 {{/*
-One-shot Job that registers the frontend's public (PKCE) client in the ClientStore.
+One-shot Job that registers a public (PKCE) client in the ClientStore.
+Call with a dict: {"root": $, "name": <client name>}.
 */}}
-{{- define "identity.frontendClientRegistration.jobName" -}}
-{{- printf "%s-register-frontend-client" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- define "identity.publicClientRegistration.jobName" -}}
+{{- printf "%s-register-client-%s" (include "identity.fullname" .root) (.name | lower | replace "_" "-") | trunc 63 | trimSuffix "-" -}}
 {{- end }}
 
 {{/*

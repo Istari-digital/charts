@@ -1,27 +1,37 @@
 {{- $serviceValues := .Values.identityService -}}
-{{- $registration := dig "frontendClientRegistration" dict $serviceValues -}}
+{{- $registration := dig "publicClientRegistration" dict $serviceValues -}}
 {{- $registrationPodAnnotations := dig "podAnnotations" dict $registration -}}
 {{- $registrationPodLabels := dig "podLabels" dict $registration -}}
 {{- $registrationResources := dig "resources" dict $registration -}}
 {{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
 {{- $registrationEnabled := dig "enabled" false $registration -}}
-{{- if and $serviceValues.enabled $registrationEnabled }}
-{{- /* This hook runs pre-install/pre-upgrade; the columns register-client
+{{- $clients := dig "clients" list $registration -}}
+{{- if and $serviceValues.enabled $registrationEnabled $clients }}
+{{- /* These hooks run pre-install/pre-upgrade; the columns register-client
        -public-client-id writes (client_type, redirect_uris — identity-service
        migration 00012) only exist if migrations run as a pre-install/pre-upgrade
        hook (weight 5), i.e. migrations.runAsJob=true. With runAsJob=false
        migrations run as a Deployment initContainer — after all hooks — so a
-       fresh install would run this Job against a missing schema. */ -}}
-{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identityService.frontendClientRegistration.enabled requires identityService.migrations.runAsJob=true, so DB migrations run as a pre-install/pre-upgrade hook (weight 5) before this registration hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and register-client would run against a missing schema" }}{{ end }}
-{{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.frontendClientRegistration.enabled is true" -}}
+       fresh install would run these Jobs against a missing schema. */ -}}
+{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identityService.publicClientRegistration.enabled requires identityService.migrations.runAsJob=true, so DB migrations run as a pre-install/pre-upgrade hook (weight 5) before these registration hooks; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and register-client would run against a missing schema" }}{{ end }}
+{{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.publicClientRegistration.enabled is true" -}}
+{{- range $client := $clients }}
+{{- $_ := $client.name | required "each identityService.publicClientRegistration.clients entry must set name" -}}
+{{- /* name feeds identity.publicClientRegistration.jobName and the
+       istari.digital/client label; restrict it so an invalid resource name
+       cannot surface only at apply time. */ -}}
+{{- if not (regexMatch "^[A-Za-z0-9_-]+$" $client.name) }}{{ fail (printf "publicClientRegistration client %q: name may contain only letters, digits, hyphens, and underscores" $client.name) }}{{ end }}
+{{- $_ := $client.clientIdKey | required (printf "publicClientRegistration client %q must set clientIdKey (the identityService.secretName key holding the client_id)" $client.name) -}}
+{{- $_ := $client.redirectUrisKey | required (printf "publicClientRegistration client %q must set redirectUrisKey (the identityService.secretName key holding the comma-separated exact-match redirect allowlist)" $client.name) }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "identity.frontendClientRegistration.jobName" . | quote }}
+  name: {{ include "identity.publicClientRegistration.jobName" (dict "root" $ "name" $client.name) | quote }}
   labels:
-    {{- include "identity.labels" . | nindent 4 }}
+    {{- include "identity.labels" $ | nindent 4 }}
     istari.digital/job-type: "client-registration"
-    istari.digital/client: "frontend"
+    istari.digital/client: {{ $client.name | quote }}
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "10"
@@ -31,9 +41,9 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "identity.labels" . | nindent 8 }}
+        {{- include "identity.labels" $ | nindent 8 }}
         istari.digital/job-type: "client-registration"
-        istari.digital/client: "frontend"
+        istari.digital/client: {{ $client.name | quote }}
         {{- with $registrationPodLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -44,19 +54,19 @@ spec:
         {{- end }}
     spec:
       restartPolicy: Never
-      serviceAccountName: {{ include "identity.fullname" . | quote }}
+      serviceAccountName: {{ include "identity.fullname" $ | quote }}
       # The Job only talks to PostgreSQL; it never needs the Kubernetes API.
       automountServiceAccountToken: false
       {{- with $serviceValues.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      {{- with default $.Values.imagePullSecrets $serviceValues.imagePullSecrets }}
       imagePullSecrets:
       {{- toYaml . | nindent 6 }}
       {{- end }}
       containers:
-      - name: register-frontend-client
+      - name: register-public-client
         {{- with $serviceValues.containerSecurityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}
@@ -66,27 +76,27 @@ spec:
         command:
         - "/register-client"
         # $(VAR) is expanded by Kubernetes from the env vars below, so the DB URL
-        # never appears in plaintext in the pod manifest. The frontend is a public
-        # (browser, PKCE) client: no key material at all — just its client_id and
-        # the exact-match redirect allowlist that /oauth2/authorize enforces.
+        # never appears in plaintext in the pod manifest. Public (browser, PKCE)
+        # clients carry no key material at all — just a client_id and the
+        # exact-match redirect allowlist that /oauth2/authorize enforces.
         args:
         - "-public-client-id"
-        - "$(FRONTEND_CLIENT_ID)"
+        - "$(PUBLIC_CLIENT_ID)"
         - "-redirect-uris"
-        - "$(FRONTEND_REDIRECT_URIS)"
+        - "$(PUBLIC_CLIENT_REDIRECT_URIS)"
         - "-database-url"
         - "$(DATABASE_URL)"
         env:
-        - name: FRONTEND_CLIENT_ID
+        - name: PUBLIC_CLIENT_ID
           valueFrom:
             secretKeyRef:
               name: {{ $serviceValues.secretName | quote }}
-              key: "ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_CLIENT_ID"
-        - name: FRONTEND_REDIRECT_URIS
+              key: {{ $client.clientIdKey | quote }}
+        - name: PUBLIC_CLIENT_REDIRECT_URIS
           valueFrom:
             secretKeyRef:
               name: {{ $serviceValues.secretName | quote }}
-              key: "ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS"
+              key: {{ $client.redirectUrisKey | quote }}
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
@@ -95,7 +105,7 @@ spec:
         {{- with $serviceValues.env }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        {{- if .Values.trustedCertBundle }}
+        {{- if $.Values.trustedCertBundle }}
         - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
           value: /usr/lib/ssl/cert.pem
         - name: REQUESTS_CA_BUNDLE
@@ -109,26 +119,26 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
+        {{- if or $serviceValues.volumeMounts $.Values.trustedCertBundle }}
         volumeMounts:
         {{- with $serviceValues.volumeMounts }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        {{- if .Values.trustedCertBundle }}
+        {{- if $.Values.trustedCertBundle }}
         - name: trusted-certs
           mountPath: /usr/lib/ssl/cert.pem
           subPath: bundle.crt
         {{- end }}
         {{- end }}
-      {{- if or $serviceValues.volumes .Values.trustedCertBundle }}
+      {{- if or $serviceValues.volumes $.Values.trustedCertBundle }}
       volumes:
       {{- with $serviceValues.volumes }}
       {{- toYaml . | nindent 6 }}
       {{- end }}
-      {{- if .Values.trustedCertBundle }}
+      {{- if $.Values.trustedCertBundle }}
       - name: trusted-certs
         configMap:
-          name: {{ include "shared.trustedCerts.name" . | quote }}
+          name: {{ include "shared.trustedCerts.name" $ | quote }}
       {{- end }}
       {{- end }}
       {{- with $serviceValues.nodeSelector }}
@@ -143,4 +153,5 @@ spec:
       tolerations:
       {{- toYaml . | nindent 6 }}
       {{- end }}
+{{- end }}
 {{- end }}

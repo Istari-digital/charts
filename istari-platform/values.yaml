@@ -735,20 +735,22 @@ identityService:
     podLabels: {}
     # -- Resources for the registration Job container.
     resources: {}
-  # -- Settings for the `register-client -public-client-id` one-shot hook Job (pre-install/pre-upgrade) that registers the frontend's public (browser, PKCE) OAuth client and its exact-match redirect allowlist in the identity-service ClientStore, so `/oauth2/authorize` can validate the presented `client_id` and `redirect_uri`. The Job is rendered only when BOTH `identityService.enabled` and `identityService.frontendClientRegistration.enabled` are `true`. It reads `ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_CLIENT_ID`, `ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS` (comma-separated), and `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` from `identityService.secretName` (helm-stack terraform provisions the first two). No key material is involved — public clients have none.
+  # -- Settings for the `register-client -public-client-id` one-shot hook Jobs (pre-install/pre-upgrade). For each entry in `clients`, one Job registers a public (browser, PKCE) OAuth client — its `client_id` and exact-match redirect allowlist — in the identity-service ClientStore, so `/oauth2/authorize` can validate the presented `client_id` and `redirect_uri`. Rendered only when BOTH `identityService.enabled` and `identityService.publicClientRegistration.enabled` are `true` AND `clients` is non-empty. Each entry names the `identityService.secretName` keys holding its inputs (`clientIdKey`, `redirectUrisKey`); the DB URL is read from `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` in the same secret. No key material is involved — public clients have none.
   # @default -- (see fields below)
-  frontendClientRegistration:
-    # -- Whether to render the registration Job. Off by default: only enable in environments where `identityService.secretName` carries `ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_CLIENT_ID` / `_FRONTEND_REDIRECT_URIS`; otherwise the hook Job fails the release with a missing-secret-key error. Also requires an identity-service image whose `register-client` supports `-public-client-id` (Istari-digital/identity-service#88), and `identityService.migrations.runAsJob=true` (so migrations run as a pre-install/pre-upgrade hook, weight 5, before this one — guaranteeing the `client_type`/`redirect_uris` schema exists on fresh installs and upgrades alike); rendering fails fast otherwise.
+  publicClientRegistration:
+    # -- Whether to render the registration Jobs. Off by default: only enable in environments where `identityService.secretName` carries every listed client's `clientIdKey`/`redirectUrisKey` (helm-stack terraform provisions them); otherwise the hook Jobs fail the release with a missing-secret-key error. Also requires an identity-service image whose `register-client` supports `-public-client-id` (Istari-digital/identity-service#88), and `identityService.migrations.runAsJob=true` (so migrations run as a pre-install/pre-upgrade hook, weight 5, before these — guaranteeing the `client_type`/`redirect_uris` schema exists on fresh installs and upgrades alike); rendering fails fast otherwise.
     enabled: false
-    # -- `spec.backoffLimit` for the registration Job (number of retries after a failed Pod).
+    # -- Public clients to register, one Job each. Fields per entry: `name` (required; letters, digits, hyphens, underscores — used in the Job name and the `istari.digital/client` label), `clientIdKey` (required; the `identityService.secretName` key holding the client_id), `redirectUrisKey` (required; the key holding the comma-separated exact-match redirect allowlist). Example: `{name: frontend, clientIdKey: ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_CLIENT_ID, redirectUrisKey: ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS}`.
+    clients: []
+    # -- `spec.backoffLimit` for each registration Job (number of retries after a failed Pod).
     backoffLimit: 6
-    # -- Automatically clean up the successful registration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`).
+    # -- Automatically clean up successful registration hook `Job`s by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`).
     autoCleanupSuccessfulJob: true
-    # -- Annotations for the registration Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`).
+    # -- Annotations for the registration Job Pod templates only (in addition to `sidecar.istio.io/inject: "false"`).
     podAnnotations: {}
-    # -- Extra labels for the registration Job Pod template only.
+    # -- Extra labels for the registration Job Pod templates only.
     podLabels: {}
-    # -- Resources for the registration Job container.
+    # -- Resources for the registration Job containers.
     resources: {}
   # -- Settings for the agent-registration one-shot hook Jobs (pre-install/pre-upgrade). For each entry in `agents`, one Job runs `create-tenant` (idempotent, as an init container) and then `register-agent`, provisioning a service principal's tenant and public key in the identity-service. Used to onboard autonomous service agents that authenticate to the identity-service via `client_credentials` (e.g. the secure-connection-service, DPLAT-513). Rendered only when BOTH `identityService.enabled` and `identityService.agentRegistration.enabled` are `true` AND `agents` is non-empty. Each agent's inputs (its public-only credential blob, the DB URL, and — for upstream binding — its username / org id) are supplied as env vars via `envFrom` on `identityService.secretName` plus `agentRegistration.extraEnvSecrets`, and the CLIs read them by name; the identity-service never needs read access to another service's secret and is never handed private key material. The Job pods inherit the identity-service's `nodeSelector`, `affinity`, `tolerations`, security contexts, and image-pull secrets; only `podAnnotations`, `podLabels`, and `resources` are configured separately here.
   # @default -- (see fields below)
