@@ -78,10 +78,16 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'identityService.secretName', 'identityService.extraEnvSecrets', and 'identityService.env' will always override them.
+        'identityService.extraEnvConfigMaps', 'identityService.secretName', 'identityService.extraEnvSecrets', and 'identityService.env' will always override them.
         */}}
         - configMapRef:
             name: {{ include "identity.configmap.name" . | quote }}
+        {{- with $serviceValues.extraEnvConfigMaps }}
+        {{- range . }}
+        - configMapRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
         {{- if $serviceValues.secretName }}
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
@@ -137,10 +143,16 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'identityService.secretName', 'identityService.extraEnvSecrets', and 'identityService.env' will always override them.
+        'identityService.extraEnvConfigMaps', 'identityService.secretName', 'identityService.extraEnvSecrets', and 'identityService.env' will always override them.
         */}}
         - configMapRef:
             name: {{ include "identity.configmap.name" . | quote }}
+        {{- with $serviceValues.extraEnvConfigMaps }}
+        {{- range . }}
+        - configMapRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
         {{- if $serviceValues.secretName }}
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}

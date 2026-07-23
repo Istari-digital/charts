@@ -57,6 +57,12 @@ spec:
         envFrom:
         - configMapRef:
             name: {{ include "identity.configmap.name" . | quote }}
+        {{- with $serviceValues.extraEnvConfigMaps }}
+        {{- range . }}
+        - configMapRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
         {{- if $serviceValues.secretName }}
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}

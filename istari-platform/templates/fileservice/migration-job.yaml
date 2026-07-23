@@ -54,13 +54,19 @@ spec:
         - "upgrade"
         - "head"
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets $jaegerEnabled }}
+        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled }}
         envFrom:
         {{- end }}
-        {{- /* OTEL defaults FIRST so the user's Secret(s) below and explicit env override them */}}
+        {{- /* OTEL defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
         {{- if $jaegerEnabled }}
         - configMapRef:
             name: {{ include "fileservice.otelConfigMap.name" . | quote }}
+        {{- end }}
+        {{- with $serviceValues.extraEnvConfigMaps }}
+        {{- range . }}
+        - configMapRef:
+            name: {{ . | quote }}
+        {{- end }}
         {{- end }}
         {{- if $serviceValues.secretName }}
         - secretRef:

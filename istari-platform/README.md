@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.23.2](https://img.shields.io/badge/Version-3.23.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.24.0](https://img.shields.io/badge/Version-3.24.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -103,6 +103,8 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | docs.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
 | docs.enabled | bool | `false` | Enable / Disable the whole deployment |
 | docs.env | list | `[]` |  |
+| docs.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
+| docs.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | docs.image | string | `"docs-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | docs.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | docs.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
@@ -143,6 +145,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | fileservice.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
 | fileservice.enabled | bool | `true` | Enable / Disable the whole deployment |
 | fileservice.env | list | `[]` |  |
+| fileservice.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | fileservice.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | fileservice.image | string | `"fileservice2"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
@@ -190,6 +193,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | frontend.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
 | frontend.enabled | bool | `true` | Enable / Disable the whole deployment |
 | frontend.env | list | `[]` |  |
+| frontend.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | frontend.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | frontend.image | string | `"frontend-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | frontend.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
@@ -242,6 +246,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | identityService.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
 | identityService.enabled | bool | `false` | Enable / Disable the whole deployment |
 | identityService.env | list | `[]` |  |
+| identityService.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | identityService.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | identityService.identityRouterClientRegistration | object | (see fields below) | Settings for the `register-client` one-shot hook Job (pre-install/pre-upgrade) that registers the registry-service's identity-service client in the identity-service ClientStore (required once the deployed identity-service image enforces client authentication on `/oauth/v2/introspect`). The Job is rendered only when BOTH `identityService.enabled` and `identityService.identityRouterClientRegistration.enabled` are `true`. It reads both `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT` (the public-only client blob) and `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` from `identityService.secretName`, so the identity-service never needs read access to the registry-service's secret. |
 | identityService.identityRouterClientRegistration.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful registration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). |
@@ -313,6 +318,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | mcp.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
 | mcp.enabled | bool | `false` | Enable / Disable the whole deployment |
 | mcp.env | list | `[]` |  |
+| mcp.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | mcp.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | mcp.image | string | `"mcp-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
@@ -376,6 +382,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | router.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
 | router.enabled | bool | `false` | Enable / Disable the whole deployment |
 | router.env | list | `[]` | Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `router.tracing.enabled`). |
+| router.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables in the proxy container (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | router.extraEnvSecrets | list | `[]` | Names of Kubernetes Secrets whose keys become environment variables in the proxy container. Not needed for a standard deployment. (Unlike the other services, the router has no separate `secretName` — this list is the only Secret mechanism.) |
 | router.extraRoutes | list | `[]` | Additional path-prefix routes served alongside the chart-managed ones, for reaching in-cluster services this chart does not deploy. Each entry maps a URL path prefix to a Kubernetes Service in the same namespace as this release (cross-namespace and FQDN targets are not supported): the router matches the prefix and everything under it (never other prefixes that merely share its leading characters), strips it, and forwards the request to `service:port` over plain HTTP. A prefix must start with `/`, must not end with `/`, may use letters, digits, `-`, `_`, and `/` segment separators, and may not duplicate a chart-managed route or the reserved `/healthz` — invalid entries fail the render. When prefixes overlap, the longest match wins. Most deployments should leave this empty: routes for platform services are built into the chart and appear automatically. |
 | router.image | string | `"istaridigital.com/caddy-fips"` | Image name. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS Caddy variant in the Istari customer-docker JFrog repo, pulled with the same credentials as the rest of the chart. The `istaridigital.com/` path segment is part of the repository path — not a typo. |
@@ -404,7 +411,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | router.tag | string | `"2.11.4"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | router.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | router.topologySpreadConstraints | list/null | `null` (chart-managed soft spread across nodes) | Topology spread constraints for router pods. Leave unset (`null`) for the chart default: a soft preference (`whenUnsatisfiable: ScheduleAnyway`) to spread replicas across nodes, so one node failure doesn't take every router pod down while clusters with a single node still schedule normally. Set `[]` to disable, or supply your own list — entries must include their own `labelSelector`. |
-| router.tracing.enabled | bool/null | `null` (automatic: follows `jaeger.enabled`) | Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `router.env`, or via a Secret listed in `router.extraEnvSecrets`. If you rely on a Secret, make sure it actually contains `OTEL_EXPORTER_OTLP_ENDPOINT`: the chart cannot inspect Secret contents, and without the variable traces are silently dropped. The chart exports over gRPC by default; a collector that only accepts OTLP/HTTP additionally needs `OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf` in `router.env`. |
+| router.tracing.enabled | bool/null | `null` (automatic: follows `jaeger.enabled`) | Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `router.env`, a ConfigMap in `router.extraEnvConfigMaps`, or a Secret in `router.extraEnvSecrets`. If you rely on a ConfigMap or Secret, make sure it actually contains `OTEL_EXPORTER_OTLP_ENDPOINT`: the chart cannot inspect their contents, and without the variable traces are silently dropped. The chart exports over gRPC by default; a collector that only accepts OTLP/HTTP additionally needs `OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf` in `router.env`. |
 | router.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | router.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
 | router.virtualService.gateways | list | `[]` | `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only. |
@@ -423,6 +430,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | secureConnection.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
 | secureConnection.enabled | bool | `false` | Enable / Disable the whole deployment |
 | secureConnection.env | list | `[]` |  |
+| secureConnection.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | secureConnection.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
 | secureConnection.image | string | `"secure-connection-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
