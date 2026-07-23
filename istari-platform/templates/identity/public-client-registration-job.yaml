@@ -20,7 +20,7 @@
 {{- /* name feeds identity.publicClientRegistration.jobName and the
        istari.digital/client label; restrict it so an invalid resource name
        cannot surface only at apply time. */ -}}
-{{- if not (regexMatch "^[A-Za-z0-9_-]+$" $client.name) }}{{ fail (printf "publicClientRegistration client %q: name may contain only letters, digits, hyphens, and underscores" $client.name) }}{{ end }}
+{{- if not (regexMatch "^[A-Za-z0-9]([A-Za-z0-9_-]{0,61}[A-Za-z0-9])?$" $client.name) }}{{ fail (printf "publicClientRegistration client %q: name must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, and be at most 63 characters (it is used as the istari.digital/client label)" $client.name) }}{{ end }}
 {{- $_ := $client.clientIdKey | required (printf "publicClientRegistration client %q must set clientIdKey (the identityService.secretName key holding the client_id)" $client.name) -}}
 {{- $_ := $client.redirectUrisKey | required (printf "publicClientRegistration client %q must set redirectUrisKey (the identityService.secretName key holding the comma-separated exact-match redirect allowlist)" $client.name) }}
 ---

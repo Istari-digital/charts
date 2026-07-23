@@ -28,7 +28,16 @@ One-shot Job that registers a public (PKCE) client in the ClientStore.
 Call with a dict: {"root": $, "name": <client name>}.
 */}}
 {{- define "identity.publicClientRegistration.jobName" -}}
-{{- printf "%s-register-client-%s" (include "identity.fullname" .root) (.name | lower | replace "_" "-") | trunc 63 | trimSuffix "-" -}}
+{{- /* Build a DNS-1123-safe, collision-free Job name within the 63-char limit,
+       mirroring identity.agentRegistration.jobName: a bounded fullname prefix,
+       a readable sanitized slice of the client name, and an 8-char hash of the
+       FULL name so two clients sharing a 12-char prefix never collide even if
+       a long release name would otherwise truncate the distinguishing suffix.
+       24 + len("-register-client-")=17 + 12 + 1 + 8 = 62 <= 63. */ -}}
+{{- $prefix := include "identity.fullname" .root | trunc 24 | trimSuffix "-" -}}
+{{- $slug := .name | lower | replace "_" "-" | trunc 12 | trimSuffix "-" -}}
+{{- $hash := .name | sha256sum | trunc 8 -}}
+{{- printf "%s-register-client-%s-%s" $prefix $slug $hash | trimSuffix "-" -}}
 {{- end }}
 
 {{/*

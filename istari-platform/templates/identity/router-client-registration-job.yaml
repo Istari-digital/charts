@@ -38,6 +38,8 @@ spec:
     spec:
       restartPolicy: Never
       serviceAccountName: {{ include "identity.fullname" . | quote }}
+      # The Job only talks to PostgreSQL; it never needs the Kubernetes API.
+      automountServiceAccountToken: false
       {{- with $serviceValues.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
