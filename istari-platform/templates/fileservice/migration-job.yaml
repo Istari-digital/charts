@@ -87,7 +87,7 @@ spec:
         env:
         {{- /* Chart-injected OTEL identity FIRST so the user's env entries below override it */}}
         {{- if $jaegerEnabled }}
-        {{- include "istari-platform.otelWorkloadEnv" (dict "service" "registry-service" "container" "db-migrate") | nindent 8 }}
+        {{- include "istari-platform.otelWorkloadEnv" (dict "service" "registry" "container" "db-migrate") | nindent 8 }}
         {{- end }}
         {{- with $serviceValues.env }}
         {{- toYaml . | nindent 8 }}

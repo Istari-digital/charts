@@ -24,7 +24,7 @@ data:
   ISTARI_DIGITAL_IDENTITY_SERVICE_OTEL_ENABLED: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ include "istari-platform.jaeger.otlpHttpUrl" . | quote }}
   OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
-  OTEL_SERVICE_NAME: "identity-service.web"
+  OTEL_SERVICE_NAME: "identity.web"
   OTEL_RESOURCE_ATTRIBUTES: "k8s.container.name=istari-platform"
   OTEL_LOGS_EXPORTER: "none"
   OTEL_METRICS_EXPORTER: "none"
