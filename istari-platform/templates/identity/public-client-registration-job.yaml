@@ -1,0 +1,157 @@
+{{- $serviceValues := .Values.identityService -}}
+{{- $registration := dig "publicClientRegistration" dict $serviceValues -}}
+{{- $registrationPodAnnotations := dig "podAnnotations" dict $registration -}}
+{{- $registrationPodLabels := dig "podLabels" dict $registration -}}
+{{- $registrationResources := dig "resources" dict $registration -}}
+{{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
+{{- $registrationEnabled := dig "enabled" false $registration -}}
+{{- $clients := dig "clients" list $registration -}}
+{{- if and $serviceValues.enabled $registrationEnabled $clients }}
+{{- /* These hooks run pre-install/pre-upgrade; the columns register-client
+       -public-client-id writes (client_type, redirect_uris — identity-service
+       migration 00012) only exist if migrations run as a pre-install/pre-upgrade
+       hook (weight 5), i.e. migrations.runAsJob=true. With runAsJob=false
+       migrations run as a Deployment initContainer — after all hooks — so a
+       fresh install would run these Jobs against a missing schema. */ -}}
+{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identityService.publicClientRegistration.enabled requires identityService.migrations.runAsJob=true, so DB migrations run as a pre-install/pre-upgrade hook (weight 5) before these registration hooks; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and register-client would run against a missing schema" }}{{ end }}
+{{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.publicClientRegistration.enabled is true" -}}
+{{- range $client := $clients }}
+{{- $_ := $client.name | required "each identityService.publicClientRegistration.clients entry must set name" -}}
+{{- /* name feeds identity.publicClientRegistration.jobName and the
+       istari.digital/client label; restrict it so an invalid resource name
+       cannot surface only at apply time. */ -}}
+{{- if not (regexMatch "^[A-Za-z0-9]([A-Za-z0-9_-]{0,61}[A-Za-z0-9])?$" $client.name) }}{{ fail (printf "publicClientRegistration client %q: name must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, and be at most 63 characters (it is used as the istari.digital/client label)" $client.name) }}{{ end }}
+{{- $_ := $client.clientIdKey | required (printf "publicClientRegistration client %q must set clientIdKey (the identityService.secretName key holding the client_id)" $client.name) -}}
+{{- $_ := $client.redirectUrisKey | required (printf "publicClientRegistration client %q must set redirectUrisKey (the identityService.secretName key holding the comma-separated exact-match redirect allowlist)" $client.name) }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "identity.publicClientRegistration.jobName" (dict "root" $ "name" $client.name) | quote }}
+  labels:
+    {{- include "identity.labels" $ | nindent 4 }}
+    istari.digital/job-type: "client-registration"
+    istari.digital/client: {{ $client.name | quote }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: {{ if $autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+spec:
+  backoffLimit: {{ dig "backoffLimit" 6 $registration | int }}
+  template:
+    metadata:
+      labels:
+        {{- include "identity.labels" $ | nindent 8 }}
+        istari.digital/job-type: "client-registration"
+        istari.digital/client: {{ $client.name | quote }}
+        {{- with $registrationPodLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        sidecar.istio.io/inject: "false"
+        {{- with $registrationPodAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "identity.fullname" $ | quote }}
+      # The Job only talks to PostgreSQL; it never needs the Kubernetes API.
+      automountServiceAccountToken: false
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default $.Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: register-public-client
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command:
+        - "/register-client"
+        # $(VAR) is expanded by Kubernetes from the env vars below, so the DB URL
+        # never appears in plaintext in the pod manifest. Public (browser, PKCE)
+        # clients carry no key material at all — just a client_id and the
+        # exact-match redirect allowlist that /oauth2/authorize enforces.
+        args:
+        - "-public-client-id"
+        - "$(PUBLIC_CLIENT_ID)"
+        - "-redirect-uris"
+        - "$(PUBLIC_CLIENT_REDIRECT_URIS)"
+        - "-database-url"
+        - "$(DATABASE_URL)"
+        env:
+        - name: PUBLIC_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ $serviceValues.secretName | quote }}
+              key: {{ $client.clientIdKey | quote }}
+        - name: PUBLIC_CLIENT_REDIRECT_URIS
+          valueFrom:
+            secretKeyRef:
+              name: {{ $serviceValues.secretName | quote }}
+              key: {{ $client.redirectUrisKey | quote }}
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: {{ $serviceValues.secretName | quote }}
+              key: "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"
+        {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.trustedCertBundle }}
+        - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
+          value: /usr/lib/ssl/cert.pem
+        - name: REQUESTS_CA_BUNDLE
+          value: /usr/lib/ssl/cert.pem
+        - name: SSL_CERT_DIR
+          value: /usr/lib/ssl/certs
+        - name: SSL_CERT_FILE
+          value: /usr/lib/ssl/cert.pem
+        {{- end }}
+        {{- with $registrationResources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if or $serviceValues.volumeMounts $.Values.trustedCertBundle }}
+        volumeMounts:
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+        {{- end }}
+      {{- if or $serviceValues.volumes $.Values.trustedCertBundle }}
+      volumes:
+      {{- with $serviceValues.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if $.Values.trustedCertBundle }}
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" $ | quote }}
+      {{- end }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}
+{{- end }}
