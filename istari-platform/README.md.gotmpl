@@ -28,6 +28,13 @@ The Service Router (`router.enabled`, default `false`) is a reverse proxy that l
 
 Enabling the router is additive and optional: the existing per-service endpoints keep working unchanged, so you can adopt it at your own pace. Once DNS and TLS for the API host are in place, update each client's configured base URL (the `ISTARI_DIGITAL_API_URL` setting in Istari's client tools — nothing in this chart consumes it) to `https://<your-api-host>` with no path; clients append the `/registry`, `/identity`, … prefixes themselves.
 
+> [!IMPORTANT]
+> Routing through the gateway and switching authentication to the identity service are **two independent settings**.
+>
+> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<base>/registry`. It does **not** turn on identity-service authentication. That is a separate, explicitly named toggle — `ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED`, off by default — and it requires the gateway base URL to also be set. Earlier releases inferred identity from the mere presence of the URL; that inference has been removed, so a client can route through the gateway while continuing to authenticate directly against Zitadel.
+>
+> The former `…_IDENTITY_ROUTER_ENABLED` names (and the frontend's `VITE_IDENTITY_ROUTER_*`) remain supported as deprecated aliases, and are ignored when the corresponding new names are set. Prefer the new names; the aliases will be removed in a future release.
+
 Enabling the router pulls one additional image, `istaridigital.jfrog.io/customer-docker/istaridigital.com/caddy-fips` (the `istaridigital.com` path segment is part of the repository path, not a typo). Air-gapped installations must add it to their image mirror alongside the chart's other images; it uses the same pull credentials.
 
 Routes for the platform's services are managed by the chart and always present, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `router.extraRoutes`. Enabling the router is one line in your values file:
