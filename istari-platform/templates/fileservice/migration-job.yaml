@@ -57,10 +57,14 @@ spec:
         {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled }}
         envFrom:
         {{- end }}
-        {{- /* OTEL defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
+        {{- /* OTEL defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them.
+        optional: rendered as a plain resource, so this pre-install/pre-upgrade hook Job runs
+        before it exists whenever this release hasn't applied it yet — first install, the first
+        upgrade that enables Jaeger, or a ConfigMap rename */}}
         {{- if $jaegerEnabled }}
         - configMapRef:
-            name: {{ include "fileservice.otelConfigMap.name" . | quote }}
+            name: {{ include "fileservice.configmap.name" . | quote }}
+            optional: true
         {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}

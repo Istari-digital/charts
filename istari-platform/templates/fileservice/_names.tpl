@@ -10,8 +10,8 @@ Default name/prefix for fileservice resources
 {{- end }}
 
 {{/*
-Name of the fileservice OTEL defaults configmap (rendered when both fileservice.enabled and jaeger.enabled are true)
+Name of the fileservice defaults configmap (currently OTEL env only; rendered when both fileservice.enabled and jaeger.enabled are true)
 */}}
-{{- define "fileservice.otelConfigMap.name" -}}
-{{ printf "%s-otel" (include "fileservice.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- define "fileservice.configmap.name" -}}
+{{ printf "%s-envvars" (include "fileservice.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}
