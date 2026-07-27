@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.26.0](https://img.shields.io/badge/Version-3.26.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.27.0](https://img.shields.io/badge/Version-3.27.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -307,7 +307,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | identityService.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | identityService.volumes | list | `[]` | Pod Volumes |
 | imagePullSecrets[0].name | string | `"docker-pull-secret"` |  |
-| jaeger.enabled | bool | `false` | Enable / Disable the Jaeger subchart. When `false`, the subchart is not rendered at all and no OTEL env vars are injected into fileservice or identity-service. |
+| jaeger.enabled | bool | `false` | Enable / Disable the Jaeger subchart. When `false`, the subchart is not rendered at all and no OTEL env vars are injected into any service. |
 | jaeger.fullnameOverride | string | `"jaeger"` | Override the Jaeger resource name prefix. With the default `jaeger`, the in-cluster OTLP endpoints are `http://jaeger:4317` (gRPC) and `http://jaeger:4318` (HTTP). The injected `OTEL_EXPORTER_OTLP_ENDPOINT` values and the post-install notes track this override automatically. |
 | jaeger.jaeger.extraEnv | list | `[{"name":"OTEL_TRACES_SAMPLER","value":"always_off"}]` | Extra env for the Jaeger container. `OTEL_TRACES_SAMPLER=always_off` disables Jaeger v2's self-tracing: the OpenTelemetry Collector SDK inside Jaeger otherwise traces its own query/ingest operations, storing them alongside real traces (every UI search generates `jaeger` spans) and exporting them to any external OTLP destination (e.g. an OpenTelemetry Collector fanning traces out to Datadog). Ingestion of application traces is unaffected — the sampler only governs Jaeger's own internal SDK. Remove this entry if you need Jaeger's internal traces to debug Jaeger itself. |
 | jaeger.jaeger.extraVolumeMounts | list | `[{"mountPath":"/badger","name":"badger-data"}]` | Mounts the Badger storage volume at the path referenced by `jaeger.userconfig`. |
