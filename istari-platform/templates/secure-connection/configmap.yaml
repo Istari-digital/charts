@@ -17,4 +17,14 @@ metadata:
   {{- end }}
 data:
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+  {{- if dig "enabled" false (default dict .Values.jaeger) }}
+  {{- /* Web-container identity; init-db/db-migrate override via "istari-platform.otelWorkloadEnv" */}}
+  ISTARI_DIGITAL_SECURE_CONNECTION_SERVICE_OPENTELEMETRY_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ include "istari-platform.jaeger.otlpUrl" . | quote }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+  OTEL_SERVICE_NAME: "secure-connection.web"
+  OTEL_RESOURCE_ATTRIBUTES: "k8s.container.name=istari-platform"
+  OTEL_LOGS_EXPORTER: "none"
+  OTEL_METRICS_EXPORTER: "none"
+  {{- end }}
 {{- end }}
