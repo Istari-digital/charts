@@ -1,16 +1,16 @@
-{{- $serviceValues := .Values.identityService -}}
-{{- $registration := dig "identityRouterClientRegistration" dict $serviceValues -}}
+{{- $serviceValues := .Values.identity -}}
+{{- $registration := dig "registryClientRegistration" dict $serviceValues -}}
 {{- $registrationPodAnnotations := dig "podAnnotations" dict $registration -}}
 {{- $registrationPodLabels := dig "podLabels" dict $registration -}}
 {{- $registrationResources := dig "resources" dict $registration -}}
 {{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
 {{- $registrationEnabled := dig "enabled" false $registration -}}
 {{- if and $serviceValues.enabled $registrationEnabled }}
-{{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.identityRouterClientRegistration.enabled is true" -}}
+{{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.registryClientRegistration.enabled is true" -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "identity.routerClientRegistration.jobName" . | quote }}
+  name: {{ include "identity.registryClientRegistration.jobName" . | quote }}
   labels:
     {{- include "identity.labels" . | nindent 4 }}
     istari.digital/job-type: "client-registration"

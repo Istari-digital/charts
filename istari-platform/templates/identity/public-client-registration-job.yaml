@@ -1,4 +1,4 @@
-{{- $serviceValues := .Values.identityService -}}
+{{- $serviceValues := .Values.identity -}}
 {{- $registration := dig "publicClientRegistration" dict $serviceValues -}}
 {{- $registrationPodAnnotations := dig "podAnnotations" dict $registration -}}
 {{- $registrationPodLabels := dig "podLabels" dict $registration -}}
@@ -13,16 +13,16 @@
        hook (weight 5), i.e. migrations.runAsJob=true. With runAsJob=false
        migrations run as a Deployment initContainer — after all hooks — so a
        fresh install would run these Jobs against a missing schema. */ -}}
-{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identityService.publicClientRegistration.enabled requires identityService.migrations.runAsJob=true, so DB migrations run as a pre-install/pre-upgrade hook (weight 5) before these registration hooks; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and register-client would run against a missing schema" }}{{ end }}
-{{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.publicClientRegistration.enabled is true" -}}
+{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identity.publicClientRegistration.enabled requires identity.migrations.runAsJob=true, so DB migrations run as a pre-install/pre-upgrade hook (weight 5) before these registration hooks; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and register-client would run against a missing schema" }}{{ end }}
+{{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.publicClientRegistration.enabled is true" -}}
 {{- range $client := $clients }}
-{{- $_ := $client.name | required "each identityService.publicClientRegistration.clients entry must set name" -}}
+{{- $_ := $client.name | required "each identity.publicClientRegistration.clients entry must set name" -}}
 {{- /* name feeds identity.publicClientRegistration.jobName and the
        istari.digital/client label; restrict it so an invalid resource name
        cannot surface only at apply time. */ -}}
 {{- if not (regexMatch "^[A-Za-z0-9]([A-Za-z0-9_-]{0,61}[A-Za-z0-9])?$" $client.name) }}{{ fail (printf "publicClientRegistration client %q: name must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, and be at most 63 characters (it is used as the istari.digital/client label)" $client.name) }}{{ end }}
-{{- $_ := $client.clientIdKey | required (printf "publicClientRegistration client %q must set clientIdKey (the identityService.secretName key holding the client_id)" $client.name) -}}
-{{- $_ := $client.redirectUrisKey | required (printf "publicClientRegistration client %q must set redirectUrisKey (the identityService.secretName key holding the comma-separated exact-match redirect allowlist)" $client.name) }}
+{{- $_ := $client.clientIdKey | required (printf "publicClientRegistration client %q must set clientIdKey (the identity.secretName key holding the client_id)" $client.name) -}}
+{{- $_ := $client.redirectUrisKey | required (printf "publicClientRegistration client %q must set redirectUrisKey (the identity.secretName key holding the comma-separated exact-match redirect allowlist)" $client.name) }}
 ---
 apiVersion: batch/v1
 kind: Job

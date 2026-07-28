@@ -1,22 +1,22 @@
-{{- $serviceValues := .Values.identityService -}}
+{{- $serviceValues := .Values.identity -}}
 {{- $registration := dig "agentRegistration" dict $serviceValues -}}
 {{- $registrationEnabled := dig "enabled" false $registration -}}
 {{- $agents := dig "agents" list $registration -}}
 {{- if and $serviceValues.enabled $registrationEnabled $agents }}
-{{- $_ := $serviceValues.secretName | required "identityService.secretName must be non-empty when identityService.agentRegistration.enabled is true" -}}
+{{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.agentRegistration.enabled is true" -}}
 {{- /* The hook (weight 20) assumes the DB schema exists. That only holds when
        migrations run as a pre-upgrade hook (weight 5), i.e. migrations.runAsJob=true.
        With runAsJob=false migrations run as a Deployment initContainer — after all
        hooks — so create-tenant/register-agent would hit a missing schema on a fresh
        install or schema-changing upgrade. Require the safe mode up front. */ -}}
-{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identityService.agentRegistration.enabled requires identityService.migrations.runAsJob=true, so DB migrations run as a pre-upgrade hook before the agent-registration hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and create-tenant/register-agent would run against a missing schema" }}{{ end }}
+{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identity.agentRegistration.enabled requires identity.migrations.runAsJob=true, so DB migrations run as a pre-upgrade hook before the agent-registration hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and create-tenant/register-agent would run against a missing schema" }}{{ end }}
 {{- $registrationPodAnnotations := dig "podAnnotations" dict $registration -}}
 {{- $registrationPodLabels := dig "podLabels" dict $registration -}}
 {{- $registrationResources := dig "resources" dict $registration -}}
 {{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
 {{- $backoffLimit := dig "backoffLimit" 6 $registration | int -}}
 {{- /* Secrets mounted (envFrom) into every agent Job, in addition to
-       identityService.secretName. Put the secret(s) holding each agent's blob and
+       identity.secretName. Put the secret(s) holding each agent's blob and
        — via the configurator — its username/org id here, the same way services
        mount config with secretName + extraEnvSecrets. */ -}}
 {{- $registrationExtraEnvSecrets := dig "extraEnvSecrets" list $registration -}}
@@ -24,7 +24,7 @@
        env var by envFrom and read via the CLIs' -database-url-env flag. */ -}}
 {{- $dbURLEnv := "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" -}}
 {{- range $agent := $agents }}
-{{- $_ := $agent.name | required "each identityService.agentRegistration.agents entry must set name" -}}
+{{- $_ := $agent.name | required "each identity.agentRegistration.agents entry must set name" -}}
 {{- /* name is used as the istari.digital/agent label value and (lowercased,
        "_"→"-") in identity.agentRegistration.jobName. Constrain it to the
        intersection valid for both — a Kubernetes label value that is also a

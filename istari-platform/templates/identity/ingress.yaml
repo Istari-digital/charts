@@ -1,4 +1,4 @@
-{{- $serviceValues := .Values.identityService -}}
+{{- $serviceValues := .Values.identity -}}
 {{- if and $serviceValues.enabled $serviceValues.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress

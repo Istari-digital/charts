@@ -1,4 +1,4 @@
-{{- $serviceValues := .Values.identityService -}}
+{{- $serviceValues := .Values.identity -}}
 {{- $migrationsRunAsJob := dig "migrations" "runAsJob" false $serviceValues -}}
 {{- $migrationsAutoCleanupSuccessfulJob := dig "migrations" "autoCleanupSuccessfulJob" true $serviceValues -}}
 {{- $migrationsPodAnnotations := dig "migrations" "podAnnotations" dict $serviceValues -}}
