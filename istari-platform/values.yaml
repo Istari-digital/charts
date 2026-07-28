@@ -1191,10 +1191,10 @@ jaeger:
     image:
       # -- Jaeger image registry. Defaults to the Istari customer-docker JFrog repo.
       registry: "istaridigital.jfrog.io/customer-docker"
-      # -- Jaeger image repository. Defaults to the Chainguard FIPS variant of Jaeger v2 (the `2.x` tags of this repo are the Jaeger v2 binary).
-      repository: "istaridigital.com/jaeger-all-in-one-fips"
+      # -- Jaeger image repository. Defaults to the Chainguard FIPS Jaeger (v2) image.
+      repository: "istaridigital.com/jaeger-fips"
       # -- Jaeger image tag.
-      tag: "2.17.0"
+      tag: "2.20.0"
       # -- Image pull secret names applied to the Jaeger Pod. The umbrella chart's top-level `imagePullSecrets` does not propagate to subcharts, so this is set explicitly. Defaults to `docker-pull-secret` to match the rest of the istari-platform chart.
       pullSecrets:
       - docker-pull-secret

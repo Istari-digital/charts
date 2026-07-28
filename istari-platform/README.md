@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 3.28.0](https://img.shields.io/badge/Version-3.28.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 3.29.0](https://img.shields.io/badge/Version-3.29.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -17,7 +17,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | Repository | Name | Version |
 |------------|------|---------|
 | https://istaridigital.jfrog.io/artifactory/main-helm-local | dgraph-sec | 0.6.1 |
-| https://jaegertracing.github.io/helm-charts | jaeger | 4.11.1 |
+| https://jaegertracing.github.io/helm-charts | jaeger | 4.12.0 |
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |
 
 > [!NOTE]
@@ -314,8 +314,8 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | jaeger.jaeger.extraVolumes | list | `[{"name":"badger-data","persistentVolumeClaim":{"claimName":"jaeger-badger"}}]` | Volumes for the Badger storage directories. References the `jaeger-badger` PVC created by this chart when `jaeger.persistence.enabled` is true — keep the claim name in sync if you change `jaeger.persistence`. |
 | jaeger.jaeger.image.pullSecrets | list | `["docker-pull-secret"]` | Image pull secret names applied to the Jaeger Pod. The umbrella chart's top-level `imagePullSecrets` does not propagate to subcharts, so this is set explicitly. Defaults to `docker-pull-secret` to match the rest of the istari-platform chart. |
 | jaeger.jaeger.image.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Jaeger image registry. Defaults to the Istari customer-docker JFrog repo. |
-| jaeger.jaeger.image.repository | string | `"istaridigital.com/jaeger-all-in-one-fips"` | Jaeger image repository. Defaults to the Chainguard FIPS variant of Jaeger v2 (the `2.x` tags of this repo are the Jaeger v2 binary). |
-| jaeger.jaeger.image.tag | string | `"2.17.0"` | Jaeger image tag. |
+| jaeger.jaeger.image.repository | string | `"istaridigital.com/jaeger-fips"` | Jaeger image repository. Defaults to the Chainguard FIPS Jaeger (v2) image. |
+| jaeger.jaeger.image.tag | string | `"2.20.0"` | Jaeger image tag. |
 | jaeger.jaeger.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"runAsNonRoot":true}` | Container `securityContext` for the Jaeger container, matching the hardening applied to the rest of the istari-platform chart. The subchart's default Pod-level securityContext (uid/gid/fsGroup 10001) is kept so the Badger PVC is writable by the non-root user. |
 | jaeger.persistence.annotations | object | `{}` | Additional annotations for the Badger PVC. |
 | jaeger.persistence.enabled | bool | `true` | Create a PersistentVolumeClaim named `jaeger-badger` for Badger trace storage. The PVC is deleted on `helm uninstall` (trace history is disposable). Note: block-storage PVCs are zonal on AWS/Azure — the Jaeger Pod becomes pinned to the volume's availability zone (on Azure, a ZRS storage class avoids this). Disable only if you also switch `jaeger.userconfig` to in-memory storage and set `jaeger.jaeger.extraVolumes` / `jaeger.jaeger.extraVolumeMounts` to `[]` (see the `jaeger.userconfig` comment for the full recipe; the chart refuses to render a half-configured state). |
