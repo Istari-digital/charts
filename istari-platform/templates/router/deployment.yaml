@@ -137,7 +137,7 @@ spec:
         `router.env` entries still override these.
         */}}
         - name: OTEL_SERVICE_NAME
-          value: "router"
+          value: "router.web"
         - name: OTEL_EXPORTER_OTLP_PROTOCOL
           value: "grpc"
         {{- if $jaegerEnabled }}
