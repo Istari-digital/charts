@@ -3,6 +3,7 @@ We put the generated default env vars in this config map so that user-defined va
 'identity.secretName', 'identity.extraEnvSecrets', and 'identity.env' will always override them.
 */}}
 {{- $serviceValues := .Values.identity -}}
+{{- $gatewayUrl := include "istari-platform.gatewayUrl" . -}}
 {{- if $serviceValues.enabled }}
 apiVersion: v1
 kind: ConfigMap
@@ -28,5 +29,15 @@ data:
   OTEL_RESOURCE_ATTRIBUTES: "k8s.container.name=istari-platform"
   OTEL_LOGS_EXPORTER: "none"
   OTEL_METRICS_EXPORTER: "none"
+  {{- end }}
+  {{- with $gatewayUrl }}
+  # DPLAT-602. identity is reached publicly at <base>/identity through the router.
+  # BASE_URL and JWT_ISSUER default from this only when unset; an explicit value
+  # wins, so an environment that sets them keeps its direct issuer.
+  ISTARI_DIGITAL_API_URL: {{ . | quote }}
+  # Accept the gateway-prefixed audience for RFC 7523 client assertions, in
+  # addition to the canonical JWT_ISSUER, which is always accepted. Legacy-compat:
+  # the service logs a warning on every non-canonical match.
+  ISTARI_DIGITAL_IDENTITY_SERVICE_ADDITIONAL_ASSERTION_AUDIENCES: {{ printf "%s/identity" . | quote }}
   {{- end }}
 {{- end }}
