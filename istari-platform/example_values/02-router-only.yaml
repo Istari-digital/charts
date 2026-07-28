@@ -1,0 +1,27 @@
+# Configuration 2: the service router enabled, the identity-service not.
+# Registry traffic reaches the registry through https://api.example.com/registry
+# while authentication stays on your existing upstream IdP.
+#
+# Requires: an Ingress controller watching the class named below, DNS for the
+# API host, and a TLS Secret. No service mesh is needed.
+#
+# Replace api.example.com with your own API hostname throughout.
+router:
+  enabled: true
+  # Setting apiUrl is what configures the deployed services. Leaving it empty
+  # deploys the router without pointing any client at it.
+  apiUrl: "https://api.example.com"
+  ingress:
+    enabled: true
+    className: "nginx"
+    hosts:
+    - host: api.example.com
+      paths:
+      - path: /
+        pathType: Prefix
+    tls:
+    - hosts:
+      - api.example.com
+      secretName: api-example-com-tls
+identityService:
+  enabled: false
