@@ -27,12 +27,14 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 The Service Router (`router.enabled`, default `false`) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
 
-Enabling the router is additive and optional: the existing per-service endpoints keep working unchanged, so you can adopt it at your own pace. Once DNS and TLS for the API host are in place, update each client's configured base URL (the `ISTARI_DIGITAL_API_URL` setting in Istari's client tools — nothing in this chart consumes it) to `https://<your-api-host>` with no path; clients append the `/registry`, `/identity`, … prefixes themselves.
+Enabling the router is additive and optional: the existing per-service endpoints keep working unchanged, so you can adopt it at your own pace. Once DNS and TLS for the API host are in place, update each client's configured base URL (the `ISTARI_DIGITAL_API_URL` setting in Istari's client tools) to `https://<your-api-host>` with no path; clients append the `/registry`, `/identity`, … prefixes themselves. Set `router.apiUrl` to the same value, and the chart configures the deployed services to match: the registry service receives `ISTARI_DIGITAL_API_URL` and the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, so the browser reaches the registry service through `<your-api-host>/registry`. Before chart 3.31.0 the chart consumed neither variable, and the browser kept addressing the registry service directly no matter how the client tools were configured.
 
 > [!IMPORTANT]
 > Routing through the gateway and switching authentication to the identity service are **two independent settings**.
 >
 > Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is a separate, explicitly named toggle — `ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED`, off by default — which also requires the gateway base URL to be set. A client can therefore route registry traffic through the gateway while continuing to authenticate directly against Zitadel.
+>
+> When you set both `router.apiUrl` and `identityService.enabled`, the chart emits that toggle to the registry service and the frontend together. It never emits the toggle from `router.apiUrl` alone, because the frontend treats identity-enabled-without-a-gateway-URL as a fatal configuration error.
 >
 > The former `…_IDENTITY_ROUTER_ENABLED` names (and the frontend's `VITE_IDENTITY_ROUTER_*`) remain supported as deprecated aliases, and are ignored when the corresponding new names are set. Prefer the new names; the aliases will be removed in a future release.
 
