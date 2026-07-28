@@ -1,11 +1,12 @@
 {{- $serviceValues := .Values.fileservice -}}
 {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
+{{- $gatewayUrl := include "istari-platform.gatewayUrl" . -}}
 {{/*
 Default OTEL env for exporting fileservice APM to in-cluster Jaeger. Referenced FIRST in the
 consumers' `envFrom` so the user's Secret(s) and `fileservice.env` override every value here
 (precedence contract: see the `jaeger:` section comment in values.yaml).
 */}}
-{{- if and $serviceValues.enabled $jaegerEnabled }}
+{{- if and $serviceValues.enabled (or $jaegerEnabled $gatewayUrl) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -16,6 +17,7 @@ metadata:
   never pruned on uninstall and go stale. The pre-install migration Job instead marks its
   reference to this ConfigMap `optional` (see migration-job.yaml). */}}
 data:
+  {{- if $jaegerEnabled }}
   FILE_SERVICE_OPENTELEMETRY_ENABLED: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ include "istari-platform.jaeger.otlpUrl" . | quote }}
   OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
@@ -25,4 +27,11 @@ data:
   OTEL_RESOURCE_ATTRIBUTES: "k8s.container.name=istari-platform"
   OTEL_LOGS_EXPORTER: "none"
   OTEL_METRICS_EXPORTER: "none"
+  {{- end }}
+  {{- with $gatewayUrl }}
+  # DPLAT-602. The registry uses this only to derive the identity URL when
+  # FILE_SERVICE_IDENTITY_ROUTER_URL is unset (settings.py); an explicit
+  # identity URL still wins.
+  ISTARI_DIGITAL_API_URL: {{ . | quote }}
+  {{- end }}
 {{- end }}

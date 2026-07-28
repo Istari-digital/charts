@@ -1,5 +1,6 @@
 {{- $serviceValues := .Values.fileservice -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
+{{- $gatewayUrl := include "istari-platform.gatewayUrl" . -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -76,11 +77,11 @@ spec:
           {{- toYaml . | nindent 10 }}
         {{- end }}
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled }}
+        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
         envFrom:
         {{- end }}
-        {{- /* OTEL defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
-        {{- if $jaegerEnabled }}
+        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
+        {{- if or $jaegerEnabled $gatewayUrl }}
         - configMapRef:
             name: {{ include "fileservice.configmap.name" . | quote }}
         {{- end }}
@@ -146,11 +147,11 @@ spec:
         - "alembic"
         - "upgrade"
         - "head"
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled }}
+        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
         envFrom:
         {{- end }}
-        {{- /* OTEL defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
-        {{- if $jaegerEnabled }}
+        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
+        {{- if or $jaegerEnabled $gatewayUrl }}
         - configMapRef:
             name: {{ include "fileservice.configmap.name" . | quote }}
         {{- end }}
