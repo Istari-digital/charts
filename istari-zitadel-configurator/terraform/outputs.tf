@@ -5,6 +5,7 @@ output "secret_file" {
     identity_service_base_url            = var.identity_service_base_url
     identity_service_zitadel_client_id   = zitadel_application_oidc.identity-service.client_id
     identity_service_zitadel_private_key = base64encode(zitadel_application_key.identity-service-key.key_details)
+    identity_service_zitadel_manager_key = base64encode(zitadel_machine_key.identity-service-management-key.key_details)
     mcp_zitadel_client_id                = var.mcp_enabled ? zitadel_application_oidc.mcp_service_post[0].client_id : ""
     mcp_zitadel_secret                   = var.mcp_enabled ? zitadel_application_oidc.mcp_service_post[0].client_secret : ""
     rs_zitadel_client_id                 = zitadel_application_api.registry-service.client_id

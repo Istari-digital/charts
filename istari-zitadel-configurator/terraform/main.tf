@@ -184,6 +184,41 @@ resource "zitadel_application_key" "identity-service-key" {
   expiration_date = "2519-04-01T08:45:00Z"
 }
 
+# Dedicated, least-privilege machine user for the identity-service's Zitadel
+# management calls — the customer_admin user-grants lookup behind the admin
+# key-management endpoints (resolveAdminTenant/hasAdminGrant in identity-router).
+# Kept separate from the identity-service OIDC RP app key above (which is only
+# for id_token exchange) and from the fileservice/SCS machine users. The key
+# blob is wired to ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY via
+# outputs.tf.
+resource "zitadel_machine_user" "identity-service-management-user" {
+  org_id            = zitadel_org.default.id
+  user_name         = "IdentityServiceManagementUser"
+  name              = "IdentityServiceManagementUser"
+  description       = "The management machine user for the identity-service (customer_admin grants lookup)"
+  access_token_type = "ACCESS_TOKEN_TYPE_JWT"
+}
+
+resource "zitadel_machine_key" "identity-service-management-key" {
+  depends_on      = [zitadel_machine_user.identity-service-management-user]
+  org_id          = zitadel_org.default.id
+  user_id         = zitadel_machine_user.identity-service-management-user.id
+  key_type        = "KEY_TYPE_JSON"
+  expiration_date = "2519-04-01T08:45:00Z"
+  lifecycle {
+    ignore_changes = ["expiration_date"]
+  }
+}
+
+# ORG_OWNER_VIEWER is read-only across the org: it can read user grants (all the
+# grants lookup needs) but cannot mutate them or escalate privileges —
+# deliberately narrower than the ORG_OWNER granted to the fileservice/SCS users.
+resource "zitadel_org_member" "identity-service-management-default" {
+  org_id  = zitadel_org.default.id
+  user_id = zitadel_machine_user.identity-service-management-user.id
+  roles   = ["ORG_OWNER_VIEWER"]
+}
+
 resource "zitadel_machine_user" "registry-service-user" {
   depends_on        = [zitadel_application_key.registry-service-key]
   org_id            = zitadel_org.default.id
