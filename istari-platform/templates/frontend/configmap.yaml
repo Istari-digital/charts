@@ -16,4 +16,9 @@ data:
   # DPLAT-602. Routes the browser's registry traffic through <base>/registry.
   # Independent of the identity flag: the gateway wins whenever it is configured.
   VITE_ISTARI_DIGITAL_API_URL: {{ $gatewayUrl | quote }}
+  {{- if $.Values.identityService.enabled }}
+  # Emitted only alongside the gateway URL: the reworked frontend treats
+  # identity-enabled-without-a-gateway-URL as a fatal config-load error.
+  VITE_ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: "true"
+  {{- end }}
 {{- end }}
