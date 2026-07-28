@@ -138,6 +138,8 @@ fileservice:
     podAnnotations: {}
     # -- Extra labels for the migration Job Pod template only (in addition to the standard fileservice labels).
     podLabels: {}
+    # -- Extra environment variables for the migration workloads only (the `db-migrate` Job, or the `init-db` init container when `runAsJob` is `false`), rendered after the service-level `env` — on duplicate names, these win.
+    env: []
   # Ingress -- optional Kubernetes Ingress for this service.
   ingress:
     # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
@@ -567,6 +569,8 @@ secureConnection:
     podAnnotations: {}
     # -- Extra labels for the migration Job Pod template only (in addition to the standard secure-connection labels).
     podLabels: {}
+    # -- Extra environment variables for the migration workloads only (the `db-migrate` Job, or the `init-db` init container when `runAsJob` is `false`), rendered after the service-level `env` — on duplicate names, these win.
+    env: []
   # Ingress -- optional Kubernetes Ingress for this service.
   ingress:
     # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
@@ -712,6 +716,8 @@ identityService:
     podAnnotations: {}
     # -- Extra labels for the migration Job Pod template only (in addition to the standard identity-service labels).
     podLabels: {}
+    # -- Extra environment variables for the migration workloads only (the `db-migrate` Job, or the `init-db` init container when `runAsJob` is `false`), rendered after the service-level `env` — on duplicate names, these win.
+    env: []
     # -- Resources for migration containers, used by both the Deployment `initContainer` and the Helm hook `Job`.
     resources:
       requests:

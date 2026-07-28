@@ -1,4 +1,5 @@
 {{- $serviceValues := .Values.identityService -}}
+{{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $migrationResources := dig "migrations" "resources" dict $serviceValues -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
@@ -164,13 +165,17 @@ spec:
         {{- end }}
         {{- end }}
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
-        {{- if or $serviceValues.env .Values.trustedCertBundle $jaegerEnabled }}
+        {{- if or $serviceValues.env $migrationsEnv .Values.trustedCertBundle $jaegerEnabled }}
         env:
         {{- /* Chart-injected OTEL identity FIRST so the user's env entries below override it */}}
         {{- if $jaegerEnabled }}
         {{- include "istari-platform.otelWorkloadEnv" (dict "service" "identity" "container" "init-db") | nindent 8 }}
         {{- end }}
         {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- /* Migration-workload env AFTER the service-level env: on duplicate names, these win */}}
+        {{- with $migrationsEnv }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if .Values.trustedCertBundle }}
