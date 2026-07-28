@@ -133,7 +133,7 @@ spec:
         {{- if $tracingEnabled }}
         {{- /*
         Caddy's `tracing` directive exports OTLP over gRPC, so this targets Jaeger's
-        4317 (not the 4318 identity-service uses). Rendered BEFORE user `env` so
+        4317 (not the 4318 the Identity Service uses). Rendered BEFORE user `env` so
         `router.env` entries still override these.
         */}}
         - name: OTEL_SERVICE_NAME

@@ -20,7 +20,7 @@
        — via the configurator — its username/org id here, the same way services
        mount config with secretName + extraEnvSecrets. */ -}}
 {{- $registrationExtraEnvSecrets := dig "extraEnvSecrets" list $registration -}}
-{{- /* Canonical identity-service DB URL key; present in secretName, surfaced as an
+{{- /* Canonical Identity Service DB URL key; present in secretName, surfaced as an
        env var by envFrom and read via the CLIs' -database-url-env flag. */ -}}
 {{- $dbURLEnv := "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" -}}
 {{- range $agent := $agents }}

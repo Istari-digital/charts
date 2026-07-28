@@ -8,7 +8,7 @@
 {{- $clients := dig "clients" list $registration -}}
 {{- if and $serviceValues.enabled $registrationEnabled $clients }}
 {{- /* These hooks run pre-install/pre-upgrade; the columns register-client
-       -public-client-id writes (client_type, redirect_uris — identity-service
+       -public-client-id writes (client_type, redirect_uris — Identity Service
        migration 00012) only exist if migrations run as a pre-install/pre-upgrade
        hook (weight 5), i.e. migrations.runAsJob=true. With runAsJob=false
        migrations run as a Deployment initContainer — after all hooks — so a
