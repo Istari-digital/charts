@@ -389,6 +389,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | nats.reloader.image.tag | string | `"0.23.0"` | Config-reloader image tag. |
 | nats.statefulSet.merge.spec.persistentVolumeClaimRetentionPolicy | object | `{"whenDeleted":"Delete","whenScaled":"Delete"}` | Delete the JetStream PVCs when the StatefulSet is deleted or scaled down. Set to `Retain` if you need the data to outlive the StatefulSet. |
 | router.affinity | object | `{}` | Affinity |
+| router.apiUrl | string | `""` | Public base URL of this environment's service-router gateway, with no path (e.g. `https://api.your-domain.com`). Setting it turns on the DPLAT-602 environment-variable contract: the registry and frontend address the registry through `<base>/registry`, and the identity-service publishes and accepts the gateway-prefixed URL. Leave empty to keep every client on the per-service hostnames. When empty and `router.ingress.enabled` is true with exactly one host, the chart derives `https://<that host>`; an explicit value always wins. Trailing slashes are stripped. |
 | router.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
 | router.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
 | router.autoscaling.maxReplicas | int | `3` | Maximum number of replicas |

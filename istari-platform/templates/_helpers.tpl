@@ -114,3 +114,22 @@ win (Secrets can't override these two). Callers gate behind their own `if $jaege
 - name: OTEL_RESOURCE_ATTRIBUTES
   value: {{ printf "k8s.container.name=%s" .container | quote }}
 {{- end }}
+
+{{/*
+Resolved service-router gateway base URL, or "" when the gateway contract is off.
+Explicit router.apiUrl wins; otherwise derive from a single router.ingress host, mirroring
+the "unset means derive" behaviour of router.tracing.enabled. Always trailing-slash free.
+*/}}
+{{- define "istari-platform.gatewayUrl" -}}
+{{- $r := default dict .Values.router -}}
+{{- $explicit := trimAll "/" (trim (default "" $r.apiUrl)) -}}
+{{- if $explicit -}}
+{{- $explicit -}}
+{{- else -}}
+{{- $ing := default dict $r.ingress -}}
+{{- $hosts := default list $ing.hosts -}}
+{{- if and $ing.enabled (eq (len $hosts) 1) (first $hosts).host -}}
+{{- printf "https://%s" (trimAll "/" (first $hosts).host) -}}
+{{- end -}}
+{{- end -}}
+{{- end }}
