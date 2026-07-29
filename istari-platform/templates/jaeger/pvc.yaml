@@ -1,4 +1,3 @@
-{{- $jaegerValues := default dict .Values.jaeger -}}
 {{/*
 Badger trace-storage PVC for the Jaeger subchart. The claim name `jaeger-badger` is
 intentionally static: the subchart consumes it via the literal claimName reference in the
@@ -7,14 +6,14 @@ Deleted on uninstall by design — trace history is disposable.
 */}}
 {{- /* Fail fast on the half-configured state: persistence disabled but the Jaeger Pod still
 mounting the (now uncreated) chart-managed claim would deploy a Pod stuck Pending. */}}
-{{- if and (dig "enabled" false $jaegerValues) (not (dig "persistence" "enabled" false $jaegerValues)) }}
-{{- range dig "jaeger" "extraVolumes" list $jaegerValues }}
+{{- if and .Values.jaeger.enabled (not .Values.jaeger.persistence.enabled) }}
+{{- range .Values.jaeger.jaeger.extraVolumes }}
 {{- if eq (dig "persistentVolumeClaim" "claimName" "" .) "jaeger-badger" }}
 {{- fail "jaeger.persistence.enabled is false, but jaeger.jaeger.extraVolumes still references the chart-managed `jaeger-badger` PVC (which will not be created). To use in-memory storage, follow the full recipe in the jaeger.userconfig comment: switch the userconfig storage backend to memory and set jaeger.jaeger.extraVolumes / extraVolumeMounts to []." }}
 {{- end }}
 {{- end }}
 {{- end }}
-{{- if and (dig "enabled" false $jaegerValues) (dig "persistence" "enabled" false $jaegerValues) }}
+{{- if and .Values.jaeger.enabled .Values.jaeger.persistence.enabled }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -29,7 +28,7 @@ metadata:
     {{- with .Values.commonLabels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
-  {{- with dig "persistence" "annotations" dict $jaegerValues }}
+  {{- with .Values.jaeger.persistence.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -38,8 +37,8 @@ spec:
   - ReadWriteOnce
   resources:
     requests:
-      storage: {{ dig "persistence" "size" "10Gi" $jaegerValues | quote }}
-  {{- with dig "persistence" "storageClassName" "" $jaegerValues }}
+      storage: {{ .Values.jaeger.persistence.size | quote }}
+  {{- with .Values.jaeger.persistence.storageClassName }}
   storageClassName: {{ . | quote }}
   {{- end }}
 {{- end }}
