@@ -5,6 +5,13 @@
 # token key, idempotent re-apply, and per-credential rotation.
 set -euo pipefail
 
+# Preflight: fail clearly when a dependency is missing rather than with a
+# misleading assertion error later.
+for dep in terraform jq openssl python3 base64; do
+  command -v "$dep" >/dev/null 2>&1 || { echo "FAIL: missing dependency: $dep" >&2; exit 1; }
+done
+python3 -c "import yaml" 2>/dev/null || { echo "FAIL: python3 lacks the yaml module (pip install pyyaml)" >&2; exit 1; }
+
 here="$(cd "$(dirname "$0")/.." && pwd)"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -12,6 +19,20 @@ trap 'rm -rf "$tmp"' EXIT
 cp "$here/terraform/identity-keys.tf" "$tmp/"
 
 cat > "$tmp/test-harness.tf" <<'EOF'
+terraform {
+  required_version = ">= 1.9.0"
+  required_providers {
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
+  }
+}
+
 variable "identity_generate_keys" {
   type    = bool
   default = true

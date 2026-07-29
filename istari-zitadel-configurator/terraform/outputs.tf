@@ -15,7 +15,7 @@ output "secret_file" {
     identity_registry_public_blob        = local.identity_registry_public_blob
     identity_scs_agent_private_blob      = local.identity_scs_agent_private_blob
     identity_scs_agent_public_blob       = local.identity_scs_agent_public_blob
-    identity_service_base_url            = var.identity_service_base_url
+    identity_service_base_url            = local.identity_service_base_url
     identity_signing_key_blob            = local.identity_signing_key_blob
     identity_token_encryption_key        = local.identity_token_encryption_key
     identity_service_zitadel_client_id   = zitadel_application_oidc.identity-service.client_id
