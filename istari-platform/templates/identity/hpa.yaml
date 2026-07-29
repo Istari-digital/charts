@@ -1,4 +1,4 @@
-{{- $serviceValues := .Values.identityService -}}
+{{- $serviceValues := .Values.identity -}}
 {{- if $serviceValues.enabled }}
 {{- if $serviceValues.autoscaling.enabled }}
 apiVersion: autoscaling/v2

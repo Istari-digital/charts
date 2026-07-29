@@ -95,7 +95,7 @@ In-cluster Jaeger OTLP gRPC URL. Resolves to `http://<jaeger-service-name>:4317`
 {{- end }}
 
 {{/*
-In-cluster Jaeger OTLP HTTP URL. Resolves to `http://<jaeger-service-name>:4318` via the fullname helper above. Used by templates that auto-inject `OTEL_EXPORTER_OTLP_ENDPOINT` for OTLP/HTTP exporters (identity-service) when `jaeger.enabled` is true.
+In-cluster Jaeger OTLP HTTP URL. Resolves to `http://<jaeger-service-name>:4318` via the fullname helper above. Used by templates that auto-inject `OTEL_EXPORTER_OTLP_ENDPOINT` for OTLP/HTTP exporters (the Identity Service) when `jaeger.enabled` is true.
 */}}
 {{- define "istari-platform.jaeger.otlpHttpUrl" -}}
 {{- printf "http://%s:4318" (include "istari-platform.jaeger.fullname" .) -}}

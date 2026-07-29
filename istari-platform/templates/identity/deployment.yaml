@@ -1,4 +1,4 @@
-{{- $serviceValues := .Values.identityService -}}
+{{- $serviceValues := .Values.identity -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $migrationResources := dig "migrations" "resources" dict $serviceValues -}}
 {{- if $serviceValues.enabled }}
@@ -79,7 +79,7 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'identityService.extraEnvConfigMaps', 'identityService.secretName', 'identityService.extraEnvSecrets', and 'identityService.env' will always override them.
+        'identity.extraEnvConfigMaps', 'identity.secretName', 'identity.extraEnvSecrets', and 'identity.env' will always override them.
         */}}
         - configMapRef:
             name: {{ include "identity.configmap.name" . | quote }}
@@ -144,7 +144,7 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'identityService.extraEnvConfigMaps', 'identityService.secretName', 'identityService.extraEnvSecrets', and 'identityService.env' will always override them.
+        'identity.extraEnvConfigMaps', 'identity.secretName', 'identity.extraEnvSecrets', and 'identity.env' will always override them.
         */}}
         - configMapRef:
             name: {{ include "identity.configmap.name" . | quote }}
