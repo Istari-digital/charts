@@ -1,0 +1,10 @@
+{{- /*
+Chart-wide validations that must fire regardless of which services this release
+enables. Unlike a `_helpers.tpl` `define`, which only runs where something
+`include`s it, a template file without a leading underscore is evaluated on
+every render, so an unconditional `fail` here cannot be skipped by disabling a
+service. This file never emits a manifest.
+*/}}
+{{- if and (dig "clientIntegration" "enabled" false .Values.identity) (not (include "istari-platform.gatewayUrl" .)) }}
+{{- fail "identity.clientIntegration.enabled is true but no gateway URL resolves — set router.apiUrl so the registry service, the frontend, and MCP have a gateway to authenticate through" }}
+{{- end }}

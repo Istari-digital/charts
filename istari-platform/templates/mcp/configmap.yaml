@@ -3,6 +3,7 @@ We put the generated default env vars in this config map so that user-defined va
 'mcp.secretName', 'mcp.extraEnvSecrets', and 'mcp.env' will always override them.
 */}}
 {{- $serviceValues := .Values.mcp -}}
+{{- $gatewayUrl := include "istari-platform.gatewayUrl" . -}}
 {{- if $serviceValues.enabled }}
 apiVersion: v1
 kind: ConfigMap
@@ -12,4 +13,24 @@ metadata:
     {{- include "mcp.labels" . | nindent 4 }}
 data:
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+  {{- if $gatewayUrl }}
+  # MCP reaches the registry through <base>/registry, resolved in the
+  # istari-digital-client SDK where the gateway URL beats the direct registry URL.
+  # ISTARI_DIGITAL_REGISTRY_SERVICE_URL above therefore becomes inert once this is
+  # set, and MCP logs a startup warning saying so. It is left in place because this
+  # chart's defaults are additive; removing it is tracked separately.
+  ISTARI_DIGITAL_API_URL: {{ $gatewayUrl | quote }}
+  # Emitted for BOTH values, and only alongside the gateway URL: MCP raises at startup
+  # when identity is enabled without one, and as of mcp-service 0.6.0 it derives its
+  # issuer as <base>/identity, the direct-issuer variable having been removed. The
+  # client id and secret are per-environment secrets and are deliberately not rendered
+  # here.
+  #
+  # Unlike the registry and the frontend, MCP has no deprecated predecessor flag for
+  # this value to override, so rendering false is declarative rather than corrective.
+  # It is rendered anyway so all three services read the same way and the manifest
+  # states the operator's intent. note: a Secret or extraEnvSecret still overrides it,
+  # being later in the Deployment's envFrom chain.
+  ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: {{ dig "clientIntegration" "enabled" false .Values.identity | quote }}
+  {{- end }}
 {{- end }}

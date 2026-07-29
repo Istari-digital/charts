@@ -1,4 +1,5 @@
 {{- $serviceValues := .Values.fileservice -}}
+{{- $gatewayUrl := include "istari-platform.gatewayUrl" . -}}
 {{- $migrationsRunAsJob := dig "migrations" "runAsJob" false $serviceValues -}}
 {{- $migrationsAutoCleanupSuccessfulJob := dig "migrations" "autoCleanupSuccessfulJob" true $serviceValues -}}
 {{- $migrationsPodAnnotations := dig "migrations" "podAnnotations" dict $serviceValues -}}
@@ -55,14 +56,14 @@ spec:
         - "upgrade"
         - "head"
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled }}
+        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
         envFrom:
         {{- end }}
-        {{- /* OTEL defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them.
+        {{- /* OTEL/gateway defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them.
         optional: rendered as a plain resource, so this pre-install/pre-upgrade hook Job runs
         before it exists whenever this release hasn't applied it yet — first install, the first
-        upgrade that enables Jaeger, or a ConfigMap rename */}}
-        {{- if $jaegerEnabled }}
+        upgrade that enables Jaeger or the gateway, or a ConfigMap rename */}}
+        {{- if or $jaegerEnabled $gatewayUrl }}
         - configMapRef:
             name: {{ include "fileservice.configmap.name" . | quote }}
             optional: true

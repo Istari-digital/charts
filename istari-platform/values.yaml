@@ -36,7 +36,7 @@ fileservice:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "fileservice2"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "10.21.1"
+  tag: "10.22.0"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -183,7 +183,7 @@ frontend:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "frontend-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "8.34.1"
+  tag: "8.35.4"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -326,7 +326,7 @@ mcp:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "mcp-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "0.4.1"
+  tag: "0.6.0"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -467,7 +467,7 @@ secureConnection:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "secure-connection-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "10.21.1"
+  tag: "10.22.0"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -609,12 +609,17 @@ secureConnection:
 identity:
   # -- Enable / Disable the whole deployment
   enabled: false
+  # -- Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. Stage-style topologies run one release per service, so `enabled` is only ever true in the identity-service's own release — gating client behavior on it directly means the toggle never renders in any consuming release.
+  # @default -- (see fields below)
+  clientIntegration:
+    # -- Whether clients in THIS release authenticate through the identity-service. Defaults to an explicit `false`, never derived from `identity.enabled`: a single-release install that wants identity now sets both values. Rendered in BOTH polarities whenever a gateway URL resolves, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set.
+    enabled: false
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "identity-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "1.0.2"
+  tag: "1.2.1"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -744,7 +749,7 @@ identity:
   # -- Settings for the `register-client -public-client-id` one-shot hook Jobs (pre-install/pre-upgrade). For each entry in `clients`, one Job registers a public (browser, PKCE) OAuth client — its `client_id` and exact-match redirect allowlist — in the Identity Service ClientStore, so `/oauth2/authorize` can validate the presented `client_id` and `redirect_uri`. Rendered only when BOTH `identity.enabled` and `identity.publicClientRegistration.enabled` are `true` AND `clients` is non-empty. Each entry names the `identity.secretName` keys holding its inputs (`clientIdKey`, `redirectUrisKey`); the DB URL is read from `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` in the same secret. No key material is involved — public clients have none.
   # @default -- (see fields below)
   publicClientRegistration:
-    # -- Whether to render the registration Jobs. Off by default: only enable in environments where `identity.secretName` carries every listed client's `clientIdKey`/`redirectUrisKey` (helm-stack terraform provisions them); otherwise the hook Jobs fail the release with a missing-secret-key error. Also requires an Identity Service image whose `register-client` supports `-public-client-id` (Istari-digital/identity-service#88), and `identity.migrations.runAsJob=true` (so migrations run as a pre-install/pre-upgrade hook, weight 5, before these — guaranteeing the `client_type`/`redirect_uris` schema exists on fresh installs and upgrades alike); rendering fails fast otherwise.
+    # -- Whether to render the registration Jobs. Off by default: only enable in environments where `identity.secretName` carries every listed client's `clientIdKey`/`redirectUrisKey` (provisioned by your environment's secret management); otherwise the hook Jobs fail the release with a missing-secret-key error. Also requires an Identity Service image whose `register-client` supports `-public-client-id` (Identity Service 1.1.0 or later), and `identity.migrations.runAsJob=true` (so migrations run as a pre-install/pre-upgrade hook, weight 5, before these — guaranteeing the `client_type`/`redirect_uris` schema exists on fresh installs and upgrades alike); rendering fails fast otherwise.
     enabled: false
     # -- Public clients to register, one Job each. Fields per entry: `name` (required; used in the Job name and the `istari.digital/client` label, so it must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, at most 63 characters), `clientIdKey` (required; the `identity.secretName` key holding the client_id), `redirectUrisKey` (required; the key holding the comma-separated exact-match redirect allowlist). Example: `{name: frontend, clientIdKey: ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_CLIENT_ID, redirectUrisKey: ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS}`.
     clients: []
@@ -758,7 +763,7 @@ identity:
     podLabels: {}
     # -- Resources for the registration Job containers.
     resources: {}
-  # -- Settings for the agent-registration one-shot hook Jobs (pre-install/pre-upgrade). For each entry in `agents`, one Job runs `create-tenant` (idempotent, as an init container) and then `register-agent`, provisioning a service principal's tenant and public key in the Identity Service. Used to onboard autonomous service agents that authenticate to the Identity Service via `client_credentials` (e.g. the secure-connection-service, DPLAT-513). Rendered only when BOTH `identity.enabled` and `identity.agentRegistration.enabled` are `true` AND `agents` is non-empty. Each agent's inputs (its public-only credential blob, the DB URL, and — for upstream binding — its username / org id) are supplied as env vars via `envFrom` on `identity.secretName` plus `agentRegistration.extraEnvSecrets`, and the CLIs read them by name; the Identity Service never needs read access to another service's secret and is never handed private key material. The Job pods inherit the Identity Service's `nodeSelector`, `affinity`, `tolerations`, security contexts, and image-pull secrets; only `podAnnotations`, `podLabels`, and `resources` are configured separately here.
+  # -- Settings for the agent-registration one-shot hook Jobs (pre-install/pre-upgrade). For each entry in `agents`, one Job runs `create-tenant` (idempotent, as an init container) and then `register-agent`, provisioning a service principal's tenant and public key in the Identity Service. Used to onboard autonomous service agents that authenticate to the Identity Service via `client_credentials` (e.g. the secure-connection-service). Rendered only when BOTH `identity.enabled` and `identity.agentRegistration.enabled` are `true` AND `agents` is non-empty. Each agent's inputs (its public-only credential blob, the DB URL, and — for upstream binding — its username / org id) are supplied as env vars via `envFrom` on `identity.secretName` plus `agentRegistration.extraEnvSecrets`, and the CLIs read them by name; the Identity Service never needs read access to another service's secret and is never handed private key material. The Job pods inherit the Identity Service's `nodeSelector`, `affinity`, `tolerations`, security contexts, and image-pull secrets; only `podAnnotations`, `podLabels`, and `resources` are configured separately here.
   # @default -- (see fields below)
   agentRegistration:
     # -- Whether to render the agent-registration Jobs. Off by default. Safe to leave enabled across environments: the CLIs read their inputs from env vars (mounted via `envFrom`), so when an agent's key blob is absent (e.g. the registry client integration is disabled and its secrets are not provisioned) the release stays green rather than failing — `register-agent` skips registration and `create-tenant` skips the provider mapping. Not entirely side-effect-free, though: `create-tenant` still ensures the (empty) tenant row exists. So the secret's presence, not this flag, is the effective on/off switch for agent registration; enable it once and toggle the integration by provisioning (or not) the secret. Requires `identity.migrations.runAsJob=true` (so migrations run as a pre-upgrade hook before this one, guaranteeing the schema exists); rendering fails fast otherwise.
@@ -968,6 +973,8 @@ router:
   extraEnvSecrets: []
   # -- Port the proxy container listens on. The router's `kind: Service` receives traffic on port 80 and forwards it here; you should never need to change this.
   listen: 8080
+  # -- Public base URL of this environment's service-router gateway, with no path (e.g. `https://api.your-domain.com`). Setting it turns on the gateway environment-variable contract: the registry and frontend address the registry through `<base>/registry`, and the identity-service publishes and accepts the gateway-prefixed URL. Leave empty to keep every client on the per-service hostnames. This chart never derives a default for this value from another (including `router.ingress`), so a release that deploys the router still needs `apiUrl` set explicitly to turn the contract on. Trailing slashes and surrounding whitespace are stripped.
+  apiUrl: ""
   # -- Additional path-prefix routes served alongside the chart-managed ones, for reaching in-cluster services this chart does not deploy. Each entry maps a URL path prefix to a Kubernetes Service in the same namespace as this release (cross-namespace and FQDN targets are not supported): the router matches the prefix and everything under it (never other prefixes that merely share its leading characters), strips it, and forwards the request to `service:port` over plain HTTP. A prefix must start with `/`, must not end with `/`, may use letters, digits, `-`, `_`, and `/` segment separators, and may not duplicate a chart-managed route or the reserved `/healthz` — invalid entries fail the render. When prefixes overlap, the longest match wins. Most deployments should leave this empty: routes for platform services are built into the chart and appear automatically.
   extraRoutes: []
   # # Example:
@@ -1204,22 +1211,10 @@ jaeger:
       # -- Image pull secret names applied to the Jaeger Pod. The umbrella chart's top-level `imagePullSecrets` does not propagate to subcharts, so this is set explicitly. Defaults to `docker-pull-secret` to match the rest of the istari-platform chart.
       pullSecrets:
       - docker-pull-secret
-    # -- Extra env for the Jaeger container. `OTEL_TRACES_SAMPLER=always_off` disables Jaeger's self-tracing — without it, every UI search stores `jaeger` spans alongside real traces; ingestion of application traces is unaffected. Remove that entry if you need Jaeger's internal traces to debug Jaeger itself. `GOMEMLIMIT` tracks the container's memory limit so the Go GC compresses the heap near the cap instead of exiting out-of-memory. NOTE: if you set `extraEnv` in your own values file, it replaces this entire list rather than adding to it (Helm does not merge lists) — copy these default entries into your list unless you intend to remove them.
+    # -- Extra env for the Jaeger container. `OTEL_TRACES_SAMPLER=always_off` disables Jaeger v2's self-tracing: the OpenTelemetry Collector SDK inside Jaeger otherwise traces its own query/ingest operations, storing them alongside real traces (every UI search generates `jaeger` spans) and exporting them to any external OTLP destination (e.g. an OpenTelemetry Collector fanning traces out to Datadog). Ingestion of application traces is unaffected — the sampler only governs Jaeger's own internal SDK. Remove this entry if you need Jaeger's internal traces to debug Jaeger itself.
     extraEnv:
     - name: OTEL_TRACES_SAMPLER
       value: "always_off"
-    - name: GOMEMLIMIT
-      valueFrom:
-        resourceFieldRef:
-          resource: limits.memory
-          divisor: "1"
-    # -- Resources for the Jaeger container. Badger's memory use scales with the stored dataset (table indexes and bloom filters live on the heap, and data files are memory-mapped), so a mature store needs real memory — and without a request the scheduler may place Jaeger on a node without room for it. Raise these together with `jaeger.persistence.size` / the `ttl.spans` retention.
-    resources:
-      requests:
-        cpu: 250m
-        memory: 2Gi
-      limits:
-        memory: 4Gi
     # -- Container `securityContext` for the Jaeger container, matching the hardening applied to the rest of the istari-platform chart. The subchart's default Pod-level securityContext (uid/gid/fsGroup 10001) is kept so the Badger PVC is writable by the non-root user.
     securityContext:
       allowPrivilegeEscalation: false
@@ -1279,8 +1274,8 @@ jaeger:
   persistence:
     # -- Create a PersistentVolumeClaim named `jaeger-badger` for Badger trace storage. The PVC is deleted on `helm uninstall` (trace history is disposable). Note: block-storage PVCs are zonal on AWS/Azure — the Jaeger Pod becomes pinned to the volume's availability zone (on Azure, a ZRS storage class avoids this). Disable only if you also switch `jaeger.userconfig` to in-memory storage and set `jaeger.jaeger.extraVolumes` / `jaeger.jaeger.extraVolumeMounts` to `[]` (see the `jaeger.userconfig` comment for the full recipe; the chart refuses to render a half-configured state).
     enabled: true
-    # -- Size of the Badger PVC (raise `jaeger.jaeger.resources` memory alongside it — see there). Retention is TIME-based only (`ttl.spans` in `jaeger.userconfig`, default 72h): Badger does NOT evict old data under disk pressure. A full volume stops trace collection and can wedge Badger's garbage collection (reclaiming space itself needs free disk), potentially crash-looping the Pod. Size with headroom — 20Gi over 72h ≈ 80 KB/s of stored spans, and expired data is reclaimed lazily — and alert on PVC usage (`kubelet_volume_stats_used_bytes`) around 80%. Increasing this value expands the volume in place when the StorageClass allows expansion; to reduce trace volume, lower `ttl.spans` or sample at the source. Trace history is disposable: deleting the PVC and restarting the Pod is a valid recovery.
-    size: 20Gi
+    # -- Size of the Badger PVC. Retention is TIME-based only (`ttl.spans` in `jaeger.userconfig`, default 72h): Badger does NOT evict old data under disk pressure. A full volume stops trace collection and can wedge Badger's garbage collection (reclaiming space itself needs free disk), potentially crash-looping the Pod. Size with headroom — 10Gi over 72h ≈ 40 KB/s of stored spans, and expired data is reclaimed lazily — and alert on PVC usage (`kubelet_volume_stats_used_bytes`) around 80%. Increasing this value expands the volume in place when the StorageClass allows expansion; to reduce trace volume, lower `ttl.spans` or sample at the source. Trace history is disposable: deleting the PVC and restarting the Pod is a valid recovery.
+    size: 10Gi
     # -- StorageClass for the Badger PVC. Empty string uses the cluster's default StorageClass.
     storageClassName: ""
     # -- Additional annotations for the Badger PVC.

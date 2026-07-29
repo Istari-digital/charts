@@ -1,0 +1,25 @@
+{{- $serviceValues := .Values.frontend -}}
+{{- $gatewayUrl := include "istari-platform.gatewayUrl" . -}}
+{{/*
+Chart-owned defaults for the frontend. Referenced FIRST in the consumer's `envFrom`
+so the user's Secret(s) and `frontend.env` override every value here, matching the
+precedence contract the fileservice ConfigMap documents.
+*/}}
+{{- if and $serviceValues.enabled $gatewayUrl }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "frontend.configmap.name" . | quote }}
+  labels:
+    {{- include "frontend.labels" . | nindent 4 }}
+data:
+  # Routes the browser's registry traffic through <base>/registry.
+  # Independent of the identity flag: the gateway wins whenever it is configured.
+  VITE_ISTARI_DIGITAL_API_URL: {{ $gatewayUrl | quote }}
+  # Rendered in BOTH polarities: the frontend reads this as a tri-state and falls back
+  # to the deprecated VITE_IDENTITY_ROUTER_ENABLED only when this var is unset - so an
+  # explicit "false" is the only way this chart can turn identity off where that legacy
+  # flag is set. Emitted only alongside the gateway URL because the frontend treats
+  # identity-enabled-without-a-gateway-URL as a fatal config-load error.
+  VITE_ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: {{ dig "clientIntegration" "enabled" false .Values.identity | quote }}
+{{- end }}

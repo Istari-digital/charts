@@ -114,3 +114,15 @@ win (Secrets can't override these two). Callers gate behind their own `if $jaege
 - name: OTEL_RESOURCE_ATTRIBUTES
   value: {{ printf "k8s.container.name=%s" .container | quote }}
 {{- end }}
+
+{{/*
+Resolved service-router gateway base URL, or "" when the gateway contract is off.
+Only router.apiUrl activates the contract — this chart never derives one
+value's default from another, so a release that deploys the router with an
+Ingress still needs apiUrl set explicitly. Trailing slashes and surrounding
+whitespace are stripped, so <base>/registry never renders a double slash.
+*/}}
+{{- define "istari-platform.gatewayUrl" -}}
+{{- $r := default dict .Values.router -}}
+{{- trimSuffix "/" (trim (default "" $r.apiUrl)) -}}
+{{- end }}
