@@ -1,5 +1,5 @@
 {{- $serviceValues := .Values.frontend -}}
-{{- $gatewayUrl := include "istari-platform.gatewayUrl" . -}}
+{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{/*
 Chart-owned defaults for the frontend. Referenced FIRST in the consumer's `envFrom`
 so the user's Secret(s) and `frontend.env` override every value here, matching the

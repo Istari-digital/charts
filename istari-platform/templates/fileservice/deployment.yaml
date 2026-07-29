@@ -1,6 +1,6 @@
 {{- $serviceValues := .Values.fileservice -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
-{{- $gatewayUrl := include "istari-platform.gatewayUrl" . -}}
+{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment

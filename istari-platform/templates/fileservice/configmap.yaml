@@ -1,9 +1,9 @@
 {{- $serviceValues := .Values.fileservice -}}
 {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
-{{- $gatewayUrl := include "istari-platform.gatewayUrl" . -}}
+{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{/*
 Chart-owned env for the registry service, covering two independent things: the default OTEL
-exporters for in-cluster Jaeger APM, and the service-router gateway and identity variables. Either one
+exporters for in-cluster Jaeger APM, and the API Gateway and identity variables. Either one
 alone renders this ConfigMap, which is why the gate below tests both. Referenced FIRST in the
 consumers' `envFrom` so the user's Secret(s) and `fileservice.env` override every value here
 (precedence contract: see the `jaeger:` section comment in values.yaml).

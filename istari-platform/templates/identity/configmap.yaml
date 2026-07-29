@@ -3,7 +3,7 @@ We put the generated default env vars in this config map so that user-defined va
 'identity.secretName', 'identity.extraEnvSecrets', and 'identity.env' will always override them.
 */}}
 {{- $serviceValues := .Values.identity -}}
-{{- $gatewayUrl := include "istari-platform.gatewayUrl" . -}}
+{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{- if $serviceValues.enabled }}
 apiVersion: v1
 kind: ConfigMap
@@ -31,7 +31,7 @@ data:
   OTEL_METRICS_EXPORTER: "none"
   {{- end }}
   {{- if $gatewayUrl }}
-  # identity is reached publicly at <base>/identity through the router.
+  # identity is reached publicly at <base>/identity through the API Gateway.
   # BASE_URL and JWT_ISSUER default from this only when unset; an explicit value
   # wins, so an environment that sets them keeps its direct issuer.
   ISTARI_DIGITAL_API_URL: {{ $gatewayUrl | quote }}

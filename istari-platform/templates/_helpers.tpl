@@ -116,13 +116,13 @@ win (Secrets can't override these two). Callers gate behind their own `if $jaege
 {{- end }}
 
 {{/*
-Resolved service-router gateway base URL, or "" when the gateway contract is off.
-Only router.apiUrl activates the contract — this chart never derives one
-value's default from another, so a release that deploys the router with an
+Resolved API Gateway base URL, or "" when the gateway contract is off.
+Only apiGateway.apiUrl activates the contract — this chart never derives one
+value's default from another, so a release that deploys the API Gateway with an
 Ingress still needs apiUrl set explicitly. Trailing slashes and surrounding
 whitespace are stripped, so <base>/registry never renders a double slash.
 */}}
-{{- define "istari-platform.gatewayUrl" -}}
-{{- $r := default dict .Values.router -}}
+{{- define "istari-platform.apiGatewayUrl" -}}
+{{- $r := default dict .Values.apiGateway -}}
 {{- trimSuffix "/" (trim (default "" $r.apiUrl)) -}}
 {{- end }}
