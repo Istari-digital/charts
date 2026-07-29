@@ -168,3 +168,45 @@ variable "zitadel_port" {
   description = "Port for the ZITADEL instance"
   default     = 443
 }
+
+variable "identity_generate_keys" {
+  type        = bool
+  default     = true
+  description = "Generate the identity-service signing key and token-encryption key and publish them in zitadel-identity-service-env. Set false to keep hand-managed keys (see chart README precedence notes)."
+}
+
+variable "identity_client_integration_enabled" {
+  type        = bool
+  default     = false
+  description = "Generate and assign the identity-service client credentials (registry, frontend, SCS, MCP) plus their enable/URL env vars. Mirrors helm-stack's identity_router_client_integration_enabled: registry, frontend, and SCS must cut over together (DPLAT-513)."
+}
+
+variable "identity_key_rotation_signing_key" {
+  type        = number
+  default     = 0
+  description = "Bump to rotate the identity-service signing key on the next run. Outstanding tokens become invalid; principals re-authenticate."
+}
+
+variable "identity_key_rotation_token_encryption_key" {
+  type        = number
+  default     = 0
+  description = "Bump to rotate the token-encryption key. Previously encrypted rows read as absent; affected users log in again."
+}
+
+variable "identity_key_rotation_registry_client" {
+  type        = number
+  default     = 0
+  description = "Bump to rotate the registry-service client credential. Self-heals on the next istari-platform upgrade (the registration hook re-registers the new public key)."
+}
+
+variable "identity_key_rotation_scs_agent" {
+  type        = number
+  default     = 0
+  description = "Bump to rotate the secure-connection-service agent credential. Self-heals on the next istari-platform upgrade (agent-registration hook)."
+}
+
+variable "identity_key_rotation_mcp_client_secret" {
+  type        = number
+  default     = 0
+  description = "Bump to rotate the MCP client secret."
+}
