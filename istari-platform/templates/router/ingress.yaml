@@ -1,19 +1,19 @@
-{{- $serviceValues := .Values.serviceRouter -}}
+{{- $serviceValues := .Values.router -}}
 {{- if and $serviceValues.enabled $serviceValues.ingress.enabled }}
 {{- if not $serviceValues.ingress.hosts -}}
-{{- fail "serviceRouter.ingress.hosts must contain at least one entry when serviceRouter.ingress.enabled is true" -}}
+{{- fail "router.ingress.hosts must contain at least one entry when router.ingress.enabled is true" -}}
 {{- end }}
 {{- range $serviceValues.ingress.hosts }}
 {{- if not .paths }}
-{{- fail (printf "serviceRouter.ingress.hosts: the entry for host %q must define at least one item under paths (e.g. path: /, pathType: Prefix)" (default "<any>" .host)) }}
+{{- fail (printf "router.ingress.hosts: the entry for host %q must define at least one item under paths (e.g. path: /, pathType: Prefix)" (default "<any>" .host)) }}
 {{- end }}
 {{- end }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "serviceRouter.fullname" . | quote }}
+  name: {{ include "router.fullname" . | quote }}
   labels:
-    {{- include "serviceRouter.labels" . | nindent 4 }}
+    {{- include "router.labels" . | nindent 4 }}
     {{- with $serviceValues.ingress.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -43,7 +43,7 @@ spec:
             pathType: {{ .pathType | quote }}
             backend:
               service:
-                name: {{ include "serviceRouter.fullname" $ | quote }}
+                name: {{ include "router.fullname" $ | quote }}
                 port:
                   number: {{ $serviceValues.ingress.servicePort | default 80 }}
           {{- end }}

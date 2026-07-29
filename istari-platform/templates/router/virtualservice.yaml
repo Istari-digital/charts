@@ -1,15 +1,15 @@
-{{- $serviceValues := .Values.serviceRouter -}}
+{{- $serviceValues := .Values.router -}}
 {{- if and $serviceValues.enabled $serviceValues.virtualService.enabled }}
 {{- if not $serviceValues.virtualService.hosts -}}
-{{- fail "serviceRouter.virtualService.hosts must contain at least one entry when serviceRouter.virtualService.enabled is true" -}}
+{{- fail "router.virtualService.hosts must contain at least one entry when router.virtualService.enabled is true" -}}
 {{- end }}
-{{- $svcName := include "serviceRouter.fullname" . -}}
+{{- $svcName := include "router.fullname" . -}}
 apiVersion: networking.istio.io/v1
 kind: VirtualService
 metadata:
   name: {{ $svcName | quote }}
   labels:
-    {{- include "serviceRouter.labels" . | nindent 4 }}
+    {{- include "router.labels" . | nindent 4 }}
     {{- with $serviceValues.virtualService.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

@@ -948,12 +948,12 @@ docs:
 #
 # Routes for the platform's services are managed by the chart and need no configuration
 # here: /registry and /identity are always served. Prefixes for services this chart does
-# not deploy can be attached via `serviceRouter.extraRoutes`.
+# not deploy can be attached via `router.extraRoutes`.
 #
 # The proxy software inside the router (currently Caddy) is an internal detail and may
 # change in a future release; such a change will never require values changes beyond
 # `registry`/`image`/`tag`.
-serviceRouter:
+router:
   # -- Enable / Disable the whole deployment
   enabled: false
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
@@ -970,7 +970,7 @@ serviceRouter:
   extraEnvSecrets: []
   # -- Port the proxy container listens on. The router's `kind: Service` receives traffic on port 80 and forwards it here; you should never need to change this.
   listen: 8080
-  # -- Public base URL of this environment's service-router gateway, with no path (e.g. `https://api.your-domain.com`). Setting it turns on the DPLAT-602 environment-variable contract: the registry and frontend address the registry through `<base>/registry`, and the identity-service publishes and accepts the gateway-prefixed URL. Leave empty to keep every client on the per-service hostnames. This chart never derives a default for this value from another (including `serviceRouter.ingress`), so a release that deploys the router still needs `apiUrl` set explicitly to turn the contract on. Leading and trailing slashes are stripped.
+  # -- Public base URL of this environment's service-router gateway, with no path (e.g. `https://api.your-domain.com`). Setting it turns on the DPLAT-602 environment-variable contract: the registry and frontend address the registry through `<base>/registry`, and the identity-service publishes and accepts the gateway-prefixed URL. Leave empty to keep every client on the per-service hostnames. This chart never derives a default for this value from another (including `router.ingress`), so a release that deploys the router still needs `apiUrl` set explicitly to turn the contract on. Leading and trailing slashes are stripped.
   apiUrl: ""
   # -- Additional path-prefix routes served alongside the chart-managed ones, for reaching in-cluster services this chart does not deploy. Each entry maps a URL path prefix to a Kubernetes Service in the same namespace as this release (cross-namespace and FQDN targets are not supported): the router matches the prefix and everything under it (never other prefixes that merely share its leading characters), strips it, and forwards the request to `service:port` over plain HTTP. A prefix must start with `/`, must not end with `/`, may use letters, digits, `-`, `_`, and `/` segment separators, and may not duplicate a chart-managed route or the reserved `/healthz` — invalid entries fail the render. When prefixes overlap, the longest match wins. Most deployments should leave this empty: routes for platform services are built into the chart and appear automatically.
   extraRoutes: []
@@ -981,7 +981,7 @@ serviceRouter:
   #   port: 8080
   # Tracing -- optional per-request tracing through the router, viewable in the bundled Jaeger UI (see `jaeger.enabled`). Useful when troubleshooting routing or latency issues.
   tracing:
-    # -- (bool/null) Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `serviceRouter.env`, a ConfigMap in `serviceRouter.extraEnvConfigMaps`, or a Secret in `serviceRouter.extraEnvSecrets`. If you rely on a ConfigMap or Secret, make sure it actually contains `OTEL_EXPORTER_OTLP_ENDPOINT`: the chart cannot inspect their contents, and without the variable traces are silently dropped. The chart exports over gRPC by default; a collector that only accepts OTLP/HTTP additionally needs `OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf` in `serviceRouter.env`.
+    # -- (bool/null) Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `router.env`, a ConfigMap in `router.extraEnvConfigMaps`, or a Secret in `router.extraEnvSecrets`. If you rely on a ConfigMap or Secret, make sure it actually contains `OTEL_EXPORTER_OTLP_ENDPOINT`: the chart cannot inspect their contents, and without the variable traces are silently dropped. The chart exports over gRPC by default; a collector that only accepts OTLP/HTTP additionally needs `OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf` in `router.env`.
     # @default -- `null` (automatic: follows `jaeger.enabled`)
     enabled: null
   # -- Replica count. Defaults to 2, unlike the other services: the router is the single entry point for all routed traffic, so one pod failing (or rolling during an upgrade) must not sever every routed service at once. Whenever the effective minimum replica count (this value, or `autoscaling.minReplicas` when autoscaling) is 2 or more, the chart also creates a PodDisruptionBudget keeping at least one router pod up through node drains; at 1 replica no budget is created, so drains are never blocked.
@@ -1012,13 +1012,13 @@ serviceRouter:
     runAsUser: 65532
   # -- Additional annotations to apply to the service account
   serviceAccountAnnotations: {}
-  # -- Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `serviceRouter.tracing.enabled`).
+  # -- Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `router.tracing.enabled`).
   env: []
-  # Autoscaling -- set autoscaling (HPA) parameters. NOTE: utilization-based scaling requires the matching `serviceRouter.resources.requests` values — the HPA has nothing to compute a percentage against without them, so the chart fails the render if autoscaling is enabled while they are unset.
+  # Autoscaling -- set autoscaling (HPA) parameters. NOTE: utilization-based scaling requires the matching `router.resources.requests` values — the HPA has nothing to compute a percentage against without them, so the chart fails the render if autoscaling is enabled while they are unset.
   autoscaling:
     # -- Enable/Disable autoscaling
     enabled: false
-    # -- Minimum number of replicas. Defaults to 2 for the same reason as `serviceRouter.replicaCount`: the router is the single entry point for all routed traffic.
+    # -- Minimum number of replicas. Defaults to 2 for the same reason as `router.replicaCount`: the router is the single entry point for all routed traffic.
     minReplicas: 2
     # -- Maximum number of replicas
     maxReplicas: 3

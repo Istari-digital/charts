@@ -6,7 +6,7 @@
 # API host, and a TLS Secret. No service mesh is needed.
 #
 # Replace api.example.com with your own API hostname throughout.
-serviceRouter:
+router:
   enabled: true
   # Setting apiUrl is what configures the deployed services. Leaving it empty
   # deploys the router without pointing any client at it.
