@@ -33,7 +33,7 @@ identityService:
   secretName: "istari-identity-service"
   # Registration hook Jobs. Each fails the release if its keys are absent from
   # the Secret above, so enable a hook only once you have populated its inputs.
-  identityRouterClientRegistration:
+  registryClientRegistration:
     enabled: true
   publicClientRegistration:
     enabled: false

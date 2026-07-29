@@ -52,7 +52,7 @@ metadata:
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     # Weight 20: after the migration hook (weight 5, requires migrations.runAsJob=true
-    # — enforced above) and the router-client registration (weight 10), so the schema
+    # — enforced above) and the registry-client registration (weight 10), so the schema
     # exists before create-tenant/register-agent run.
     helm.sh/hook-weight: "20"
     helm.sh/hook-delete-policy: {{ if $autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
