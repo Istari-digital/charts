@@ -5,6 +5,6 @@ enables. Unlike a `_helpers.tpl` `define`, which only runs where something
 every render, so an unconditional `fail` here cannot be skipped by disabling a
 service. This file never emits a manifest.
 */}}
-{{- if and .Values.identity.clientIntegrationEnabled (not (include "istari-platform.gatewayUrl" .)) }}
-{{- fail "identity.clientIntegrationEnabled is true but no gateway URL resolves — set router.apiUrl so the registry service, the frontend, and MCP have a gateway to authenticate through" }}
+{{- if and (dig "clientIntegration" "enabled" false .Values.identity) (not (include "istari-platform.gatewayUrl" .)) }}
+{{- fail "identity.clientIntegration.enabled is true but no gateway URL resolves — set router.apiUrl so the registry service, the frontend, and MCP have a gateway to authenticate through" }}
 {{- end }}

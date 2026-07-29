@@ -20,7 +20,7 @@ data:
   # set, and MCP logs a startup warning saying so. It is left in place because this
   # chart's defaults are additive; removing it is tracked separately.
   ISTARI_DIGITAL_API_URL: {{ . | quote }}
-  {{- if $.Values.identity.clientIntegrationEnabled }}
+  {{- if dig "clientIntegration" "enabled" false $.Values.identity }}
   # Emitted only alongside the gateway URL. MCP raises at startup when identity is
   # enabled without a gateway URL, and as of mcp-service 0.6.0 it derives its issuer
   # as <base>/identity, the direct-issuer variable having been removed. The client id
