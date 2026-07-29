@@ -22,3 +22,4 @@
 *.tmproj
 .vscode/
 terraform/.terraform/
+tests/

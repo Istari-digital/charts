@@ -12,7 +12,7 @@
 # recreates just that credential.
 #
 # This file must not reference zitadel_* resources: the standalone test
-# harness (scripts/test-identity-keys.sh) applies it without a Zitadel.
+# harness (tests/test-identity-keys.sh) applies it without a Zitadel.
 
 # ---- rotation triggers -------------------------------------------------
 
