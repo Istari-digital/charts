@@ -37,7 +37,7 @@
        two are supplied together. The id is read from providerTenantIdEnv (an env
        var, typically published by the configurator) so environment-specific ids
        stay out of values; an empty/absent value makes create-tenant skip the
-       mapping rather than fail (DPLAT-513). */ -}}
+       mapping rather than fail. */ -}}
 {{- if and $agent.providerName (not $agent.providerTenantIdEnv) }}{{ fail (printf "agentRegistration agent %q sets providerName but not providerTenantIdEnv (both are needed to map the tenant to an upstream org)" $agent.name) }}{{ end }}
 {{- if and $agent.providerTenantIdEnv (not $agent.providerName) }}{{ fail (printf "agentRegistration agent %q sets providerTenantIdEnv but not providerName" $agent.name) }}{{ end }}
 ---

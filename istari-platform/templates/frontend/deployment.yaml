@@ -67,7 +67,7 @@ spec:
         envFrom:
         {{- end }}
         {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
-        {{- with $gatewayUrl }}
+        {{- if $gatewayUrl }}
         - configMapRef:
             name: {{ include "frontend.configmap.name" $ | quote }}
         {{- end }}

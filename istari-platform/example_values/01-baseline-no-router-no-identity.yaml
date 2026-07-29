@@ -1,8 +1,0 @@
-# Configuration 1: the baseline upgrade. Neither the service router nor the
-# identity-service is enabled, so this is a version bump and nothing more.
-# Every value here is already the chart default; the file exists to make the
-# baseline explicit and to be diffed against the other two.
-router:
-  enabled: false
-identity:
-  enabled: false
