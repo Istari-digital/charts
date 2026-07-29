@@ -114,6 +114,35 @@ configurator:
   # -- Base URL used by identity-service.
   identity_service_base_url: "https://identity.domain.com"
 
+  # -- Identity-service credential generation (DPLAT-653). The configurator
+  # generates the identity-service's key material and assigns it into the
+  # zitadel-*-env secrets, replacing the docs' manual gen-signing-key /
+  # gen-client-credentials / openssl steps.
+  # @default -- (see fields below)
+  identity_service:
+    # -- Generate the signing key and token-encryption key and publish them in
+    # zitadel-identity-service-env. Set false to keep hand-managed keys.
+    # PRECEDENCE WARNING for existing installs: a service that mounts
+    # zitadel-identity-service-env after its own secret picks up these
+    # generated values (later envFrom entries win) — the first upgrade rotates
+    # a hand-generated signing key once (principals re-authenticate).
+    generate_keys: true
+    client_integration:
+      # -- Generate and assign the client credentials (registry, frontend,
+      # SCS, MCP) plus their enable/URL env vars. Registry, frontend, and SCS
+      # cut over together — one switch, not per-service switches.
+      enabled: false
+    # -- Bump a serial to rotate that credential on the next run. Registry and
+    # SCS rotations self-heal on the next istari-platform upgrade (the
+    # registration hooks re-register the new public halves).
+    # @default -- all serials `0`
+    key_rotation:
+      signing_key: 0
+      token_encryption_key: 0
+      registry_client: 0
+      scs_agent: 0
+      mcp_client_secret: 0
+
   # -- Enable auto configuration of subdomains. If enabled is set to true.
   # If set to true, the following domains will be assumed (Please note using domain.com as an example):
   # Frontend service subdomain: https://domain.com and https://v2.domain.com
