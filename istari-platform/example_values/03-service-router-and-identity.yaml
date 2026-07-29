@@ -7,7 +7,7 @@
 # gen-client-credentials, gen-agent-credentials, plus register-client and
 # register-agent to register them.
 #
-# The Secret named by identityService.secretName must already exist and carry the
+# The Secret named by identity.secretName must already exist and carry the
 # signing key, the database URL, and the client material. This chart registers
 # clients; it does not create them.
 #
@@ -27,14 +27,14 @@ serviceRouter:
     - hosts:
       - api.example.com
       secretName: api-example-com-tls
-identityService:
+identity:
   enabled: true
   # Moves the registry service, the frontend, and MCP (when mcp.enabled) onto
   # the identity-service as OIDC clients. Independent of `enabled` above — see
   # the chart's own values.yaml comment for the distinction.
   clientIntegrationEnabled: true
   # Pre-created Secret holding the signing key, database URL, and client material.
-  secretName: "istari-identity-service"
+  secretName: "istari-identity"
   # Registration hook Jobs. Each fails the release if its keys are absent from
   # the Secret above, so enable a hook only once you have populated its inputs.
   registryClientRegistration:

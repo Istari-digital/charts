@@ -23,5 +23,5 @@ serviceRouter:
     - hosts:
       - api.example.com
       secretName: api-example-com-tls
-identityService:
+identity:
   enabled: false

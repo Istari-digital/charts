@@ -34,9 +34,9 @@ MCP consumes the gateway as a client; the gateway does not serve MCP requests. N
 > [!IMPORTANT]
 > Routing through the gateway and switching authentication to the identity service are **two independent settings**.
 >
-> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identityService.clientIntegrationEnabled`, off by default and independent of `identityService.enabled`: `enabled` deploys the identity-service; `clientIntegrationEnabled` moves the registry service, the frontend, and MCP onto it as OIDC clients. Environments that run one Helm release per service — every internal environment does — must set `clientIntegrationEnabled` explicitly in each consuming release, since `enabled` is only ever true in the identity-service's own release.
+> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegrationEnabled`, off by default and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegrationEnabled` moves the registry service, the frontend, and MCP onto it as OIDC clients. Environments that run one Helm release per service — every internal environment does — must set `clientIntegrationEnabled` explicitly in each consuming release, since `enabled` is only ever true in the identity-service's own release.
 >
-> When you set both `serviceRouter.apiUrl` and `identityService.clientIntegrationEnabled`, the chart emits the identity toggle to the registry service, the frontend, and MCP together. It never emits the toggle from `serviceRouter.apiUrl` alone, because all three treat identity-enabled-without-a-gateway-URL as a fatal startup or config-load error.
+> When you set both `serviceRouter.apiUrl` and `identity.clientIntegrationEnabled`, the chart emits the identity toggle to the registry service, the frontend, and MCP together. It never emits the toggle from `serviceRouter.apiUrl` alone, because all three treat identity-enabled-without-a-gateway-URL as a fatal startup or config-load error.
 >
 > The former `…_IDENTITY_ROUTER_ENABLED` names (and the frontend's `VITE_IDENTITY_ROUTER_*`) remain supported as deprecated aliases, and are ignored when the corresponding new names are set. Prefer the new names; the aliases will be removed in a future release.
 
@@ -185,7 +185,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | fileservice.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | fileservice.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | fileservice.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| fileservice.tag | string | `"10.21.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| fileservice.tag | string | `"10.22.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | fileservice.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | fileservice.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -228,7 +228,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | frontend.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | frontend.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | frontend.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| frontend.tag | string | `"8.34.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| frontend.tag | string | `"8.35.4"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | frontend.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | frontend.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | frontend.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -253,6 +253,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | identity.autoscaling.maxReplicas | int | `2` | Maximum number of replicas |
 | identity.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | identity.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
+| identity.clientIntegrationEnabled | bool | `false` | Whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; this value moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. Stage-style topologies run one release per service, so `enabled` is only ever true in the identity-service's own release — gating client behavior on it directly means the toggle never renders in any consuming release. Defaults to an explicit `false`, never derived from `enabled`: a single-release install that wants identity now sets both values. |
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | identity.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | identity.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
@@ -303,7 +304,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | identity.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | identity.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | identity.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| identity.tag | string | `"1.0.2"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| identity.tag | string | `"1.2.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | identity.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | identity.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | identity.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -362,7 +363,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | mcp.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | mcp.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | mcp.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| mcp.tag | string | `"0.4.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| mcp.tag | string | `"0.6.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | mcp.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | mcp.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -432,7 +433,7 @@ The proxy software inside the router (currently Caddy) is an internal implementa
 | secureConnection.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | secureConnection.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | secureConnection.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| secureConnection.tag | string | `"10.21.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| secureConnection.tag | string | `"10.22.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | secureConnection.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | secureConnection.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |

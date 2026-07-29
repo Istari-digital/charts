@@ -4,5 +4,5 @@
 # baseline explicit and to be diffed against the other two.
 serviceRouter:
   enabled: false
-identityService:
+identity:
   enabled: false

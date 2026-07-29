@@ -33,7 +33,7 @@ data:
   # FILE_SERVICE_IDENTITY_ROUTER_URL is unset (settings.py); an explicit
   # identity URL still wins.
   ISTARI_DIGITAL_API_URL: {{ . | quote }}
-  {{- if $.Values.identityService.clientIntegrationEnabled }}
+  {{- if $.Values.identity.clientIntegrationEnabled }}
   # The platform-wide toggle. When set it wins over the deprecated nested
   # FILE_SERVICE_FEATURE_FLAGS__IDENTITY_ROUTER_ENABLED, which environments may
   # still set; both agree on "true", so this only changes which name is authoritative.
