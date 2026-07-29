@@ -29,6 +29,10 @@ serviceRouter:
       secretName: api-example-com-tls
 identityService:
   enabled: true
+  # Moves the registry service and the frontend onto the identity-service as
+  # OIDC clients. Independent of `enabled` above — see the chart's own
+  # values.yaml comment for the distinction.
+  clientIntegrationEnabled: true
   # Pre-created Secret holding the signing key, database URL, and client material.
   secretName: "istari-identity-service"
   # Registration hook Jobs. Each fails the release if its keys are absent from
