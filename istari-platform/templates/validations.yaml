@@ -5,6 +5,9 @@ enables. Unlike a `_helpers.tpl` `define`, which only runs where something
 every render, so an unconditional `fail` here cannot be skipped by disabling a
 service. This file never emits a manifest.
 */}}
+{{- if hasKey .Values "router" }}
+{{- fail (printf "the router: values block was renamed to serviceRouter: in istari-platform %s — rename it in your values file (rendered Kubernetes object names are unchanged)" .Chart.Version) }}
+{{- end }}
 {{- if and .Values.identityService.clientIntegrationEnabled (not (include "istari-platform.gatewayUrl" .)) }}
 {{- fail "identityService.clientIntegrationEnabled is true but no gateway URL resolves — set serviceRouter.apiUrl so the registry service, the frontend, and MCP have a gateway to authenticate through" }}
 {{- end }}
