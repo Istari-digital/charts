@@ -46,7 +46,7 @@ so pre-sorting makes overlap resolution identical however the config is rendered
 {{- $seen := dict -}}
 {{- range $routes -}}
 {{- if hasKey $seen .prefix -}}
-{{- fail (printf "router routes: prefix %s is declared more than once (check serviceRouter.extraRoutes against the chart-managed routes)" .prefix) -}}
+{{- fail (printf "serviceRouter routes: prefix %s is declared more than once (check serviceRouter.extraRoutes against the chart-managed routes)" .prefix) -}}
 {{- end -}}
 {{- $_ := set $seen .prefix true -}}
 {{- end -}}
