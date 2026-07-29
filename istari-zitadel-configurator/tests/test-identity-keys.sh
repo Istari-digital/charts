@@ -129,3 +129,86 @@ terraform apply -auto-approve -input=false -var identity_key_rotation_registry_c
 [ "$(out signing_key_blob)" = "$sk_before" ] || fail "signing key rotated unexpectedly"
 
 echo "PASS: identity-keys.tf shape, idempotency, and rotation checks"
+
+# --- secrets.yaml.tftpl render test ---------------------------------------
+# Renders the template with literal values in a second throwaway root and
+# asserts the gated keys appear (and disappear) with their gates, and the
+# result parses as multi-document YAML.
+render_tmp="$(mktemp -d)"
+cp "$here/terraform/secrets.yaml.tftpl" "$render_tmp/"
+
+render_tf() {
+  local gate_keys="$1" gate_integration="$2" gate_mcp="$3"
+  cat > "$render_tmp/render-test.tf" <<EOF
+output "rendered" {
+  value = templatefile("\${path.module}/secrets.yaml.tftpl", {
+    common_domain                        = "https://zitadel.example.com"
+    fe_zitadel_client_id                 = "fe-id"
+    identity_client_integration_enabled  = $gate_integration
+    identity_frontend_client_id          = "frontend-abcd1234"
+    identity_frontend_redirect_uris      = "https://example.com"
+    identity_generate_keys               = $gate_keys
+    identity_mcp_client_id               = "mcp-abcd1234"
+    identity_mcp_client_secret           = "mcpsecret"
+    identity_mcp_enabled                 = $gate_mcp
+    identity_mcp_redirect_uris           = "https://mcp.example.com/auth/callback"
+    identity_registry_client_id          = "registry-abcd1234"
+    identity_registry_private_blob       = "privblob"
+    identity_registry_public_blob        = "pubblob"
+    identity_scs_agent_private_blob      = "scspriv"
+    identity_scs_agent_public_blob       = "scspub"
+    identity_service_base_url            = "https://api.example.com/identity"
+    identity_service_zitadel_client_id   = "id-client"
+    identity_service_zitadel_manager_key = "b64managerkey"
+    identity_service_zitadel_private_key = "b64key"
+    identity_signing_key_blob            = "signblob"
+    identity_token_encryption_key        = "tokkey"
+    mcp_zitadel_client_id                = "mcp-z"
+    mcp_zitadel_secret                   = "mcp-zs"
+    rs_zitadel_client_id                 = "rs-id"
+    rs_zitadel_project_id                = "proj"
+    rs_zitadel_project_grant_id          = "grant"
+    rs_zitadel_secret                    = "rs-secret"
+    rs_zitadel_user_manager_secret       = "rs-um"
+    scs_zitadel_project_grant_id         = "grant"
+    scs_zitadel_project_id               = "proj"
+    scs_zitadel_role_name                = "role"
+    scs_zitadel_user_id                  = "scs-user"
+    scs_zitadel_user_manager_secret      = "scs-um"
+    zitadel_domain                       = "https://zitadel.example.com"
+    zitadel_org_id                       = "org"
+  })
+}
+EOF
+  (cd "$render_tmp" && terraform init -backend=false -input=false >/dev/null \
+    && terraform apply -auto-approve -input=false >/dev/null)
+  (cd "$render_tmp" && terraform output -raw rendered)
+}
+
+rendered_on="$(render_tf true true true)"
+echo "$rendered_on" | python3 -c "import yaml,sys; list(yaml.safe_load_all(sys.stdin))" || fail "rendered secrets not valid YAML (gates on)"
+for key in FILE_SERVICE_IDENTITY_ROUTER_SECRET \
+           ISTARI_DIGITAL_IDENTITY_SERVICE_SIGNING_KEY \
+           ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT \
+           ISTARI_DIGITAL_IDENTITY_SERVICE_AGENT_PROVISIONING_CLIENT_IDS \
+           VITE_IDENTITY_ROUTER_CLIENT_ID \
+           ISTARI_DIGITAL_IDENTITY_ROUTER_AGENT_KEY \
+           ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_CLIENT_ID; do
+  echo "$rendered_on" | grep -q "$key" || fail "gated key $key missing when gates on"
+done
+
+rendered_off="$(render_tf false false false)"
+echo "$rendered_off" | python3 -c "import yaml,sys; list(yaml.safe_load_all(sys.stdin))" || fail "rendered secrets not valid YAML (gates off)"
+for key in FILE_SERVICE_IDENTITY_ROUTER_SECRET \
+           ISTARI_DIGITAL_IDENTITY_SERVICE_SIGNING_KEY \
+           ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT \
+           VITE_IDENTITY_ROUTER_CLIENT_ID \
+           ISTARI_DIGITAL_IDENTITY_ROUTER_AGENT_KEY \
+           ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_CLIENT_ID; do
+  if echo "$rendered_off" | grep -q "$key"; then
+    fail "gated key $key present when gates off"
+  fi
+done
+rm -rf "$render_tmp"
+
+echo "PASS: secrets.yaml.tftpl render gating checks"
