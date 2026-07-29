@@ -117,19 +117,12 @@ win (Secrets can't override these two). Callers gate behind their own `if $jaege
 
 {{/*
 Resolved service-router gateway base URL, or "" when the gateway contract is off.
-Explicit serviceRouter.apiUrl wins; otherwise derive from a single serviceRouter.ingress host, mirroring
-the "unset means derive" behaviour of serviceRouter.tracing.enabled. Always trailing-slash free.
+Only serviceRouter.apiUrl activates the contract — this chart never derives one
+value's default from another, so a release that deploys the router with an
+Ingress still needs apiUrl set explicitly. Leading and trailing slashes are
+stripped.
 */}}
 {{- define "istari-platform.gatewayUrl" -}}
 {{- $r := default dict .Values.serviceRouter -}}
-{{- $explicit := trimAll "/" (trim (default "" $r.apiUrl)) -}}
-{{- if $explicit -}}
-{{- $explicit -}}
-{{- else -}}
-{{- $ing := default dict $r.ingress -}}
-{{- $hosts := default list $ing.hosts -}}
-{{- if and $ing.enabled (eq (len $hosts) 1) (first $hosts).host -}}
-{{- printf "https://%s" (trimAll "/" (first $hosts).host) -}}
-{{- end -}}
-{{- end -}}
+{{- trimAll "/" (trim (default "" $r.apiUrl)) -}}
 {{- end }}
