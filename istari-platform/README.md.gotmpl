@@ -22,11 +22,11 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 > [!NOTE]
 > The `nats`, `jaeger`, and `dgraph-sec` dependencies are **optional** (`nats.enabled` / `jaeger.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
 
-## Service Router
+## API Gateway
 
-The Service Router (`router.enabled`, default `false`) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
+The API Gateway (`apiGateway.enabled`, default `false`) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
 
-Enabling the router is additive and optional: the existing per-service endpoints keep working unchanged, so you can adopt it at your own pace. Once DNS and TLS for the API host are in place, update each client's configured base URL (the `ISTARI_DIGITAL_API_URL` setting in Istari's client tools) to `https://<your-api-host>` with no path; clients append the `/registry`, `/identity`, … prefixes themselves. Set `router.apiUrl` to the same value, and the chart configures the deployed services to match: the registry service receives `ISTARI_DIGITAL_API_URL`, the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, and MCP (when `mcp.enabled`) receives the same bare `ISTARI_DIGITAL_API_URL` as of `mcp-service` `0.6.0`. The browser then reaches the registry service through `<your-api-host>/registry`. Before chart 3.31.0 the chart consumed neither variable, and the browser kept addressing the registry service directly no matter how the client tools were configured.
+Enabling the API Gateway is additive and optional: the existing per-service endpoints keep working unchanged, so you can adopt it at your own pace. Once DNS and TLS for the API host are in place, update each client's configured base URL (the `ISTARI_DIGITAL_API_URL` setting in Istari's client tools) to `https://<your-api-host>` with no path; clients append the `/registry`, `/identity`, … prefixes themselves. Set `apiGateway.apiUrl` to the same value, and the chart configures the deployed services to match: the registry service receives `ISTARI_DIGITAL_API_URL`, the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, and MCP (when `mcp.enabled`) receives the same bare `ISTARI_DIGITAL_API_URL` as of `mcp-service` `0.6.0`. The browser then reaches the registry service through `<your-api-host>/registry`. Before chart 3.31.0 the chart consumed neither variable, and the browser kept addressing the registry service directly no matter how the client tools were configured.
 
 MCP consumes the gateway as a client; the gateway does not serve MCP requests. No `/mcp` route exists, so `https://<your-api-host>/mcp` returning 404 is expected, not a misconfiguration.
 
@@ -35,22 +35,22 @@ MCP consumes the gateway as a client; the gateway does not serve MCP requests. N
 >
 > Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, off by default and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients. Environments that run one Helm release per service — every internal environment does — must set `clientIntegration.enabled` explicitly in each consuming release, since `enabled` is only ever true in the identity-service's own release.
 >
-> When you set both `router.apiUrl` and `identity.clientIntegration.enabled`, the chart emits the identity toggle to the registry service, the frontend, and MCP together. It never emits the toggle from `router.apiUrl` alone, because all three treat identity-enabled-without-a-gateway-URL as a fatal startup or config-load error.
+> When you set both `apiGateway.apiUrl` and `identity.clientIntegration.enabled`, the chart emits the identity toggle to the registry service, the frontend, and MCP together. It never emits the toggle from `apiGateway.apiUrl` alone, because all three treat identity-enabled-without-a-gateway-URL as a fatal startup or config-load error.
 >
 > The former `…_IDENTITY_ROUTER_ENABLED` names (and the frontend's `VITE_IDENTITY_ROUTER_*`) remain supported as deprecated aliases, and are ignored when the corresponding new names are set. Prefer the new names; the aliases will be removed in a future release.
 
-Enabling the router pulls one additional image, `istaridigital.jfrog.io/customer-docker/istaridigital.com/caddy-fips` (the `istaridigital.com` path segment is part of the repository path, not a typo). Air-gapped installations must add it to their image mirror alongside the chart's other images; it uses the same pull credentials.
+Enabling the API Gateway pulls one additional image, `istaridigital.jfrog.io/customer-docker/istaridigital.com/caddy-fips` (the `istaridigital.com` path segment is part of the repository path, not a typo). Air-gapped installations must add it to their image mirror alongside the chart's other images; it uses the same pull credentials.
 
-Routes for the platform's services are managed by the chart and always present, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `router.extraRoutes`. Enabling the router is one line in your values file:
+Routes for the platform's services are managed by the chart and always present, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `apiGateway.extraRoutes`. Enabling the API Gateway is one line in your values file:
 
 ```yaml
-router:
+apiGateway:
   enabled: true
 ```
 
-Expose it the same way as the registry service: point your external load balancer or existing ingress controller at the router's `kind: Service` on port 80, terminating TLS there (the router itself serves plain HTTP and requires no Istio). The chart can also create a Kubernetes Ingress (`router.ingress`) or Istio VirtualService (`router.virtualService`) for you. Optional per-request tracing lights up automatically when the bundled Jaeger is enabled (`jaeger.enabled`); see `router.tracing.enabled`.
+Expose it the same way as the registry service: point your external load balancer or existing ingress controller at the API Gateway's `kind: Service` on port 80, terminating TLS there (the API Gateway itself serves plain HTTP and requires no Istio). The chart can also create a Kubernetes Ingress (`apiGateway.ingress`) or Istio VirtualService (`apiGateway.virtualService`) for you. Optional per-request tracing lights up automatically when the bundled Jaeger is enabled (`jaeger.enabled`); see `apiGateway.tracing.enabled`.
 
-The proxy software inside the router (currently Caddy) is an internal implementation detail and may change in a future release; such a change will never affect values other than `router.registry` / `router.image` / `router.tag`.
+The proxy software inside the API Gateway (currently Caddy) is an internal implementation detail and may change in a future release; such a change will never affect values other than `apiGateway.registry` / `apiGateway.image` / `apiGateway.tag`.
 
 {{ template "chart.valuesSection" . }}
 

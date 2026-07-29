@@ -3,7 +3,7 @@ We put the generated default env vars in this config map so that user-defined va
 'mcp.secretName', 'mcp.extraEnvSecrets', and 'mcp.env' will always override them.
 */}}
 {{- $serviceValues := .Values.mcp -}}
-{{- $gatewayUrl := include "istari-platform.gatewayUrl" . -}}
+{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{- if $serviceValues.enabled }}
 apiVersion: v1
 kind: ConfigMap

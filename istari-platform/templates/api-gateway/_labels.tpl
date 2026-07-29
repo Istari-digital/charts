@@ -1,8 +1,8 @@
 {{/*
 Selector labels
 */}}
-{{- define "router.selectorLabels" -}}
-app.kubernetes.io/component: "router"
+{{- define "api-gateway.selectorLabels" -}}
+app.kubernetes.io/component: "api-gateway"
 app.kubernetes.io/instance: {{ .Release.Name | quote }}
 app.kubernetes.io/name: {{ include "istari-platform.name" . }}
 {{- end }}
@@ -10,15 +10,15 @@ app.kubernetes.io/name: {{ include "istari-platform.name" . }}
 {{/*
 Common labels
 */}}
-{{- define "router.labels" -}}
-{{ include "router.selectorLabels" . }}
+{{- define "api-gateway.labels" -}}
+{{ include "api-gateway.selectorLabels" . }}
 app.kubernetes.io/managed-by: "Helm"
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 helm.sh/chart: {{ include "istari-platform.chart" . }}
 {{- with .Values.commonLabels }}
 {{ toYaml . }}
 {{- end }}
-{{- with .Values.router.commonLabels }}
+{{- with .Values.apiGateway.commonLabels }}
 {{ toYaml . }}
 {{- end }}
 {{- end }}

@@ -1,5 +1,5 @@
 {{- $serviceValues := .Values.fileservice -}}
-{{- $gatewayUrl := include "istari-platform.gatewayUrl" . -}}
+{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{- $migrationsRunAsJob := dig "migrations" "runAsJob" false $serviceValues -}}
 {{- $migrationsAutoCleanupSuccessfulJob := dig "migrations" "autoCleanupSuccessfulJob" true $serviceValues -}}
 {{- $migrationsPodAnnotations := dig "migrations" "podAnnotations" dict $serviceValues -}}

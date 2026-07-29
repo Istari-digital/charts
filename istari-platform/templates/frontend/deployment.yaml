@@ -1,5 +1,5 @@
 {{- $serviceValues := .Values.frontend -}}
-{{- $gatewayUrl := include "istari-platform.gatewayUrl" . -}}
+{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment

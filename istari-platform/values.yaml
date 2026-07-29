@@ -943,20 +943,20 @@ docs:
     # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
     gateways: []
 
-# Default values for the Service Router: a reverse proxy that lets clients reach every
+# Default values for the API Gateway: a reverse proxy that lets clients reach every
 # platform service through one external API host (the URL clients configure as
 # ISTARI_DIGITAL_API_URL) using path prefixes — /registry for the registry service,
-# /identity for the identity service. The router matches each prefix, strips it, and
+# /identity for the identity service. The API Gateway matches each prefix, strips it, and
 # forwards the request to the right in-cluster service; unrecognized paths get a 404.
 #
 # Routes for the platform's services are managed by the chart and need no configuration
 # here: /registry and /identity are always served. Prefixes for services this chart does
-# not deploy can be attached via `router.extraRoutes`.
+# not deploy can be attached via `apiGateway.extraRoutes`.
 #
-# The proxy software inside the router (currently Caddy) is an internal detail and may
+# The proxy software inside the API Gateway (currently Caddy) is an internal detail and may
 # change in a future release; such a change will never require values changes beyond
 # `registry`/`image`/`tag`.
-router:
+apiGateway:
   # -- Enable / Disable the whole deployment
   enabled: false
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
@@ -969,25 +969,25 @@ router:
   imagePullPolicy: "IfNotPresent"
   # -- Extra ConfigMaps whose entries become environment variables in the proxy container (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
   extraEnvConfigMaps: []
-  # -- Names of Kubernetes Secrets whose keys become environment variables in the proxy container. Not needed for a standard deployment. (Unlike the other services, the router has no separate `secretName` — this list is the only Secret mechanism.)
+  # -- Names of Kubernetes Secrets whose keys become environment variables in the proxy container. Not needed for a standard deployment. (Unlike the other services, the API Gateway has no separate `secretName` — this list is the only Secret mechanism.)
   extraEnvSecrets: []
-  # -- Port the proxy container listens on. The router's `kind: Service` receives traffic on port 80 and forwards it here; you should never need to change this.
+  # -- Port the proxy container listens on. The API Gateway's `kind: Service` receives traffic on port 80 and forwards it here; you should never need to change this.
   listen: 8080
-  # -- Public base URL of this environment's service-router gateway, with no path (e.g. `https://api.your-domain.com`). Setting it turns on the gateway environment-variable contract: the registry and frontend address the registry through `<base>/registry`, and the identity-service publishes and accepts the gateway-prefixed URL. Leave empty to keep every client on the per-service hostnames. This chart never derives a default for this value from another (including `router.ingress`), so a release that deploys the router still needs `apiUrl` set explicitly to turn the contract on. Trailing slashes and surrounding whitespace are stripped.
+  # -- Public base URL of this environment's API Gateway, with no path (e.g. `https://api.your-domain.com`). Setting it turns on the gateway environment-variable contract: the registry and frontend address the registry through `<base>/registry`, and the identity-service publishes and accepts the gateway-prefixed URL. Leave empty to keep every client on the per-service hostnames. This chart never derives a default for this value from another (including `apiGateway.ingress`), so a release that deploys the API Gateway still needs `apiUrl` set explicitly to turn the contract on. Trailing slashes and surrounding whitespace are stripped.
   apiUrl: ""
-  # -- Additional path-prefix routes served alongside the chart-managed ones, for reaching in-cluster services this chart does not deploy. Each entry maps a URL path prefix to a Kubernetes Service in the same namespace as this release (cross-namespace and FQDN targets are not supported): the router matches the prefix and everything under it (never other prefixes that merely share its leading characters), strips it, and forwards the request to `service:port` over plain HTTP. A prefix must start with `/`, must not end with `/`, may use letters, digits, `-`, `_`, and `/` segment separators, and may not duplicate a chart-managed route or the reserved `/healthz` — invalid entries fail the render. When prefixes overlap, the longest match wins. Most deployments should leave this empty: routes for platform services are built into the chart and appear automatically.
+  # -- Additional path-prefix routes served alongside the chart-managed ones, for reaching in-cluster services this chart does not deploy. Each entry maps a URL path prefix to a Kubernetes Service in the same namespace as this release (cross-namespace and FQDN targets are not supported): the API Gateway matches the prefix and everything under it (never other prefixes that merely share its leading characters), strips it, and forwards the request to `service:port` over plain HTTP. A prefix must start with `/`, must not end with `/`, may use letters, digits, `-`, `_`, and `/` segment separators, and may not duplicate a chart-managed route or the reserved `/healthz` — invalid entries fail the render. When prefixes overlap, the longest match wins. Most deployments should leave this empty: routes for platform services are built into the chart and appear automatically.
   extraRoutes: []
   # # Example:
   # extraRoutes:
   # - prefix: /jobs
   #   service: my-jobs-service
   #   port: 8080
-  # Tracing -- optional per-request tracing through the router, viewable in the bundled Jaeger UI (see `jaeger.enabled`). Useful when troubleshooting routing or latency issues.
+  # Tracing -- optional per-request tracing through the API Gateway, viewable in the bundled Jaeger UI (see `jaeger.enabled`). Useful when troubleshooting routing or latency issues.
   tracing:
-    # -- (bool/null) Whether the router records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `router.env`, a ConfigMap in `router.extraEnvConfigMaps`, or a Secret in `router.extraEnvSecrets`. If you rely on a ConfigMap or Secret, make sure it actually contains `OTEL_EXPORTER_OTLP_ENDPOINT`: the chart cannot inspect their contents, and without the variable traces are silently dropped. The chart exports over gRPC by default; a collector that only accepts OTLP/HTTP additionally needs `OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf` in `router.env`.
+    # -- (bool/null) Whether the API Gateway records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `apiGateway.env`, a ConfigMap in `apiGateway.extraEnvConfigMaps`, or a Secret in `apiGateway.extraEnvSecrets`. If you rely on a ConfigMap or Secret, make sure it actually contains `OTEL_EXPORTER_OTLP_ENDPOINT`: the chart cannot inspect their contents, and without the variable traces are silently dropped. The chart exports over gRPC by default; a collector that only accepts OTLP/HTTP additionally needs `OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf` in `apiGateway.env`.
     # @default -- `null` (automatic: follows `jaeger.enabled`)
     enabled: null
-  # -- Replica count. Defaults to 2, unlike the other services: the router is the single entry point for all routed traffic, so one pod failing (or rolling during an upgrade) must not sever every routed service at once. Whenever the effective minimum replica count (this value, or `autoscaling.minReplicas` when autoscaling) is 2 or more, the chart also creates a PodDisruptionBudget keeping at least one router pod up through node drains; at 1 replica no budget is created, so drains are never blocked.
+  # -- Replica count. Defaults to 2, unlike the other services: the API Gateway is the single entry point for all routed traffic, so one pod failing (or rolling during an upgrade) must not sever every routed service at once. Whenever the effective minimum replica count (this value, or `autoscaling.minReplicas` when autoscaling) is 2 or more, the chart also creates a PodDisruptionBudget keeping at least one API Gateway pod up through node drains; at 1 replica no budget is created, so drains are never blocked.
   replicaCount: 2
   # -- Additional labels to add to all of this service's resources
   commonLabels: {}
@@ -1015,13 +1015,13 @@ router:
     runAsUser: 65532
   # -- Additional annotations to apply to the service account
   serviceAccountAnnotations: {}
-  # -- Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `router.tracing.enabled`).
+  # -- Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `apiGateway.tracing.enabled`).
   env: []
-  # Autoscaling -- set autoscaling (HPA) parameters. NOTE: utilization-based scaling requires the matching `router.resources.requests` values — the HPA has nothing to compute a percentage against without them, so the chart fails the render if autoscaling is enabled while they are unset.
+  # Autoscaling -- set autoscaling (HPA) parameters. NOTE: utilization-based scaling requires the matching `apiGateway.resources.requests` values — the HPA has nothing to compute a percentage against without them, so the chart fails the render if autoscaling is enabled while they are unset.
   autoscaling:
     # -- Enable/Disable autoscaling
     enabled: false
-    # -- Minimum number of replicas. Defaults to 2 for the same reason as `router.replicaCount`: the router is the single entry point for all routed traffic.
+    # -- Minimum number of replicas. Defaults to 2 for the same reason as `apiGateway.replicaCount`: the API Gateway is the single entry point for all routed traffic.
     minReplicas: 2
     # -- Maximum number of replicas
     maxReplicas: 3
@@ -1029,7 +1029,7 @@ router:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- CPU/memory for the proxy container. All values deliberately default to `null` (unset) until real usage data exists to base defaults on; the router is lightweight, so a small allocation goes a long way when you set them. `null` entries are omitted from the rendered manifest.
+  # Resources -- CPU/memory for the proxy container. All values deliberately default to `null` (unset) until real usage data exists to base defaults on; the API Gateway is lightweight, so a small allocation goes a long way when you set them. `null` entries are omitted from the rendered manifest.
   resources:
     requests:
       # -- CPU request (e.g. `100m`). Required for CPU-based autoscaling.
@@ -1037,7 +1037,7 @@ router:
       # -- Memory request (e.g. `128Mi`). Required for memory-based autoscaling.
       memory: null
     limits:
-      # -- CPU limit (e.g. `500m`). Consider leaving unset — a throttled router slows every routed request.
+      # -- CPU limit (e.g. `500m`). Consider leaving unset — a throttled API Gateway slows every routed request.
       cpu: null
       # -- Memory limit (e.g. `256Mi`).
       memory: null
@@ -1060,10 +1060,10 @@ router:
   nodeSelector: {}
   # -- Affinity
   affinity: {}
-  # -- (list/null) Topology spread constraints for router pods. Leave unset (`null`) for the chart default: a soft preference (`whenUnsatisfiable: ScheduleAnyway`) to spread replicas across nodes, so one node failure doesn't take every router pod down while clusters with a single node still schedule normally. Set `[]` to disable, or supply your own list — entries must include their own `labelSelector`.
+  # -- (list/null) Topology spread constraints for API Gateway pods. Leave unset (`null`) for the chart default: a soft preference (`whenUnsatisfiable: ScheduleAnyway`) to spread replicas across nodes, so one node failure doesn't take every API Gateway pod down while clusters with a single node still schedule normally. Set `[]` to disable, or supply your own list — entries must include their own `labelSelector`.
   # @default -- `null` (chart-managed soft spread across nodes)
   topologySpreadConstraints: null
-  # Ingress -- optional Kubernetes Ingress for this service. Most deployments expose the router the same way as the registry service — an external load balancer or existing ingress controller routing the API host to the router's `kind: Service` on port 80, with TLS terminating there (the router itself serves plain HTTP) — and don't need this Ingress at all.
+  # Ingress -- optional Kubernetes Ingress for this service. Most deployments expose the API Gateway the same way as the registry service — an external load balancer or existing ingress controller routing the API host to the API Gateway's `kind: Service` on port 80, with TLS terminating there (the API Gateway itself serves plain HTTP) — and don't need this Ingress at all.
   ingress:
     # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
     enabled: false
@@ -1071,7 +1071,7 @@ router:
     className: ""
     # -- Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.).
     annotations: {}
-    # -- Additional labels on the Ingress (in addition to the standard router labels).
+    # -- Additional labels on the Ingress (in addition to the standard api-gateway labels).
     labels: {}
     # -- One entry per `spec.rules[]`. Empty by default so that enabling the Ingress without supplying your real API hostname fails the render instead of shipping a rule for a hostname that isn't yours. `host` is optional within an entry — omit it to match any hostname.
     hosts: []
@@ -1081,7 +1081,7 @@ router:
     #   paths:
     #   - path: /
     #     pathType: Prefix
-    # -- TLS configuration; passed through to `spec.tls[]` verbatim. TLS terminates at the Ingress controller — the router behind it serves plain HTTP. Example: `tls: [{hosts: [api.customer-domain.com], secretName: api-tls-cert}]`, where the Secret is a standard TLS Secret (`kubectl create secret tls ...`) or is issued by cert-manager via annotations above.
+    # -- TLS configuration; passed through to `spec.tls[]` verbatim. TLS terminates at the Ingress controller — the API Gateway behind it serves plain HTTP. Example: `tls: [{hosts: [api.customer-domain.com], secretName: api-tls-cert}]`, where the Secret is a standard TLS Secret (`kubectl create secret tls ...`) or is issued by cert-manager via annotations above.
     tls: []
     # -- Service port the Ingress targets. Defaults to 80.
     servicePort: 80
@@ -1089,7 +1089,7 @@ router:
   virtualService:
     # -- Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+).
     enabled: false
-    # -- Additional labels on the VirtualService (in addition to the standard router labels).
+    # -- Additional labels on the VirtualService (in addition to the standard api-gateway labels).
     labels: {}
     # -- Annotations on the VirtualService.
     annotations: {}
