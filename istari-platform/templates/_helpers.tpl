@@ -117,11 +117,11 @@ win (Secrets can't override these two). Callers gate behind their own `if $jaege
 
 {{/*
 Resolved service-router gateway base URL, or "" when the gateway contract is off.
-Explicit router.apiUrl wins; otherwise derive from a single router.ingress host, mirroring
-the "unset means derive" behaviour of router.tracing.enabled. Always trailing-slash free.
+Explicit serviceRouter.apiUrl wins; otherwise derive from a single serviceRouter.ingress host, mirroring
+the "unset means derive" behaviour of serviceRouter.tracing.enabled. Always trailing-slash free.
 */}}
 {{- define "istari-platform.gatewayUrl" -}}
-{{- $r := default dict .Values.router -}}
+{{- $r := default dict .Values.serviceRouter -}}
 {{- $explicit := trimAll "/" (trim (default "" $r.apiUrl)) -}}
 {{- if $explicit -}}
 {{- $explicit -}}

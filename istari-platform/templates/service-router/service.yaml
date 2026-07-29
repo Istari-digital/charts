@@ -1,11 +1,11 @@
-{{- $serviceValues := .Values.router -}}
+{{- $serviceValues := .Values.serviceRouter -}}
 {{- if $serviceValues.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "router.fullname" . | quote }}
+  name: {{ include "serviceRouter.fullname" . | quote }}
   labels:
-    {{- include "router.labels" . | nindent 4 }}
+    {{- include "serviceRouter.labels" . | nindent 4 }}
   {{- with $serviceValues.serviceAnnotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -18,5 +18,5 @@ spec:
     targetPort: "http"
     protocol: "TCP"
   selector:
-    {{- include "router.selectorLabels" . | nindent 4 }}
+    {{- include "serviceRouter.selectorLabels" . | nindent 4 }}
 {{- end }}

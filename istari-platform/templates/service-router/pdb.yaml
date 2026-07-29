@@ -7,20 +7,20 @@ Rendered only when the effective minimum replica count (HPA minReplicas when
 autoscaling, else replicaCount) is at least 2: a minAvailable: 1 budget over a
 single-replica Deployment would block every node drain indefinitely.
 */}}
-{{- $serviceValues := .Values.router -}}
+{{- $serviceValues := .Values.serviceRouter -}}
 {{- if $serviceValues.enabled }}
 {{- $effectiveReplicas := ternary $serviceValues.autoscaling.minReplicas $serviceValues.replicaCount $serviceValues.autoscaling.enabled -}}
 {{- if ge (int $effectiveReplicas) 2 }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "router.fullname" . | quote }}
+  name: {{ include "serviceRouter.fullname" . | quote }}
   labels:
-    {{- include "router.labels" . | nindent 4 }}
+    {{- include "serviceRouter.labels" . | nindent 4 }}
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      {{- include "router.selectorLabels" . | nindent 6 }}
+      {{- include "serviceRouter.selectorLabels" . | nindent 6 }}
 {{- end }}
 {{- end }}

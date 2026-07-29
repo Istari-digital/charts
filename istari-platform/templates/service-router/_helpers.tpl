@@ -6,7 +6,7 @@ Routes for the platform's own services are managed by the chart: per the
 service-router engspec, adding a platform service behind the router is a chart
 change, not customer configuration. They are always present, whatever this release
 enables — the route table is a stable contract for clients, and a prefix whose
-backend is not deployed answers 502 at the router. `router.extraRoutes` entries are
+backend is not deployed answers 502 at the router. `serviceRouter.extraRoutes` entries are
 appended after strict validation — the {prefix, service, port} triple is the entire
 schema, and every constraint below keeps the table expressible in any of the
 engspec's sanctioned proxy implementations, not just the current one.
@@ -15,38 +15,38 @@ The final table is sorted longest-prefix-first: Caddy handle blocks and Envoy ro
 are first-match-in-declaration-order while nginx picks the longest matching location,
 so pre-sorting makes overlap resolution identical however the config is rendered.
 */}}
-{{- define "router.routes" -}}
+{{- define "serviceRouter.routes" -}}
 {{- $routes := list -}}
 {{- $routes = append $routes (dict "prefix" "/registry" "service" (include "fileservice.fullname" .) "port" 80) -}}
 {{- $routes = append $routes (dict "prefix" "/identity" "service" (include "identity.fullname" .) "port" 80) -}}
-{{- range $entry := .Values.router.extraRoutes -}}
+{{- range $entry := .Values.serviceRouter.extraRoutes -}}
 {{- range $key, $unused := $entry -}}
 {{- if not (has $key (list "prefix" "service" "port")) -}}
-{{- fail (printf "router.extraRoutes: unsupported key %q (entry with prefix %q) — entries accept only prefix, service, and port, and the target Service must be in this release's namespace" $key (default "<unset>" $entry.prefix)) -}}
+{{- fail (printf "serviceRouter.extraRoutes: unsupported key %q (entry with prefix %q) — entries accept only prefix, service, and port, and the target Service must be in this release's namespace" $key (default "<unset>" $entry.prefix)) -}}
 {{- end -}}
 {{- end -}}
-{{- $prefix := required "router.extraRoutes: every entry needs a prefix" .prefix -}}
+{{- $prefix := required "serviceRouter.extraRoutes: every entry needs a prefix" .prefix -}}
 {{- if not (regexMatch "^(/[a-zA-Z0-9_-]+)+$" $prefix) -}}
-{{- fail (printf "router.extraRoutes: prefix %q is invalid — it must start with \"/\", may not end with \"/\", and its segments may contain only letters, digits, \"-\", and \"_\"" $prefix) -}}
+{{- fail (printf "serviceRouter.extraRoutes: prefix %q is invalid — it must start with \"/\", may not end with \"/\", and its segments may contain only letters, digits, \"-\", and \"_\"" $prefix) -}}
 {{- end -}}
 {{- if eq $prefix "/healthz" -}}
-{{- fail "router.extraRoutes: /healthz is reserved for the router's own health endpoint" -}}
+{{- fail "serviceRouter.extraRoutes: /healthz is reserved for the router's own health endpoint" -}}
 {{- end -}}
-{{- $service := required (printf "router.extraRoutes: service is required for prefix %s" $prefix) .service | toString -}}
+{{- $service := required (printf "serviceRouter.extraRoutes: service is required for prefix %s" $prefix) .service | toString -}}
 {{- if or (gt (len $service) 63) (not (regexMatch "^[a-z]([-a-z0-9]*[a-z0-9])?$" $service)) -}}
-{{- fail (printf "router.extraRoutes: service %q (prefix %s) is not a valid Kubernetes Service name (a DNS-1035 label: max 63 chars, lowercase letters, digits, and hyphens, starting with a letter). Use the Service's short name only — dotted/FQDN and cross-namespace targets are not supported, and the Service must live in this release's namespace" $service $prefix) -}}
+{{- fail (printf "serviceRouter.extraRoutes: service %q (prefix %s) is not a valid Kubernetes Service name (a DNS-1035 label: max 63 chars, lowercase letters, digits, and hyphens, starting with a letter). Use the Service's short name only — dotted/FQDN and cross-namespace targets are not supported, and the Service must live in this release's namespace" $service $prefix) -}}
 {{- end -}}
-{{- $rawPort := required (printf "router.extraRoutes: port is required for prefix %s" $prefix) .port -}}
+{{- $rawPort := required (printf "serviceRouter.extraRoutes: port is required for prefix %s" $prefix) .port -}}
 {{- $port := int $rawPort -}}
 {{- if or (lt $port 1) (gt $port 65535) (ne ($rawPort | toString) ($port | toString)) -}}
-{{- fail (printf "router.extraRoutes: port %v (prefix %s) must be a whole number between 1 and 65535" $rawPort $prefix) -}}
+{{- fail (printf "serviceRouter.extraRoutes: port %v (prefix %s) must be a whole number between 1 and 65535" $rawPort $prefix) -}}
 {{- end -}}
 {{- $routes = append $routes (dict "prefix" $prefix "service" $service "port" $port) -}}
 {{- end -}}
 {{- $seen := dict -}}
 {{- range $routes -}}
 {{- if hasKey $seen .prefix -}}
-{{- fail (printf "router routes: prefix %s is declared more than once (check router.extraRoutes against the chart-managed routes)" .prefix) -}}
+{{- fail (printf "router routes: prefix %s is declared more than once (check serviceRouter.extraRoutes against the chart-managed routes)" .prefix) -}}
 {{- end -}}
 {{- $_ := set $seen .prefix true -}}
 {{- end -}}
@@ -67,19 +67,19 @@ so pre-sorting makes overlap resolution identical however the config is rendered
 
 {{/*
 Effective tracing setting for the router, as the string "true" or "false".
-`router.tracing.enabled` is tri-state: an explicit true/false wins; unset/null means
+`serviceRouter.tracing.enabled` is tri-state: an explicit true/false wins; unset/null means
 "automatic" — tracing follows `jaeger.enabled` so deploying the bundled Jaeger is all
 a user has to do (matching how the other services wire up to it).
 */}}
-{{- define "router.tracing.enabled" -}}
+{{- define "serviceRouter.tracing.enabled" -}}
 {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
-{{- $setting := dig "tracing" "enabled" "" (default dict .Values.router) -}}
+{{- $setting := dig "tracing" "enabled" "" (default dict .Values.serviceRouter) -}}
 {{- if kindIs "bool" $setting -}}
 {{- $setting -}}
 {{- else if or (kindIs "invalid" $setting) (eq ($setting | toString) "") -}}
 {{- $jaegerEnabled -}}
 {{- else -}}
 {{- /* A quoted "true"/"false" (or any other non-bool) silently inverting the operator's intent is worse than failing the render. */ -}}
-{{- fail (printf "router.tracing.enabled must be true, false, or left unset (null); got %q — quoted strings are not booleans" ($setting | toString)) -}}
+{{- fail (printf "serviceRouter.tracing.enabled must be true, false, or left unset (null); got %q — quoted strings are not booleans" ($setting | toString)) -}}
 {{- end -}}
 {{- end }}

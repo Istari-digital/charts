@@ -12,7 +12,7 @@
 # clients; it does not create them.
 #
 # Replace api.example.com and identity.example.com with your own hostnames.
-router:
+serviceRouter:
   enabled: true
   apiUrl: "https://api.example.com"
   ingress:
