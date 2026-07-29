@@ -35,11 +35,14 @@ data:
   # FILE_SERVICE_IDENTITY_ROUTER_URL is unset (settings.py); an explicit
   # identity URL still wins.
   ISTARI_DIGITAL_API_URL: {{ . | quote }}
-  {{- if dig "clientIntegration" "enabled" false $.Values.identity }}
-  # The platform-wide toggle. When set it wins over the deprecated nested
-  # FILE_SERVICE_FEATURE_FLAGS__IDENTITY_ROUTER_ENABLED, which environments may
-  # still set; both agree on "true", so this only changes which name is authoritative.
-  ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: "true"
-  {{- end }}
+  # The platform-wide toggle, emitted for BOTH values whenever the gateway resolves.
+  # The registry reads it as a tri-state (settings.py): unset leaves the deprecated
+  # FILE_SERVICE_FEATURE_FLAGS__IDENTITY_ROUTER_ENABLED authoritative, while an
+  # explicit true OR false overwrites it. helm-stack sets that deprecated flag to
+  # "true" in every environment with client integration on, so emitting nothing here
+  # would leave identity ON and make clientIntegration.enabled: false a silent no-op.
+  # "Gateway on, identity off" is a supported state - registry traffic through the
+  # gateway, OIDC straight to Zitadel - so the chart must be able to say it.
+  ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: {{ dig "clientIntegration" "enabled" false $.Values.identity | quote }}
   {{- end }}
 {{- end }}

@@ -25,3 +25,9 @@ router:
       secretName: api-example-com-tls
 identity:
   enabled: false
+  # Left false, and the chart now says so out loud: with a gateway configured it renders
+  # ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: "false" for each service rather than omitting
+  # the variable. The services fall back to their older identity flags when it is unset,
+  # so an explicit false is what actually keeps authentication on your existing IdP.
+  clientIntegration:
+    enabled: false

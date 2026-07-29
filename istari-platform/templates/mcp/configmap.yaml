@@ -20,12 +20,17 @@ data:
   # set, and MCP logs a startup warning saying so. It is left in place because this
   # chart's defaults are additive; removing it is tracked separately.
   ISTARI_DIGITAL_API_URL: {{ . | quote }}
-  {{- if dig "clientIntegration" "enabled" false $.Values.identity }}
-  # Emitted only alongside the gateway URL. MCP raises at startup when identity is
-  # enabled without a gateway URL, and as of mcp-service 0.6.0 it derives its issuer
-  # as <base>/identity, the direct-issuer variable having been removed. The client id
-  # and secret are per-environment secrets and are deliberately not rendered here.
-  ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: "true"
-  {{- end }}
+  # Emitted for BOTH values, and only alongside the gateway URL: MCP raises at startup
+  # when identity is enabled without one, and as of mcp-service 0.6.0 it derives its
+  # issuer as <base>/identity, the direct-issuer variable having been removed. The
+  # client id and secret are per-environment secrets and are deliberately not rendered
+  # here.
+  #
+  # Unlike the registry and the frontend, MCP has no deprecated predecessor flag for
+  # this value to override, so rendering false is declarative rather than corrective.
+  # It is rendered anyway so all three services read the same way and the manifest
+  # states the operator's intent. note: a Secret or extraEnvSecret still overrides it,
+  # being later in the Deployment's envFrom chain.
+  ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: {{ dig "clientIntegration" "enabled" false $.Values.identity | quote }}
   {{- end }}
 {{- end }}

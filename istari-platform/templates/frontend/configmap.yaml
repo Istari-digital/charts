@@ -16,9 +16,12 @@ data:
   # DPLAT-602. Routes the browser's registry traffic through <base>/registry.
   # Independent of the identity flag: the gateway wins whenever it is configured.
   VITE_ISTARI_DIGITAL_API_URL: {{ $gatewayUrl | quote }}
-  {{- if dig "clientIntegration" "enabled" false $.Values.identity }}
-  # Emitted only alongside the gateway URL: the reworked frontend treats
-  # identity-enabled-without-a-gateway-URL as a fatal config-load error.
-  VITE_ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: "true"
-  {{- end }}
+  # Emitted for BOTH values, and only alongside the gateway URL because the frontend
+  # treats identity-enabled-without-a-gateway-URL as a fatal config-load error. The
+  # frontend falls back to the deprecated VITE_IDENTITY_ROUTER_ENABLED only when this
+  # var is UNSET, and helm-stack sets that deprecated flag to "true" wherever client
+  # integration is on - so emitting nothing here would leave identity ON. The
+  # frontend's own source calls "identity disabled, gateway set" a reachable state,
+  # decoupled from gateway presence; rendering false is how the chart reaches it.
+  VITE_ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: {{ dig "clientIntegration" "enabled" false $.Values.identity | quote }}
 {{- end }}
