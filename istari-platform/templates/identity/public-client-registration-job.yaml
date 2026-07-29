@@ -23,6 +23,11 @@
 {{- if not (regexMatch "^[A-Za-z0-9]([A-Za-z0-9_-]{0,61}[A-Za-z0-9])?$" $client.name) }}{{ fail (printf "publicClientRegistration client %q: name must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, and be at most 63 characters (it is used as the istari.digital/client label)" $client.name) }}{{ end }}
 {{- $_ := $client.clientIdKey | required (printf "publicClientRegistration client %q must set clientIdKey (the identity.secretName key holding the client_id)" $client.name) -}}
 {{- $_ := $client.redirectUrisKey | required (printf "publicClientRegistration client %q must set redirectUrisKey (the identity.secretName key holding the comma-separated exact-match redirect allowlist)" $client.name) }}
+{{- /* Where this client's clientIdKey/redirectUrisKey live. Defaults to
+       identity.secretName; point it at zitadel-identity-service-env when the
+       istari-zitadel-configurator publishes them (DPLAT-653). DATABASE_URL
+       always comes from identity.secretName. */ -}}
+{{- $clientSecretName := (dig "secretName" "" $client) | default $serviceValues.secretName }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -90,12 +95,12 @@ spec:
         - name: PUBLIC_CLIENT_ID
           valueFrom:
             secretKeyRef:
-              name: {{ $serviceValues.secretName | quote }}
+              name: {{ $clientSecretName | quote }}
               key: {{ $client.clientIdKey | quote }}
         - name: PUBLIC_CLIENT_REDIRECT_URIS
           valueFrom:
             secretKeyRef:
-              name: {{ $serviceValues.secretName | quote }}
+              name: {{ $clientSecretName | quote }}
               key: {{ $client.redirectUrisKey | quote }}
         - name: DATABASE_URL
           valueFrom:
