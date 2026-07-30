@@ -1101,20 +1101,21 @@ apiGateway:
     # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
     gateways: []
 
-# Optional NATS messaging deployment. Configured as a Helm subchart (https://github.com/nats-io/k8s/tree/main/helm/charts/nats).
+# Required NATS messaging deployment. Configured as a Helm subchart (https://github.com/nats-io/k8s/tree/main/helm/charts/nats).
 #
-# BETA: NATS integration is currently in beta and disabled by default. It will eventually become a required component of the istari-platform deployment; the `nats.enabled: false` default will be flipped and this section will lose its "optional" framing in a future release.
+# NATS is a required component of the platform — the fileservice (registry-service) depends on it — so it is enabled by default.
 #
-# When `nats.enabled: true`, this chart deploys NATS in-cluster AND automatically injects the `FILE_SERVICE_NATS_URL` and `FILE_SERVICE_ALLOWED_IDS_CACHE_ENABLED` environment variables into the fileservice (registry-service) Pods so they can connect to it. The NATS auth token is NOT injected automatically — you remain responsible for providing it (see below).
+# With `nats.enabled: true`, this chart deploys NATS in-cluster AND automatically injects the `FILE_SERVICE_NATS_URL` and `FILE_SERVICE_ALLOWED_IDS_CACHE_ENABLED` environment variables into the fileservice (registry-service) Pods so they can connect to it. The NATS auth token is NOT injected automatically — you remain responsible for providing it (see below).
 #
-# Two things you must do yourself before enabling NATS:
-#   1. Create the Kubernetes Secret that the NATS Pod reads its auth token from. The Secret reference lives at `nats.container.env.NATS_AUTH_TOKEN.valueFrom.secretKeyRef` (default: a Secret named `istari-nats` with key `NATS_AUTH_TOKEN`). The value of `nats.config.merge.authorization.token` below is just a `<< $NATS_AUTH_TOKEN >>` placeholder that NATS substitutes from that env var at startup — overriding it directly will not change which Secret NATS reads.
-#   2. Add `FILE_SERVICE_NATS_TOKEN` (with the same token value) to the Secret consumed by fileservice (default: `istari-fileservice`, configurable via `fileservice.secretName`). The chart sets `FILE_SERVICE_NATS_URL` for you, but the token is sourced from your fileservice Secret.
+# Three things you must have in place before installing or upgrading this chart:
+#   1. A StorageClass for JetStream's PersistentVolumeClaim to bind to. The claim requests 10Gi `ReadWriteOnce` and names no StorageClass, so it uses whichever one the cluster marks as default; on a cluster with no default StorageClass the claim stays `Pending` and NATS never starts. Set `nats.config.jetstream.fileStore.pvc.storageClassName` to pick one explicitly.
+#   2. Create the Kubernetes Secret that the NATS Pod reads its auth token from. The Secret reference lives at `nats.container.env.NATS_AUTH_TOKEN.valueFrom.secretKeyRef` (default: a Secret named `istari-nats` with key `NATS_AUTH_TOKEN`). The value of `nats.config.merge.authorization.token` below is just a `<< $NATS_AUTH_TOKEN >>` placeholder that NATS substitutes from that env var at startup — overriding it directly will not change which Secret NATS reads.
+#   3. Add `FILE_SERVICE_NATS_TOKEN` (with the same token value) to the Secret consumed by fileservice (default: `istari-fileservice`, configurable via `fileservice.secretName`). The chart sets `FILE_SERVICE_NATS_URL` for you, but the token is sourced from your fileservice Secret.
 #
 # Every key under `nats:` here is passed directly to the NATS subchart. See the upstream chart's `values.yaml` for the full schema.
 nats:
-  # -- Enable / Disable the NATS subchart. **Beta** — currently optional but will become required in a future release. When `false`, the subchart is not rendered at all and no NATS env vars are injected into fileservice.
-  enabled: false
+  # -- Enable / Disable the bundled NATS subchart. Enabled by default, since the fileservice (registry-service) requires NATS. Set to `false` only if you run your own NATS: the subchart is then not rendered at all and no NATS env vars are injected into fileservice, leaving you to point the registry service at your own instance via `fileservice.env` (or one of its ConfigMaps / Secrets).
+  enabled: true
   # -- Override the NATS resource name prefix. With the default `nats`, the in-cluster Service is reachable at `nats://nats:4222` (the URL this chart injects as `FILE_SERVICE_NATS_URL`). Change this only if you also override `fileservice.env` with a matching URL.
   fullnameOverride: "nats"
   global:
@@ -1129,6 +1130,11 @@ nats:
     jetstream:
       # -- Enable JetStream (NATS persistence layer). Required by fileservice.
       enabled: true
+      fileStore:
+        pvc:
+          # -- (string/null) StorageClass for JetStream's PersistentVolumeClaim. Left unset so the claim uses the cluster's default StorageClass; set it to bind to a specific one. A cluster with no default StorageClass and no value here leaves the claim `Pending` and NATS never starts.
+          # @default -- `null` (the cluster's default StorageClass)
+          storageClassName: null
     merge:
       authorization:
         # -- NATS auth token. The `<< $NATS_AUTH_TOKEN >>` placeholder is substituted at startup with the value of the `NATS_AUTH_TOKEN` env var (set below from your Kubernetes Secret).

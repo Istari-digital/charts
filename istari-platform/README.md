@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 5.0.0](https://img.shields.io/badge/Version-5.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 5.1.0](https://img.shields.io/badge/Version-5.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -21,7 +21,9 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |
 
 > [!NOTE]
-> The `nats`, `jaeger`, and `dgraph-sec` dependencies are **optional** (`nats.enabled` / `jaeger.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
+> The `nats` dependency is **required** and enabled by default (`nats.enabled`, default `true`). Deploying it takes a StorageClass for its JetStream volume plus two Kubernetes Secrets you create yourself — read the `nats` block under [Values](#values) before installing or upgrading.
+>
+> The `jaeger` and `dgraph-sec` dependencies are **optional** (`jaeger.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
 
 ## API Gateway
 
@@ -425,11 +427,12 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | nameOverride | string | `""` | Override the value used for the label 'app.kubernetes.io/name', which defaults to the chart name (istari-platform). |
 | nats.config.cluster.enabled | bool | `true` | Enable NATS clustering for HA. Defaults to `true` to match the production deployment pattern. |
 | nats.config.jetstream.enabled | bool | `true` | Enable JetStream (NATS persistence layer). Required by fileservice. |
+| nats.config.jetstream.fileStore.pvc.storageClassName | string/null | `null` (the cluster's default StorageClass) | StorageClass for JetStream's PersistentVolumeClaim. Left unset so the claim uses the cluster's default StorageClass; set it to bind to a specific one. A cluster with no default StorageClass and no value here leaves the claim `Pending` and NATS never starts. |
 | nats.config.merge.authorization.token | string | `"<< $NATS_AUTH_TOKEN >>"` | NATS auth token. The `<< $NATS_AUTH_TOKEN >>` placeholder is substituted at startup with the value of the `NATS_AUTH_TOKEN` env var (set below from your Kubernetes Secret). |
 | nats.container.env | object | `{"NATS_AUTH_TOKEN":{"valueFrom":{"secretKeyRef":{"key":"NATS_AUTH_TOKEN","name":"istari-nats"}}}}` | Container env. The `NATS_AUTH_TOKEN` value is wired to the user-managed Secret (default: `istari-nats` / key `NATS_AUTH_TOKEN`). Override `secretKeyRef.name` and `secretKeyRef.key` if your Secret uses a different name or key. |
 | nats.container.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-fips"` | NATS server image repository. Defaults to the Chainguard FIPS variant in the Istari customer-docker JFrog repo. |
 | nats.container.image.tag | string | `"2.14.1"` | NATS server image tag. |
-| nats.enabled | bool | `false` | Enable / Disable the NATS subchart. **Beta** — currently optional but will become required in a future release. When `false`, the subchart is not rendered at all and no NATS env vars are injected into fileservice. |
+| nats.enabled | bool | `true` | Enable / Disable the bundled NATS subchart. Enabled by default, since the fileservice (registry-service) requires NATS. Set to `false` only if you run your own NATS: the subchart is then not rendered at all and no NATS env vars are injected into fileservice, leaving you to point the registry service at your own instance via `fileservice.env` (or one of its ConfigMaps / Secrets). |
 | nats.fullnameOverride | string | `"nats"` | Override the NATS resource name prefix. With the default `nats`, the in-cluster Service is reachable at `nats://nats:4222` (the URL this chart injects as `FILE_SERVICE_NATS_URL`). Change this only if you also override `fileservice.env` with a matching URL. |
 | nats.global.image.pullSecretNames | list | `["docker-pull-secret"]` | Image pull secret names applied to every Pod created by the NATS subchart. The umbrella chart's top-level `imagePullSecrets` does not propagate to subcharts, so this is set explicitly. Defaults to `docker-pull-secret` to match the rest of the istari-platform chart. |
 | nats.natsBox.container.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-box-fips"` | nats-box image repository. Defaults to the Chainguard FIPS variant. |
