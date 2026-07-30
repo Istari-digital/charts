@@ -84,7 +84,7 @@ spec:
             name: {{ . | quote }}
         {{- end }}
         {{- end }}
-        {{- $natsEnabled := dig "enabled" false (default dict .Values.nats) }}
+        {{- $natsEnabled := .Values.nats.enabled }}
         {{- if or $serviceValues.env $migrationsEnv .Values.trustedCertBundle $natsEnabled $jaegerEnabled }}
         env:
         {{- /* Chart-injected OTEL identity FIRST so the user's env entries below override it */}}

@@ -20,7 +20,9 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 {{ template "chart.requirementsSection" . }}
 
 > [!NOTE]
-> The `nats`, `jaeger`, and `dgraph-sec` dependencies are **optional** (`nats.enabled` / `jaeger.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
+> The `nats` dependency is **required** and enabled by default (`nats.enabled`, default `true`). Deploying it takes a StorageClass for its JetStream volume plus two Kubernetes Secrets you create yourself — read the `nats` block under [Values](#values) before installing or upgrading.
+>
+> The `jaeger` and `dgraph-sec` dependencies are **optional** (`jaeger.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
 
 ## API Gateway
 

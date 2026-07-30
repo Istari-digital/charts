@@ -41,7 +41,7 @@ Logic, in order:
 Used by templates that auto-inject `FILE_SERVICE_NATS_URL` when `nats.enabled` is true.
 */}}
 {{- define "istari-platform.nats.url" -}}
-{{- $natsValues := default dict .Values.nats -}}
+{{- $natsValues := .Values.nats -}}
 {{- $fullname := "" -}}
 {{- if $natsValues.fullnameOverride -}}
   {{- $fullname = $natsValues.fullnameOverride | trunc 63 | trimSuffix "-" -}}

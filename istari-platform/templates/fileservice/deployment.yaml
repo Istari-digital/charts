@@ -101,7 +101,7 @@ spec:
             name: {{ . | quote }}
         {{- end }}
         {{- end }}
-        {{- $natsEnabled := dig "enabled" false (default dict .Values.nats) }}
+        {{- $natsEnabled := .Values.nats.enabled }}
         {{- if or $serviceValues.env .Values.trustedCertBundle $natsEnabled }}
         env:
         {{- with $serviceValues.env }}
