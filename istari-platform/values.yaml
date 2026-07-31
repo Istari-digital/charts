@@ -1217,10 +1217,22 @@ jaeger:
       # -- Image pull secret names applied to the Jaeger Pod. The umbrella chart's top-level `imagePullSecrets` does not propagate to subcharts, so this is set explicitly. Defaults to `docker-pull-secret` to match the rest of the istari-platform chart.
       pullSecrets:
       - docker-pull-secret
-    # -- Extra env for the Jaeger container. `OTEL_TRACES_SAMPLER=always_off` disables Jaeger v2's self-tracing: the OpenTelemetry Collector SDK inside Jaeger otherwise traces its own query/ingest operations, storing them alongside real traces (every UI search generates `jaeger` spans) and exporting them to any external OTLP destination (e.g. an OpenTelemetry Collector fanning traces out to Datadog). Ingestion of application traces is unaffected — the sampler only governs Jaeger's own internal SDK. Remove this entry if you need Jaeger's internal traces to debug Jaeger itself.
+    # -- Extra env for the Jaeger container. `OTEL_TRACES_SAMPLER=always_off` disables Jaeger's self-tracing — without it, every UI search stores `jaeger` spans alongside real traces; ingestion of application traces is unaffected. Remove that entry if you need Jaeger's internal traces to debug Jaeger itself. `GOMEMLIMIT` tracks the container's memory limit so the Go GC compresses the heap near the cap instead of exiting out-of-memory. NOTE: if you set `extraEnv` in your own values file, it replaces this entire list rather than adding to it (Helm does not merge lists) — copy these default entries into your list unless you intend to remove them.
     extraEnv:
     - name: OTEL_TRACES_SAMPLER
       value: "always_off"
+    - name: GOMEMLIMIT
+      valueFrom:
+        resourceFieldRef:
+          resource: limits.memory
+          divisor: "1"
+    # -- Resources for the Jaeger container. Badger's memory use scales with the stored dataset (table indexes and bloom filters live on the heap, and data files are memory-mapped), so a mature store needs real memory — and without a request the scheduler may place Jaeger on a node without room for it. Raise these together with `jaeger.persistence.size` / the `ttl.spans` retention.
+    resources:
+      requests:
+        cpu: 250m
+        memory: 2Gi
+      limits:
+        memory: 4Gi
     # -- Container `securityContext` for the Jaeger container, matching the hardening applied to the rest of the istari-platform chart. The subchart's default Pod-level securityContext (uid/gid/fsGroup 10001) is kept so the Badger PVC is writable by the non-root user.
     securityContext:
       allowPrivilegeEscalation: false
@@ -1280,8 +1292,8 @@ jaeger:
   persistence:
     # -- Create a PersistentVolumeClaim named `jaeger-badger` for Badger trace storage. The PVC is deleted on `helm uninstall` (trace history is disposable). Note: block-storage PVCs are zonal on AWS/Azure — the Jaeger Pod becomes pinned to the volume's availability zone (on Azure, a ZRS storage class avoids this). Disable only if you also switch `jaeger.userconfig` to in-memory storage and set `jaeger.jaeger.extraVolumes` / `jaeger.jaeger.extraVolumeMounts` to `[]` (see the `jaeger.userconfig` comment for the full recipe; the chart refuses to render a half-configured state).
     enabled: true
-    # -- Size of the Badger PVC. Retention is TIME-based only (`ttl.spans` in `jaeger.userconfig`, default 72h): Badger does NOT evict old data under disk pressure. A full volume stops trace collection and can wedge Badger's garbage collection (reclaiming space itself needs free disk), potentially crash-looping the Pod. Size with headroom — 10Gi over 72h ≈ 40 KB/s of stored spans, and expired data is reclaimed lazily — and alert on PVC usage (`kubelet_volume_stats_used_bytes`) around 80%. Increasing this value expands the volume in place when the StorageClass allows expansion; to reduce trace volume, lower `ttl.spans` or sample at the source. Trace history is disposable: deleting the PVC and restarting the Pod is a valid recovery.
-    size: 10Gi
+    # -- Size of the Badger PVC (raise `jaeger.jaeger.resources` memory alongside it — see there). Retention is TIME-based only (`ttl.spans` in `jaeger.userconfig`, default 72h): Badger does NOT evict old data under disk pressure. A full volume stops trace collection and can wedge Badger's garbage collection (reclaiming space itself needs free disk), potentially crash-looping the Pod. Size with headroom — 20Gi over 72h ≈ 80 KB/s of stored spans, and expired data is reclaimed lazily — and alert on PVC usage (`kubelet_volume_stats_used_bytes`) around 80%. Increasing this value expands the volume in place when the StorageClass allows expansion; to reduce trace volume, lower `ttl.spans` or sample at the source. Trace history is disposable: deleting the PVC and restarting the Pod is a valid recovery.
+    size: 20Gi
     # -- StorageClass for the Badger PVC. Empty string uses the cluster's default StorageClass.
     storageClassName: ""
     # -- Additional annotations for the Badger PVC.
