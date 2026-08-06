@@ -33,4 +33,15 @@ data:
   # being later in the Deployment's envFrom chain.
   ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: {{ dig "clientIntegration" "enabled" false .Values.identity | quote }}
   {{- end }}
+  {{- if .Values.jaeger.enabled }}
+  {{- /* mcp-service runs under opentelemetry-instrument with the SDK disabled by default;
+  OTEL_SDK_DISABLED=false opts in. Single workload, so no per-container identity overrides. */}}
+  OTEL_SDK_DISABLED: "false"
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ include "istari-platform.jaeger.otlpUrl" . | quote }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+  OTEL_SERVICE_NAME: "mcp.web"
+  OTEL_RESOURCE_ATTRIBUTES: "k8s.container.name=istari-platform"
+  OTEL_LOGS_EXPORTER: "none"
+  OTEL_METRICS_EXPORTER: "none"
+  {{- end }}
 {{- end }}
