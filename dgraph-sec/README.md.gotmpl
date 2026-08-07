@@ -388,6 +388,126 @@ tracing:
 On Istari Digital's own clusters, `tracing.enabled` tracks the Datadog operator, so
 traces flow wherever the agent runs.
 
+## Authorization API (Zanzibar / SpiceDB-compatible)
+
+[Zanzibar](https://www.usenix.org/conference/atc19/presentation/pang) is Google's
+global authorization system, the design most modern permission systems follow. It
+models authorization as *relationships* between objects and subjects
+(relationship-based access control, or ReBAC) and answers "can this subject perform
+this action on this object?" consistently and at scale.
+[SpiceDB](https://authzed.com/spicedb), from AuthZed, is the widely used open-source
+implementation of that model; its gRPC API and client libraries are what dgraph-sec reuses.
+
+When `alpha.zanzibar.enabled` is set, dgraph-sec serves that same SpiceDB v1 gRPC API
+directly from Alpha, so Dgraph can act as a drop-in permissions backend for a
+SpiceDB-based system: existing SpiceDB tooling and client libraries connect
+**unmodified**, because they speak the same protocol — the
+[`zed` CLI](https://github.com/authzed/zed), the Go client
+[`authzed-go`](https://github.com/authzed/authzed-go), and the Python, Node, Java, and
+other [authzed client libraries](https://authzed.com/docs/spicedb/getting-started/client-libraries).
+
+Alpha embeds the ReBAC engine and serves the API (`authzed.api.v1`: `SchemaService`,
+`PermissionsService`, and the rest) on its existing client gRPC port, 9080 — no new
+port opens, and there is no HTTP/REST gateway; it reuses SpiceDB's API, not its
+deployment or storage model. This is a dgraph-sec fork feature, not part of stock
+upstream Dgraph, so no public Dgraph documentation page covers it. It is
+SpiceDB-compatible across the core schema and permission-check surface rather than
+a reimplementation of every SpiceDB feature: at the shipped image, **caveats compile
+but are not evaluated** — any permission check that traverses a caveated relationship
+returns `NO_PERMISSION`, so a caveated relationship never grants access (do not model
+a permission that depends on one); the `WatchService` returns `Unimplemented`, and
+`WriteSchema` is additive-only (definitions are never removed).
+
+ZedTokens are likewise dgraph-sec's own format: SpiceDB-issued tokens are rejected
+with `INVALID_ARGUMENT`, so a deployment migrating from SpiceDB must purge any
+persisted tokens (client caches, stored watermarks) at cutover. An upcoming release
+softens this — an undecodable `at_least_as_fresh` token will degrade to a fresh-local
+read, since the freshness floor is a best-effort hint — but `at_exact_snapshot` will
+keep rejecting foreign tokens, as repeatable-read semantics cannot be faked against a
+token dgraph-sec cannot decode.
+
+Turn it on with `alpha.zanzibar.enabled: true` and `mode: preshared`. In production,
+point `existingSecret` at a Terraform-managed Secret that holds the preshared key
+under the `zanzibar` data key. For a local run, supply the key inline under `file`
+instead; the chart then creates the Secret for you, named
+`dgraph-sec-alpha-zanzibar-secret`:
+
+```yaml
+# values.yaml — enable the Zanzibar/SpiceDB API (dev: chart creates the key Secret)
+alpha:
+  zanzibar:
+    enabled: true
+    mode: preshared               # "open" disables auth entirely; dev only, guarded by allowInsecureOpen
+    file:
+      zanzibar: <base64 preshared key>   # chart creates Secret dgraph-sec-alpha-zanzibar-secret
+    # production: omit `file` and set existingSecret to your Terraform-managed Secret
+    # existingSecret: <your-zanzibar-secret>
+```
+
+**Credential model.** Authentication is a single static RFC 6750 preshared bearer
+key — the `zanzibar` credential. It is **not** integrated with Dgraph ACL users
+or groups, and it carries **no per-credential scoping**: whoever holds the key can
+read relationships, write relationships, and rewrite the schema alike — there is no
+read-only, read-write, or admin distinction, and the binary has no key rotation.
+Scoped credentials would need binary support dgraph-sec does not have yet.
+
+The SpiceDB schema (definitions, relations, permissions) is **application-owned**:
+load it at runtime through the `WriteSchema` RPC (`zed schema write` or an authzed
+SDK), not through this chart. Alpha itself bootstraps the underlying
+`dgraph.zanzibar.*` predicates at startup when the chart passes `--zanzibar-acl`;
+the chart never writes your schema for you.
+
+### Using the `zed` CLI
+
+With the API enabled, manage the schema, relationships, and permission checks with
+[`zed`](https://github.com/authzed/zed) over a port-forward. Read the preshared key
+from its Secret, forward Alpha's gRPC port, then point a `zed` context at it:
+
+```sh
+NS=<namespace>                            # e.g. istari
+SECRET=dgraph-sec-alpha-zanzibar-secret   # chart-created dev Secret; with existingSecret, use that name
+
+# Read the zanzibar preshared key from the cluster Secret.
+# The data key is alpha.zanzibar.keyName (default: zanzibar).
+KEY="$(kubectl -n "$NS" get secret "$SECRET" -o jsonpath='{.data.zanzibar}' | base64 -d)"
+
+# Forward Alpha's client gRPC port.
+kubectl -n "$NS" port-forward svc/dgraph-sec-alpha 9080:9080 &
+
+# Point zed at it. Drop --insecure once you connect over native TLS or through the mesh.
+zed context set dgraph localhost:9080 "$KEY" --insecure
+```
+
+With the context set, dump the schema, restore a schema, or run a permission check:
+
+```sh
+# Dump the current schema to a file.
+zed schema read > schema.zed
+
+# Restore (write) a schema from a file. WriteSchema is additive: it creates or updates
+# the definitions in the file, but never deletes definitions already present.
+zed schema write schema.zed
+
+# Check a permission: may user:alice view document:readme?
+zed permission check document:readme view user:alice
+```
+
+> [!WARNING]
+> The preshared key is only as private as its transport: under the service mesh
+> (default) or Dgraph-native TLS, mTLS/TLS protects it in transit; with neither, it
+> rides in gRPC metadata in plaintext. `mode: open` disables authentication on this
+> API entirely — dev only, and guarded by `allowInsecureOpen`. Reaching Alpha's 9080
+> follows the same client rules as the native Dgraph API — NetworkPolicy
+> `clientPodLabels` or the mesh `AuthorizationPolicy` — see
+> [Letting another in-cluster service connect](./docs/topology.md#letting-another-in-cluster-service-connect).
+> This chart wires Zanzibar for **in-cluster access only** — see
+> [Zanzibar authorization API](./docs/topology.md#zanzibar-authorization-api) for why.
+
+For the network surface this does (and does not) open, and how another in-cluster
+service reaches it, see
+[Zanzibar authorization API](./docs/topology.md#zanzibar-authorization-api) in the
+topology doc.
+
 {{ template "chart.sourcesSection" . }}
 
 {{ template "chart.requirementsSection" . }}
@@ -453,6 +573,7 @@ enumeration lives in the [Values section](#values).
 | `alpha.acl.enabled` | `false` | Access Control List (authentication). Off by default. |
 | `alpha.encryption.enabled` | `false` | Encryption at rest. Off by default. |
 | `alpha.tls.enabled` | `false` | Provisions and mounts the TLS cert Secret at `/dgraph/tls`. Under a service mesh the mesh encrypts, so that is all it does. With `serviceMesh.enabled: false`, the chart also synthesizes Dgraph's `--tls` flag from `alpha.tls.*` (and likewise for Zero). |
+| `alpha.zanzibar.enabled` | `false` | SpiceDB-compatible authorization API on Alpha's gRPC 9080, authenticated by a single preshared key. Off by default. |
 | `alpha.logLevel` | `normal` | Log verbosity (see Zero). |
 | `alpha.service.type` | `ClusterIP` | Alpha Service type. |
 | `alpha.ingress.enabled` / `alpha.ingress_grpc.enabled` | `false` | HTTP / gRPC Ingress for Alpha. |
