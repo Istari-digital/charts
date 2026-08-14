@@ -16,3 +16,4 @@ scripts/
 .claude/settings.local.json
 CLAUDE.local.md
 docs/superpowers/
+.terraform/

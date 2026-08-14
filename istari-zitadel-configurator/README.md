@@ -1,6 +1,6 @@
 # istari-zitadel-configurator
 
-![Version: 1.10.0](https://img.shields.io/badge/Version-1.10.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 8.13.4](https://img.shields.io/badge/AppVersion-8.13.4-informational?style=flat-square)
+![Version: 1.11.0](https://img.shields.io/badge/Version-1.11.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 8.13.4](https://img.shields.io/badge/AppVersion-8.13.4-informational?style=flat-square)
 
 A Helm chart for configuring Zitadel instance to work with Istari.
 
@@ -51,6 +51,10 @@ helm uninstall istari-zitadel-configurator
 | configurator.auto_configure_subdomains | bool | `true` | Enable auto configuration of subdomains. If enabled is set to true. If set to true, the following domains will be assumed (Please note using domain.com as an example): Frontend service subdomain: https://domain.com and https://v2.domain.com MCP service subdomain: https://mcp.domain.com Any additional subdomains required by Istari-Platform helm chart will take values as:   http://[subdomain].domain.com  If set to false, the following values have to be provided: `frontend_post_logout_redirect_uris`, `frontend_redirect_uris`, `mcp_service.post_logout_redirect_uris`, `mcp_service.redirect_uris` |
 | configurator.frontend_service_post_logout_redirect_uris | list | `["https://domain.com"]` | URLs inside this array should not end with a trailing "/" |
 | configurator.frontend_service_redirect_uris | list | `["https://domain.com"]` | URLs inside this array should not end with a trailing "/" |
+| configurator.identity_service | object | (see fields below) | Identity-service credential generation (DPLAT-653). The configurator generates the identity-service's key material and assigns it into the zitadel-*-env secrets, replacing the docs' manual gen-signing-key / gen-client-credentials / openssl steps. |
+| configurator.identity_service.client_integration.enabled | bool | `false` | Generate and assign the client credentials (registry, frontend, SCS, MCP) plus their enable/URL env vars. Registry, frontend, and SCS cut over together — one switch, not per-service switches. |
+| configurator.identity_service.generate_keys | bool | `true` | Generate the signing key and token-encryption key and publish them in zitadel-identity-service-env. Set false to keep hand-managed keys. PRECEDENCE WARNING for existing installs: a service that mounts zitadel-identity-service-env after its own secret picks up these generated values (later envFrom entries win) — the first upgrade rotates a hand-generated signing key once (principals re-authenticate). |
+| configurator.identity_service.key_rotation | object | all serials `0` | Bump a serial to rotate that credential on the next run. Registry and SCS rotations self-heal on the next istari-platform upgrade (the registration hooks re-register the new public halves). |
 | configurator.identity_service_base_url | string | `"https://identity.domain.com"` | Base URL used by identity-service. |
 | configurator.main_domain | string | `"domain.com"` | This will determine the main domain for the Terraform configuration. |
 | configurator.mcp_service | object | `{"additional_redirect_uris":[],"enabled":false,"post_logout_redirect_uris":["https://mcp.domain.com"],"redirect_uris":["https://mcp.domain.com"]}` | MCP service |
