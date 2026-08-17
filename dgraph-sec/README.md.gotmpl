@@ -500,8 +500,11 @@ zed permission check document:readme view user:alice
 > follows the same client rules as the native Dgraph API — NetworkPolicy
 > `clientPodLabels` or the mesh `AuthorizationPolicy` — see
 > [Letting another in-cluster service connect](./docs/topology.md#letting-another-in-cluster-service-connect).
-> This chart wires Zanzibar for **in-cluster access only** — see
-> [Zanzibar authorization API](./docs/topology.md#zanzibar-authorization-api) for why.
+> This chart adds no dedicated Zanzibar ingress or Service, but Zanzibar shares Alpha's
+> 9080: exposing that port through `alpha.service.type` (`LoadBalancer`/`NodePort`) or
+> `alpha.ingress_grpc.enabled` exposes the Zanzibar API **and** the native Dgraph gRPC
+> API together. The defaults keep both in-cluster — see
+> [Zanzibar authorization API](./docs/topology.md#zanzibar-authorization-api).
 
 For the network surface this does (and does not) open, and how another in-cluster
 service reaches it, see
