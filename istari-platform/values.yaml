@@ -102,8 +102,14 @@ fileservice:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set resources
-  resources: {}
+  # Resources -- CPU/memory requests. CPU limit intentionally omitted: CPU limits cause CFS throttling.
+  # Memory limit == request (memory is incompressible; cap it for a clean OOM instead of node pressure).
+  resources:
+    requests:
+      cpu: "3000m"
+      memory: 8Gi
+    limits:
+      memory: 8Gi
   # -- Pod Volumes
   volumes: []
   # -- Volume Mounts for pod containers
@@ -248,8 +254,14 @@ frontend:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set resources
-  resources: {}
+  # Resources -- CPU/memory requests. CPU limit intentionally omitted: CPU limits cause CFS throttling.
+  # Memory limit == request (memory is incompressible; cap it for a clean OOM instead of node pressure).
+  resources:
+    requests:
+      cpu: "100m"
+      memory: 256Mi
+    limits:
+      memory: 1Gi
   # -- Tolerations.
   # Example:
   #
@@ -393,8 +405,15 @@ mcp:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set resources
-  resources: {}
+  # NOTE: PLACEHOLDER values — replace with real numbers from the team.
+  # Resources -- CPU/memory requests. CPU limit intentionally omitted: CPU limits cause CFS throttling.
+  # Memory limit == request (memory is incompressible; cap it for a clean OOM instead of node pressure).
+  resources:
+    requests:
+      cpu: "250m"
+      memory: 512Mi
+    limits:
+      memory: 1Gi
   # -- Tolerations.
   # Example:
   #
@@ -533,8 +552,14 @@ secureConnection:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set resources
-  resources: {}
+  # Resources -- CPU/memory requests. CPU limit intentionally omitted: CPU limits cause CFS throttling.
+  # Memory limit == request (memory is incompressible; cap it for a clean OOM instead of node pressure).
+  resources:
+    requests:
+      cpu: "3000m"
+      memory: 8Gi
+    limits:
+      memory: 8Gi
   # -- Pod Volumes
   volumes: []
   # -- Volume Mounts for pod containers
@@ -685,8 +710,14 @@ identity:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set resources
-  resources: {}
+  # Resources -- CPU/memory requests. CPU limit intentionally omitted: CPU limits cause CFS throttling.
+  # Memory limit == request (memory is incompressible; cap it for a clean OOM instead of node pressure).
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      memory: 4Gi
   # -- Pod Volumes
   volumes: []
   # -- Volume Mounts for pod containers
@@ -888,8 +919,15 @@ docs:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set resources
-  resources: {}
+  # NOTE: PLACEHOLDER values — replace with real numbers from the team.
+  # Resources -- CPU/memory requests. CPU limit intentionally omitted: CPU limits cause CFS throttling.
+  # Memory limit == request (memory is incompressible; cap it for a clean OOM instead of node pressure).
+  resources:
+    requests:
+      cpu: "100m"
+      memory: 256Mi
+    limits:
+      memory: 512Mi
   # -- Pod Volumes
   volumes: []
   # -- Volume Mounts for pod containers
