@@ -919,15 +919,8 @@ docs:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # NOTE: PLACEHOLDER values — replace with real numbers from the team.
-  # Resources -- CPU/memory requests. CPU limit intentionally omitted: CPU limits cause CFS throttling.
-  # Memory limit == request (memory is incompressible; cap it for a clean OOM instead of node pressure).
-  resources:
-    requests:
-      cpu: "100m"
-      memory: 256Mi
-    limits:
-      memory: 512Mi
+  # Resources -- set resources
+  resources: {}
   # -- Pod Volumes
   volumes: []
   # -- Volume Mounts for pod containers
