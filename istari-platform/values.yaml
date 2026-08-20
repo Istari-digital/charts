@@ -102,8 +102,7 @@ fileservice:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- CPU/memory requests. CPU limit intentionally omitted: CPU limits cause CFS throttling.
-  # Memory limit == request (memory is incompressible; cap it for a clean OOM instead of node pressure).
+  # Resources -- set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
   resources:
     requests:
       cpu: "3000m"
@@ -254,8 +253,7 @@ frontend:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- CPU/memory requests. CPU limit intentionally omitted: CPU limits cause CFS throttling.
-  # Memory limit == request (memory is incompressible; cap it for a clean OOM instead of node pressure).
+  # Resources -- set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
   resources:
     requests:
       cpu: "100m"
@@ -405,8 +403,7 @@ mcp:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- CPU/memory requests. CPU limit intentionally omitted: CPU limits cause CFS throttling.
-  # Memory limit == request (memory is incompressible; cap it for a clean OOM instead of node pressure).
+  # Resources -- set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
   resources:
     requests:
       cpu: "250m"
@@ -551,8 +548,7 @@ secureConnection:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- CPU/memory requests. CPU limit intentionally omitted: CPU limits cause CFS throttling.
-  # Memory limit == request (memory is incompressible; cap it for a clean OOM instead of node pressure).
+  # Resources -- set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
   resources:
     requests:
       cpu: "3000m"
@@ -709,8 +705,7 @@ identity:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- CPU/memory requests. CPU limit intentionally omitted: CPU limits cause CFS throttling.
-  # Memory limit == request (memory is incompressible; cap it for a clean OOM instead of node pressure).
+  # Resources -- set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
   resources:
     requests:
       cpu: "1"
