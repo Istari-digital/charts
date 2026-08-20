@@ -105,7 +105,7 @@ fileservice:
   # Resources -- set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
   resources:
     requests:
-      cpu: "3000m"
+      cpu: "3"
       memory: 8Gi
     limits:
       memory: 8Gi
@@ -551,7 +551,7 @@ secureConnection:
   # Resources -- set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
   resources:
     requests:
-      cpu: "3000m"
+      cpu: "3"
       memory: 8Gi
     limits:
       memory: 8Gi

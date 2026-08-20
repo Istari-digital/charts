@@ -231,7 +231,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | fileservice.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.replicaCount | int | `1` | Replica count |
 | fileservice.resources.limits.memory | string | `"8Gi"` |  |
-| fileservice.resources.requests.cpu | string | `"3000m"` |  |
+| fileservice.resources.requests.cpu | string | `"3"` |  |
 | fileservice.resources.requests.memory | string | `"8Gi"` |  |
 | fileservice.restartPolicy | string | `"Always"` | Restart policy |
 | fileservice.secretName | string | `"istari-fileservice"` | Secret name. The secret should contain the environment variables required by the service. |
@@ -490,7 +490,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | secureConnection.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.replicaCount | int | `1` | Replica count |
 | secureConnection.resources.limits.memory | string | `"8Gi"` |  |
-| secureConnection.resources.requests.cpu | string | `"3000m"` |  |
+| secureConnection.resources.requests.cpu | string | `"3"` |  |
 | secureConnection.resources.requests.memory | string | `"8Gi"` |  |
 | secureConnection.restartPolicy | string | `"Always"` | Restart policy |
 | secureConnection.secretName | string | `"istari-secure-connection"` | Secret name. The secret should contain the environment variables required by the service. |
