@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 5.3.0](https://img.shields.io/badge/Version-5.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 5.3.1](https://img.shields.io/badge/Version-5.3.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -230,7 +230,9 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | fileservice.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | fileservice.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.replicaCount | int | `1` | Replica count |
-| fileservice.resources | object | `{}` |  |
+| fileservice.resources.limits.memory | string | `"8Gi"` |  |
+| fileservice.resources.requests.cpu | string | `"3000m"` |  |
+| fileservice.resources.requests.memory | string | `"8Gi"` |  |
 | fileservice.restartPolicy | string | `"Always"` | Restart policy |
 | fileservice.secretName | string | `"istari-fileservice"` | Secret name. The secret should contain the environment variables required by the service. |
 | fileservice.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
@@ -273,7 +275,9 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | frontend.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | frontend.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | frontend.replicaCount | int | `1` | Replica count |
-| frontend.resources | object | `{}` |  |
+| frontend.resources.limits.memory | string | `"256Mi"` |  |
+| frontend.resources.requests.cpu | string | `"100m"` |  |
+| frontend.resources.requests.memory | string | `"256Mi"` |  |
 | frontend.restartPolicy | string | `"Always"` | Restart policy |
 | frontend.secretName | string | `"istari-frontend"` | Secret name. The secret should contain the environment variables required by the service. |
 | frontend.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
@@ -350,7 +354,9 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.registryClientRegistration.podLabels | object | `{}` | Extra labels for the registration Job Pod template only. |
 | identity.registryClientRegistration.resources | object | `{}` | Resources for the registration Job container. |
 | identity.replicaCount | int | `1` | Replica count |
-| identity.resources | object | `{}` |  |
+| identity.resources.limits.memory | string | `"2Gi"` |  |
+| identity.resources.requests.cpu | string | `"1"` |  |
+| identity.resources.requests.memory | string | `"2Gi"` |  |
 | identity.restartPolicy | string | `"Always"` | Restart policy |
 | identity.secretName | string | `"istari-identity"` | Secret name. The secret should contain the environment variables required by the service. |
 | identity.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
@@ -410,7 +416,9 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | mcp.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | mcp.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.replicaCount | int | `1` | Replica count |
-| mcp.resources | object | `{}` |  |
+| mcp.resources.limits.memory | string | `"512Mi"` |  |
+| mcp.resources.requests.cpu | string | `"250m"` |  |
+| mcp.resources.requests.memory | string | `"512Mi"` |  |
 | mcp.restartPolicy | string | `"Always"` | Restart policy |
 | mcp.secretName | string | `"istari-mcp"` | Secret name. The secret should contain the environment variables required by the service. Note that a ConfigMap is also automatically created & used with the correct value for ISTARI_DIGITAL_REGISTRY_SERVICE_URL |
 | mcp.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
@@ -481,7 +489,9 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | secureConnection.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | secureConnection.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.replicaCount | int | `1` | Replica count |
-| secureConnection.resources | object | `{}` |  |
+| secureConnection.resources.limits.memory | string | `"8Gi"` |  |
+| secureConnection.resources.requests.cpu | string | `"3000m"` |  |
+| secureConnection.resources.requests.memory | string | `"8Gi"` |  |
 | secureConnection.restartPolicy | string | `"Always"` | Restart policy |
 | secureConnection.secretName | string | `"istari-secure-connection"` | Secret name. The secret should contain the environment variables required by the service. |
 | secureConnection.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
