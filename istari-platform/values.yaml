@@ -36,7 +36,7 @@ fileservice:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "fileservice2"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "11.0.0"
+  tag: "11.2.0"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -183,7 +183,7 @@ frontend:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "frontend-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "8.37.0"
+  tag: "8.38.1"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -326,7 +326,7 @@ mcp:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "mcp-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "0.7.0"
+  tag: "0.8.0"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -467,7 +467,7 @@ secureConnection:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "secure-connection-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "11.0.0"
+  tag: "11.2.0"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -619,7 +619,7 @@ identity:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "identity-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "1.2.1"
+  tag: "1.2.3"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
