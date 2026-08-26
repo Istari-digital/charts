@@ -58,3 +58,10 @@ Call with a dict: {"root": $, "name": <agent name>}.
 {{- $hash := .name | sha256sum | trunc 8 -}}
 {{- printf "%s-register-agent-%s-%s" $prefix $slug $hash | trimSuffix "-" -}}
 {{- end }}
+
+{{/*
+One-shot Job that imports upstream IdP orgs as Identity Service tenants.
+*/}}
+{{- define "identity.tenantBootstrap.jobName" -}}
+{{- printf "%s-bootstrap-tenants" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end }}

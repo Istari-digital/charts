@@ -1,0 +1,164 @@
+{{- $serviceValues := .Values.identity -}}
+{{- $bootstrap := dig "tenantBootstrap" dict $serviceValues -}}
+{{- $bootstrapEnabled := dig "enabled" false $bootstrap -}}
+{{- if and $serviceValues.enabled $bootstrapEnabled }}
+{{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.tenantBootstrap.enabled is true" -}}
+{{- $issuer := $bootstrap.issuer | required "identity.tenantBootstrap.issuer must be set (the upstream IdP issuer base URL, e.g. https://zitadel.<fqdn>) when identity.tenantBootstrap.enabled is true" -}}
+{{- $credentialEnv := $bootstrap.credentialEnv | required "identity.tenantBootstrap.credentialEnv must be set (the env var name, from identity.secretName or tenantBootstrap.extraEnvSecrets, holding the IdP admin credential bootstrap-tenants enumerates orgs with)" -}}
+{{- /* The hook (weight 15) assumes the DB schema exists. That only holds when
+       migrations run as a pre-upgrade hook (weight 5), i.e. migrations.runAsJob=true.
+       With runAsJob=false migrations run as a Deployment initContainer — after all
+       hooks — so bootstrap-tenants would hit a missing schema on a fresh install or
+       schema-changing upgrade. Require the safe mode up front. */ -}}
+{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identity.tenantBootstrap.enabled requires identity.migrations.runAsJob=true, so DB migrations run as a pre-upgrade hook before the tenant-bootstrap hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and bootstrap-tenants would run against a missing schema" }}{{ end }}
+{{- $provider := dig "provider" "zitadel" $bootstrap -}}
+{{- $bootstrapPodAnnotations := dig "podAnnotations" dict $bootstrap -}}
+{{- $bootstrapPodLabels := dig "podLabels" dict $bootstrap -}}
+{{- $bootstrapResources := dig "resources" dict $bootstrap -}}
+{{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $bootstrap -}}
+{{- $backoffLimit := dig "backoffLimit" 6 $bootstrap | int -}}
+{{- /* Secrets mounted (envFrom) into the Job in addition to identity.secretName —
+       put the secret holding the IdP admin credential here if it is not already
+       in secretName (e.g. a configurator-published secret). */ -}}
+{{- $bootstrapExtraEnvSecrets := dig "extraEnvSecrets" list $bootstrap -}}
+{{- /* Canonical Identity Service DB URL key; present in secretName, surfaced as an
+       env var by envFrom and read via the CLI's -database-url-env flag. */ -}}
+{{- $dbURLEnv := "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" -}}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "identity.tenantBootstrap.jobName" $ | quote }}
+  labels:
+    {{- include "identity.labels" $ | nindent 4 }}
+    istari.digital/job-type: "tenant-bootstrap"
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    # Weight 15: after the migration hook (weight 5, requires migrations.runAsJob=true
+    # — enforced above) and the client registrations (weight 10), and before the
+    # agent-registration hooks (weight 20), so imported tenants exist before any
+    # agent references its organization's tenant.
+    helm.sh/hook-weight: "15"
+    helm.sh/hook-delete-policy: {{ if $autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+spec:
+  backoffLimit: {{ $backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "identity.labels" $ | nindent 8 }}
+        istari.digital/job-type: "tenant-bootstrap"
+        {{- with $bootstrapPodLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        sidecar.istio.io/inject: "false"
+        {{- with $bootstrapPodAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "identity.fullname" $ | quote }}
+      # bootstrap-tenants reads env (from the mounted secrets), enumerates orgs at
+      # the IdP, and writes tenant rows to the database; it never calls the
+      # Kubernetes API, so don't mount an SA token.
+      automountServiceAccountToken: false
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default $.Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: bootstrap-tenants
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command:
+        - "/bootstrap-tenants"
+        # The DB URL and the IdP credential are read from env vars provided by
+        # envFrom below (the CLI's -*-env flags do os.Getenv), so nothing is wired
+        # as an explicit secretKeyRef and operators supply the secrets via
+        # secretName / extraEnvSecrets like any other service. The import is an
+        # idempotent upsert: existing tenants and provider mappings are left
+        # untouched, so re-running on every upgrade only picks up NEW orgs.
+        args:
+        - "-database-url-env"
+        - {{ $dbURLEnv | quote }}
+        - "-issuer"
+        - {{ $issuer | quote }}
+        - "-provider"
+        - {{ $provider | quote }}
+        - "-credential-env"
+        - {{ $credentialEnv | quote }}
+        {{- with $bootstrap.slugPrefix }}
+        - "-slug-prefix"
+        - {{ . | quote }}
+        {{- end }}
+        {{- if dig "dryRun" false $bootstrap }}
+        - "-dry-run"
+        {{- end }}
+        envFrom:
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- range $s := $bootstrapExtraEnvSecrets }}
+        - secretRef:
+            name: {{ $s | quote }}
+            optional: true
+        {{- end }}
+        {{- if or $serviceValues.env $.Values.trustedCertBundle }}
+        env:
+        {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.trustedCertBundle }}
+        # Go honors SSL_CERT_FILE / SSL_CERT_DIR for a custom CA bundle.
+        - name: SSL_CERT_DIR
+          value: /usr/lib/ssl/certs
+        - name: SSL_CERT_FILE
+          value: /usr/lib/ssl/cert.pem
+        {{- end }}
+        {{- end }}
+        {{- with $bootstrapResources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if or $serviceValues.volumeMounts $.Values.trustedCertBundle }}
+        volumeMounts:
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+        {{- end }}
+      {{- if or $serviceValues.volumes $.Values.trustedCertBundle }}
+      volumes:
+      {{- with $serviceValues.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if $.Values.trustedCertBundle }}
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" $ | quote }}
+      {{- end }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}

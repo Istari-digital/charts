@@ -782,6 +782,33 @@ identity:
     extraEnvSecrets: []
     # -- Agents to provision, one Job each. All inputs are read from env vars supplied via `envFrom` (`identity.secretName` + `agentRegistration.extraEnvSecrets`); the fields below name those env vars. Fields per entry: `name` (required; used in the Job name and the `istari.digital/agent` label, so it must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, at most 63 characters); `tenantSlug` (required, Identity Service tenant the agent belongs to); `keyEnv` (required, the env var holding the base64-encoded public-only agent credential blob); `tenantDisplayName` (optional human-readable tenant name); `providerName` + `providerTenantIdEnv` (optional, supplied together; `providerName` is the upstream IdP name e.g. `zitadel` and `providerTenantIdEnv` names the env var holding the upstream org id — maps the tenant to the upstream org so the agent's token carries the resourceowner for Zitadel-namespaced role lookups); `usernameEnv` (optional, names the env var holding the upstream user id — binds the agent to a pre-existing IdP identity, e.g. the secure-connection-service's `rss_service_user` grant); `displayName` (optional agent name claim). An env var that is absent/empty makes the CLI skip that piece (register-agent no-ops; create-tenant skips the mapping).
     agents: []
+  # -- Settings for the tenant-bootstrap one-shot hook Job (pre-install/pre-upgrade). Runs `bootstrap-tenants`, which enumerates the organizations visible at the upstream IdP and imports each as an Identity Service tenant (idempotent upsert: existing tenants and provider mappings are never modified, so re-running on every upgrade only picks up NEW orgs). This replaces the manual `create-tenant` step for multi-tenant installations — every Zitadel organization gets its tenant automatically. Rendered only when BOTH `identity.enabled` and `identity.tenantBootstrap.enabled` are `true`. Requires an Identity Service image that ships `/bootstrap-tenants` (releases after 1.2.2) and `identity.migrations.runAsJob=true` (so migrations run as a pre-upgrade hook, weight 5, before this one at weight 15 — after the client registrations at 10, before agent registration at 20); rendering fails fast otherwise. The Job pod inherits the Identity Service's `nodeSelector`, `affinity`, `tolerations`, security contexts, and image-pull secrets.
+  # @default -- (see fields below)
+  tenantBootstrap:
+    # -- Whether to render the tenant-bootstrap Job. Off by default.
+    enabled: false
+    # -- REQUIRED when enabled: the upstream IdP issuer base URL bootstrap-tenants enumerates organizations at, e.g. `https://zitadel.<customer_istari_fqdn>`.
+    issuer: ""
+    # -- Upstream IdP provider to enumerate. Only `zitadel` is supported.
+    provider: "zitadel"
+    # -- REQUIRED when enabled: the env var name (surfaced via `envFrom` from `identity.secretName` or `tenantBootstrap.extraEnvSecrets`) holding the IdP admin credential used to list organizations — for Zitadel, a machine-account secret able to enumerate orgs.
+    credentialEnv: ""
+    # -- Optional prefix for every derived tenant slug (e.g. `zitadel`), recommended to prevent collisions if tenants are ever imported from more than one provider.
+    slugPrefix: ""
+    # -- Log what would be imported without writing anything. Useful for a first run against a large Zitadel instance.
+    dryRun: false
+    # -- `spec.backoffLimit` for the Job (retries after a failed Pod).
+    backoffLimit: 6
+    # -- Automatically clean up the successful hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`).
+    autoCleanupSuccessfulJob: true
+    # -- Annotations for the Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`).
+    podAnnotations: {}
+    # -- Extra labels for the Job Pod template only.
+    podLabels: {}
+    # -- Resources for the Job container.
+    resources: {}
+    # -- Extra secrets to mount (via `envFrom`) in addition to `identity.secretName` — use this when the IdP admin credential lives in another secret (e.g. one published by the configurator). Each is mounted `optional`.
+    extraEnvSecrets: []
   # Ingress -- optional Kubernetes Ingress for this service.
   ingress:
     # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
