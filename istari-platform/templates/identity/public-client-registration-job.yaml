@@ -6,6 +6,10 @@
 {{- $autoCleanupSuccessfulJob := dig "autoCleanupSuccessfulJob" true $registration -}}
 {{- $registrationEnabled := dig "enabled" false $registration -}}
 {{- $clients := dig "clients" list $registration -}}
+{{- /* Extra env for every register-public-client container, rendered after the
+       service-level env so it wins on duplicate names — e.g. to correct OTEL
+       k8s.container.name off the fanned-in service value. */ -}}
+{{- $registrationEnv := dig "env" list $registration -}}
 {{- if and $serviceValues.enabled $registrationEnabled $clients }}
 {{- /* These hooks run pre-install/pre-upgrade; the columns register-client
        -public-client-id writes (client_type, redirect_uris — Identity Service
@@ -103,6 +107,10 @@ spec:
               name: {{ $serviceValues.secretName | quote }}
               key: "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"
         {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- /* Job-level env AFTER the service-level env: on duplicate names, these win */}}
+        {{- with $registrationEnv }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if $.Values.trustedCertBundle }}

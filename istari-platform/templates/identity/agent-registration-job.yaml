@@ -20,6 +20,10 @@
        — via the configurator — its username/org id here, the same way services
        mount config with secretName + extraEnvSecrets. */ -}}
 {{- $registrationExtraEnvSecrets := dig "extraEnvSecrets" list $registration -}}
+{{- /* Extra env for both Job containers (create-tenant, register-agent), rendered
+       after the service-level env so it wins on duplicate names — e.g. to correct
+       OTEL k8s.container.name off the fanned-in service value. */ -}}
+{{- $registrationEnv := dig "env" list $registration -}}
 {{- /* Canonical Identity Service DB URL key; present in secretName, surfaced as an
        env var by envFrom and read via the CLIs' -database-url-env flag. */ -}}
 {{- $dbURLEnv := "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" -}}
@@ -127,9 +131,13 @@ spec:
             name: {{ $s | quote }}
             optional: true
         {{- end }}
-        {{- if or $serviceValues.env $.Values.trustedCertBundle }}
+        {{- if or $serviceValues.env $registrationEnv $.Values.trustedCertBundle }}
         env:
         {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- /* Job-level env AFTER the service-level env: on duplicate names, these win */}}
+        {{- with $registrationEnv }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if $.Values.trustedCertBundle }}
@@ -192,9 +200,13 @@ spec:
             name: {{ $s | quote }}
             optional: true
         {{- end }}
-        {{- if or $serviceValues.env $.Values.trustedCertBundle }}
+        {{- if or $serviceValues.env $registrationEnv $.Values.trustedCertBundle }}
         env:
         {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- /* Job-level env AFTER the service-level env: on duplicate names, these win */}}
+        {{- with $registrationEnv }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if $.Values.trustedCertBundle }}
