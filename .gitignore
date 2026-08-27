@@ -3,10 +3,16 @@
 .envrc
 .netrc
 *.old
+
+# Unanchored on purpose: Helm writes these inside every chart directory.
 Chart.lock
 charts/
-manual/
-scripts/
+
+# Anchored to the repo root: an unanchored pattern would also swallow new files in
+# chart-level directories of the same name (e.g. dgraph-sec/scripts/, which is tracked
+# and shipped in the chart package).
+/manual/
+/scripts/
 
 #####
 # AI-specific files
