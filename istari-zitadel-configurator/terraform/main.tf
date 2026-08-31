@@ -167,10 +167,6 @@ resource "zitadel_application_oidc" "identity-service" {
   redirect_uris  = ["${local.identity_service_base_url}/callback"]
   response_types = ["OIDC_RESPONSE_TYPE_CODE"]
   grant_types    = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"]
-  # The identity service forwards each RP's validated post_logout_redirect_uri
-  # to Zitadel's end_session endpoint under its own client_id, so Zitadel
-  # checks that URI against THIS app's allowlist. Every frontend origin must
-  # therefore be registered here too, or logout 400s at Zitadel.
   post_logout_redirect_uris = concat(
     ["${local.identity_service_base_url}/callback"],
     local.frontend_service_post_logout_redirect_uris,
