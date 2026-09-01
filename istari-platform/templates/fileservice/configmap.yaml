@@ -23,10 +23,9 @@ data:
   FILE_SERVICE_OPENTELEMETRY_ENABLED: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ include "istari-platform.jaeger.otlpUrl" . | quote }}
   OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
-  {{- /* Web-container identity; init-db/db-migrate override via "istari-platform.otelWorkloadEnv".
-  `istari-platform` is the main container's actual name in the Pod spec. */}}
-  OTEL_SERVICE_NAME: "registry.web"
-  OTEL_RESOURCE_ATTRIBUTES: "k8s.container.name=istari-platform"
+  {{- /* Per-container OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES are set as explicit env by
+  "istari-platform.workloadIdentityEnv": the resource attributes reference downward-API $(VAR)s,
+  which envFrom cannot expand, so they cannot live here. */}}
   OTEL_LOGS_EXPORTER: "none"
   OTEL_METRICS_EXPORTER: "none"
   {{- end }}

@@ -85,33 +85,16 @@ spec:
         {{- end }}
         {{- end }}
         {{- $natsEnabled := .Values.nats.enabled }}
-        {{- if or $serviceValues.env $migrationsEnv .Values.trustedCertBundle $natsEnabled $jaegerEnabled }}
+        {{- /* Chart identity blocks FIRST (always present); user env AFTER so it wins on
+        duplicate names; migrations.env after service env; the whole list is then deduped
+        last-wins so a repeated name collapses to one patchable entry. */}}
+        {{- $env := include "istari-platform.workloadIdentityEnv" (dict "service" "registry" "subservice" "db-migrate" "containerName" "db-migrate" "jaegerEnabled" $jaegerEnabled) | fromYamlArray }}
+        {{- with $serviceValues.env }}{{- $env = concat $env . }}{{- end }}
+        {{- with $migrationsEnv }}{{- $env = concat $env . }}{{- end }}
+        {{- if $natsEnabled }}{{- $env = concat $env (include "istari-platform.fileservice.natsEnv" . | fromYamlArray) }}{{- end }}
+        {{- if .Values.trustedCertBundle }}{{- $env = concat $env (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
         env:
-        {{- /* Chart-injected OTEL identity FIRST so the user's env entries below override it */}}
-        {{- if $jaegerEnabled }}
-        {{- include "istari-platform.otelWorkloadEnv" (dict "service" "registry" "container" "db-migrate") | nindent 8 }}
-        {{- end }}
-        {{- with $serviceValues.env }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- /* Migration-workload env AFTER the service-level env: on duplicate names, these win */}}
-        {{- with $migrationsEnv }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- if $natsEnabled }}
-        {{- include "istari-platform.fileservice.natsEnv" . | nindent 8 }}
-        {{- end }}
-        {{- if .Values.trustedCertBundle }}
-        - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
-          value: /usr/lib/ssl/cert.pem
-        - name: REQUESTS_CA_BUNDLE
-          value: /usr/lib/ssl/cert.pem
-        - name: SSL_CERT_DIR
-          value: /usr/lib/ssl/certs
-        - name: SSL_CERT_FILE
-          value: /usr/lib/ssl/cert.pem
-        {{- end }}
-        {{- end }}
+        {{- include "istari-platform.dedupeEnv" $env | nindent 8 }}
         {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
         volumeMounts:
         {{- with $serviceValues.volumeMounts }}
