@@ -102,17 +102,95 @@ In-cluster Jaeger OTLP HTTP URL. Resolves to `http://<jaeger-service-name>:4318`
 {{- end }}
 
 {{/*
-Per-workload OTEL identity for init/migration containers, named `<service>.<subservice>`.
-Context is a dict of "service" and "container" (the container name doubles as the subservice);
-web containers get their identity from their service's defaults ConfigMap instead. Explicit env
-so it overrides that ConfigMap, rendered BEFORE user `env` so the service's `env` values still
-win (Secrets can't override these two). Callers gate behind their own `if $jaegerEnabled`.
+Per-workload identity env, shared by every container of every OTEL-emitting service (web, init,
+and migration Job). Always emits four downward-API building blocks — POD_NAME, POD_NAMESPACE,
+POD_UID (fieldRef) and a literal CONTAINER_NAME — so service code, third-party sidecars, and
+users can enrich telemetry off them regardless of tracing. Container name has no downward-API
+fieldRef, so CONTAINER_NAME is the literal `.containerName` the chart knows at render time.
+
+When `.jaegerEnabled`, it additionally sets a chart-default OTEL_SERVICE_NAME
+(`<service>.<subservice>`) and OTEL_RESOURCE_ATTRIBUTES built from those `$(VAR)` blocks, so
+traces carry accurate Kubernetes identity with zero user config. A user's own
+OTEL_RESOURCE_ATTRIBUTES — set in `<service>.env` or `<service>.migrations.env`, and free to
+reference the same `$(VAR)`s — overrides this default.
+
+`$(VAR)` expands only against env defined earlier in the SAME container and NOT against values
+delivered via `envFrom`, so these blocks must be explicit env and must precede any var that
+references them. Callers therefore render this FIRST, then user env, then pass the whole list
+through "istari-platform.dedupeEnv": on a repeated name the later (user) entry wins, collapsing
+to one entry — kubelet already takes the last value, and a single entry is what client-side
+strategic-merge patches (Argo CD's diff) require, since they key env by name and reject
+duplicates.
+
+Context: dict of "service", "subservice", "containerName", "jaegerEnabled".
 */}}
-{{- define "istari-platform.otelWorkloadEnv" -}}
+{{- define "istari-platform.workloadIdentityEnv" -}}
+- name: POD_NAME
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.name
+- name: POD_NAMESPACE
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.namespace
+- name: POD_UID
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.uid
+- name: CONTAINER_NAME
+  value: {{ .containerName | quote }}
+{{- if .jaegerEnabled }}
 - name: OTEL_SERVICE_NAME
-  value: {{ printf "%s.%s" .service .container | quote }}
+  value: {{ printf "%s.%s" .service .subservice | quote }}
 - name: OTEL_RESOURCE_ATTRIBUTES
-  value: {{ printf "k8s.container.name=%s" .container | quote }}
+  value: "k8s.pod.name=$(POD_NAME),k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.uid=$(POD_UID),k8s.container.name=$(CONTAINER_NAME)"
+{{- end }}
+{{- end }}
+
+{{/*
+Collapse an env list to unique names: each name is emitted once, at the position of its FIRST
+occurrence, carrying the value of its LAST occurrence. Last-value matches kubelet (which resolves
+a repeated env name to its last value) so a user entry still overrides an earlier chart default;
+first-position keeps a name stable where the chart first placed it, so the downward-API building
+blocks stay ahead of the `$(VAR)`-referencing vars even when a user overrides one of the blocks
+(a later user POD_NAME/CONTAINER_NAME must NOT jump past the OTEL_RESOURCE_ATTRIBUTES that
+references it, or Kubernetes leaves the reference an unexpanded literal). Emitting each name once
+is also what makes the manifest patchable by a client-side strategic merge (Argo CD's diff),
+which keys env by name and rejects duplicates.
+
+Input: a list of env maps (each with a `name`). Output: YAML for the deduped list.
+*/}}
+{{- define "istari-platform.dedupeEnv" -}}
+{{- $entries := . -}}
+{{- $lastByName := dict -}}
+{{- range $e := $entries -}}
+{{- $_ := set $lastByName $e.name $e -}}
+{{- end -}}
+{{- $seen := dict -}}
+{{- $out := list -}}
+{{- range $e := $entries -}}
+{{- if not (hasKey $seen $e.name) -}}
+{{- $_ := set $seen $e.name true -}}
+{{- $out = append $out (index $lastByName $e.name) -}}
+{{- end -}}
+{{- end -}}
+{{- toYaml $out -}}
+{{- end }}
+
+{{/*
+Env that points common TLS/CA-bundle libraries at the mounted trusted-cert bundle. Injected
+into every service container when `.Values.trustedCertBundle` is set. Centralized so the paths
+stay in sync across web, init, and migration workloads.
+*/}}
+{{- define "istari-platform.trustedCertEnv" -}}
+- name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
+  value: /usr/lib/ssl/cert.pem
+- name: REQUESTS_CA_BUNDLE
+  value: /usr/lib/ssl/cert.pem
+- name: SSL_CERT_DIR
+  value: /usr/lib/ssl/certs
+- name: SSL_CERT_FILE
+  value: /usr/lib/ssl/cert.pem
 {{- end }}
 
 {{/*
