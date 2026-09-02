@@ -56,7 +56,7 @@ spec:
       {{- toYaml . | nindent 6 }}
       {{- end }}
       containers:
-      - name: {{ .Chart.Name | quote }}
+      - name: "istari-platform"
         {{- with $serviceValues.containerSecurityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}
@@ -124,26 +124,21 @@ spec:
             name: {{ . | quote }}
         {{- end }}
         {{- end }}
-        env:
+        {{- /* Same assembly contract as the sibling services (see "istari-platform.containerEnv"):
+        the downward-API identity blocks — and, when tracing is on, the chart OTEL defaults
+        (OTEL_SERVICE_NAME "api-gateway.web" and an OTEL_RESOURCE_ATTRIBUTES carrying this pod's
+        k8s identity) — render first, then the proxy-specific fragments below, then user env; the
+        whole list is deduped last-wins so apiGateway.env still overrides any of them. The proxy
+        keys its OTEL defaults on the resolved tracing setting, not jaeger.enabled directly. */}}
         {{- /* Caddy writes runtime state (autosaved config, storage) to the XDG dirs; point them at the emptyDir mounts so the root filesystem can stay read-only. */}}
-        - name: XDG_CONFIG_HOME
-          value: "/config"
-        - name: XDG_DATA_HOME
-          value: "/data"
+        {{- $extra := list (list (dict "name" "XDG_CONFIG_HOME" "value" "/config") (dict "name" "XDG_DATA_HOME" "value" "/data")) }}
         {{- if $tracingEnabled }}
-        {{- /*
-        Caddy's `tracing` directive exports OTLP over gRPC, so this targets Jaeger's
-        4317 (not the 4318 the Identity Service uses). Rendered BEFORE user `env` so
-        `apiGateway.env` entries still override these.
-        */}}
-        - name: OTEL_SERVICE_NAME
-          value: "api-gateway.web"
-        - name: OTEL_EXPORTER_OTLP_PROTOCOL
-          value: "grpc"
-        {{- if $jaegerEnabled }}
-        - name: OTEL_EXPORTER_OTLP_ENDPOINT
-          value: {{ include "istari-platform.jaeger.otlpUrl" . | quote }}
-        {{- end }}
+        {{- /* Caddy's `tracing` directive exports OTLP over gRPC, so this targets Jaeger's 4317
+        (not the 4318 the Identity Service uses). OTEL_SERVICE_NAME / OTEL_RESOURCE_ATTRIBUTES come
+        from the identity block above; these add the protocol and, with the bundled Jaeger, the endpoint. */}}
+        {{- $otel := list (dict "name" "OTEL_EXPORTER_OTLP_PROTOCOL" "value" "grpc") }}
+        {{- if $jaegerEnabled }}{{- $otel = append $otel (dict "name" "OTEL_EXPORTER_OTLP_ENDPOINT" "value" (include "istari-platform.jaeger.otlpUrl" .)) }}{{- end }}
+        {{- $extra = append $extra $otel }}
         {{- end }}
         {{- if .Values.trustedCertBundle }}
         {{- /*
@@ -155,12 +150,11 @@ spec:
         the Python siblings, does not) as a plain directory mount so it cannot depend
         on subPath-into-missing-parent behavior on the read-only rootfs.
         */}}
-        - name: SSL_CERT_FILE
-          value: /etc/ssl/istari/bundle.crt
+        {{- $extra = append $extra (list (dict "name" "SSL_CERT_FILE" "value" "/etc/ssl/istari/bundle.crt")) }}
         {{- end }}
-        {{- with $serviceValues.env }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+        {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
+        env:
+        {{- include "istari-platform.containerEnv" (dict "service" "api-gateway" "subservice" "web" "containerName" "istari-platform" "otelDefaults" $tracingEnabled "extra" $extra) | nindent 8 }}
         volumeMounts:
         - name: caddyfile
           mountPath: "/etc/caddy"

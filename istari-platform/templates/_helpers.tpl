@@ -102,27 +102,27 @@ In-cluster Jaeger OTLP HTTP URL. Resolves to `http://<jaeger-service-name>:4318`
 {{- end }}
 
 {{/*
-Per-workload identity env, shared by every container of every OTEL-emitting service (web, init,
-and migration Job). Always emits four downward-API building blocks — POD_NAME, POD_NAMESPACE,
-POD_UID (fieldRef) and a literal CONTAINER_NAME — so service code, third-party sidecars, and
-users can enrich telemetry off them regardless of tracing. Container name has no downward-API
-fieldRef, so CONTAINER_NAME is the literal `.containerName` the chart knows at render time.
+Per-workload identity env, shared by every container of every service (web, init, migration Job,
+and the API Gateway proxy). Always emits four downward-API building blocks — POD_NAME,
+POD_NAMESPACE, POD_UID (fieldRef) and a literal CONTAINER_NAME — so service code, third-party
+sidecars, and users can enrich telemetry off them regardless of tracing. Container name has no
+downward-API fieldRef, so CONTAINER_NAME is the literal `.containerName` the chart knows at
+render time.
 
-When `.jaegerEnabled`, it additionally sets a chart-default OTEL_SERVICE_NAME
+When `.otelDefaults`, it additionally sets a chart-default OTEL_SERVICE_NAME
 (`<service>.<subservice>`) and OTEL_RESOURCE_ATTRIBUTES built from those `$(VAR)` blocks, so
 traces carry accurate Kubernetes identity with zero user config. A user's own
 OTEL_RESOURCE_ATTRIBUTES — set in `<service>.env` or `<service>.migrations.env`, and free to
-reference the same `$(VAR)`s — overrides this default.
+reference the same `$(VAR)`s — overrides this default. The flag is "should the chart emit its
+OTEL defaults": the OTEL-SDK services pass `jaeger.enabled`; the API Gateway passes its own
+resolved tracing setting.
 
 `$(VAR)` expands only against env defined earlier in the SAME container and NOT against values
 delivered via `envFrom`, so these blocks must be explicit env and must precede any var that
-references them. Callers therefore render this FIRST, then user env, then pass the whole list
-through "istari-platform.dedupeEnv": on a repeated name the later (user) entry wins, collapsing
-to one entry — kubelet already takes the last value, and a single entry is what client-side
-strategic-merge patches (Argo CD's diff) require, since they key env by name and reject
-duplicates.
+references them. Callers do not invoke this directly — "istari-platform.containerEnv" renders it
+FIRST, then the caller's env fragments, then dedupes.
 
-Context: dict of "service", "subservice", "containerName", "jaegerEnabled".
+Context: dict of "service", "subservice", "containerName", "otelDefaults".
 */}}
 {{- define "istari-platform.workloadIdentityEnv" -}}
 - name: POD_NAME
@@ -139,12 +139,42 @@ Context: dict of "service", "subservice", "containerName", "jaegerEnabled".
       fieldPath: metadata.uid
 - name: CONTAINER_NAME
   value: {{ .containerName | quote }}
-{{- if .jaegerEnabled }}
+{{- if .otelDefaults }}
 - name: OTEL_SERVICE_NAME
   value: {{ printf "%s.%s" .service .subservice | quote }}
 - name: OTEL_RESOURCE_ATTRIBUTES
   value: "k8s.pod.name=$(POD_NAME),k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.uid=$(POD_UID),k8s.container.name=$(CONTAINER_NAME)"
 {{- end }}
+{{- end }}
+
+{{/*
+Assemble and emit one container's complete `env` list. This is the single place the env-assembly
+contract lives, shared by every service container (web, init, migration Job, registration Job,
+and the API Gateway proxy):
+
+  1. "istari-platform.workloadIdentityEnv" renders FIRST — the downward-API building blocks the
+     rest reference, plus the chart OTEL defaults when `.otelDefaults`.
+  2. Each fragment in `.extra` is concatenated after it, IN ORDER. A fragment is an
+     already-resolved list of env maps (service `env`, `migrations.env`, a registration Job's
+     `env`, natsEnv, trustedCertEnv, a bespoke proxy fragment, …). Put whatever must win on a
+     duplicate name LAST — typically user/service env, then per-Job env.
+  3. "istari-platform.dedupeEnv" collapses the result: each name appears once, first position,
+     last value — so a later fragment overrides an earlier default, the building blocks stay
+     ahead of the `$(VAR)`s that reference them, and the manifest stays patchable by a
+     client-side strategic merge (Argo CD's diff), which keys env by name and rejects duplicates.
+
+Empty/absent fragments are skipped, so callers can `append` conditionally without emitting holes.
+
+Context: dict of "service", "subservice", "containerName", "otelDefaults" (passed through to
+workloadIdentityEnv) and "extra" (a list of env lists). Output: YAML for the deduped list; the
+caller supplies the `env:` key and the `nindent`.
+*/}}
+{{- define "istari-platform.containerEnv" -}}
+{{- $env := include "istari-platform.workloadIdentityEnv" (dict "service" .service "subservice" .subservice "containerName" .containerName "otelDefaults" .otelDefaults) | fromYamlArray -}}
+{{- range $fragment := .extra -}}
+{{- if $fragment }}{{- $env = concat $env $fragment -}}{{- end -}}
+{{- end -}}
+{{- include "istari-platform.dedupeEnv" $env -}}
 {{- end }}
 
 {{/*
