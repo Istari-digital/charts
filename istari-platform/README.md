@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 5.3.1](https://img.shields.io/badge/Version-5.3.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.x.x](https://img.shields.io/badge/AppVersion-10.x.x-informational?style=flat-square)
+![Version: 5.7.1](https://img.shields.io/badge/Version-5.7.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -238,7 +238,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | fileservice.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | fileservice.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | fileservice.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| fileservice.tag | string | `"10.23.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| fileservice.tag | string | `"11.2.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | fileservice.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | fileservice.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -283,7 +283,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | frontend.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | frontend.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | frontend.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| frontend.tag | string | `"8.36.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| frontend.tag | string | `"8.38.2"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | frontend.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | frontend.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | frontend.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -299,6 +299,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.agentRegistration.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up successful registration hook `Job`s by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). |
 | identity.agentRegistration.backoffLimit | int | `6` | `spec.backoffLimit` for each registration Job (retries after a failed Pod). |
 | identity.agentRegistration.enabled | bool | `false` | Whether to render the agent-registration Jobs. Off by default. Safe to leave enabled across environments: the CLIs read their inputs from env vars (mounted via `envFrom`), so when an agent's key blob is absent (e.g. the registry client integration is disabled and its secrets are not provisioned) the release stays green rather than failing — `register-agent` skips registration and `create-tenant` skips the provider mapping. Not entirely side-effect-free, though: `create-tenant` still ensures the (empty) tenant row exists. So the secret's presence, not this flag, is the effective on/off switch for agent registration; enable it once and toggle the integration by provisioning (or not) the secret. Requires `identity.migrations.runAsJob=true` (so migrations run as a pre-upgrade hook before this one, guaranteeing the schema exists); rendering fails fast otherwise. |
+| identity.agentRegistration.env | list | `[]` | Extra environment variables applied to BOTH containers of every agent Job (the `create-tenant` init container and the `register-agent` container), rendered after the service-level `env` — on duplicate names, these win. The chart injects the downward-API building blocks (each container gets its own `CONTAINER_NAME`) but no `OTEL_*` default, since these Jobs do not initialize the OTEL SDK. Set common Job variables here; if you wire tracing yourself, an `OTEL_RESOURCE_ATTRIBUTES` referencing `$(CONTAINER_NAME)` keeps each container's correct name from the one shared list. |
 | identity.agentRegistration.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into every agent Job, in addition to `identity.secretName`. Use this to supply the secret(s) holding the agents' credential blobs and (from the istari-zitadel-configurator) their username / org id — the same pattern services use with `secretName` + `extraEnvSecrets`. Each is mounted `optional`, so a not-yet-provisioned secret leaves the release green (the CLIs no-op on the resulting empty values). |
 | identity.agentRegistration.podAnnotations | object | `{}` | Annotations for the registration Job Pod templates only (in addition to `sidecar.istio.io/inject: "false"`). |
 | identity.agentRegistration.podLabels | object | `{}` | Extra labels for the registration Job Pod templates only. |
@@ -342,6 +343,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.publicClientRegistration.backoffLimit | int | `6` | `spec.backoffLimit` for each registration Job (number of retries after a failed Pod). |
 | identity.publicClientRegistration.clients | list | `[]` | Public clients to register, one Job each. Fields per entry: `name` (required; used in the Job name and the `istari.digital/client` label, so it must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, at most 63 characters), `clientIdKey` (required; the `identity.secretName` key holding the client_id), `redirectUrisKey` (required; the key holding the comma-separated exact-match redirect allowlist). Example: `{name: frontend, clientIdKey: ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_CLIENT_ID, redirectUrisKey: ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS}`. |
 | identity.publicClientRegistration.enabled | bool | `false` | Whether to render the registration Jobs. Off by default: only enable in environments where `identity.secretName` carries every listed client's `clientIdKey`/`redirectUrisKey` (provisioned by your environment's secret management); otherwise the hook Jobs fail the release with a missing-secret-key error. Also requires an Identity Service image whose `register-client` supports `-public-client-id` (Identity Service 1.1.0 or later), and `identity.migrations.runAsJob=true` (so migrations run as a pre-install/pre-upgrade hook, weight 5, before these — guaranteeing the `client_type`/`redirect_uris` schema exists on fresh installs and upgrades alike); rendering fails fast otherwise. |
+| identity.publicClientRegistration.env | list | `[]` | Extra environment variables for every `register-public-client` container, rendered after the service-level `env` — on duplicate names, these win. The chart injects the downward-API building blocks (incl. `CONTAINER_NAME=register-public-client`) but no `OTEL_*` default here, since this Job does not initialize the OTEL SDK. Set Job-specific variables here; if you wire tracing yourself, set `OTEL_RESOURCE_ATTRIBUTES` referencing `$(CONTAINER_NAME)`. |
 | identity.publicClientRegistration.podAnnotations | object | `{}` | Annotations for the registration Job Pod templates only (in addition to `sidecar.istio.io/inject: "false"`). |
 | identity.publicClientRegistration.podLabels | object | `{}` | Extra labels for the registration Job Pod templates only. |
 | identity.publicClientRegistration.resources | object | `{}` | Resources for the registration Job containers. |
@@ -350,6 +352,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.registryClientRegistration.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful registration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). |
 | identity.registryClientRegistration.backoffLimit | int | `6` | `spec.backoffLimit` for the registration Job (number of retries after a failed Pod). |
 | identity.registryClientRegistration.enabled | bool | `false` | Whether to render the registration Job. Off by default: only enable in environments where the registry-service's Identity Service integration is turned on (so `identity.secretName` actually contains `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT`). Otherwise the hook Job fails the release with a missing-secret-key error. |
+| identity.registryClientRegistration.env | list | `[]` | Extra environment variables for the `register-client` container, rendered after the service-level `env` — on duplicate names, these win. The chart injects the downward-API building blocks (incl. `CONTAINER_NAME=register-client`) but no `OTEL_*` default here, since this Job does not initialize the OTEL SDK. Set Job-specific variables here; if you wire tracing yourself, set `OTEL_RESOURCE_ATTRIBUTES` referencing `$(CONTAINER_NAME)`. |
 | identity.registryClientRegistration.podAnnotations | object | `{}` | Annotations for the registration Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`). |
 | identity.registryClientRegistration.podLabels | object | `{}` | Extra labels for the registration Job Pod template only. |
 | identity.registryClientRegistration.resources | object | `{}` | Resources for the registration Job container. |
@@ -362,7 +365,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | identity.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | identity.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| identity.tag | string | `"1.2.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| identity.tag | string | `"1.2.3"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | identity.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | identity.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | identity.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -372,7 +375,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | identity.volumes | list | `[]` | Pod Volumes |
 | imagePullSecrets[0].name | string | `"docker-pull-secret"` |  |
-| jaeger.enabled | bool | `false` | Enable / Disable the Jaeger subchart. When `false`, the subchart is not rendered at all and no OTEL env vars are injected into any service. |
+| jaeger.enabled | bool | `false` | Enable / Disable the Jaeger subchart. When `false`, the subchart is not rendered at all and no `OTEL_*` env vars are injected into any service (the downward-API building blocks — `POD_NAME`, `POD_NAMESPACE`, `POD_UID`, `CONTAINER_NAME` — are still injected into the OTEL-emitting services regardless, so their app code can rely on them). |
 | jaeger.fullnameOverride | string | `"jaeger"` | Override the Jaeger resource name prefix. With the default `jaeger`, the in-cluster OTLP endpoints are `http://jaeger:4317` (gRPC) and `http://jaeger:4318` (HTTP). The injected `OTEL_EXPORTER_OTLP_ENDPOINT` values and the post-install notes track this override automatically. |
 | jaeger.jaeger.extraEnv | list | `[{"name":"OTEL_TRACES_SAMPLER","value":"always_off"},{"name":"GOMEMLIMIT","valueFrom":{"resourceFieldRef":{"divisor":"1","resource":"limits.memory"}}}]` | Extra env for the Jaeger container. `OTEL_TRACES_SAMPLER=always_off` disables Jaeger's self-tracing — without it, every UI search stores `jaeger` spans alongside real traces; ingestion of application traces is unaffected. Remove that entry if you need Jaeger's internal traces to debug Jaeger itself. `GOMEMLIMIT` tracks the container's memory limit so the Go GC compresses the heap near the cap instead of exiting out-of-memory. NOTE: if you set `extraEnv` in your own values file, it replaces this entire list rather than adding to it (Helm does not merge lists) — copy these default entries into your list unless you intend to remove them. |
 | jaeger.jaeger.extraVolumeMounts | list | `[{"mountPath":"/badger","name":"badger-data"}]` | Mounts the Badger storage volume at the path referenced by `jaeger.userconfig`. |
@@ -424,7 +427,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | mcp.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | mcp.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | mcp.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| mcp.tag | string | `"0.7.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| mcp.tag | string | `"0.8.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | mcp.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | mcp.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -497,7 +500,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | secureConnection.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | secureConnection.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | secureConnection.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| secureConnection.tag | string | `"10.22.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| secureConnection.tag | string | `"11.2.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | secureConnection.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | secureConnection.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |

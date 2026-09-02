@@ -85,22 +85,14 @@ spec:
             name: {{ . | quote }}
         {{- end }}
         {{- end }}
-        {{- if or $serviceValues.env .Values.trustedCertBundle }}
+        {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
+        {{- /* Chart identity blocks FIRST (always present); user env AFTER so it wins on
+        duplicate names; deduped last-wins so a repeated name collapses to one patchable entry. */}}
+        {{- $env := include "istari-platform.workloadIdentityEnv" (dict "service" "mcp" "subservice" "web" "containerName" .Chart.Name "jaegerEnabled" $jaegerEnabled) | fromYamlArray }}
+        {{- with $serviceValues.env }}{{- $env = concat $env . }}{{- end }}
+        {{- if .Values.trustedCertBundle }}{{- $env = concat $env (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
         env:
-        {{- with $serviceValues.env }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- if .Values.trustedCertBundle }}
-        - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
-          value: /usr/lib/ssl/cert.pem
-        - name: REQUESTS_CA_BUNDLE
-          value: /usr/lib/ssl/cert.pem
-        - name: SSL_CERT_DIR
-          value: /usr/lib/ssl/certs
-        - name: SSL_CERT_FILE
-          value: /usr/lib/ssl/cert.pem
-        {{- end }}
-        {{- end }}
+        {{- include "istari-platform.dedupeEnv" $env | nindent 8 }}
         {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
         volumeMounts:
         {{- with $serviceValues.volumeMounts }}

@@ -20,6 +20,10 @@
        — via the configurator — its username/org id here, the same way services
        mount config with secretName + extraEnvSecrets. */ -}}
 {{- $registrationExtraEnvSecrets := dig "extraEnvSecrets" list $registration -}}
+{{- /* Extra env for both Job containers (create-tenant, register-agent), rendered
+       after the service-level env so it wins on duplicate names — e.g. to correct
+       OTEL k8s.container.name off the fanned-in service value. */ -}}
+{{- $registrationEnv := dig "env" list $registration -}}
 {{- /* Canonical Identity Service DB URL key; present in secretName, surfaced as an
        env var by envFrom and read via the CLIs' -database-url-env flag. */ -}}
 {{- $dbURLEnv := "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" -}}
@@ -92,6 +96,7 @@ spec:
       # registered only after it succeeds. Both talk only to the database.
       initContainers:
       - name: create-tenant
+        {{- $regContainer := "create-tenant" }}
         {{- with $serviceValues.containerSecurityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}
@@ -127,19 +132,17 @@ spec:
             name: {{ $s | quote }}
             optional: true
         {{- end }}
-        {{- if or $serviceValues.env $.Values.trustedCertBundle }}
+        {{- /* Downward-API building blocks (incl. per-container CONTAINER_NAME) FIRST; service env
+        then job env AFTER so job env wins on duplicate names; deduped last-wins so a repeated name
+        collapses to one patchable entry. jaegerEnabled=false: these Jobs do not initialize the OTEL
+        SDK, so the chart sets no OTEL_* default — set OTEL_RESOURCE_ATTRIBUTES via env if you wire
+        tracing (reference $(CONTAINER_NAME)). Go honors SSL_CERT_DIR / SSL_CERT_FILE for a CA bundle. */}}
+        {{- $env := include "istari-platform.workloadIdentityEnv" (dict "service" "identity" "subservice" $regContainer "containerName" $regContainer "jaegerEnabled" false) | fromYamlArray }}
+        {{- with $serviceValues.env }}{{- $env = concat $env . }}{{- end }}
+        {{- with $registrationEnv }}{{- $env = concat $env . }}{{- end }}
+        {{- if $.Values.trustedCertBundle }}{{- $env = concat $env (list (dict "name" "SSL_CERT_DIR" "value" "/usr/lib/ssl/certs") (dict "name" "SSL_CERT_FILE" "value" "/usr/lib/ssl/cert.pem")) }}{{- end }}
         env:
-        {{- with $serviceValues.env }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- if $.Values.trustedCertBundle }}
-        # Go honors SSL_CERT_FILE / SSL_CERT_DIR for a custom CA bundle.
-        - name: SSL_CERT_DIR
-          value: /usr/lib/ssl/certs
-        - name: SSL_CERT_FILE
-          value: /usr/lib/ssl/cert.pem
-        {{- end }}
-        {{- end }}
+        {{- include "istari-platform.dedupeEnv" $env | nindent 8 }}
         {{- with $registrationResources }}
         resources:
           {{- toYaml . | nindent 10 }}
@@ -157,6 +160,7 @@ spec:
         {{- end }}
       containers:
       - name: register-agent
+        {{- $regContainer = "register-agent" }}
         {{- with $serviceValues.containerSecurityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}
@@ -192,19 +196,17 @@ spec:
             name: {{ $s | quote }}
             optional: true
         {{- end }}
-        {{- if or $serviceValues.env $.Values.trustedCertBundle }}
+        {{- /* Downward-API building blocks (incl. per-container CONTAINER_NAME) FIRST; service env
+        then job env AFTER so job env wins on duplicate names; deduped last-wins so a repeated name
+        collapses to one patchable entry. jaegerEnabled=false: these Jobs do not initialize the OTEL
+        SDK, so the chart sets no OTEL_* default — set OTEL_RESOURCE_ATTRIBUTES via env if you wire
+        tracing (reference $(CONTAINER_NAME)). Go honors SSL_CERT_DIR / SSL_CERT_FILE for a CA bundle. */}}
+        {{- $env := include "istari-platform.workloadIdentityEnv" (dict "service" "identity" "subservice" $regContainer "containerName" $regContainer "jaegerEnabled" false) | fromYamlArray }}
+        {{- with $serviceValues.env }}{{- $env = concat $env . }}{{- end }}
+        {{- with $registrationEnv }}{{- $env = concat $env . }}{{- end }}
+        {{- if $.Values.trustedCertBundle }}{{- $env = concat $env (list (dict "name" "SSL_CERT_DIR" "value" "/usr/lib/ssl/certs") (dict "name" "SSL_CERT_FILE" "value" "/usr/lib/ssl/cert.pem")) }}{{- end }}
         env:
-        {{- with $serviceValues.env }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- if $.Values.trustedCertBundle }}
-        # Go honors SSL_CERT_FILE / SSL_CERT_DIR for a custom CA bundle.
-        - name: SSL_CERT_DIR
-          value: /usr/lib/ssl/certs
-        - name: SSL_CERT_FILE
-          value: /usr/lib/ssl/cert.pem
-        {{- end }}
-        {{- end }}
+        {{- include "istari-platform.dedupeEnv" $env | nindent 8 }}
         {{- with $registrationResources }}
         resources:
           {{- toYaml . | nindent 10 }}
