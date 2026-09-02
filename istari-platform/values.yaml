@@ -407,9 +407,9 @@ mcp:
   resources:
     requests:
       cpu: "250m"
-      memory: 512Mi
+      memory: 1Gi
     limits:
-      memory: 512Mi
+      memory: 1Gi
   # -- Tolerations.
   # Example:
   #

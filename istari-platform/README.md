@@ -419,9 +419,9 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | mcp.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | mcp.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.replicaCount | int | `1` | Replica count |
-| mcp.resources.limits.memory | string | `"512Mi"` |  |
+| mcp.resources.limits.memory | string | `"1Gi"` |  |
 | mcp.resources.requests.cpu | string | `"250m"` |  |
-| mcp.resources.requests.memory | string | `"512Mi"` |  |
+| mcp.resources.requests.memory | string | `"1Gi"` |  |
 | mcp.restartPolicy | string | `"Always"` | Restart policy |
 | mcp.secretName | string | `"istari-mcp"` | Secret name. The secret should contain the environment variables required by the service. Note that a ConfigMap is also automatically created & used with the correct value for ISTARI_DIGITAL_REGISTRY_SERVICE_URL |
 | mcp.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
