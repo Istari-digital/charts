@@ -102,7 +102,7 @@ fileservice:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set CPU/memory requests.
+  # -- Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
   resources:
     requests:
       cpu: "3"
@@ -253,7 +253,7 @@ frontend:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set CPU/memory requests.
+  # -- Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
   resources:
     requests:
       cpu: "100m"
@@ -403,7 +403,7 @@ mcp:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set CPU/memory requests.
+  # -- Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
   resources:
     requests:
       cpu: "250m"
@@ -548,7 +548,7 @@ secureConnection:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set CPU/memory requests.
+  # -- Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
   resources:
     requests:
       cpu: "3"
@@ -705,7 +705,7 @@ identity:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set CPU/memory requests.
+  # -- Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
   resources:
     requests:
       cpu: "1"
