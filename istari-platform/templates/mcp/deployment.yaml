@@ -39,7 +39,7 @@ spec:
       {{- toYaml . | nindent 6 }}
       {{- end }}
       containers:
-      - name: {{ .Chart.Name | quote }}
+      - name: "istari-platform"
         {{- with $serviceValues.containerSecurityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}
@@ -86,13 +86,14 @@ spec:
         {{- end }}
         {{- end }}
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
-        {{- /* Chart identity blocks FIRST (always present); user env AFTER so it wins on
-        duplicate names; deduped last-wins so a repeated name collapses to one patchable entry. */}}
-        {{- $env := include "istari-platform.workloadIdentityEnv" (dict "service" "mcp" "subservice" "web" "containerName" .Chart.Name "jaegerEnabled" $jaegerEnabled) | fromYamlArray }}
-        {{- with $serviceValues.env }}{{- $env = concat $env . }}{{- end }}
-        {{- if .Values.trustedCertBundle }}{{- $env = concat $env (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
+        {{- /* Chart identity/OTEL defaults render first; the fragments below are appended in
+        order and deduped last-wins, so service env overrides a chart default and a repeated name
+        collapses to one patchable entry. */}}
+        {{- $extra := list }}
+        {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
+        {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
         env:
-        {{- include "istari-platform.dedupeEnv" $env | nindent 8 }}
+        {{- include "istari-platform.containerEnv" (dict "service" "mcp" "subservice" "web" "containerName" "istari-platform" "otelDefaults" $jaegerEnabled "extra" $extra) | nindent 8 }}
         {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
         volumeMounts:
         {{- with $serviceValues.volumeMounts }}
