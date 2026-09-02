@@ -102,8 +102,13 @@ fileservice:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set resources
-  resources: {}
+  # -- Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
+  resources:
+    requests:
+      cpu: "3"
+      memory: 8Gi
+    limits:
+      memory: 8Gi
   # -- Pod Volumes
   volumes: []
   # -- Volume Mounts for pod containers
@@ -248,8 +253,13 @@ frontend:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set resources
-  resources: {}
+  # -- Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
+  resources:
+    requests:
+      cpu: "100m"
+      memory: 256Mi
+    limits:
+      memory: 256Mi
   # -- Tolerations.
   # Example:
   #
@@ -393,8 +403,13 @@ mcp:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set resources
-  resources: {}
+  # -- Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
+  resources:
+    requests:
+      cpu: "250m"
+      memory: 1Gi
+    limits:
+      memory: 1Gi
   # -- Tolerations.
   # Example:
   #
@@ -533,8 +548,13 @@ secureConnection:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set resources
-  resources: {}
+  # -- Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
+  resources:
+    requests:
+      cpu: "3"
+      memory: 8Gi
+    limits:
+      memory: 8Gi
   # -- Pod Volumes
   volumes: []
   # -- Volume Mounts for pod containers
@@ -685,8 +705,13 @@ identity:
     cpuUtilization: 80
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
-  # Resources -- set resources
-  resources: {}
+  # -- Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      memory: 2Gi
   # -- Pod Volumes
   volumes: []
   # -- Volume Mounts for pod containers
