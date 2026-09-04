@@ -1,0 +1,172 @@
+{{- $serviceValues := .Values.identity -}}
+{{- $idp := dig "idpMigration" dict $serviceValues -}}
+{{- $idpEnabled := dig "enabled" false $idp -}}
+{{- if and $serviceValues.enabled $idpEnabled }}
+{{- $idpBackoff := dig "backoffLimit" 3 $idp -}}
+{{- $idpCleanup := dig "autoCleanupSuccessfulJob" true $idp -}}
+{{- $idpPodAnnotations := dig "podAnnotations" dict $idp -}}
+{{- $idpPodLabels := dig "podLabels" dict $idp -}}
+{{- $idpEnv := dig "env" list $idp -}}
+{{- $idpResources := dig "resources" dict $idp -}}
+{{- /* Genuinely-new operator inputs: which IdP is outgoing (+ its issuer, still live at pre-upgrade time) and which is incoming. Everything else inherits. */ -}}
+{{- $from := dig "from" "zitadel" $idp -}}
+{{- $fromIssuer := required "identity.idpMigration.fromIssuer is required when identity.idpMigration.enabled=true (the outgoing IdP issuer, still reachable at pre-upgrade time)" (dig "fromIssuer" "" $idp) -}}
+{{- $to := required "identity.idpMigration.to is required when identity.idpMigration.enabled=true (the incoming IdP provider, e.g. keycloak)" (dig "to" "" $idp) -}}
+{{- $dbEnv := dig "databaseUrlEnv" "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" $idp -}}
+{{- $credEnv := dig "credentialEnv" "ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY" $idp -}}
+{{- $slugPrefix := dig "slugPrefix" "" $idp -}}
+{{- $incomingGrouping := dig "incomingGrouping" "" $idp -}}
+{{- $incomingTenantSlug := dig "incomingTenantSlug" "" $idp -}}
+{{- $dryRun := dig "dryRun" false $idp -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "identity.fullname" . }}-idp-migrate
+  labels:
+    {{- include "identity.labels" . | nindent 4 }}
+  annotations:
+    # pre-upgrade only: a fresh install has no outgoing IdP to migrate from.
+    # Weight 10 runs AFTER the schema migration (db-migrate, weight 5), so the
+    # tables migrate-idp writes into already exist.
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: {{ if $idpCleanup }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+spec:
+  backoffLimit: {{ $idpBackoff | int }}
+  template:
+    metadata:
+      labels:
+        {{- include "identity.labels" . | nindent 8 }}
+        {{- with $idpPodLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $idpPodAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "identity.fullname" . | quote }}
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: idp-migrate
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command:
+        - "/migrate-idp"
+        - "-from"
+        - {{ $from | quote }}
+        - "-issuer"
+        - {{ $fromIssuer | quote }}
+        - "-incoming-provider"
+        - {{ $to | quote }}
+        - "-database-url-env"
+        - {{ $dbEnv | quote }}
+        - "-credential-env"
+        - {{ $credEnv | quote }}
+        {{- if $slugPrefix }}
+        - "-slug-prefix"
+        - {{ $slugPrefix | quote }}
+        {{- end }}
+        {{- if $incomingGrouping }}
+        - "-incoming-grouping"
+        - {{ $incomingGrouping | quote }}
+        - "-incoming-tenant-slug"
+        - {{ required "identity.idpMigration.incomingTenantSlug is required when identity.idpMigration.incomingGrouping is set" $incomingTenantSlug | quote }}
+        {{- end }}
+        {{- if $dryRun }}
+        - "-dry-run"
+        {{- end }}
+        {{- with $idpResources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- /* Inherit the app's config + secrets: the DB URL and outgoing-IdP credential the CLIs read via -*-env indirection come from these, so there are no new plaintext env vars. */}}
+        envFrom:
+        - configMapRef:
+            name: {{ include "identity.configmap.name" . | quote }}
+        {{- with $serviceValues.extraEnvConfigMaps }}
+        {{- range . }}
+        - configMapRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if $serviceValues.secretName }}
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- end }}
+        {{- with $serviceValues.extraEnvSecrets }}
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
+        {{- if or $serviceValues.env $idpEnv .Values.trustedCertBundle $jaegerEnabled }}
+        env:
+        {{- if $jaegerEnabled }}
+        {{- include "istari-platform.otelWorkloadEnv" (dict "service" "identity" "container" "idp-migrate") | nindent 8 }}
+        {{- end }}
+        {{- with $serviceValues.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with $idpEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
+          value: /usr/lib/ssl/cert.pem
+        - name: REQUESTS_CA_BUNDLE
+          value: /usr/lib/ssl/cert.pem
+        - name: SSL_CERT_DIR
+          value: /usr/lib/ssl/certs
+        - name: SSL_CERT_FILE
+          value: /usr/lib/ssl/cert.pem
+        {{- end }}
+        {{- end }}
+        {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
+        volumeMounts:
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+        {{- end }}
+      {{- if or $serviceValues.volumes .Values.trustedCertBundle }}
+      volumes:
+      {{- with $serviceValues.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if .Values.trustedCertBundle }}
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" . | quote }}
+      {{- end }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}
