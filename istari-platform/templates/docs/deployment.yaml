@@ -39,7 +39,7 @@ spec:
       {{- toYaml . | nindent 6 }}
       {{- end }}
       containers:
-      - name: {{ .Chart.Name | quote }}
+      - name: "istari-platform"
         {{- with $serviceValues.containerSecurityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}
