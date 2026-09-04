@@ -145,6 +145,45 @@ fileservice:
     podLabels: {}
     # -- Extra environment variables for the migration workloads only (the `db-migrate` Job, or the `init-db` init container when `runAsJob` is `false`), rendered after the service-level `env` — on duplicate names, these win.
     env: []
+  # IdP migration -- one-shot Helm `pre-upgrade` hook that migrates an existing
+  # deployment from its current upstream IdP (e.g. Zitadel) to a new one (e.g.
+  # Keycloak). Runs the `migrate-idp` orchestrator (tenants → roles → users →
+  # incoming realm mapping) once, before the identity Deployment rolls onto the
+  # new IdP. Idempotent and additive — safe to leave enabled across upgrades (a
+  # no-op once migrated).
+  idpMigration:
+    # -- Enable the pre-upgrade IdP-migration Job. Off by default; a fresh install has no outgoing IdP to migrate from.
+    enabled: false
+    # -- Outgoing IdP provider to enumerate (only `zitadel` is supported today).
+    from: zitadel
+    # -- Outgoing IdP issuer base URL. **Required when enabled** and must still be reachable at pre-upgrade time (the Job enumerates it before the login IdP flips).
+    fromIssuer: ""
+    # -- Incoming IdP provider name the migration targets (e.g. `keycloak`). **Required when enabled.**
+    to: ""
+    # -- Env var (in the mounted secret/config) holding the PostgreSQL connection string. Inherited, never re-declared — no new plaintext env vars.
+    databaseUrlEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
+    # -- Env var holding the outgoing-IdP viewer credential (the least-privilege service-account key identity already provisions). Inherited, never re-declared.
+    credentialEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY
+    # -- Optional slug prefix for derived tenants (recommended to avoid cross-provider collisions); forwarded to bootstrap-tenants.
+    slugPrefix: ""
+    # -- Incoming IdP grouping id (e.g. a Keycloak realm) to map to an identity tenant. Set together with `incomingTenantSlug` to seed the incoming realm → same-tenant mapping automatically.
+    incomingGrouping: ""
+    # -- Identity tenant slug the incoming grouping maps to. Required when `incomingGrouping` is set.
+    incomingTenantSlug: ""
+    # -- Print what would be migrated without writing (forwarded to every phase that supports it). The incoming-mapping step is announced but skipped under dry-run.
+    dryRun: false
+    # -- `spec.backoffLimit` for the Job (retries after a failed Pod). A few retries ride out transient IdP-API hiccups.
+    backoffLimit: 3
+    # -- Automatically clean up the successful hook Job by adding `hook-succeeded` to `helm.sh/hook-delete-policy`.
+    autoCleanupSuccessfulJob: true
+    # -- Annotations for the migration Job Pod template only.
+    podAnnotations: {}
+    # -- Extra labels for the migration Job Pod template only.
+    podLabels: {}
+    # -- Extra environment variables for the migration Job only, rendered after the service-level `env` (on duplicate names, these win).
+    env: []
+    # -- Resource requests/limits for the migration Job.
+    resources: {}
   # Ingress -- optional Kubernetes Ingress for this service.
   ingress:
     # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
