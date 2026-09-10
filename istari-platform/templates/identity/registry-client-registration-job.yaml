@@ -70,26 +70,21 @@ spec:
         - "$(REGISTRY_CLIENT_PUBLIC_KEY_BLOB)"
         - "-database-url"
         - "$(DATABASE_URL)"
+        {{- /* Every env var — the required secret-backed vars first, then service env, then job
+        env — flows through containerEnv, so the whole list (identity blocks included) is deduped
+        last-wins to one patchable entry per name; a user override of DATABASE_URL et al. therefore
+        wins cleanly instead of producing a duplicate. The secret vars lead so args' $(VAR) refs are
+        defined; kubelet expands args against the full env set irrespective of order. otelDefaults
+        false: this Job does not initialize the OTEL SDK, so the chart sets no OTEL_* default. */}}
+        {{- $secretEnv := list
+            (dict "name" "REGISTRY_CLIENT_PUBLIC_KEY_BLOB" "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" "ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT")))
+            (dict "name" "DATABASE_URL" "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"))) }}
+        {{- $extra := list $secretEnv }}
+        {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
+        {{- with $registrationEnv }}{{- $extra = append $extra . }}{{- end }}
+        {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
         env:
-        - name: REGISTRY_CLIENT_PUBLIC_KEY_BLOB
-          valueFrom:
-            secretKeyRef:
-              name: {{ $serviceValues.secretName | quote }}
-              key: "ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT"
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: {{ $serviceValues.secretName | quote }}
-              key: "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"
-        {{- /* Downward-API building blocks (always present) + service env + job env, deduped
-        last-wins so job env wins on duplicate names and repeats collapse to one patchable entry.
-        jaegerEnabled=false: this Job does not initialize the OTEL SDK, so the chart sets no OTEL_*
-        default — set OTEL_RESOURCE_ATTRIBUTES via env if you wire tracing (reference $(CONTAINER_NAME)). */}}
-        {{- $env := include "istari-platform.workloadIdentityEnv" (dict "service" "identity" "subservice" "register-client" "containerName" "register-client" "jaegerEnabled" false) | fromYamlArray }}
-        {{- with $serviceValues.env }}{{- $env = concat $env . }}{{- end }}
-        {{- with $registrationEnv }}{{- $env = concat $env . }}{{- end }}
-        {{- if .Values.trustedCertBundle }}{{- $env = concat $env (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
-        {{- include "istari-platform.dedupeEnv" $env | nindent 8 }}
+        {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "register-client" "containerName" "register-client" "otelDefaults" false "extra" $extra) | nindent 8 }}
         {{- with $registrationResources }}
         resources:
           {{- toYaml . | nindent 10 }}
