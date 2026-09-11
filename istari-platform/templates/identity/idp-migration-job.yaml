@@ -125,28 +125,15 @@ spec:
         {{- end }}
         {{- end }}
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
-        {{- if or $serviceValues.env $idpEnv .Values.trustedCertBundle $jaegerEnabled }}
+        {{- /* Chart identity/OTEL defaults render first; the fragments below are appended in
+        order (service env, then idpMigration.env, then cert) and deduped last-wins, so later
+        fragments override earlier ones and a repeated name collapses to one patchable entry. */}}
+        {{- $extra := list }}
+        {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
+        {{- with $idpEnv }}{{- $extra = append $extra . }}{{- end }}
+        {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
         env:
-        {{- if $jaegerEnabled }}
-        {{- include "istari-platform.otelWorkloadEnv" (dict "service" "identity" "container" "idp-migrate") | nindent 8 }}
-        {{- end }}
-        {{- with $serviceValues.env }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- with $idpEnv }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- if .Values.trustedCertBundle }}
-        - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
-          value: /usr/lib/ssl/cert.pem
-        - name: REQUESTS_CA_BUNDLE
-          value: /usr/lib/ssl/cert.pem
-        - name: SSL_CERT_DIR
-          value: /usr/lib/ssl/certs
-        - name: SSL_CERT_FILE
-          value: /usr/lib/ssl/cert.pem
-        {{- end }}
-        {{- end }}
+        {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "idp-migrate" "containerName" "idp-migrate" "otelDefaults" $jaegerEnabled "extra" $extra) | nindent 8 }}
         {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
         volumeMounts:
         {{- with $serviceValues.volumeMounts }}
