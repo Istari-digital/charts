@@ -24,8 +24,6 @@
 {{- $dbEnv := dig "databaseUrlEnv" "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" $idp -}}
 {{- $credEnv := dig "credentialEnv" "ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY" $idp -}}
 {{- $slugPrefix := dig "slugPrefix" "" $idp -}}
-{{- $incomingGrouping := dig "incomingGrouping" "" $idp -}}
-{{- $incomingTenantSlug := dig "incomingTenantSlug" "" $idp -}}
 {{- $dryRun := dig "dryRun" false $idp -}}
 apiVersion: batch/v1
 kind: Job
@@ -90,12 +88,6 @@ spec:
         {{- if $slugPrefix }}
         - "-slug-prefix"
         - {{ $slugPrefix | quote }}
-        {{- end }}
-        {{- if $incomingGrouping }}
-        - "-incoming-grouping"
-        - {{ $incomingGrouping | quote }}
-        - "-incoming-tenant-slug"
-        - {{ required "identity.idpMigration.incomingTenantSlug is required when identity.idpMigration.incomingGrouping is set" $incomingTenantSlug | quote }}
         {{- end }}
         {{- if $dryRun }}
         - "-dry-run"

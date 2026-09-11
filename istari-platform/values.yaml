@@ -815,8 +815,8 @@ identity:
     agents: []
   # IdP migration -- one-shot Helm `pre-upgrade` hook that migrates an existing
   # deployment from its current upstream IdP (e.g. Zitadel) to a new one (e.g.
-  # Keycloak). Runs the `migrate-idp` orchestrator (tenants → roles → users →
-  # incoming realm mapping) once, before the identity Deployment rolls onto the
+  # Keycloak). Runs the `migrate-idp` orchestrator (tenants → roles → users)
+  # once, before the identity Deployment rolls onto the
   # new IdP. Idempotent and additive — safe to leave enabled across upgrades (a
   # no-op once migrated). Requires `identity.migrations.runAsJob=true` (so the
   # schema Job runs first, weight 5, before this weight-10 hook); rendering
@@ -836,10 +836,6 @@ identity:
     credentialEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY
     # -- Optional slug prefix for derived tenants (recommended to avoid cross-provider collisions); forwarded to bootstrap-tenants.
     slugPrefix: ""
-    # -- Incoming IdP grouping id (e.g. a Keycloak realm) to map to an identity tenant. Set together with `incomingTenantSlug` to seed the incoming realm → same-tenant mapping automatically.
-    incomingGrouping: ""
-    # -- Identity tenant slug the incoming grouping maps to. Required when `incomingGrouping` is set.
-    incomingTenantSlug: ""
     # -- Print what would be migrated without writing (forwarded to every phase that supports it). The incoming-mapping step is announced but skipped under dry-run.
     dryRun: false
     # -- `spec.backoffLimit` for the Job (retries after a failed Pod). A few retries ride out transient IdP-API hiccups.

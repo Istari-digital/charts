@@ -323,8 +323,6 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.idpMigration.env | list | `[]` | Extra environment variables for the migration Job only, rendered after the service-level `env` (on duplicate names, these win). |
 | identity.idpMigration.from | string | `"zitadel"` | Outgoing IdP provider to enumerate (only `zitadel` is supported today; any other value fails rendering). |
 | identity.idpMigration.fromIssuer | string | `""` | Outgoing IdP issuer base URL. **Required when enabled** and must still be reachable at pre-upgrade time (the Job enumerates it before the login IdP flips). |
-| identity.idpMigration.incomingGrouping | string | `""` | Incoming IdP grouping id (e.g. a Keycloak realm) to map to an identity tenant. Set together with `incomingTenantSlug` to seed the incoming realm → same-tenant mapping automatically. |
-| identity.idpMigration.incomingTenantSlug | string | `""` | Identity tenant slug the incoming grouping maps to. Required when `incomingGrouping` is set. |
 | identity.idpMigration.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only. |
 | identity.idpMigration.podLabels | object | `{}` | Extra labels for the migration Job Pod template only. |
 | identity.idpMigration.resources | object | `{}` | Resource requests/limits for the migration Job. |
