@@ -646,8 +646,8 @@ identity:
   secretName: "istari-identity"
   # -- Upstream OIDC / IdP configuration — the NON-secret half of pointing identity at an IdP.
   # Each field set here renders as an explicit `env` entry on the identity container as the matching
-  # `ISTARI_DIGITAL_IDENTITY_SERVICE_*` var, so switching IdP (e.g. Zitadel → Keycloak) is a values
-  # change applied in the same `helm upgrade` that enables `idpMigration`. Explicit `env` beats
+  # `ISTARI_DIGITAL_IDENTITY_SERVICE_*` var, so switching the upstream IdP (e.g. Zitadel → Keycloak)
+  # is a values change applied via `helm upgrade`. Explicit `env` beats
   # `envFrom`, so these values win over any same-named key in `secretName` — no need to scrub old
   # OIDC keys from the Secret. The client SECRET is NOT here — it stays in `secretName`
   # (`ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_SECRET`, or `..._OIDC_PRIVATE_KEY` for
