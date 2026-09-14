@@ -18,28 +18,6 @@ metadata:
   {{- end }}
 data:
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
-  {{- /* Upstream OIDC/IdP config (identity.oidc.*): the non-secret half of pointing identity at an
-  IdP. Each key renders only when set, so an empty block leaves today's Secret-driven config
-  untouched. The client secret / private key stay in `secretName`. */}}
-  {{- $oidc := dig "oidc" dict $serviceValues }}
-  {{- with dig "provider" "" $oidc }}
-  ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER: {{ . | quote }}
-  {{- end }}
-  {{- with dig "issuer" "" $oidc }}
-  ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER: {{ . | quote }}
-  {{- end }}
-  {{- with dig "clientId" "" $oidc }}
-  ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_ID: {{ . | quote }}
-  {{- end }}
-  {{- with dig "clientAuthMethod" "" $oidc }}
-  ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_AUTH_METHOD: {{ . | quote }}
-  {{- end }}
-  {{- with dig "scopes" "" $oidc }}
-  ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_SCOPES: {{ . | quote }}
-  {{- end }}
-  {{- with dig "defaultTenantId" "" $oidc }}
-  ISTARI_DIGITAL_IDENTITY_SERVICE_JWT_DEFAULT_TENANT_ID: {{ . | quote }}
-  {{- end }}
   {{- if dig "enabled" false (default dict .Values.jaeger) }}
   {{- /* the Identity Service uses the OTLP/HTTP exporter → target Jaeger's 4318, not the gRPC 4317
   fileservice uses. Per-container OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES are set as
