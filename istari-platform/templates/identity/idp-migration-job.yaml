@@ -1,0 +1,166 @@
+{{- $serviceValues := .Values.identity -}}
+{{- $idp := dig "idpMigration" dict $serviceValues -}}
+{{- $idpEnabled := dig "enabled" false $idp -}}
+{{- if and $serviceValues.enabled $idpEnabled }}
+{{- /* This weight-10 pre-upgrade hook runs migrate-idp against the schema, so
+       the weight-5 db-migrate hook must have run first — which it only does
+       when migrations.runAsJob=true. With runAsJob=false migrations run as a
+       Deployment initContainer (after all hooks), so migrate-idp would hit an
+       unmigrated schema. Fail rendering, exactly as the registration hooks do. */ -}}
+{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identity.idpMigration.enabled requires identity.migrations.runAsJob=true, so DB migrations run as a pre-upgrade hook (weight 5) before this weight-10 migrate-idp hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and migrate-idp would run against a missing schema" }}{{ end }}
+{{- $idpBackoff := dig "backoffLimit" 3 $idp -}}
+{{- $idpCleanup := dig "autoCleanupSuccessfulJob" true $idp -}}
+{{- $idpPodAnnotations := dig "podAnnotations" dict $idp -}}
+{{- $idpPodLabels := dig "podLabels" dict $idp -}}
+{{- $idpEnv := dig "env" list $idp -}}
+{{- $idpResources := dig "resources" dict $idp -}}
+{{- /* Genuinely-new operator inputs: which IdP is outgoing (+ its issuer, still live at pre-upgrade time) and which is incoming. Everything else inherits. */ -}}
+{{- $from := dig "from" "zitadel" $idp -}}
+{{- /* Only zitadel enumeration is implemented; forwarding any other value would
+       fail migrate-idp after the upgrade has already started. Reject it here. */ -}}
+{{- if ne $from "zitadel" }}{{ fail (printf "identity.idpMigration.from must be \"zitadel\" (the only supported outgoing IdP), got %q" $from) }}{{ end }}
+{{- $fromIssuer := required "identity.idpMigration.fromIssuer is required when identity.idpMigration.enabled=true (the outgoing IdP issuer, still reachable at pre-upgrade time)" (dig "fromIssuer" "" $idp) -}}
+{{- $to := required "identity.idpMigration.to is required when identity.idpMigration.enabled=true (the incoming IdP provider, e.g. keycloak)" (dig "to" "" $idp) -}}
+{{- /* required guards an EXPLICIT empty override (dig still supplies the default when the key is
+       absent): an empty -database-url-env / -credential-env would pass through to migrate-idp and
+       fail only at runtime, after the upgrade has begun. Fail at render instead. */ -}}
+{{- $dbEnv := required "identity.idpMigration.databaseUrlEnv must not be empty (the env var name holding the PostgreSQL connection string)" (dig "databaseUrlEnv" "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" $idp) -}}
+{{- $credEnv := required "identity.idpMigration.credentialEnv must not be empty (the env var name holding the outgoing-IdP credential)" (dig "credentialEnv" "ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY" $idp) -}}
+{{- $slugPrefix := dig "slugPrefix" "" $idp -}}
+{{- $dryRun := dig "dryRun" false $idp -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "identity.fullname" . }}-idp-migrate
+  labels:
+    {{- include "identity.labels" . | nindent 4 }}
+  annotations:
+    # pre-upgrade only: a fresh install has no outgoing IdP to migrate from.
+    # Weight 10 runs AFTER the schema migration (db-migrate, weight 5), so the
+    # tables migrate-idp writes into already exist.
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: {{ if $idpCleanup }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+spec:
+  backoffLimit: {{ $idpBackoff | int }}
+  template:
+    metadata:
+      labels:
+        {{- include "identity.labels" . | nindent 8 }}
+        {{- with $idpPodLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $idpPodAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "identity.fullname" . | quote }}
+      # migrate-idp talks to PostgreSQL and the outgoing IdP only — never the
+      # Kubernetes API — so it has no need for a mounted SA token.
+      automountServiceAccountToken: false
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: idp-migrate
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command:
+        - "/migrate-idp"
+        - "-from"
+        - {{ $from | quote }}
+        - "-issuer"
+        - {{ $fromIssuer | quote }}
+        - "-incoming-provider"
+        - {{ $to | quote }}
+        - "-database-url-env"
+        - {{ $dbEnv | quote }}
+        - "-credential-env"
+        - {{ $credEnv | quote }}
+        {{- if $slugPrefix }}
+        - "-slug-prefix"
+        - {{ $slugPrefix | quote }}
+        {{- end }}
+        {{- if $dryRun }}
+        - "-dry-run"
+        {{- end }}
+        {{- with $idpResources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- /* Inherit the app's config + secrets: the DB URL and outgoing-IdP credential the CLIs read via -*-env indirection come from these, so there are no new plaintext env vars. */}}
+        envFrom:
+        - configMapRef:
+            name: {{ include "identity.configmap.name" . | quote }}
+        {{- with $serviceValues.extraEnvConfigMaps }}
+        {{- range . }}
+        - configMapRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if $serviceValues.secretName }}
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- end }}
+        {{- with $serviceValues.extraEnvSecrets }}
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
+        {{- /* Chart identity/OTEL defaults render first; the fragments below are appended in
+        order (service env, then idpMigration.env, then cert) and deduped last-wins, so later
+        fragments override earlier ones and a repeated name collapses to one patchable entry. */}}
+        {{- $extra := list }}
+        {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
+        {{- with $idpEnv }}{{- $extra = append $extra . }}{{- end }}
+        {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
+        env:
+        {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "idp-migrate" "containerName" "idp-migrate" "otelDefaults" $jaegerEnabled "extra" $extra) | nindent 8 }}
+        {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
+        volumeMounts:
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+        {{- end }}
+      {{- if or $serviceValues.volumes .Values.trustedCertBundle }}
+      volumes:
+      {{- with $serviceValues.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if .Values.trustedCertBundle }}
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" . | quote }}
+      {{- end }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}

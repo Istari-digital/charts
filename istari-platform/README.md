@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 5.8.0](https://img.shields.io/badge/Version-5.8.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
+![Version: 5.9.0](https://img.shields.io/badge/Version-5.9.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -314,6 +314,21 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.env | list | `[]` |  |
 | identity.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | identity.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
+| identity.idpMigration | object | (see fields below) | One-shot Helm `pre-upgrade` hook that migrates an existing deployment from its current upstream IdP (e.g. Zitadel) to a new one (e.g. Keycloak). Runs the `migrate-idp` orchestrator (tenants → roles → users) once, before the identity Deployment rolls onto the new IdP. Idempotent and additive — safe to leave enabled across upgrades (a no-op once migrated). Requires `identity.migrations.runAsJob=true` (so the schema Job runs first, weight 5, before this weight-10 hook); rendering fails fast otherwise. |
+| identity.idpMigration.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful hook Job by adding `hook-succeeded` to `helm.sh/hook-delete-policy`. |
+| identity.idpMigration.backoffLimit | int | `3` | `spec.backoffLimit` for the Job (retries after a failed Pod). A few retries ride out transient IdP-API hiccups. |
+| identity.idpMigration.credentialEnv | string | `"ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY"` | Env var holding the outgoing-IdP viewer credential (the least-privilege service-account key identity already provisions). Inherited, never re-declared. |
+| identity.idpMigration.databaseUrlEnv | string | `"ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"` | Env var (in the mounted secret/config) holding the PostgreSQL connection string. Inherited, never re-declared — no new plaintext env vars. |
+| identity.idpMigration.dryRun | bool | `false` | Print what would be migrated without writing, forwarded to every phase (tenants → roles → users). |
+| identity.idpMigration.enabled | bool | `false` | Enable the pre-upgrade IdP-migration Job. Off by default; a fresh install has no outgoing IdP to migrate from. |
+| identity.idpMigration.env | list | `[]` | Extra environment variables for the migration Job only, rendered after the service-level `env` (on duplicate names, these win). |
+| identity.idpMigration.from | string | `"zitadel"` | Outgoing IdP provider to enumerate (only `zitadel` is supported today; any other value fails rendering). |
+| identity.idpMigration.fromIssuer | string | `""` | Outgoing IdP issuer base URL. **Required when enabled** and must still be reachable at pre-upgrade time (the Job enumerates it before the login IdP flips). |
+| identity.idpMigration.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only. |
+| identity.idpMigration.podLabels | object | `{}` | Extra labels for the migration Job Pod template only. |
+| identity.idpMigration.resources | object | `{}` | Resource requests/limits for the migration Job. |
+| identity.idpMigration.slugPrefix | string | `""` | Optional slug prefix for derived tenants (recommended to avoid cross-provider collisions); forwarded to bootstrap-tenants. |
+| identity.idpMigration.to | string | `""` | Incoming IdP provider name the migration targets (e.g. `keycloak`). **Required when enabled.** |
 | identity.image | string | `"identity-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | identity.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | identity.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
