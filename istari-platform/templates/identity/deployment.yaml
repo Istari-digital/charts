@@ -107,7 +107,7 @@ spec:
         {{- /* Non-secret OIDC/IdP config from identity.oidc.* — explicit env so it wins over any
         stale same-named key in secretName (envFrom applies the Secret after the ConfigMap). Placed
         before identity.env so a user override still wins last. */}}
-        {{- $extra = append $extra (include "istari-platform.identityOidcEnv" $serviceValues | fromYamlArray) }}
+        {{- $extra = append $extra (include "identity.oidcEnv" $serviceValues | fromYamlArray) }}
         {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
         {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
         env:

@@ -14,7 +14,7 @@ Each field emits only when non-empty, so an empty block adds nothing. provider
 and clientAuthMethod are validated against the supported enums, so a typo fails
 `helm template` rather than the running pod.
 */}}
-{{- define "istari-platform.identityOidcEnv" -}}
+{{- define "identity.oidcEnv" -}}
 {{- $oidc := .oidc -}}
 {{- $provider := $oidc.provider -}}
 {{- if and $provider (not (has $provider (list "zitadel" "keycloak"))) }}{{- fail (printf "identity.oidc.provider must be \"zitadel\" or \"keycloak\", got %q" $provider) }}{{- end }}
