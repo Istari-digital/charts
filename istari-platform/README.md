@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 5.9.0](https://img.shields.io/badge/Version-5.9.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
+![Version: 5.9.1](https://img.shields.io/badge/Version-5.9.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -346,6 +346,13 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.migrations.resources | object | `{"limits":{"cpu":"500m","memory":"1Gi"},"requests":{"cpu":"500m","memory":"1Gi"}}` | Resources for migration containers, used by both the Deployment `initContainer` and the Helm hook `Job`. |
 | identity.migrations.runAsJob | bool | `false` | Run database migrations as a Helm `pre-install` / `pre-upgrade` Job instead of a Deployment `initContainer`. When `true`, a `Job` runs `/migrate` once per release before the Identity Service Deployment rolls out; the Identity Service `ServiceAccount` and env `ConfigMap` are annotated with the same hooks so they exist before the Job runs. When `false`, migrations run in an `initContainer` on each Identity Service Pod before the main container starts (legacy behavior). |
 | identity.nodeSelector | object | `{}` | Node selector |
+| identity.oidc | object | (see fields below) | Upstream OIDC / IdP configuration — the NON-secret half of pointing identity at an IdP. Each field set here renders as an explicit `env` entry on the identity container as the matching `ISTARI_DIGITAL_IDENTITY_SERVICE_*` var, so switching the upstream IdP (e.g. Zitadel → Keycloak) is a values change applied via `helm upgrade`. Explicit `env` beats `envFrom`, so these values win over any same-named key in `secretName` — no need to scrub old OIDC keys from the Secret. The client SECRET is NOT here — it stays in `secretName` (`ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_SECRET`, or `..._OIDC_PRIVATE_KEY` for private_key_jwt). Each field renders only when non-empty; an empty block preserves today's fully Secret-driven configuration. `provider` and `clientAuthMethod` are validated at render time, so a typo fails `helm template` rather than the running pod. |
+| identity.oidc.clientAuthMethod | string | `""` | Client auth method at the IdP token endpoint (validated): `private_key_jwt` (needs `..._OIDC_PRIVATE_KEY` in the Secret), `client_secret_basic`, or `client_secret_post` (both need `..._OIDC_CLIENT_SECRET` in the Secret). |
+| identity.oidc.clientId | string | `""` | Client ID registered for identity at the upstream IdP. |
+| identity.oidc.defaultTenantId | string | `""` | OPTIONAL, and NOT needed for a migration: migrated users carry their tenant on their imported principal, so tenancy resolves without this. It only stamps a fallback grouping for NET-NEW users at a grouping-less IdP (a Keycloak realm) with no principal yet, and only makes sense for a single-tenant deployment (one realm cannot default to the right one of several imported tenants). Set it to the provider tenant id the deployment's tenant mapping is keyed on. |
+| identity.oidc.issuer | string | `""` | Upstream IdP issuer URL, no trailing slash. OIDC discovery resolves at this issuer at startup. |
+| identity.oidc.provider | string | `""` | Upstream IdP provider implementation: `zitadel` or `keycloak` (validated). Selects the `internal/idp` wiring (role lookups, user lookup, token refresh). One IdP per deployment. |
+| identity.oidc.scopes | string | `""` | Space-separated OIDC scopes (default in-app: `openid profile email offline_access`). Keycloak/standard OIDC needs no Zitadel URN scopes. |
 | identity.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | identity.podLabels | object | `{}` | Additional labels to add to pods |
 | identity.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
