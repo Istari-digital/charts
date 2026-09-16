@@ -45,7 +45,9 @@ One-shot Job that batch-registers service and agent clients (their public keys)
 in the Identity Service store from a mounted ConfigMap of public blobs.
 */}}
 {{- define "identity.serviceClientProvisioning.jobName" -}}
-{{- printf "%s-provision-service-clients" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- /* Bound the fullname prefix so the "-provision-service-clients" suffix (26 chars) is always
+       retained — truncating AFTER appending could drop it and collide with the bare fullname. */ -}}
+{{- printf "%s-provision-service-clients" (include "identity.fullname" . | trunc 37 | trimSuffix "-") | trimSuffix "-" -}}
 {{- end }}
 
 {{/*
@@ -53,7 +55,9 @@ ConfigMap holding the serviceClients list (public blobs only) the
 provision-service-clients Job reads.
 */}}
 {{- define "identity.serviceClientProvisioning.configMapName" -}}
-{{- printf "%s-service-clients" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- /* Bound the fullname prefix so the "-service-clients" suffix (16 chars) is always retained
+       and never collides with identity.configmap.name ("<fullname>-envvars"). */ -}}
+{{- printf "%s-service-clients" (include "identity.fullname" . | trunc 47 | trimSuffix "-") | trimSuffix "-" -}}
 {{- end }}
 
 {{/*

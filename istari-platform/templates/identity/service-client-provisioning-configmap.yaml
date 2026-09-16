@@ -10,7 +10,17 @@ it exists before the weight-20 provisioning Job that mounts it.
 {{- $provisioning := $serviceValues.serviceClientProvisioning -}}
 {{- /* Chart renders the ConfigMap only when it owns it (no external configMapName). */ -}}
 {{- if and $serviceValues.enabled $provisioning.enabled (not $provisioning.configMapName) $provisioning.serviceClients }}
-{{- $autoCleanupSuccessfulJob := $provisioning.autoCleanupSuccessfulJob -}}
+{{- /* Validate each chart-owned entry at render time (mirrors provision-service-clients'
+       own validation), so a malformed entry fails `helm template` rather than the hook Job
+       after the release has already begun. */ -}}
+{{- range $sc := $provisioning.serviceClients }}
+{{- if not $sc.serviceId }}{{ fail "identity.serviceClientProvisioning.serviceClients: an entry is missing serviceId" }}{{ end }}
+{{- if not (has $sc.kind (list "service" "agent" "public")) }}{{ fail (printf "identity.serviceClientProvisioning.serviceClients %q: kind must be service|agent|public, got %q" $sc.serviceId $sc.kind) }}{{ end }}
+{{- if and (eq $sc.kind "agent") (not $sc.tenantSlug) }}{{ fail (printf "identity.serviceClientProvisioning.serviceClients %q: tenantSlug is required for kind=agent" $sc.serviceId) }}{{ end }}
+{{- if and (eq $sc.kind "public") (not $sc.clientId) }}{{ fail (printf "identity.serviceClientProvisioning.serviceClients %q: clientId is required for kind=public" $sc.serviceId) }}{{ end }}
+{{- if and (eq $sc.kind "public") (not $sc.redirectUris) }}{{ fail (printf "identity.serviceClientProvisioning.serviceClients %q: redirectUris is required for kind=public" $sc.serviceId) }}{{ end }}
+{{- if and (ne $sc.kind "public") (not $sc.credential) }}{{ fail (printf "identity.serviceClientProvisioning.serviceClients %q: credential is required for kind=%s" $sc.serviceId $sc.kind) }}{{ end }}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -21,7 +31,9 @@ metadata:
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "19"
-    helm.sh/hook-delete-policy: {{ if $autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+    {{- /* before-hook-creation only (never hook-succeeded): the weight-20 Job mounts this,
+           so it must survive the whole hook run; it is replaced on the next upgrade. */}}
+    helm.sh/hook-delete-policy: before-hook-creation
 data:
   # The provision-service-clients -config file: a serviceClients list of public
   # blobs. Rendered verbatim from identity.serviceClientProvisioning.serviceClients.

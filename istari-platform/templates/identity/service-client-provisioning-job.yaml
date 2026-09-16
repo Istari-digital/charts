@@ -16,14 +16,24 @@ by slug and fail if it does not yet exist, so the tenant must be created first.
 {{- $serviceValues := .Values.identity -}}
 {{- $provisioning := $serviceValues.serviceClientProvisioning -}}
 {{- /* The ConfigMap of public blobs is either chart-rendered from serviceClients
-       or provided externally (configMapName, e.g. by Terraform). Render the Job
-       when either source is present. */ -}}
-{{- $configMapName := $provisioning.configMapName | default (include "identity.serviceClientProvisioning.configMapName" .) -}}
+       or provided externally (configMapName, e.g. by an operator's own tooling).
+       Render the Job when either source is present, and mount whichever applies. */ -}}
+{{- $configMapName := $provisioning.configMapName -}}
+{{- if not $configMapName }}{{- $configMapName = include "identity.serviceClientProvisioning.configMapName" . -}}{{- end -}}
 {{- if and $serviceValues.enabled $provisioning.enabled (or $provisioning.serviceClients $provisioning.configMapName) }}
-{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identity.serviceClientProvisioning.enabled requires identity.migrations.runAsJob=true, so DB migrations run as a pre-install/pre-upgrade hook (weight 5) before this weight-20 registration hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and provision-service-clients would run against a missing schema" }}{{ end }}
+{{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.serviceClientProvisioning.enabled requires identity.migrations.runAsJob=true, so DB migrations run as a pre-install/pre-upgrade hook (weight 5) before this weight-20 registration hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and provision-service-clients would run against a missing schema" }}{{ end }}
 {{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.serviceClientProvisioning.enabled is true (it holds ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL)" -}}
-{{- $databaseUrlEnv := $provisioning.databaseUrlEnv -}}
+{{- $databaseUrlEnv := $provisioning.databaseUrlEnv | required "identity.serviceClientProvisioning.databaseUrlEnv must not be empty (the env var name holding the PostgreSQL connection string)" -}}
 {{- $autoCleanupSuccessfulJob := $provisioning.autoCleanupSuccessfulJob -}}
+{{- /* Env fragments for the shared containerEnv helper: the DB URL (from the secret,
+       never plaintext), then service/Job env, then the trusted-cert vars. Job-specific
+       env is placed so it wins on a duplicate name; containerEnv dedupes the result. */ -}}
+{{- $dbEnv := list (dict "name" $databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $databaseUrlEnv))) -}}
+{{- $certEnv := list -}}
+{{- if .Values.trustedCertBundle -}}
+{{- $certEnv = list (dict "name" "GRPC_DEFAULT_SSL_ROOTS_FILE_PATH" "value" "/usr/lib/ssl/cert.pem") (dict "name" "REQUESTS_CA_BUNDLE" "value" "/usr/lib/ssl/cert.pem") (dict "name" "SSL_CERT_DIR" "value" "/usr/lib/ssl/certs") (dict "name" "SSL_CERT_FILE" "value" "/usr/lib/ssl/cert.pem") -}}
+{{- end -}}
+{{- $provisioningEnvExtra := list $dbEnv $serviceValues.env $provisioning.env $certEnv -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -80,29 +90,11 @@ spec:
         # it never appears in plaintext in the pod manifest.
         - "-database-url-env"
         - {{ $databaseUrlEnv | quote }}
+        # Env assembled + deduped through the shared containerEnv helper (as the other
+        # identity registration Jobs do), so a duplicate name can't break Argo CD's
+        # client-side strategic merge.
         env:
-        - name: {{ $databaseUrlEnv | quote }}
-          valueFrom:
-            secretKeyRef:
-              name: {{ $serviceValues.secretName | quote }}
-              key: {{ $databaseUrlEnv | quote }}
-        {{- with $serviceValues.env }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- /* Job-level env AFTER the service-level env: on duplicate names, these win */}}
-        {{- with $provisioning.env }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- if .Values.trustedCertBundle }}
-        - name: GRPC_DEFAULT_SSL_ROOTS_FILE_PATH
-          value: /usr/lib/ssl/cert.pem
-        - name: REQUESTS_CA_BUNDLE
-          value: /usr/lib/ssl/cert.pem
-        - name: SSL_CERT_DIR
-          value: /usr/lib/ssl/certs
-        - name: SSL_CERT_FILE
-          value: /usr/lib/ssl/cert.pem
-        {{- end }}
+        {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "provision-service-clients" "containerName" "provision-service-clients" "otelDefaults" false "extra" $provisioningEnvExtra) | nindent 8 }}
         {{- with $provisioning.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
