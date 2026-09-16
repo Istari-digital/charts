@@ -41,6 +41,22 @@ Call with a dict: {"root": $, "name": <client name>}.
 {{- end }}
 
 {{/*
+One-shot Job that batch-registers service and agent clients (their public keys)
+in the Identity Service store from a mounted ConfigMap of public blobs.
+*/}}
+{{- define "identity.serviceClientProvisioning.jobName" -}}
+{{- printf "%s-provision-service-clients" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end }}
+
+{{/*
+ConfigMap holding the serviceClients list (public blobs only) the
+provision-service-clients Job reads.
+*/}}
+{{- define "identity.serviceClientProvisioning.configMapName" -}}
+{{- printf "%s-service-clients" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end }}
+
+{{/*
 One-shot Job that provisions an agent's tenant and registers its public key.
 Call with a dict: {"root": $, "name": <agent name>}.
 */}}

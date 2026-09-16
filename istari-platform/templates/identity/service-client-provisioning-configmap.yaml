@@ -1,0 +1,30 @@
+{{- /*
+ConfigMap of PUBLIC client blobs the provision-service-clients Job registers.
+Public keys are not secret, so they ride in a ConfigMap rather than the Secret.
+The packaging layer (Terraform / gen-client-credentials) generates each keypair
+and distributes the PRIVATE blob to the owning service's Secret; only the public
+halves are listed here. Rendered as a pre-install/pre-upgrade hook (weight 19) so
+it exists before the weight-20 provisioning Job that mounts it.
+*/ -}}
+{{- $serviceValues := .Values.identity -}}
+{{- $provisioning := $serviceValues.serviceClientProvisioning -}}
+{{- /* Chart renders the ConfigMap only when it owns it (no external configMapName). */ -}}
+{{- if and $serviceValues.enabled $provisioning.enabled (not $provisioning.configMapName) $provisioning.serviceClients }}
+{{- $autoCleanupSuccessfulJob := $provisioning.autoCleanupSuccessfulJob -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "identity.serviceClientProvisioning.configMapName" . | quote }}
+  labels:
+    {{- include "identity.labels" . | nindent 4 }}
+    istari.digital/job-type: "service-client-provisioning"
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "19"
+    helm.sh/hook-delete-policy: {{ if $autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+data:
+  # The provision-service-clients -config file: a serviceClients list of public
+  # blobs. Rendered verbatim from identity.serviceClientProvisioning.serviceClients.
+  serviceClients.yaml: |-
+{{ dict "serviceClients" $provisioning.serviceClients | toYaml | indent 4 }}
+{{- end }}
