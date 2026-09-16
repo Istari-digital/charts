@@ -848,7 +848,7 @@ identity:
     configMapName: ""
     # -- `spec.backoffLimit` for the Job (number of retries after a failed Pod).
     backoffLimit: 6
-    # -- Automatically clean up the successful hook Job and its ConfigMap by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`).
+    # -- Automatically clean up the successful hook Job by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). The chart-rendered ConfigMap always uses `before-hook-creation` only (it must outlive the Job that mounts it) and is replaced on the next upgrade.
     autoCleanupSuccessfulJob: true
     # -- Annotations for the Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`).
     podAnnotations: {}
@@ -858,7 +858,7 @@ identity:
     env: []
     # -- Resources for the Job container.
     resources: {}
-    # -- Clients to register, all in one Job. Used only when `configMapName` above is empty (the chart renders the ConfigMap from this list); ignored when an external ConfigMap is provided. Three kinds. Common field: `serviceId` (required; a label used in logs and for de-duplication) and `kind` (required, `service` | `agent` | `public`). Keypair clients (`service`, `agent`) carry `credential` (required; the base64-encoded `{clientId,keyId,key}` blob whose `key` is the PKIX PUBLIC PEM — the packaging layer generates the pair and puts the matching private blob in the service's Secret); `service` also takes `canListPrincipals` (optional; grant permission to list stable principals); `agent` also takes `tenantSlug` (required; the Identity Service tenant, must already exist), `username` (optional; upstream IdP user id to bind to), `displayName` (optional; name claim). Public (PKCE browser) clients (`public`) carry no key material — `clientId` (required) and `redirectUris` (required; the exact-match redirect allowlist) instead of `credential`.
+    # -- Clients to register, all in one Job. Used only when `configMapName` above is empty (the chart renders the ConfigMap from this list); ignored when an external ConfigMap is provided. Three kinds. Common field: `serviceId` (required; a label used in logs and for de-duplication) and `kind` (required, `service`, `agent`, or `public`). Keypair clients (`service`, `agent`) carry `credential` (required; the base64-encoded `{clientId,keyId,key}` blob whose `key` is the PKIX PUBLIC PEM — the packaging layer generates the pair and puts the matching private blob in the service's Secret); `service` also takes `canListPrincipals` (optional; grant permission to list stable principals); `agent` also takes `tenantSlug` (required; the Identity Service tenant, must already exist), `username` (optional; upstream IdP user id to bind to), `displayName` (optional; name claim). Public (PKCE browser) clients (`public`) carry no key material — `clientId` (required) and `redirectUris` (required; the exact-match redirect allowlist) instead of `credential`.
     serviceClients: []
   # -- One-shot Helm `pre-upgrade` hook that migrates an existing deployment from its current upstream IdP (e.g. Zitadel) to a new one (e.g. Keycloak). Runs the `migrate-idp` orchestrator (tenants → roles → users) once, before the identity Deployment rolls onto the new IdP. Idempotent and additive — safe to leave enabled across upgrades (a no-op once migrated). Requires `identity.migrations.runAsJob=true` (so the schema Job runs first, weight 5, before this weight-10 hook); rendering fails fast otherwise.
   # @default -- (see fields below)
