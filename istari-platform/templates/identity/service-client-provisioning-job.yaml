@@ -25,15 +25,21 @@ by slug and fail if it does not yet exist, so the tenant must be created first.
 {{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.serviceClientProvisioning.enabled is true (it holds ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL)" -}}
 {{- $databaseUrlEnv := $provisioning.databaseUrlEnv | required "identity.serviceClientProvisioning.databaseUrlEnv must not be empty (the env var name holding the PostgreSQL connection string)" -}}
 {{- $autoCleanupSuccessfulJob := $provisioning.autoCleanupSuccessfulJob -}}
-{{- /* Env fragments for the shared containerEnv helper: the DB URL (from the secret,
-       never plaintext), then service/Job env, then the trusted-cert vars. Job-specific
-       env is placed so it wins on a duplicate name; containerEnv dedupes the result. */ -}}
+{{- /* Env fragments for the shared containerEnv helper. The DB URL is a RESERVED
+       variable sourced from the Secret and must never appear as a plaintext literal:
+       strip any user attempt to re-declare it from the service/Job env fragments, and
+       place the secretKeyRef fragment LAST so it is authoritative even so (containerEnv
+       keeps the last value on a duplicate name). */ -}}
+{{- $userEnv := list -}}
+{{- range $e := concat ($serviceValues.env | default list) ($provisioning.env | default list) -}}
+{{- if ne $e.name $databaseUrlEnv -}}{{- $userEnv = append $userEnv $e -}}{{- end -}}
+{{- end -}}
 {{- $dbEnv := list (dict "name" $databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $databaseUrlEnv))) -}}
 {{- $certEnv := list -}}
 {{- if .Values.trustedCertBundle -}}
 {{- $certEnv = list (dict "name" "GRPC_DEFAULT_SSL_ROOTS_FILE_PATH" "value" "/usr/lib/ssl/cert.pem") (dict "name" "REQUESTS_CA_BUNDLE" "value" "/usr/lib/ssl/cert.pem") (dict "name" "SSL_CERT_DIR" "value" "/usr/lib/ssl/certs") (dict "name" "SSL_CERT_FILE" "value" "/usr/lib/ssl/cert.pem") -}}
 {{- end -}}
-{{- $provisioningEnvExtra := list $dbEnv $serviceValues.env $provisioning.env $certEnv -}}
+{{- $provisioningEnvExtra := list $userEnv $certEnv $dbEnv -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
