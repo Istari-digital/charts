@@ -1,0 +1,144 @@
+{{- /*
+One-shot pre-install/pre-upgrade hook (weight 20) that batch-registers service
+and agent clients in the Identity Service store — the consolidated form of the
+per-service register-client / register-agent Jobs (N Jobs → 1).
+
+It runs `provision-service-clients`, which reads a mounted ConfigMap of PUBLIC
+key blobs and upserts each client (ClientStore for services, AgentStore for
+agents). Registration only: it generates no keys, holds no private key material,
+and — like the other registration Jobs — only talks to PostgreSQL, so it never
+needs the Kubernetes API (automountServiceAccountToken: false, no RBAC).
+
+Weight 20 runs it after the schema hook (weight 5) and after tenant-provisioning
+hooks (bootstrap/idp-migration, weight 10) — agent entries look up their tenant
+by slug and fail if it does not yet exist, so the tenant must be created first.
+*/ -}}
+{{- $serviceValues := .Values.identity -}}
+{{- $provisioning := $serviceValues.serviceClientProvisioning -}}
+{{- /* The ConfigMap of public blobs is either chart-rendered from serviceClients
+       or provided externally (configMapName, e.g. by an operator's own tooling).
+       Render the Job when either source is present, and mount whichever applies. */ -}}
+{{- $configMapName := $provisioning.configMapName -}}
+{{- if not $configMapName }}{{- $configMapName = include "identity.serviceClientProvisioning.configMapName" . -}}{{- end -}}
+{{- if and $serviceValues.enabled $provisioning.enabled (or $provisioning.serviceClients $provisioning.configMapName) }}
+{{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.serviceClientProvisioning.enabled requires identity.migrations.runAsJob=true, so DB migrations run as a pre-install/pre-upgrade hook (weight 5) before this weight-20 registration hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and provision-service-clients would run against a missing schema" }}{{ end }}
+{{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.serviceClientProvisioning.enabled is true (it holds ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL)" -}}
+{{- $databaseUrlEnv := $provisioning.databaseUrlEnv | required "identity.serviceClientProvisioning.databaseUrlEnv must not be empty (the env var name holding the PostgreSQL connection string)" -}}
+{{- $autoCleanupSuccessfulJob := $provisioning.autoCleanupSuccessfulJob -}}
+{{- /* Env fragments for the shared containerEnv helper. The DB URL is a RESERVED
+       variable sourced from the Secret and must never appear as a plaintext literal:
+       strip any user attempt to re-declare it from the service/Job env fragments, and
+       place the secretKeyRef fragment LAST so it is authoritative even so (containerEnv
+       keeps the last value on a duplicate name). */ -}}
+{{- $userEnv := list -}}
+{{- range $e := concat ($serviceValues.env | default list) ($provisioning.env | default list) -}}
+{{- if ne $e.name $databaseUrlEnv -}}{{- $userEnv = append $userEnv $e -}}{{- end -}}
+{{- end -}}
+{{- $dbEnv := list (dict "name" $databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $databaseUrlEnv))) -}}
+{{- $certEnv := list -}}
+{{- if .Values.trustedCertBundle -}}
+{{- $certEnv = list (dict "name" "GRPC_DEFAULT_SSL_ROOTS_FILE_PATH" "value" "/usr/lib/ssl/cert.pem") (dict "name" "REQUESTS_CA_BUNDLE" "value" "/usr/lib/ssl/cert.pem") (dict "name" "SSL_CERT_DIR" "value" "/usr/lib/ssl/certs") (dict "name" "SSL_CERT_FILE" "value" "/usr/lib/ssl/cert.pem") -}}
+{{- end -}}
+{{- $provisioningEnvExtra := list $userEnv $certEnv $dbEnv -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "identity.serviceClientProvisioning.jobName" . | quote }}
+  labels:
+    {{- include "identity.labels" . | nindent 4 }}
+    istari.digital/job-type: "service-client-provisioning"
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "20"
+    helm.sh/hook-delete-policy: {{ if $autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+spec:
+  backoffLimit: {{ $provisioning.backoffLimit | int }}
+  template:
+    metadata:
+      labels:
+        {{- include "identity.labels" . | nindent 8 }}
+        istari.digital/job-type: "service-client-provisioning"
+        {{- with $provisioning.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        sidecar.istio.io/inject: "false"
+        {{- with $provisioning.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "identity.fullname" . | quote }}
+      # The Job only talks to PostgreSQL; it never needs the Kubernetes API.
+      automountServiceAccountToken: false
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: provision-service-clients
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command:
+        - "/provision-service-clients"
+        args:
+        - "-config"
+        - "/etc/identity/service-clients/serviceClients.yaml"
+        # The DB URL is read from this env var (sourced from the secret below), so
+        # it never appears in plaintext in the pod manifest.
+        - "-database-url-env"
+        - {{ $databaseUrlEnv | quote }}
+        # Env assembled + deduped through the shared containerEnv helper (as the other
+        # identity registration Jobs do), so a duplicate name can't break Argo CD's
+        # client-side strategic merge.
+        env:
+        {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "provision-service-clients" "containerName" "provision-service-clients" "otelDefaults" false "extra" $provisioningEnvExtra) | nindent 8 }}
+        {{- with $provisioning.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: service-clients
+          mountPath: /etc/identity/service-clients
+          readOnly: true
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+      volumes:
+      - name: service-clients
+        configMap:
+          name: {{ $configMapName | quote }}
+      {{- with $serviceValues.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if .Values.trustedCertBundle }}
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" . | quote }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}

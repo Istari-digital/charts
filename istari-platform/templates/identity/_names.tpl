@@ -41,6 +41,31 @@ Call with a dict: {"root": $, "name": <client name>}.
 {{- end }}
 
 {{/*
+One-shot Job that batch-registers service and agent clients (their public keys)
+in the Identity Service store from a mounted ConfigMap of public blobs.
+*/}}
+{{- define "identity.serviceClientProvisioning.jobName" -}}
+{{- /* Bounded fullname prefix + an 8-char hash of the FULL fullname, so two long
+       release names that share the truncated prefix still get distinct Job names
+       (before-hook-creation would otherwise let one release delete/replace the
+       other's Job). Mirrors identity.agentRegistration.jobName. 27 + 27 + 8 <= 63. */ -}}
+{{- $full := include "identity.fullname" . -}}
+{{- printf "%s-provision-service-clients-%s" ($full | trunc 27 | trimSuffix "-") ($full | sha256sum | trunc 8) -}}
+{{- end }}
+
+{{/*
+ConfigMap holding the serviceClients list (public blobs only) the
+provision-service-clients Job reads.
+*/}}
+{{- define "identity.serviceClientProvisioning.configMapName" -}}
+{{- /* Same collision-safe scheme as the Job name (bounded prefix + hash of the full
+       fullname); also never collides with identity.configmap.name ("<fullname>-envvars").
+       37 + 17 + 8 <= 63. */ -}}
+{{- $full := include "identity.fullname" . -}}
+{{- printf "%s-service-clients-%s" ($full | trunc 37 | trimSuffix "-") ($full | sha256sum | trunc 8) -}}
+{{- end }}
+
+{{/*
 One-shot Job that provisions an agent's tenant and registers its public key.
 Call with a dict: {"root": $, "name": <agent name>}.
 */}}
