@@ -45,9 +45,12 @@ One-shot Job that batch-registers service and agent clients (their public keys)
 in the Identity Service store from a mounted ConfigMap of public blobs.
 */}}
 {{- define "identity.serviceClientProvisioning.jobName" -}}
-{{- /* Bound the fullname prefix so the "-provision-service-clients" suffix (26 chars) is always
-       retained — truncating AFTER appending could drop it and collide with the bare fullname. */ -}}
-{{- printf "%s-provision-service-clients" (include "identity.fullname" . | trunc 37 | trimSuffix "-") | trimSuffix "-" -}}
+{{- /* Bounded fullname prefix + an 8-char hash of the FULL fullname, so two long
+       release names that share the truncated prefix still get distinct Job names
+       (before-hook-creation would otherwise let one release delete/replace the
+       other's Job). Mirrors identity.agentRegistration.jobName. 27 + 27 + 8 <= 63. */ -}}
+{{- $full := include "identity.fullname" . -}}
+{{- printf "%s-provision-service-clients-%s" ($full | trunc 27 | trimSuffix "-") ($full | sha256sum | trunc 8) -}}
 {{- end }}
 
 {{/*
@@ -55,9 +58,11 @@ ConfigMap holding the serviceClients list (public blobs only) the
 provision-service-clients Job reads.
 */}}
 {{- define "identity.serviceClientProvisioning.configMapName" -}}
-{{- /* Bound the fullname prefix so the "-service-clients" suffix (16 chars) is always retained
-       and never collides with identity.configmap.name ("<fullname>-envvars"). */ -}}
-{{- printf "%s-service-clients" (include "identity.fullname" . | trunc 47 | trimSuffix "-") | trimSuffix "-" -}}
+{{- /* Same collision-safe scheme as the Job name (bounded prefix + hash of the full
+       fullname); also never collides with identity.configmap.name ("<fullname>-envvars").
+       37 + 17 + 8 <= 63. */ -}}
+{{- $full := include "identity.fullname" . -}}
+{{- printf "%s-service-clients-%s" ($full | trunc 37 | trimSuffix "-") ($full | sha256sum | trunc 8) -}}
 {{- end }}
 
 {{/*
