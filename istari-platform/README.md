@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 5.11.0](https://img.shields.io/badge/Version-5.11.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
+![Version: 5.12.0](https://img.shields.io/badge/Version-5.12.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -305,6 +305,15 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.autoscaling.maxReplicas | int | `2` | Maximum number of replicas |
 | identity.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | identity.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
+| identity.bootstrap | object | (see fields below) | Grants the platform roles a fresh install needs. The registry gets `agent_manager` and `principal_viewer` before install; the first platform administrator gets `admin` after install. Requires an Identity Service image that ships `grant-platform-role`. |
+| identity.bootstrap.autoCleanupSuccessfulJob | bool | `true` | Delete each Job once it succeeds. |
+| identity.bootstrap.backoffLimit | int | `3` | `spec.backoffLimit` for each bootstrap Job. |
+| identity.bootstrap.databaseUrlEnv | string | `"ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"` | Env var (in `identity.secretName`) holding the PostgreSQL connection string. |
+| identity.bootstrap.enabled | bool | `false` | Render the bootstrap Jobs. Off by default. |
+| identity.bootstrap.platformAdminEmail | string | `""` | Email of the first platform administrator. Leave empty until that person has signed in once; granting `admin` ends open bootstrap mode for good. |
+| identity.bootstrap.registryClientId | string | `""` | The registry's client id. Set this or `registryClientIdSecretRef`. |
+| identity.bootstrap.registryClientIdSecretRef | object | `{}` | Secret key holding the registry's client id, as `{name: ..., key: ...}`. Used when `registryClientId` is empty. |
+| identity.bootstrap.resources | object | `{}` | Resources for the bootstrap containers. |
 | identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. Stage-style topologies run one release per service, so `enabled` is only ever true in the identity-service's own release — gating client behavior on it directly means the toggle never renders in any consuming release. |
 | identity.clientIntegration.enabled | bool | `false` | Whether clients in THIS release authenticate through the identity-service. Defaults to an explicit `false`, never derived from `identity.enabled`: a single-release install that wants identity now sets both values. Rendered in BOTH polarities whenever a gateway URL resolves, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set. |
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |

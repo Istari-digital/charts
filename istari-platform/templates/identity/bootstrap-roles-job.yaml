@@ -1,0 +1,78 @@
+{{- /* Grants the registry agent_manager and principal_viewer after every registration hook (weights 10 and 20). */ -}}
+{{- $serviceValues := .Values.identity -}}
+{{- $bootstrap := $serviceValues.bootstrap -}}
+{{- if and $serviceValues.enabled $bootstrap.enabled }}
+{{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.enabled requires identity.migrations.runAsJob=true, so the schema exists before this pre-install hook" }}{{ end }}
+{{- if and (not $bootstrap.registryClientId) (not $bootstrap.registryClientIdSecretRef) }}{{ fail "identity.bootstrap.enabled requires identity.bootstrap.registryClientId or identity.bootstrap.registryClientIdSecretRef" }}{{ end }}
+{{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.bootstrap.enabled is true" -}}
+{{- $dbEnv := list (dict "name" $bootstrap.databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $bootstrap.databaseUrlEnv))) -}}
+{{- $clientEnv := list (dict "name" "REGISTRY_CLIENT_ID" "value" $bootstrap.registryClientId) -}}
+{{- if not $bootstrap.registryClientId -}}
+{{- $clientEnv = list (dict "name" "REGISTRY_CLIENT_ID" "valueFrom" (dict "secretKeyRef" $bootstrap.registryClientIdSecretRef)) -}}
+{{- end -}}
+{{- $extra := list $clientEnv $dbEnv -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-bootstrap-roles" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" | quote }}
+  labels:
+    {{- include "identity.labels" . | nindent 4 }}
+    istari.digital/job-type: "bootstrap-roles"
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "25"
+    helm.sh/hook-delete-policy: {{ if $bootstrap.autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+spec:
+  backoffLimit: {{ $bootstrap.backoffLimit | int }}
+  template:
+    metadata:
+      labels:
+        {{- include "identity.labels" . | nindent 8 }}
+        istari.digital/job-type: "bootstrap-roles"
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "identity.fullname" . | quote }}
+      automountServiceAccountToken: false
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      initContainers:
+      - name: grant-agent-manager
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command: ["/grant-platform-role"]
+        args: ["-database-url-env", {{ $bootstrap.databaseUrlEnv | quote }}, "-client-id", "$(REGISTRY_CLIENT_ID)", "-role", "agent_manager"]
+        env:
+        {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "bootstrap-roles" "containerName" "grant-agent-manager" "otelDefaults" false "extra" $extra) | nindent 8 }}
+        {{- with $bootstrap.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      containers:
+      - name: grant-principal-viewer
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command: ["/grant-platform-role"]
+        args: ["-database-url-env", {{ $bootstrap.databaseUrlEnv | quote }}, "-client-id", "$(REGISTRY_CLIENT_ID)", "-role", "principal_viewer"]
+        env:
+        {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "bootstrap-roles" "containerName" "grant-principal-viewer" "otelDefaults" false "extra" $extra) | nindent 8 }}
+        {{- with $bootstrap.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+{{- end }}

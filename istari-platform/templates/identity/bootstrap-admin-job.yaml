@@ -1,0 +1,57 @@
+{{- /* Grants the first platform administrator after install. Fails until that person has signed in once. */ -}}
+{{- $serviceValues := .Values.identity -}}
+{{- $bootstrap := $serviceValues.bootstrap -}}
+{{- if and $serviceValues.enabled $bootstrap.enabled $bootstrap.platformAdminEmail }}
+{{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.enabled requires identity.migrations.runAsJob=true, so the schema exists before this hook" }}{{ end }}
+{{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.bootstrap.enabled is true" -}}
+{{- $dbEnv := list (dict "name" $bootstrap.databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $bootstrap.databaseUrlEnv))) -}}
+{{- $extra := list $dbEnv -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-bootstrap-admin" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" | quote }}
+  labels:
+    {{- include "identity.labels" . | nindent 4 }}
+    istari.digital/job-type: "bootstrap-admin"
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: {{ if $bootstrap.autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+spec:
+  backoffLimit: {{ $bootstrap.backoffLimit | int }}
+  template:
+    metadata:
+      labels:
+        {{- include "identity.labels" . | nindent 8 }}
+        istari.digital/job-type: "bootstrap-admin"
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "identity.fullname" . | quote }}
+      automountServiceAccountToken: false
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: grant-admin
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command: ["/grant-platform-role"]
+        args: ["-database-url-env", {{ $bootstrap.databaseUrlEnv | quote }}, "-email", {{ $bootstrap.platformAdminEmail | quote }}, "-role", "admin"]
+        env:
+        {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "bootstrap-admin" "containerName" "grant-admin" "otelDefaults" false "extra" $extra) | nindent 8 }}
+        {{- with $bootstrap.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+{{- end }}
