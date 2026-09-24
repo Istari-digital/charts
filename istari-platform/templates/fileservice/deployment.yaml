@@ -1,6 +1,14 @@
 {{- $serviceValues := .Values.fileservice -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
+{{- /* provisioner's client key here is "registry", not "fileservice" — intentional. */ -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
+{{- if .Values.provisioner.clients.registry.enabled -}}
+{{- $registrySecretName := include "provisioner.registrySecretName" . -}}
+{{- if not (has $registrySecretName $extraEnvSecrets) -}}
+{{- $extraEnvSecrets = append $extraEnvSecrets $registrySecretName -}}
+{{- end -}}
+{{- end -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -77,7 +85,7 @@ spec:
           {{- toYaml . | nindent 10 }}
         {{- end }}
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
+        {{- if or $serviceValues.secretName $extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
         envFrom:
         {{- end }}
         {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
@@ -95,7 +103,7 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $serviceValues.extraEnvSecrets }}
+        {{- with $extraEnvSecrets }}
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
@@ -137,7 +145,7 @@ spec:
         - "alembic"
         - "upgrade"
         - "head"
-        {{- if or $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
+        {{- if or $serviceValues.secretName $extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
         envFrom:
         {{- end }}
         {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
@@ -155,7 +163,7 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $serviceValues.extraEnvSecrets }}
+        {{- with $extraEnvSecrets }}
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}

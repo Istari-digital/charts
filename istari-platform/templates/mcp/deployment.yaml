@@ -1,4 +1,11 @@
 {{- $serviceValues := .Values.mcp -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
+{{- if .Values.provisioner.clients.mcp.enabled -}}
+{{- $mcpSecretName := include "provisioner.mcpSecretName" . -}}
+{{- if not (has $mcpSecretName $extraEnvSecrets) -}}
+{{- $extraEnvSecrets = append $extraEnvSecrets $mcpSecretName -}}
+{{- end -}}
+{{- end -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -79,7 +86,7 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $serviceValues.extraEnvSecrets }}
+        {{- with $extraEnvSecrets }}
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}

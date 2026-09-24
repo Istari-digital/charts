@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 5.10.0](https://img.shields.io/badge/Version-5.10.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
+![Version: 5.11.0](https://img.shields.io/badge/Version-5.11.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -390,6 +390,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.serviceClientProvisioning.podAnnotations | object | `{}` | Annotations for the Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`). |
 | identity.serviceClientProvisioning.podLabels | object | `{}` | Extra labels for the Job Pod template only. |
 | identity.serviceClientProvisioning.resources | object | `{}` | Resources for the Job container. |
+| identity.serviceClientProvisioning.secretName | string | `""` | Name of an EXTERNALLY-managed Secret (a `serviceClients.yaml` key, same shape as `serviceClients` below) for the Job to mount instead of a ConfigMap. Defaults to `provisioner`'s own output Secret name when `provisioner.enabled` and at least one `provisioner.clients.*` is enabled; empty otherwise. Wins over `configMapName`/`serviceClients` when non-empty. |
 | identity.serviceClientProvisioning.serviceClients | list | `[]` | Clients to register, all in one Job. Used only when `configMapName` above is empty (the chart renders the ConfigMap from this list); ignored when an external ConfigMap is provided. Three kinds. Common field: `serviceId` (required; a label used in logs and for de-duplication) and `kind` (required, `service`, `agent`, or `public`). Keypair clients (`service`, `agent`) carry `credential` (required; the base64-encoded `{clientId,keyId,key}` blob whose `key` is the PKIX PUBLIC PEM — the packaging layer generates the pair and puts the matching private blob in the service's Secret); `service` also takes `canListPrincipals` (optional; grant permission to list stable principals); `agent` also takes `tenantSlug` (required; the Identity Service tenant, must already exist), `username` (optional; upstream IdP user id to bind to), `displayName` (optional; name claim). Public (PKCE browser) clients (`public`) carry no key material — `clientId` (required) and `redirectUris` (required; the exact-match redirect allowlist) instead of `credential`. |
 | identity.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
 | identity.tag | string | `"1.2.3"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
@@ -483,6 +484,53 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | nats.reloader.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-server-config-reloader-fips"` | Config-reloader image repository. Defaults to the Chainguard FIPS variant. |
 | nats.reloader.image.tag | string | `"0.23.0"` | Config-reloader image tag. |
 | nats.statefulSet.merge.spec.persistentVolumeClaimRetentionPolicy | object | `{"whenDeleted":"Delete","whenScaled":"Delete"}` | Delete the JetStream PVCs when the StatefulSet is deleted or scaled down. Set to `Retain` if you need the data to outlive the StatefulSet. |
+| provisioner | object | (see fields below) | Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job hook that generates and registers credentials for registry, secure-connection-service, frontend, and mcp, feeding identity's `provision-service-clients` hook (`identity.serviceClientProvisioning`). Off by default. |
+| provisioner.affinity | object | `{}` | Affinity for the provisioning Job pod. |
+| provisioner.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful provisioning Job (`hook-succeeded`). |
+| provisioner.backend | object | (see fields below) | Terraform state backend. |
+| provisioner.backend.azurerm | object | `{"containerName":"","key":"provisioner.tfstate","storageAccountName":""}` | Settings for `backend.type: azurerm`. Credentials via `serviceAccountAnnotations` (Workload Identity, preferred) or `ARM_CLIENT_ID`/`ARM_CLIENT_SECRET`/`ARM_TENANT_ID`/ `ARM_SUBSCRIPTION_ID` in `extraEnvSecrets`. |
+| provisioner.backend.azurerm.containerName | string | `""` | Blob container within the storage account. Required when `backend.type` is `azurerm`. |
+| provisioner.backend.azurerm.key | string | `"provisioner.tfstate"` | Blob key within the container. |
+| provisioner.backend.azurerm.storageAccountName | string | `""` | Storage account holding the state container. Required when `backend.type` is `azurerm`. |
+| provisioner.backend.gcs | object | `{"bucket":"","prefix":"provisioner"}` | Settings for `backend.type: gcs`. Credentials via `serviceAccountAnnotations` (Workload Identity, preferred) or `GOOGLE_CREDENTIALS` in `extraEnvSecrets`. |
+| provisioner.backend.gcs.bucket | string | `""` | GCS bucket holding the state object. Required when `backend.type` is `gcs`. |
+| provisioner.backend.gcs.prefix | string | `"provisioner"` | Object-name prefix within the bucket. |
+| provisioner.backend.kubernetes | object | `{"secretSuffix":"provisioner"}` | Settings for `backend.type: kubernetes`. |
+| provisioner.backend.kubernetes.secretSuffix | string | `"provisioner"` | Suffix for the state Secret's name. |
+| provisioner.backend.s3 | object | `{"bucket":"","key":"provisioner/terraform.tfstate","region":""}` | Settings for `backend.type: s3`. Credentials via `serviceAccountAnnotations` (IRSA, preferred) or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` in `extraEnvSecrets`. |
+| provisioner.backend.s3.bucket | string | `""` | S3 bucket holding the state object. Required when `backend.type` is `s3`. |
+| provisioner.backend.s3.key | string | `"provisioner/terraform.tfstate"` | Object key within the bucket. |
+| provisioner.backend.s3.region | string | `""` | AWS region of the bucket. Required when `backend.type` is `s3`. |
+| provisioner.backend.type | string | `"kubernetes"` | Which backend stores this Job's own Terraform state. `kubernetes` needs no external cloud infra — the recommended default. |
+| provisioner.backoffLimit | int | `6` | `spec.backoffLimit` for the provisioning Job. |
+| provisioner.clients | object | (see fields below) | Which clients to provision, and their per-client settings. |
+| provisioner.clients.frontend | object | `{"enabled":false,"extraRedirectUris":[],"redirectUri":""}` | Frontend (`kind: public` / PKCE) — a generated client_id and a redirect allowlist. |
+| provisioner.clients.frontend.enabled | bool | `false` | Whether to generate and register the frontend client. |
+| provisioner.clients.frontend.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
+| provisioner.clients.frontend.redirectUri | string | `""` | Explicit redirect URI. Overrides the `mainDomain` derivation. |
+| provisioner.clients.mcp | object | `{"enabled":false,"extraRedirectUris":[],"redirectUri":""}` | MCP service (`kind: public` / PKCE) — a generated client_id, a placeholder client_secret, and a redirect allowlist. |
+| provisioner.clients.mcp.enabled | bool | `false` | Whether to generate and register the mcp client. |
+| provisioner.clients.mcp.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
+| provisioner.clients.mcp.redirectUri | string | `""` | Explicit redirect URI. Overrides the `mainDomain` derivation. |
+| provisioner.clients.registry | object | `{"enabled":false}` | Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair and a generated client_id. |
+| provisioner.clients.registry.enabled | bool | `false` | Whether to generate and register the registry client. |
+| provisioner.clients.secureConnection | object | `{"enabled":false}` | Secure-connection-service (`kind: service`; see DPLAT-924). Same shape as `registry`. |
+| provisioner.clients.secureConnection.enabled | bool | `false` | Whether to generate and register the secure-connection-service client. |
+| provisioner.commonLabels | object | `{}` | Additional labels to add to all of this component's resources |
+| provisioner.enabled | bool | `false` | Whether to render the provisioner Job and its supporting resources. Also requires at least one `clients.*.enabled`. In a one-release-per-service topology, set this `true` only in the provisioner's own dedicated release — every other release only needs `clients.*.enabled` (not this) to pick up that client's Secret name; see the deployment templates and `identity.serviceClientProvisioning.secretName`. |
+| provisioner.env | list | `[]` | Extra environment variables for the provisioner container. |
+| provisioner.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into the provisioner container — e.g. cloud backend credentials for `backend.type: s3` when not using pod identity. |
+| provisioner.identityServiceUrl | string | `""` | Explicit identity-service public URL, written into every enabled client's secret alongside its "identity enabled" flag. Overrides the `mainDomain` derivation. |
+| provisioner.image | string | `"main-docker-local/provisioner"` | Image name. |
+| provisioner.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy. |
+| provisioner.mainDomain | string | `""` | Base domain used to derive frontend/mcp redirect URIs and identity-service's own public URL: frontend at `https://<mainDomain>`, mcp at `https://mcp.<mainDomain>/auth/callback`, identity-service at `https://identity.<mainDomain>`. Required if a client below is enabled and its own override (`redirectUri` / `identityServiceUrl`) is left empty. |
+| provisioner.nodeSelector | object | `{}` | Node selector for the provisioning Job pod. |
+| provisioner.planOnly | bool | `false` | When true, run `terraform plan` only (no `apply`). |
+| provisioner.registry | string | `"istaridigital.jfrog.io"` | Registry URL for the provisioner's image (Istari's own build, published to `main-docker-local`). |
+| provisioner.resources | object | `{}` | Resources for the provisioner container. |
+| provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — set a pod-identity annotation here for cloud-backend credentials, e.g. `eks.amazonaws.com/role-arn`, `azure.workload.identity/client-id`, `iam.gke.io/gcp-service-account`. |
+| provisioner.tag | string | `"0.1.0"` | Image tag. |
+| provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | secureConnection.affinity | object | `{}` | Affinity |
 | secureConnection.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
 | secureConnection.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |

@@ -1,0 +1,99 @@
+{{- if and .Values.provisioner.enabled (eq (include "provisioner.anyClientEnabled" .) "true") }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "provisioner.jobName" . | quote }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "provisioner.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "1"
+    helm.sh/hook-delete-policy: {{ if .Values.provisioner.autoCleanupSuccessfulJob | default true }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+spec:
+  backoffLimit: {{ .Values.provisioner.backoffLimit | default 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "provisioner.labels" . | nindent 8 }}
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "provisioner.fullname" . | quote }}
+      {{- with default $.Values.imagePullSecrets .Values.provisioner.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: provisioner
+        image: {{ printf "%s/%s:%s" .Values.provisioner.registry .Values.provisioner.image .Values.provisioner.tag | quote }}
+        imagePullPolicy: {{ .Values.provisioner.imagePullPolicy | default "IfNotPresent" | quote }}
+        command: ["/bin/bash", "/terraform/entrypoint.sh"]
+        env:
+        - name: TF_BACKEND_TYPE
+          value: {{ .Values.provisioner.backend.type | quote }}
+        - name: TF_PLAN_ONLY
+          value: {{ .Values.provisioner.planOnly | quote }}
+        {{- if eq .Values.provisioner.backend.type "kubernetes" }}
+        - name: TF_BACKEND_KUBERNETES_SECRET_SUFFIX
+          value: {{ .Values.provisioner.backend.kubernetes.secretSuffix | default "provisioner" | quote }}
+        - name: TF_BACKEND_KUBERNETES_NAMESPACE
+          value: {{ .Release.Namespace | quote }}
+        {{- else if eq .Values.provisioner.backend.type "s3" }}
+        - name: TF_BACKEND_S3_BUCKET
+          value: {{ .Values.provisioner.backend.s3.bucket | required "provisioner.backend.s3.bucket is required when provisioner.backend.type is s3" | quote }}
+        - name: TF_BACKEND_S3_KEY
+          value: {{ .Values.provisioner.backend.s3.key | default "provisioner/terraform.tfstate" | quote }}
+        - name: TF_BACKEND_S3_REGION
+          value: {{ .Values.provisioner.backend.s3.region | required "provisioner.backend.s3.region is required when provisioner.backend.type is s3" | quote }}
+        - name: AWS_REGION
+          value: {{ .Values.provisioner.backend.s3.region | quote }}
+        {{- else if eq .Values.provisioner.backend.type "azurerm" }}
+        - name: TF_BACKEND_AZURERM_STORAGE_ACCOUNT_NAME
+          value: {{ .Values.provisioner.backend.azurerm.storageAccountName | required "provisioner.backend.azurerm.storageAccountName is required when provisioner.backend.type is azurerm" | quote }}
+        - name: TF_BACKEND_AZURERM_CONTAINER_NAME
+          value: {{ .Values.provisioner.backend.azurerm.containerName | required "provisioner.backend.azurerm.containerName is required when provisioner.backend.type is azurerm" | quote }}
+        - name: TF_BACKEND_AZURERM_KEY
+          value: {{ .Values.provisioner.backend.azurerm.key | default "provisioner.tfstate" | quote }}
+        {{- else if eq .Values.provisioner.backend.type "gcs" }}
+        - name: TF_BACKEND_GCS_BUCKET
+          value: {{ .Values.provisioner.backend.gcs.bucket | required "provisioner.backend.gcs.bucket is required when provisioner.backend.type is gcs" | quote }}
+        - name: TF_BACKEND_GCS_PREFIX
+          value: {{ .Values.provisioner.backend.gcs.prefix | default "provisioner" | quote }}
+        {{- end }}
+        {{- with .Values.provisioner.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.provisioner.extraEnvSecrets }}
+        envFrom:
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        volumeMounts:
+        - name: terraform-files
+          mountPath: /terraform
+        {{- with .Values.provisioner.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      volumes:
+      # NOT readOnly — Terraform writes .terraform/ and backend.tf into this same directory.
+      - name: terraform-files
+        secret:
+          secretName: {{ include "provisioner.terraformFilesSecretName" . | quote }}
+      {{- with .Values.provisioner.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.provisioner.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.provisioner.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}

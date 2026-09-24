@@ -846,6 +846,8 @@ identity:
     databaseUrlEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
     # -- Name of an EXTERNALLY-managed ConfigMap (public blobs) for the Job to mount instead of the chart rendering one from `serviceClients`. Set this when your provisioning tooling owns the ConfigMap (it must expose a `serviceClients.yaml` key in the same shape as `serviceClients` below). When set, the Job renders and mounts that ConfigMap even if `serviceClients` is empty, and the chart renders no ConfigMap of its own. When empty (default), the chart renders its own ConfigMap from `serviceClients` below.
     configMapName: ""
+    # -- Name of an EXTERNALLY-managed Secret (a `serviceClients.yaml` key, same shape as `serviceClients` below) for the Job to mount instead of a ConfigMap. Defaults to `provisioner`'s own output Secret name when `provisioner.enabled` and at least one `provisioner.clients.*` is enabled; empty otherwise. Wins over `configMapName`/`serviceClients` when non-empty.
+    secretName: ""
     # -- `spec.backoffLimit` for the Job (number of retries after a failed Pod).
     backoffLimit: 6
     # -- Automatically clean up the successful hook Job by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). The chart-rendered ConfigMap always uses `before-hook-creation` only (it must outlive the Job that mounts it) and is replaced on the next upgrade.
@@ -924,6 +926,125 @@ identity:
     - identity.example.com
     # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
     gateways: []
+
+# -- Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job
+# hook that generates and registers credentials for registry, secure-connection-service, frontend,
+# and mcp, feeding identity's `provision-service-clients` hook (`identity.serviceClientProvisioning`).
+# Off by default.
+# @default -- (see fields below)
+provisioner:
+  # -- Whether to render the provisioner Job and its supporting resources. Also requires at least
+  # one `clients.*.enabled`. In a one-release-per-service topology, set this `true` only in the
+  # provisioner's own dedicated release — every other release only needs `clients.*.enabled` (not
+  # this) to pick up that client's Secret name; see the deployment templates and
+  # `identity.serviceClientProvisioning.secretName`.
+  enabled: false
+  # -- Registry URL for the provisioner's image (Istari's own build, published to `main-docker-local`).
+  registry: "istaridigital.jfrog.io"
+  # -- Image name.
+  image: "main-docker-local/provisioner"
+  # -- Image tag.
+  tag: "0.1.0"
+  # -- Image pull policy.
+  imagePullPolicy: IfNotPresent
+  # -- When true, run `terraform plan` only (no `apply`).
+  planOnly: false
+  # -- `spec.backoffLimit` for the provisioning Job.
+  backoffLimit: 6
+  # -- Automatically clean up the successful provisioning Job (`hook-succeeded`).
+  autoCleanupSuccessfulJob: true
+  # -- Extra environment variables for the provisioner container.
+  env: []
+  # -- Extra secrets to mount (via `envFrom`) into the provisioner container — e.g. cloud backend
+  # credentials for `backend.type: s3` when not using pod identity.
+  extraEnvSecrets: []
+  # -- Annotations on the provisioner ServiceAccount — set a pod-identity annotation here for
+  # cloud-backend credentials, e.g. `eks.amazonaws.com/role-arn`, `azure.workload.identity/client-id`,
+  # `iam.gke.io/gcp-service-account`.
+  serviceAccountAnnotations: {}
+  # -- Additional labels to add to all of this component's resources
+  commonLabels: {}
+  # -- Resources for the provisioner container.
+  resources: {}
+  # -- Node selector for the provisioning Job pod.
+  nodeSelector: {}
+  # -- Affinity for the provisioning Job pod.
+  affinity: {}
+  # -- Tolerations for the provisioning Job pod.
+  tolerations: []
+  # -- Terraform state backend.
+  # @default -- (see fields below)
+  backend:
+    # -- Which backend stores this Job's own Terraform state. `kubernetes` needs no external cloud
+    # infra — the recommended default.
+    type: kubernetes  # kubernetes | s3 | azurerm | gcs
+    # -- Settings for `backend.type: kubernetes`.
+    kubernetes:
+      # -- Suffix for the state Secret's name.
+      secretSuffix: "provisioner"
+    # -- Settings for `backend.type: s3`. Credentials via `serviceAccountAnnotations` (IRSA,
+    # preferred) or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` in `extraEnvSecrets`.
+    s3:
+      # -- S3 bucket holding the state object. Required when `backend.type` is `s3`.
+      bucket: ""
+      # -- Object key within the bucket.
+      key: "provisioner/terraform.tfstate"
+      # -- AWS region of the bucket. Required when `backend.type` is `s3`.
+      region: ""
+    # -- Settings for `backend.type: azurerm`. Credentials via `serviceAccountAnnotations`
+    # (Workload Identity, preferred) or `ARM_CLIENT_ID`/`ARM_CLIENT_SECRET`/`ARM_TENANT_ID`/
+    # `ARM_SUBSCRIPTION_ID` in `extraEnvSecrets`.
+    azurerm:
+      # -- Storage account holding the state container. Required when `backend.type` is `azurerm`.
+      storageAccountName: ""
+      # -- Blob container within the storage account. Required when `backend.type` is `azurerm`.
+      containerName: ""
+      # -- Blob key within the container.
+      key: "provisioner.tfstate"
+    # -- Settings for `backend.type: gcs`. Credentials via `serviceAccountAnnotations` (Workload
+    # Identity, preferred) or `GOOGLE_CREDENTIALS` in `extraEnvSecrets`.
+    gcs:
+      # -- GCS bucket holding the state object. Required when `backend.type` is `gcs`.
+      bucket: ""
+      # -- Object-name prefix within the bucket.
+      prefix: "provisioner"
+  # -- Base domain used to derive frontend/mcp redirect URIs and identity-service's own public URL:
+  # frontend at `https://<mainDomain>`, mcp at `https://mcp.<mainDomain>/auth/callback`,
+  # identity-service at `https://identity.<mainDomain>`. Required if a client below is enabled and
+  # its own override (`redirectUri` / `identityServiceUrl`) is left empty.
+  mainDomain: ""
+  # -- Explicit identity-service public URL, written into every enabled client's secret alongside
+  # its "identity enabled" flag. Overrides the `mainDomain` derivation.
+  identityServiceUrl: ""
+  # -- Which clients to provision, and their per-client settings.
+  # @default -- (see fields below)
+  clients:
+    # -- Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair and a generated
+    # client_id.
+    registry:
+      # -- Whether to generate and register the registry client.
+      enabled: false
+    # -- Secure-connection-service (`kind: service`; see DPLAT-924). Same shape as `registry`.
+    secureConnection:
+      # -- Whether to generate and register the secure-connection-service client.
+      enabled: false
+    # -- Frontend (`kind: public` / PKCE) — a generated client_id and a redirect allowlist.
+    frontend:
+      # -- Whether to generate and register the frontend client.
+      enabled: false
+      # -- Explicit redirect URI. Overrides the `mainDomain` derivation.
+      redirectUri: ""
+      # -- Additional redirect URIs appended to whichever URI was resolved above.
+      extraRedirectUris: []
+    # -- MCP service (`kind: public` / PKCE) — a generated client_id, a placeholder client_secret,
+    # and a redirect allowlist.
+    mcp:
+      # -- Whether to generate and register the mcp client.
+      enabled: false
+      # -- Explicit redirect URI. Overrides the `mainDomain` derivation.
+      redirectUri: ""
+      # -- Additional redirect URIs appended to whichever URI was resolved above.
+      extraRedirectUris: []
 
 # Default values for Istari Digital Documentation. This should only be used in airgapped environments.
 docs:

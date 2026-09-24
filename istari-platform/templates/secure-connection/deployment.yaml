@@ -1,6 +1,13 @@
 {{- $serviceValues := .Values.secureConnection -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
+{{- if .Values.provisioner.clients.secureConnection.enabled -}}
+{{- $scsSecretName := include "provisioner.secureConnectionSecretName" . -}}
+{{- if not (has $scsSecretName $extraEnvSecrets) -}}
+{{- $extraEnvSecrets = append $extraEnvSecrets $scsSecretName -}}
+{{- end -}}
+{{- end -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -93,7 +100,7 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $serviceValues.extraEnvSecrets }}
+        {{- with $extraEnvSecrets }}
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
@@ -148,7 +155,7 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $serviceValues.extraEnvSecrets }}
+        {{- with $extraEnvSecrets }}
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
