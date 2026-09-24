@@ -865,12 +865,16 @@ identity:
   idpMigration:
     # -- Enable the pre-upgrade IdP-migration Job. Off by default; a fresh install has no outgoing IdP to migrate from.
     enabled: false
+    # -- Which migrate-idp run the hook performs. `migrate` (the default) moves users from the outgoing IdP to `to`. `import` keeps the outgoing IdP (Zitadel) and makes identity-service the record: it brings Zitadel's organizations, users and role grants in and, on every run, makes memberships, principal status, tenant_admin and the secure-connection agent's secure_connector grant match Zitadel. Nothing is deleted, and a Zitadel user always keeps the same principal. Changes made only in identity-service to those are undone by the next run, so administer them in Zitadel instead; `to` is then not needed. `import` requires an identity-service image that includes migrate-idp's -mode flag (identity-service#180).
+    mode: migrate
     # -- Outgoing IdP provider to enumerate (only `zitadel` is supported today; any other value fails rendering).
     from: zitadel
     # -- Outgoing IdP issuer base URL. **Required when enabled** and must still be reachable at pre-upgrade time (the Job enumerates it before the login IdP flips).
     fromIssuer: ""
-    # -- Incoming IdP provider name the migration targets (e.g. `keycloak`). **Required when enabled.**
+    # -- Incoming IdP provider name the migration targets (e.g. `keycloak`). **Required when enabled and `mode` is `migrate`.**
     to: ""
+    # -- Import mode only: slug of the tenant to designate as the installation default. Empty re-derives it on every run from the Zitadel organization that owns the migration credential.
+    defaultTenant: ""
     # -- Env var (in the mounted secret/config) holding the PostgreSQL connection string. Inherited, never re-declared — no new plaintext env vars.
     databaseUrlEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
     # -- Env var holding the outgoing-IdP viewer credential (the least-privilege service-account key identity already provisions). Inherited, never re-declared.

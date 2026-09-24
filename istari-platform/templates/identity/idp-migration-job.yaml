@@ -20,7 +20,12 @@
        fail migrate-idp after the upgrade has already started. Reject it here. */ -}}
 {{- if ne $from "zitadel" }}{{ fail (printf "identity.idpMigration.from must be \"zitadel\" (the only supported outgoing IdP), got %q" $from) }}{{ end }}
 {{- $fromIssuer := required "identity.idpMigration.fromIssuer is required when identity.idpMigration.enabled=true (the outgoing IdP issuer, still reachable at pre-upgrade time)" (dig "fromIssuer" "" $idp) -}}
-{{- $to := required "identity.idpMigration.to is required when identity.idpMigration.enabled=true (the incoming IdP provider, e.g. keycloak)" (dig "to" "" $idp) -}}
+{{- $mode := dig "mode" "migrate" $idp -}}
+{{- if and (ne $mode "migrate") (ne $mode "import") }}{{ fail (printf "identity.idpMigration.mode must be \"migrate\" or \"import\", got %q" $mode) }}{{ end }}
+{{- $to := dig "to" "" $idp -}}
+{{- if and (eq $mode "migrate") (eq $to "") }}{{ fail "identity.idpMigration.to is required when identity.idpMigration.enabled=true and mode is migrate (the incoming IdP provider, e.g. keycloak)" }}{{ end }}
+{{- $defaultTenant := dig "defaultTenant" "" $idp -}}
+{{- if and (eq $mode "migrate") (ne $defaultTenant "") }}{{ fail "identity.idpMigration.defaultTenant is only meaningful when mode is import" }}{{ end }}
 {{- /* required guards an EXPLICIT empty override (dig still supplies the default when the key is
        absent): an empty -database-url-env / -credential-env would pass through to migrate-idp and
        fail only at runtime, after the upgrade has begun. Fail at render instead. */ -}}
@@ -82,8 +87,17 @@ spec:
         - {{ $from | quote }}
         - "-issuer"
         - {{ $fromIssuer | quote }}
+        {{- if eq $mode "import" }}
+        - "-mode"
+        - "import"
+        {{- with $defaultTenant }}
+        - "-default-tenant"
+        - {{ . | quote }}
+        {{- end }}
+        {{- else }}
         - "-incoming-provider"
         - {{ $to | quote }}
+        {{- end }}
         - "-database-url-env"
         - {{ $dbEnv | quote }}
         - "-credential-env"
