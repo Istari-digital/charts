@@ -959,6 +959,20 @@ provisioner:
   extraEnvSecrets: []
   # -- Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation.
   serviceAccountAnnotations: {}
+  # -- Pod security context. The image runs as nonroot (uid 65532) — fsGroup is required so the
+  # (non-readOnly) terraform-files Secret volume it writes `.terraform/` into is group-writable
+  # by that user; Kubernetes Secret volumes default to root-owned files otherwise.
+  podSecurityContext:
+    fsGroup: 65532
+  # -- Provisioner container's security context.
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 65532
   # -- Additional labels to add to all of this component's resources
   commonLabels: {}
   # -- Resources for the provisioner container.

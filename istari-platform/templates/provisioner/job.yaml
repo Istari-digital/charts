@@ -21,6 +21,10 @@ spec:
     spec:
       restartPolicy: Never
       serviceAccountName: {{ include "provisioner.fullname" . | quote }}
+      {{- with .Values.provisioner.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with default $.Values.imagePullSecrets .Values.provisioner.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -29,6 +33,10 @@ spec:
       - name: provisioner
         image: {{ printf "%s/%s:%s" .Values.provisioner.registry .Values.provisioner.image .Values.provisioner.tag | quote }}
         imagePullPolicy: {{ .Values.provisioner.imagePullPolicy | default "IfNotPresent" | quote }}
+        {{- with .Values.provisioner.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         command: ["/bin/bash", "/terraform/entrypoint.sh"]
         env:
         - name: TF_PLAN_ONLY
@@ -55,7 +63,8 @@ spec:
           {{- toYaml . | nindent 10 }}
         {{- end }}
       volumes:
-      # NOT readOnly — Terraform writes .terraform/ and backend.tf into this same directory.
+      # NOT readOnly — Terraform writes .terraform/ into this same directory (podSecurityContext
+      # above makes that writable by the nonroot user this image runs as).
       - name: terraform-files
         secret:
           secretName: {{ include "provisioner.terraformFilesSecretName" . | quote }}

@@ -504,6 +504,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | provisioner.clients.secureConnection | object | `{"enabled":false}` | Secure-connection-service (`kind: service`; see DPLAT-924). Same shape as `registry`. |
 | provisioner.clients.secureConnection.enabled | bool | `false` | Whether to generate and register the secure-connection-service client. |
 | provisioner.commonLabels | object | `{}` | Additional labels to add to all of this component's resources |
+| provisioner.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Provisioner container's security context. |
 | provisioner.enabled | bool | `false` | Whether to render the provisioner Job and its supporting resources. Also requires at least one `clients.*.enabled`. In a one-release-per-service topology, set this `true` only in the provisioner's own dedicated release — every other release only needs `clients.*.enabled` (not this) to pick up that client's Secret name; see the deployment templates and `identity.serviceClientProvisioning.secretName`. |
 | provisioner.env | list | `[]` | Extra environment variables for the provisioner container. |
 | provisioner.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into the provisioner container. |
@@ -513,6 +514,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | provisioner.mainDomain | string | `""` | Base domain used to derive frontend/mcp redirect URIs and identity-service's own public URL: frontend at `https://<mainDomain>`, mcp at `https://mcp.<mainDomain>/auth/callback`, identity-service at `https://identity.<mainDomain>`. Required if a client below is enabled and its own override (`redirectUri` / `identityServiceUrl`) is left empty. |
 | provisioner.nodeSelector | object | `{}` | Node selector for the provisioning Job pod. |
 | provisioner.planOnly | bool | `false` | When true, run `terraform plan` only (no `apply`). |
+| provisioner.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context. The image runs as nonroot (uid 65532) — fsGroup is required so the (non-readOnly) terraform-files Secret volume it writes `.terraform/` into is group-writable by that user; Kubernetes Secret volumes default to root-owned files otherwise. |
 | provisioner.registry | string | `"istaridigital.jfrog.io"` | Registry URL for the provisioner's image (Istari's own build, published to `main-docker-local`). |
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
 | provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
