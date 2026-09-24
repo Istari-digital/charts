@@ -955,12 +955,9 @@ provisioner:
   autoCleanupSuccessfulJob: true
   # -- Extra environment variables for the provisioner container.
   env: []
-  # -- Extra secrets to mount (via `envFrom`) into the provisioner container — e.g. cloud backend
-  # credentials for `backend.type: s3` when not using pod identity.
+  # -- Extra secrets to mount (via `envFrom`) into the provisioner container.
   extraEnvSecrets: []
-  # -- Annotations on the provisioner ServiceAccount — set a pod-identity annotation here for
-  # cloud-backend credentials, e.g. `eks.amazonaws.com/role-arn`, `azure.workload.identity/client-id`,
-  # `iam.gke.io/gcp-service-account`.
+  # -- Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation.
   serviceAccountAnnotations: {}
   # -- Additional labels to add to all of this component's resources
   commonLabels: {}
@@ -972,42 +969,12 @@ provisioner:
   affinity: {}
   # -- Tolerations for the provisioning Job pod.
   tolerations: []
-  # -- Terraform state backend.
+  # -- Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no
+  # external cloud state infra.
   # @default -- (see fields below)
   backend:
-    # -- Which backend stores this Job's own Terraform state. `kubernetes` needs no external cloud
-    # infra — the recommended default.
-    type: kubernetes  # kubernetes | s3 | azurerm | gcs
-    # -- Settings for `backend.type: kubernetes`.
-    kubernetes:
-      # -- Suffix for the state Secret's name.
-      secretSuffix: "provisioner"
-    # -- Settings for `backend.type: s3`. Credentials via `serviceAccountAnnotations` (IRSA,
-    # preferred) or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` in `extraEnvSecrets`.
-    s3:
-      # -- S3 bucket holding the state object. Required when `backend.type` is `s3`.
-      bucket: ""
-      # -- Object key within the bucket.
-      key: "provisioner/terraform.tfstate"
-      # -- AWS region of the bucket. Required when `backend.type` is `s3`.
-      region: ""
-    # -- Settings for `backend.type: azurerm`. Credentials via `serviceAccountAnnotations`
-    # (Workload Identity, preferred) or `ARM_CLIENT_ID`/`ARM_CLIENT_SECRET`/`ARM_TENANT_ID`/
-    # `ARM_SUBSCRIPTION_ID` in `extraEnvSecrets`.
-    azurerm:
-      # -- Storage account holding the state container. Required when `backend.type` is `azurerm`.
-      storageAccountName: ""
-      # -- Blob container within the storage account. Required when `backend.type` is `azurerm`.
-      containerName: ""
-      # -- Blob key within the container.
-      key: "provisioner.tfstate"
-    # -- Settings for `backend.type: gcs`. Credentials via `serviceAccountAnnotations` (Workload
-    # Identity, preferred) or `GOOGLE_CREDENTIALS` in `extraEnvSecrets`.
-    gcs:
-      # -- GCS bucket holding the state object. Required when `backend.type` is `gcs`.
-      bucket: ""
-      # -- Object-name prefix within the bucket.
-      prefix: "provisioner"
+    # -- Suffix for the state Secret's name.
+    secretSuffix: "provisioner"
   # -- Base domain used to derive frontend/mcp redirect URIs and identity-service's own public URL:
   # frontend at `https://<mainDomain>`, mcp at `https://mcp.<mainDomain>/auth/callback`,
   # identity-service at `https://identity.<mainDomain>`. Required if a client below is enabled and

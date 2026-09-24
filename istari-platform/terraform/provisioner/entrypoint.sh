@@ -3,14 +3,18 @@ set -euo pipefail
 
 cd /terraform
 
-# Selects backend-${TF_BACKEND_TYPE}.tf.tmpl, writes it as backend.tf, and builds
-# TF_INIT_BACKEND_CONFIG_ARGS.
-# shellcheck disable=SC1091 # shipped alongside this script, not present at lint time
-source ./backend-init.sh
+# Kubernetes is the only supported backend — no external cloud state infra required.
+cat > backend.tf <<'EOF'
+terraform {
+  backend "kubernetes" {}
+}
+EOF
 
 # TF_CLI_CONFIG_FILE (set in the image) points at a baked-in provider mirror — no network call.
-# shellcheck disable=SC2086 # intentionally unquoted: a space-separated list of -backend-config= flags
-terraform init -input=false ${TF_INIT_BACKEND_CONFIG_ARGS}
+terraform init -input=false \
+  -backend-config="secret_suffix=${TF_BACKEND_SECRET_SUFFIX}" \
+  -backend-config="namespace=${TF_BACKEND_NAMESPACE}" \
+  -backend-config="in_cluster_config=true"
 
 if [ "${TF_PLAN_ONLY:-false}" = "true" ]; then
   terraform plan -input=false -var-file=terraform.tfvars

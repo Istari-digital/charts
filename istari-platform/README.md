@@ -487,21 +487,8 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | provisioner | object | (see fields below) | Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job hook that generates and registers credentials for registry, secure-connection-service, frontend, and mcp, feeding identity's `provision-service-clients` hook (`identity.serviceClientProvisioning`). Off by default. |
 | provisioner.affinity | object | `{}` | Affinity for the provisioning Job pod. |
 | provisioner.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful provisioning Job (`hook-succeeded`). |
-| provisioner.backend | object | (see fields below) | Terraform state backend. |
-| provisioner.backend.azurerm | object | `{"containerName":"","key":"provisioner.tfstate","storageAccountName":""}` | Settings for `backend.type: azurerm`. Credentials via `serviceAccountAnnotations` (Workload Identity, preferred) or `ARM_CLIENT_ID`/`ARM_CLIENT_SECRET`/`ARM_TENANT_ID`/ `ARM_SUBSCRIPTION_ID` in `extraEnvSecrets`. |
-| provisioner.backend.azurerm.containerName | string | `""` | Blob container within the storage account. Required when `backend.type` is `azurerm`. |
-| provisioner.backend.azurerm.key | string | `"provisioner.tfstate"` | Blob key within the container. |
-| provisioner.backend.azurerm.storageAccountName | string | `""` | Storage account holding the state container. Required when `backend.type` is `azurerm`. |
-| provisioner.backend.gcs | object | `{"bucket":"","prefix":"provisioner"}` | Settings for `backend.type: gcs`. Credentials via `serviceAccountAnnotations` (Workload Identity, preferred) or `GOOGLE_CREDENTIALS` in `extraEnvSecrets`. |
-| provisioner.backend.gcs.bucket | string | `""` | GCS bucket holding the state object. Required when `backend.type` is `gcs`. |
-| provisioner.backend.gcs.prefix | string | `"provisioner"` | Object-name prefix within the bucket. |
-| provisioner.backend.kubernetes | object | `{"secretSuffix":"provisioner"}` | Settings for `backend.type: kubernetes`. |
-| provisioner.backend.kubernetes.secretSuffix | string | `"provisioner"` | Suffix for the state Secret's name. |
-| provisioner.backend.s3 | object | `{"bucket":"","key":"provisioner/terraform.tfstate","region":""}` | Settings for `backend.type: s3`. Credentials via `serviceAccountAnnotations` (IRSA, preferred) or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` in `extraEnvSecrets`. |
-| provisioner.backend.s3.bucket | string | `""` | S3 bucket holding the state object. Required when `backend.type` is `s3`. |
-| provisioner.backend.s3.key | string | `"provisioner/terraform.tfstate"` | Object key within the bucket. |
-| provisioner.backend.s3.region | string | `""` | AWS region of the bucket. Required when `backend.type` is `s3`. |
-| provisioner.backend.type | string | `"kubernetes"` | Which backend stores this Job's own Terraform state. `kubernetes` needs no external cloud infra — the recommended default. |
+| provisioner.backend | object | (see fields below) | Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no external cloud state infra. |
+| provisioner.backend.secretSuffix | string | `"provisioner"` | Suffix for the state Secret's name. |
 | provisioner.backoffLimit | int | `6` | `spec.backoffLimit` for the provisioning Job. |
 | provisioner.clients | object | (see fields below) | Which clients to provision, and their per-client settings. |
 | provisioner.clients.frontend | object | `{"enabled":false,"extraRedirectUris":[],"redirectUri":""}` | Frontend (`kind: public` / PKCE) — a generated client_id and a redirect allowlist. |
@@ -519,7 +506,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | provisioner.commonLabels | object | `{}` | Additional labels to add to all of this component's resources |
 | provisioner.enabled | bool | `false` | Whether to render the provisioner Job and its supporting resources. Also requires at least one `clients.*.enabled`. In a one-release-per-service topology, set this `true` only in the provisioner's own dedicated release — every other release only needs `clients.*.enabled` (not this) to pick up that client's Secret name; see the deployment templates and `identity.serviceClientProvisioning.secretName`. |
 | provisioner.env | list | `[]` | Extra environment variables for the provisioner container. |
-| provisioner.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into the provisioner container — e.g. cloud backend credentials for `backend.type: s3` when not using pod identity. |
+| provisioner.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into the provisioner container. |
 | provisioner.identityServiceUrl | string | `""` | Explicit identity-service public URL, written into every enabled client's secret alongside its "identity enabled" flag. Overrides the `mainDomain` derivation. |
 | provisioner.image | string | `"main-docker-local/provisioner"` | Image name. |
 | provisioner.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy. |
@@ -528,7 +515,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | provisioner.planOnly | bool | `false` | When true, run `terraform plan` only (no `apply`). |
 | provisioner.registry | string | `"istaridigital.jfrog.io"` | Registry URL for the provisioner's image (Istari's own build, published to `main-docker-local`). |
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
-| provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — set a pod-identity annotation here for cloud-backend credentials, e.g. `eks.amazonaws.com/role-arn`, `azure.workload.identity/client-id`, `iam.gke.io/gcp-service-account`. |
+| provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
 | provisioner.tag | string | `"0.1.0"` | Image tag. |
 | provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | secureConnection.affinity | object | `{}` | Affinity |

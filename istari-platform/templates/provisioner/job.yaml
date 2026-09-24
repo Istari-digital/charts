@@ -31,37 +31,12 @@ spec:
         imagePullPolicy: {{ .Values.provisioner.imagePullPolicy | default "IfNotPresent" | quote }}
         command: ["/bin/bash", "/terraform/entrypoint.sh"]
         env:
-        - name: TF_BACKEND_TYPE
-          value: {{ .Values.provisioner.backend.type | quote }}
         - name: TF_PLAN_ONLY
           value: {{ .Values.provisioner.planOnly | quote }}
-        {{- if eq .Values.provisioner.backend.type "kubernetes" }}
-        - name: TF_BACKEND_KUBERNETES_SECRET_SUFFIX
-          value: {{ .Values.provisioner.backend.kubernetes.secretSuffix | default "provisioner" | quote }}
-        - name: TF_BACKEND_KUBERNETES_NAMESPACE
+        - name: TF_BACKEND_SECRET_SUFFIX
+          value: {{ .Values.provisioner.backend.secretSuffix | default "provisioner" | quote }}
+        - name: TF_BACKEND_NAMESPACE
           value: {{ .Release.Namespace | quote }}
-        {{- else if eq .Values.provisioner.backend.type "s3" }}
-        - name: TF_BACKEND_S3_BUCKET
-          value: {{ .Values.provisioner.backend.s3.bucket | required "provisioner.backend.s3.bucket is required when provisioner.backend.type is s3" | quote }}
-        - name: TF_BACKEND_S3_KEY
-          value: {{ .Values.provisioner.backend.s3.key | default "provisioner/terraform.tfstate" | quote }}
-        - name: TF_BACKEND_S3_REGION
-          value: {{ .Values.provisioner.backend.s3.region | required "provisioner.backend.s3.region is required when provisioner.backend.type is s3" | quote }}
-        - name: AWS_REGION
-          value: {{ .Values.provisioner.backend.s3.region | quote }}
-        {{- else if eq .Values.provisioner.backend.type "azurerm" }}
-        - name: TF_BACKEND_AZURERM_STORAGE_ACCOUNT_NAME
-          value: {{ .Values.provisioner.backend.azurerm.storageAccountName | required "provisioner.backend.azurerm.storageAccountName is required when provisioner.backend.type is azurerm" | quote }}
-        - name: TF_BACKEND_AZURERM_CONTAINER_NAME
-          value: {{ .Values.provisioner.backend.azurerm.containerName | required "provisioner.backend.azurerm.containerName is required when provisioner.backend.type is azurerm" | quote }}
-        - name: TF_BACKEND_AZURERM_KEY
-          value: {{ .Values.provisioner.backend.azurerm.key | default "provisioner.tfstate" | quote }}
-        {{- else if eq .Values.provisioner.backend.type "gcs" }}
-        - name: TF_BACKEND_GCS_BUCKET
-          value: {{ .Values.provisioner.backend.gcs.bucket | required "provisioner.backend.gcs.bucket is required when provisioner.backend.type is gcs" | quote }}
-        - name: TF_BACKEND_GCS_PREFIX
-          value: {{ .Values.provisioner.backend.gcs.prefix | default "provisioner" | quote }}
-        {{- end }}
         {{- with .Values.provisioner.env }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
