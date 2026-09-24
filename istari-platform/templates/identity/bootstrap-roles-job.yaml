@@ -4,6 +4,10 @@
 {{- if and $serviceValues.enabled $bootstrap.enabled }}
 {{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.enabled requires identity.migrations.runAsJob=true, so the schema exists before this pre-install hook" }}{{ end }}
 {{- if and (not $bootstrap.registryClientId) (not $bootstrap.registryClientIdSecretRef) }}{{ fail "identity.bootstrap.enabled requires identity.bootstrap.registryClientId or identity.bootstrap.registryClientIdSecretRef" }}{{ end }}
+{{- if not $bootstrap.registryClientId }}
+{{- $_ := $bootstrap.registryClientIdSecretRef.name | required "identity.bootstrap.registryClientIdSecretRef.name must be set (with .key) when registryClientId is empty" -}}
+{{- $_ := $bootstrap.registryClientIdSecretRef.key | required "identity.bootstrap.registryClientIdSecretRef.key must be set (with .name) when registryClientId is empty" -}}
+{{- end }}
 {{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.bootstrap.enabled is true" -}}
 {{- $dbEnv := list (dict "name" $bootstrap.databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $bootstrap.databaseUrlEnv))) -}}
 {{- $clientEnv := list (dict "name" "REGISTRY_CLIENT_ID" "value" $bootstrap.registryClientId) -}}
@@ -11,6 +15,7 @@
 {{- $clientEnv = list (dict "name" "REGISTRY_CLIENT_ID" "valueFrom" (dict "secretKeyRef" $bootstrap.registryClientIdSecretRef)) -}}
 {{- end -}}
 {{- $extra := list $clientEnv $dbEnv -}}
+{{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -59,6 +64,12 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        volumeMounts:
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
       containers:
       - name: grant-principal-viewer
         {{- with $serviceValues.containerSecurityContext }}
@@ -75,4 +86,16 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        volumeMounts:
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+      {{- if .Values.trustedCertBundle }}
+      volumes:
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" . | quote }}
+      {{- end }}
 {{- end }}

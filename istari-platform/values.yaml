@@ -869,7 +869,7 @@ identity:
     enabled: false
     # -- The registry's client id. Set this or `registryClientIdSecretRef`.
     registryClientId: ""
-    # -- Secret key holding the registry's client id, as `{name: ..., key: ...}`. Used when `registryClientId` is empty.
+    # -- Secret key holding the registry's client id, as `{name: ..., key: ...}` (both required). Used when `registryClientId` is empty. For the chart's provisioner use `{name: istari-provisioner-registry-credentials, key: ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_ID}`.
     registryClientIdSecretRef: {}
     # -- Email of the first platform administrator. Leave empty until that person has signed in once; granting `admin` ends open bootstrap mode for good.
     platformAdminEmail: ""

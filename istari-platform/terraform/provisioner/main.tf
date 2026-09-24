@@ -99,6 +99,8 @@ resource "kubernetes_secret_v1" "registry" {
       keyId    = local.registry_key_id
       key      = tls_private_key.registry[0].private_key_pem_pkcs8
     }))
+    # Raw client id, for identity.bootstrap.registryClientIdSecretRef.
+    ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_ID = local.registry_client_id
     # Legacy + DPLAT-602 names for the same "identity is on" signal — both emitted for compat.
     FILE_SERVICE_FEATURE_FLAGS__IDENTITY_ROUTER_ENABLED = "true"
     FILE_SERVICE_IDENTITY_ROUTER_URL                    = local.identity_service_url

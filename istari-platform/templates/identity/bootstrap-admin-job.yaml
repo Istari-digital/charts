@@ -6,6 +6,7 @@
 {{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.bootstrap.enabled is true" -}}
 {{- $dbEnv := list (dict "name" $bootstrap.databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $bootstrap.databaseUrlEnv))) -}}
 {{- $extra := list $dbEnv -}}
+{{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -54,4 +55,16 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        volumeMounts:
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+      {{- if .Values.trustedCertBundle }}
+      volumes:
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" . | quote }}
+      {{- end }}
 {{- end }}
