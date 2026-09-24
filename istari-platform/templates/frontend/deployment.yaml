@@ -1,6 +1,9 @@
 {{- $serviceValues := .Values.frontend -}}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
-{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
+{{- /* default list here isn't re-documenting values.yaml's own [] default (that's already the
+   normal case) -- it's nil-safety: an overlay that explicitly sets extraEnvSecrets: null would
+   otherwise pass nil into `has`/`append` below and abort rendering. */ -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
 {{- if .Values.provisioner.clients.frontend.enabled -}}
 {{- $frontendSecretName := include "provisioner.frontendSecretName" . -}}
 {{- if not (has $frontendSecretName $extraEnvSecrets) -}}

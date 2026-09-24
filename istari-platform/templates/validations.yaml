@@ -12,12 +12,16 @@ service. This file never emits a manifest.
 {{- /*
 provisioner.clients.frontend/.mcp flip on the same identity-enabled env var that
 identity.clientIntegration.enabled does (VITE_ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED /
-ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED), independent of that flag -- so a provisioner-only
-config needs the same gateway-URL guard, or it installs a workload that fails at startup.
+ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED), independent of that flag -- so a THIS-RELEASE
+frontend/mcp workload needs the same gateway-URL guard, or it installs a workload that fails
+at startup. Scoped to frontend.enabled/mcp.enabled too (not just the provisioner client flag):
+a dedicated provisioner release that only generates/registers credentials for a workload
+deployed in a SEPARATE release (one-release-per-service topology) never runs that workload
+here, so it has no need for apiGateway.apiUrl itself.
 */}}
-{{- if and .Values.provisioner.clients.frontend.enabled (not (include "istari-platform.apiGatewayUrl" .)) }}
-{{- fail "provisioner.clients.frontend.enabled is true but no gateway URL resolves — set apiGateway.apiUrl so the frontend has a gateway to authenticate through" }}
+{{- if and .Values.provisioner.clients.frontend.enabled .Values.frontend.enabled (not (include "istari-platform.apiGatewayUrl" .)) }}
+{{- fail "provisioner.clients.frontend.enabled and frontend.enabled are both true but no gateway URL resolves — set apiGateway.apiUrl so the frontend has a gateway to authenticate through" }}
 {{- end }}
-{{- if and .Values.provisioner.clients.mcp.enabled (not (include "istari-platform.apiGatewayUrl" .)) }}
-{{- fail "provisioner.clients.mcp.enabled is true but no gateway URL resolves — set apiGateway.apiUrl so MCP has a gateway to authenticate through" }}
+{{- if and .Values.provisioner.clients.mcp.enabled .Values.mcp.enabled (not (include "istari-platform.apiGatewayUrl" .)) }}
+{{- fail "provisioner.clients.mcp.enabled and mcp.enabled are both true but no gateway URL resolves — set apiGateway.apiUrl so MCP has a gateway to authenticate through" }}
 {{- end }}

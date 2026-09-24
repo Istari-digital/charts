@@ -50,6 +50,17 @@ spec:
         - {{ printf "-backend-config=secret_suffix=%s" .Values.provisioner.backend.secretSuffix | quote }}
         - {{ printf "-backend-config=namespace=%s" .Release.Namespace | quote }}
         - "-backend-config=in_cluster_config=true"
+        {{- with .Values.provisioner.env }}
+        env:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.provisioner.extraEnvSecrets }}
+        envFrom:
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
         volumeMounts:
         - name: terraform-files
           mountPath: /terraform

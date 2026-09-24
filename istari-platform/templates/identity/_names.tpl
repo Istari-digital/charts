@@ -86,11 +86,15 @@ service-client-provisioning-configmap.yaml (which must NOT render when this wins
 {{/*
 Whether a Secret source and a ConfigMap source are BOTH configured for
 provision-service-clients -- the Secret would silently win and the ConfigMap source (and
-its ConfigMap Job would ignore) would be dropped with no warning. Returns "true" or "".
+its ConfigMap Job would ignore) would be dropped with no warning. Tests the EFFECTIVE Secret
+name (identity.serviceClientProvisioning.secretName), not just the auto-derived case -- an
+explicitly-set secretName alongside configMapName/serviceClients is the exact same silent-
+override risk. Returns "true" or "".
 */}}
 {{- define "identity.serviceClientProvisioning.sourceConflict" -}}
 {{- $provisioning := .Values.identity.serviceClientProvisioning -}}
-{{- if and (eq (include "provisioner.anyClientEnabled" .) "true") (or $provisioning.configMapName $provisioning.serviceClients) -}}
+{{- $secretName := include "identity.serviceClientProvisioning.secretName" . -}}
+{{- if and $secretName (or $provisioning.configMapName $provisioning.serviceClients) -}}
 true
 {{- end -}}
 {{- end }}
