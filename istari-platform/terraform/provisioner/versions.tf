@@ -1,8 +1,7 @@
 # Must stay byte-identical to this file's counterpart in the repo that builds the provisioner's
 # container image (and .terraform.lock.hcl too) — no shared-package mechanism between the two.
 #
-# No backend block here — the entrypoint script writes the matching backend "<type>" {} stanza
-# at runtime, before `terraform init`.
+# Backend block lives in its own backend.tf, not here.
 
 terraform {
   required_version = ">= 1.9.0"

@@ -973,8 +973,10 @@ provisioner:
   # external cloud state infra.
   # @default -- (see fields below)
   backend:
-    # -- Suffix for the state Secret's name.
-    secretSuffix: "provisioner"
+    # -- Suffix for the state Secret's name — the Secret (and its Lease lock) is named
+    # `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Must not
+    # end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index.
+    secretSuffix: "istari-provisioner-terraform-state"
   # -- Base domain used to derive frontend/mcp redirect URIs and identity-service's own public URL:
   # frontend at `https://<mainDomain>`, mcp at `https://mcp.<mainDomain>/auth/callback`,
   # identity-service at `https://identity.<mainDomain>`. Required if a client below is enabled and

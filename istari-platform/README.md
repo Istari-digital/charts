@@ -488,7 +488,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | provisioner.affinity | object | `{}` | Affinity for the provisioning Job pod. |
 | provisioner.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful provisioning Job (`hook-succeeded`). |
 | provisioner.backend | object | (see fields below) | Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no external cloud state infra. |
-| provisioner.backend.secretSuffix | string | `"provisioner"` | Suffix for the state Secret's name. |
+| provisioner.backend.secretSuffix | string | `"istari-provisioner-terraform-state"` | Suffix for the state Secret's name — the Secret (and its Lease lock) is named `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Must not end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index. |
 | provisioner.backoffLimit | int | `6` | `spec.backoffLimit` for the provisioning Job. |
 | provisioner.clients | object | (see fields below) | Which clients to provision, and their per-client settings. |
 | provisioner.clients.frontend | object | `{"enabled":false,"extraRedirectUris":[],"redirectUri":""}` | Frontend (`kind: public` / PKCE) — a generated client_id and a redirect allowlist. |
