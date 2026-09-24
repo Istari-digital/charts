@@ -8,3 +8,16 @@ service. This file never emits a manifest.
 {{- if and (dig "clientIntegration" "enabled" false .Values.identity) (not (include "istari-platform.apiGatewayUrl" .)) }}
 {{- fail "identity.clientIntegration.enabled is true but no gateway URL resolves — set apiGateway.apiUrl so the registry service, the frontend, and MCP have a gateway to authenticate through" }}
 {{- end }}
+
+{{- /*
+provisioner.clients.frontend/.mcp flip on the same identity-enabled env var that
+identity.clientIntegration.enabled does (VITE_ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED /
+ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED), independent of that flag -- so a provisioner-only
+config needs the same gateway-URL guard, or it installs a workload that fails at startup.
+*/}}
+{{- if and .Values.provisioner.clients.frontend.enabled (not (include "istari-platform.apiGatewayUrl" .)) }}
+{{- fail "provisioner.clients.frontend.enabled is true but no gateway URL resolves — set apiGateway.apiUrl so the frontend has a gateway to authenticate through" }}
+{{- end }}
+{{- if and .Values.provisioner.clients.mcp.enabled (not (include "istari-platform.apiGatewayUrl" .)) }}
+{{- fail "provisioner.clients.mcp.enabled is true but no gateway URL resolves — set apiGateway.apiUrl so MCP has a gateway to authenticate through" }}
+{{- end }}

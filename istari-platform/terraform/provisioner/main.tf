@@ -7,10 +7,12 @@ locals {
     var.main_domain != "" ? "https://mcp.${var.main_domain}/auth/callback" : ""
   )
 
-  # identity-service's own public URL, written into every enabled client's secret.
+  # identity-service's own public URL. Consumed by registry, secure-connection, and frontend's
+  # secrets -- NOT mcp's, which derives its issuer from apiGateway.apiUrl instead.
   identity_service_url = var.identity_service_url != "" ? var.identity_service_url : (
     var.main_domain != "" ? "https://identity.${var.main_domain}" : ""
   )
+  identity_service_url_required = var.registry_enabled || var.secure_connection_enabled || var.frontend_enabled
 
   frontend_all_redirect_uris = concat(
     local.frontend_redirect_uri != "" ? [local.frontend_redirect_uri] : [],
@@ -203,8 +205,11 @@ resource "kubernetes_secret_v1" "identity_service_clients" {
       error_message = "mcp is enabled but no redirect URI could be resolved — set provisioner.clients.mcp.redirectUri or provisioner.mainDomain."
     }
     precondition {
-      condition     = local.identity_service_url != ""
-      error_message = "at least one client is enabled but the identity-service URL could not be resolved — set provisioner.identityServiceUrl or provisioner.mainDomain."
+      # Scoped to the clients that actually consume identity_service_url (registry,
+      # secure-connection, frontend) -- an mcp-only configuration never writes this value
+      # anywhere, so it must not be required for one.
+      condition     = !local.identity_service_url_required || local.identity_service_url != ""
+      error_message = "registry, secure-connection, or frontend is enabled but the identity-service URL could not be resolved — set provisioner.identityServiceUrl or provisioner.mainDomain."
     }
   }
 }
