@@ -319,16 +319,18 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.idpMigration.backoffLimit | int | `3` | `spec.backoffLimit` for the Job (retries after a failed Pod). A few retries ride out transient IdP-API hiccups. |
 | identity.idpMigration.credentialEnv | string | `"ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY"` | Env var holding the outgoing-IdP viewer credential (the least-privilege service-account key identity already provisions). Inherited, never re-declared. |
 | identity.idpMigration.databaseUrlEnv | string | `"ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"` | Env var (in the mounted secret/config) holding the PostgreSQL connection string. Inherited, never re-declared — no new plaintext env vars. |
+| identity.idpMigration.defaultTenant | string | `""` | Import mode only: slug of the tenant to designate as the installation default. Empty re-derives it on every run from the Zitadel organization that owns the migration credential. |
 | identity.idpMigration.dryRun | bool | `false` | Print what would be migrated without writing, forwarded to every phase (tenants → roles → users). |
 | identity.idpMigration.enabled | bool | `false` | Enable the pre-upgrade IdP-migration Job. Off by default; a fresh install has no outgoing IdP to migrate from. |
 | identity.idpMigration.env | list | `[]` | Extra environment variables for the migration Job only, rendered after the service-level `env` (on duplicate names, these win). |
 | identity.idpMigration.from | string | `"zitadel"` | Outgoing IdP provider to enumerate (only `zitadel` is supported today; any other value fails rendering). |
 | identity.idpMigration.fromIssuer | string | `""` | Outgoing IdP issuer base URL. **Required when enabled** and must still be reachable at pre-upgrade time (the Job enumerates it before the login IdP flips). |
+| identity.idpMigration.mode | string | `"migrate"` | Which migrate-idp run the hook performs. `migrate` (the default) moves users from the outgoing IdP to `to`. `import` keeps the outgoing IdP (Zitadel) and makes identity-service the record: it brings Zitadel's organizations, users and role grants in and, on every run, makes memberships, principal status, tenant_admin and the secure-connection agent's secure_connector grant match Zitadel. Nothing is deleted, and a Zitadel user always keeps the same principal. Changes made only in identity-service to those are undone by the next run, so administer them in Zitadel instead; `to` is then not needed. `import` requires an identity-service image that includes migrate-idp's -mode flag (identity-service#180). |
 | identity.idpMigration.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only. |
 | identity.idpMigration.podLabels | object | `{}` | Extra labels for the migration Job Pod template only. |
 | identity.idpMigration.resources | object | `{}` | Resource requests/limits for the migration Job. |
 | identity.idpMigration.slugPrefix | string | `""` | Optional slug prefix for derived tenants (recommended to avoid cross-provider collisions); forwarded to bootstrap-tenants. |
-| identity.idpMigration.to | string | `""` | Incoming IdP provider name the migration targets (e.g. `keycloak`). **Required when enabled.** |
+| identity.idpMigration.to | string | `""` | Incoming IdP provider name the migration targets (e.g. `keycloak`). **Required when enabled and `mode` is `migrate`.** |
 | identity.image | string | `"identity-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | identity.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | identity.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
