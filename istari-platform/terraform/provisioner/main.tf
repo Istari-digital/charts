@@ -33,6 +33,7 @@ locals {
   service_clients = concat(
     var.registry_enabled ? [{
       serviceId         = "registry"
+      component         = "registry"
       kind              = "service"
       canListPrincipals = true
       credential = base64encode(jsonencode({
@@ -43,6 +44,7 @@ locals {
     }] : [],
     var.secure_connection_enabled ? [{
       serviceId         = "secure-connection"
+      component         = "secure_connection"
       kind              = "service"
       canListPrincipals = false
       credential = base64encode(jsonencode({
@@ -53,12 +55,14 @@ locals {
     }] : [],
     var.frontend_enabled ? [{
       serviceId    = "frontend"
+      component    = "frontend"
       kind         = "public"
       clientId     = local.frontend_client_id
       redirectUris = local.frontend_all_redirect_uris
     }] : [],
     var.mcp_enabled ? [{
       serviceId    = "mcp"
+      component    = "mcp"
       kind         = "public"
       clientId     = local.mcp_client_id
       redirectUris = local.mcp_all_redirect_uris
