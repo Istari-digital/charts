@@ -2,7 +2,7 @@
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{- /* provisioner's client key here is "registry", not "fileservice" — intentional. */ -}}
-{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
 {{- if .Values.provisioner.clients.registry.enabled -}}
 {{- $registrySecretName := include "provisioner.registrySecretName" . -}}
 {{- if not (has $registrySecretName $extraEnvSecrets) -}}
@@ -88,7 +88,11 @@ spec:
         {{- if or $serviceValues.secretName $extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
         envFrom:
         {{- end }}
-        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
+        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override
+        them -- EXCEPT the provisioner's generated Secret (appended to $extraEnvSecrets above,
+        when provisioner.clients.registry.enabled), which is deliberately LAST/authoritative: it's
+        the freshly-generated credential, and a stale unrelated user value should not silently
+        shadow it. */}}
         {{- if or $jaegerEnabled $gatewayUrl }}
         - configMapRef:
             name: {{ include "fileservice.configmap.name" . | quote }}
@@ -148,7 +152,11 @@ spec:
         {{- if or $serviceValues.secretName $extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
         envFrom:
         {{- end }}
-        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
+        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override
+        them -- EXCEPT the provisioner's generated Secret (appended to $extraEnvSecrets above,
+        when provisioner.clients.registry.enabled), which is deliberately LAST/authoritative: it's
+        the freshly-generated credential, and a stale unrelated user value should not silently
+        shadow it. */}}
         {{- if or $jaegerEnabled $gatewayUrl }}
         - configMapRef:
             name: {{ include "fileservice.configmap.name" . | quote }}

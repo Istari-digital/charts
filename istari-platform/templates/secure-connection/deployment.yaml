@@ -1,7 +1,7 @@
 {{- $serviceValues := .Values.secureConnection -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
-{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
 {{- if .Values.provisioner.clients.secureConnection.enabled -}}
 {{- $scsSecretName := include "provisioner.secureConnectionSecretName" . -}}
 {{- if not (has $scsSecretName $extraEnvSecrets) -}}
@@ -86,7 +86,11 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'secureConnection.extraEnvConfigMaps', 'secureConnection.secretName', 'secureConnection.extraEnvSecrets', and 'secureConnection.env' will always override them.
+        'secureConnection.extraEnvConfigMaps', 'secureConnection.secretName', 'secureConnection.extraEnvSecrets', and 'secureConnection.env' will always
+        override them -- EXCEPT the provisioner's generated Secret (appended to $extraEnvSecrets
+        above, when provisioner.clients.secureConnection.enabled), which is deliberately
+        LAST/authoritative: it's the freshly-generated credential, and a stale unrelated user
+        value should not silently shadow it.
         */}}
         - configMapRef:
             name: {{ include "secure-connection.configmap.name" . | quote }}
@@ -141,7 +145,11 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'secureConnection.extraEnvConfigMaps', 'secureConnection.secretName', 'secureConnection.extraEnvSecrets', and 'secureConnection.env' will always override them.
+        'secureConnection.extraEnvConfigMaps', 'secureConnection.secretName', 'secureConnection.extraEnvSecrets', and 'secureConnection.env' will always
+        override them -- EXCEPT the provisioner's generated Secret (appended to $extraEnvSecrets
+        above, when provisioner.clients.secureConnection.enabled), which is deliberately
+        LAST/authoritative: it's the freshly-generated credential, and a stale unrelated user
+        value should not silently shadow it.
         */}}
         - configMapRef:
             name: {{ include "secure-connection.configmap.name" . | quote }}

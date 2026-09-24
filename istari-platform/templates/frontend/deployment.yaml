@@ -1,6 +1,6 @@
 {{- $serviceValues := .Values.frontend -}}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
-{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
 {{- if .Values.provisioner.clients.frontend.enabled -}}
 {{- $frontendSecretName := include "provisioner.frontendSecretName" . -}}
 {{- if not (has $frontendSecretName $extraEnvSecrets) -}}
@@ -73,7 +73,11 @@ spec:
         {{- if or $gatewayUrl $serviceValues.secretName $extraEnvSecrets $serviceValues.extraEnvConfigMaps }}
         envFrom:
         {{- end }}
-        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
+        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override
+        them -- EXCEPT the provisioner's generated Secret (appended to $extraEnvSecrets above,
+        when provisioner.clients.frontend.enabled), which is deliberately LAST/authoritative: it's
+        the freshly-generated credential, and a stale unrelated user value should not silently
+        shadow it. */}}
         {{- if $gatewayUrl }}
         - configMapRef:
             name: {{ include "frontend.configmap.name" $ | quote }}

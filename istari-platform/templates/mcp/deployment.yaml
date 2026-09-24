@@ -1,5 +1,5 @@
 {{- $serviceValues := .Values.mcp -}}
-{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
 {{- if .Values.provisioner.clients.mcp.enabled -}}
 {{- $mcpSecretName := include "provisioner.mcpSecretName" . -}}
 {{- if not (has $mcpSecretName $extraEnvSecrets) -}}
@@ -72,7 +72,11 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'mcp.extraEnvConfigMaps', 'mcp.secretName', 'mcp.extraEnvSecrets', and 'mcp.env' will always override them.
+        'mcp.extraEnvConfigMaps', 'mcp.secretName', 'mcp.extraEnvSecrets', and 'mcp.env' will always
+        override them -- EXCEPT the provisioner's generated Secret (appended to $extraEnvSecrets
+        above, when provisioner.clients.mcp.enabled), which is deliberately LAST/authoritative:
+        it's the freshly-generated credential, and a stale unrelated user value should not
+        silently shadow it.
         */}}
         - configMapRef:
             name: {{ include "mcp.configmap.name" . | quote }}
