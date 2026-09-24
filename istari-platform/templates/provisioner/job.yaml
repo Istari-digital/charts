@@ -9,9 +9,9 @@ metadata:
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "1"
-    helm.sh/hook-delete-policy: {{ if .Values.provisioner.autoCleanupSuccessfulJob | default true }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+    helm.sh/hook-delete-policy: {{ if .Values.provisioner.autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
 spec:
-  backoffLimit: {{ .Values.provisioner.backoffLimit | default 6 }}
+  backoffLimit: {{ .Values.provisioner.backoffLimit }}
   template:
     metadata:
       labels:
@@ -32,7 +32,7 @@ spec:
       containers:
       - name: provisioner
         image: {{ printf "%s/%s:%s" .Values.provisioner.registry .Values.provisioner.image .Values.provisioner.tag | quote }}
-        imagePullPolicy: {{ .Values.provisioner.imagePullPolicy | default "IfNotPresent" | quote }}
+        imagePullPolicy: {{ .Values.provisioner.imagePullPolicy | quote }}
         {{- with .Values.provisioner.containerSecurityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}
@@ -42,7 +42,7 @@ spec:
         - name: TF_PLAN_ONLY
           value: {{ .Values.provisioner.planOnly | quote }}
         - name: TF_BACKEND_SECRET_SUFFIX
-          value: {{ .Values.provisioner.backend.secretSuffix | default "provisioner" | quote }}
+          value: {{ .Values.provisioner.backend.secretSuffix | quote }}
         - name: TF_BACKEND_NAMESPACE
           value: {{ .Release.Namespace | quote }}
         {{- with .Values.provisioner.env }}
@@ -58,16 +58,24 @@ spec:
         volumeMounts:
         - name: terraform-files
           mountPath: /terraform
+        - name: terraform-temp
+          mountPath: /terraform/.terraform
         {{- with .Values.provisioner.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
       volumes:
-      # NOT readOnly — Terraform writes .terraform/ into this same directory (podSecurityContext
-      # above makes that writable by the nonroot user this image runs as).
+      # A Kubernetes Secret volume is always mounted read-only at the kernel/mount level,
+      # regardless of the pod's securityContext/fsGroup or any `readOnly` field here -- fsGroup
+      # only affects ownership bits, it cannot make the mount itself writable. terraform init
+      # must create .terraform/, so that one directory is a separate writable emptyDir layered on
+      # top, matching istari-zitadel-configurator's job.yaml (terraform-temp). podSecurityContext's
+      # fsGroup still matters -- it's what makes that emptyDir group-writable by the nonroot user.
       - name: terraform-files
         secret:
           secretName: {{ include "provisioner.terraformFilesSecretName" . | quote }}
+      - name: terraform-temp
+        emptyDir: {}
       {{- with .Values.provisioner.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
