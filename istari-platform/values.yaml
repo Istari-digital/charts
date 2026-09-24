@@ -846,7 +846,7 @@ identity:
     databaseUrlEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
     # -- Name of an EXTERNALLY-managed ConfigMap (public blobs) for the Job to mount instead of the chart rendering one from `serviceClients`. Set this when your provisioning tooling owns the ConfigMap (it must expose a `serviceClients.yaml` key in the same shape as `serviceClients` below). When set, the Job renders and mounts that ConfigMap even if `serviceClients` is empty, and the chart renders no ConfigMap of its own. When empty (default), the chart renders its own ConfigMap from `serviceClients` below.
     configMapName: ""
-    # -- Name of an EXTERNALLY-managed Secret (a `serviceClients.yaml` key, same shape as `serviceClients` below) for the Job to mount instead of a ConfigMap. Defaults to `provisioner`'s own output Secret name when `provisioner.enabled` and at least one `provisioner.clients.*` is enabled; empty otherwise. Wins over `configMapName`/`serviceClients` when non-empty.
+    # -- Name of an EXTERNALLY-managed Secret (a `serviceClients.yaml` key, same shape as `serviceClients` below) for the Job to mount instead of a ConfigMap. Defaults to `provisioner`'s own output Secret name whenever at least one `provisioner.clients.*` is enabled (regardless of `provisioner.enabled` -- that flag is only ever true in the provisioner's own dedicated release in a one-release-per-service topology; this release only needs the Secret's name); empty otherwise. Wins over `configMapName`/`serviceClients` when non-empty -- rendering fails if both a Secret source and a ConfigMap source are configured at once.
     secretName: ""
     # -- `spec.backoffLimit` for the Job (number of retries after a failed Pod).
     backoffLimit: 6

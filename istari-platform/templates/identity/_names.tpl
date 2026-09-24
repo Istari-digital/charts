@@ -66,6 +66,36 @@ provision-service-clients Job reads.
 {{- end }}
 
 {{/*
+Effective Secret name for provision-service-clients' public-blob source: explicit
+identity.serviceClientProvisioning.secretName always wins; otherwise auto-derives to the
+provisioner's own output Secret whenever at least one provisioner.clients.* is enabled
+(deliberately NOT also gated on provisioner.enabled -- see service-client-provisioning-job.yaml
+for why). Returns "" when neither applies, meaning the ConfigMap source is effective instead.
+Shared by service-client-provisioning-job.yaml (which mounts it) and
+service-client-provisioning-configmap.yaml (which must NOT render when this wins).
+*/}}
+{{- define "identity.serviceClientProvisioning.secretName" -}}
+{{- $provisioning := .Values.identity.serviceClientProvisioning -}}
+{{- if $provisioning.secretName -}}
+{{- $provisioning.secretName -}}
+{{- else if eq (include "provisioner.anyClientEnabled" .) "true" -}}
+{{- include "provisioner.serviceClientsSecretName" . -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Whether a Secret source and a ConfigMap source are BOTH configured for
+provision-service-clients -- the Secret would silently win and the ConfigMap source (and
+its ConfigMap Job would ignore) would be dropped with no warning. Returns "true" or "".
+*/}}
+{{- define "identity.serviceClientProvisioning.sourceConflict" -}}
+{{- $provisioning := .Values.identity.serviceClientProvisioning -}}
+{{- if and (eq (include "provisioner.anyClientEnabled" .) "true") (or $provisioning.configMapName $provisioning.serviceClients) -}}
+true
+{{- end -}}
+{{- end }}
+
+{{/*
 One-shot Job that provisions an agent's tenant and registers its public key.
 Call with a dict: {"root": $, "name": <agent name>}.
 */}}

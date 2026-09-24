@@ -20,14 +20,16 @@ by slug and fail if it does not yet exist, so the tenant must be created first.
        Render the Job when either source is present, and mount whichever applies. */ -}}
 {{- $configMapName := $provisioning.configMapName -}}
 {{- if not $configMapName }}{{- $configMapName = include "identity.serviceClientProvisioning.configMapName" . -}}{{- end -}}
-{{- /* Explicit secretName always wins; otherwise default to the provisioner's output Secret name
+{{- /* Explicit secretName always wins; otherwise defaults to the provisioner's output Secret name
        whenever at least one client is enabled — deliberately NOT also gated on
        provisioner.enabled, since that flag is only ever true in the provisioner's own dedicated
        release (a separate release in a one-release-per-service topology); this release only needs
-       to know the Secret's name, computed the same way regardless of which release renders it. */ -}}
-{{- $secretName := $provisioning.secretName -}}
-{{- if and (not $secretName) (eq (include "provisioner.anyClientEnabled" $) "true") }}
-{{- $secretName = include "provisioner.serviceClientsSecretName" $ -}}
+       to know the Secret's name, computed the same way regardless of which release renders it.
+       See identity.serviceClientProvisioning.secretName (shared with the ConfigMap template,
+       which must NOT render when this wins). */ -}}
+{{- $secretName := include "identity.serviceClientProvisioning.secretName" $ -}}
+{{- if eq (include "identity.serviceClientProvisioning.sourceConflict" $) "true" }}
+{{ fail "identity.serviceClientProvisioning: at least one provisioner.clients.* is enabled, which auto-derives identity.serviceClientProvisioning.secretName -- but configMapName/serviceClients is also configured. The Secret would silently win and your ConfigMap source would be ignored. Set identity.serviceClientProvisioning.secretName explicitly if you mean to combine sources some other way, or unset configMapName/serviceClients to rely on the provisioner's output." }}
 {{- end -}}
 {{- if and $serviceValues.enabled $provisioning.enabled (or $provisioning.serviceClients $provisioning.configMapName $secretName) }}
 {{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.serviceClientProvisioning.enabled requires identity.migrations.runAsJob=true, so DB migrations run as a pre-install/pre-upgrade hook (weight 5) before this weight-20 registration hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and provision-service-clients would run against a missing schema" }}{{ end }}
