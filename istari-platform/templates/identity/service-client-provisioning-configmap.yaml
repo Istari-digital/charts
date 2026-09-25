@@ -8,8 +8,12 @@ it exists before the weight-20 provisioning Job that mounts it.
 */ -}}
 {{- $serviceValues := .Values.identity -}}
 {{- $provisioning := $serviceValues.serviceClientProvisioning -}}
-{{- /* Chart renders the ConfigMap only when it owns it (no external configMapName). */ -}}
-{{- if and $serviceValues.enabled $provisioning.enabled (not $provisioning.configMapName) $provisioning.serviceClients }}
+{{- /* Chart renders the ConfigMap only when it owns it (no external configMapName) AND no Secret
+       source (explicit secretName, or the provisioner's auto-derived output) would win instead --
+       see identity.serviceClientProvisioning.secretName. Without this, an effective-Secret release
+       would still render, validate, and create an unused ConfigMap the Job never mounts. */ -}}
+{{- $secretName := include "identity.serviceClientProvisioning.secretName" . -}}
+{{- if and $serviceValues.enabled $provisioning.enabled (not $provisioning.configMapName) (not $secretName) $provisioning.serviceClients }}
 {{- /* Validate each chart-owned entry at render time (mirrors provision-service-clients'
        own validation), so a malformed entry fails `helm template` rather than the hook Job
        after the release has already begun. */ -}}

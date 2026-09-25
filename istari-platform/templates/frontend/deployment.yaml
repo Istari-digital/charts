@@ -1,5 +1,15 @@
 {{- $serviceValues := .Values.frontend -}}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
+{{- /* default list here isn't re-documenting values.yaml's own [] default (that's already the
+   normal case) -- it's nil-safety: an overlay that explicitly sets extraEnvSecrets: null would
+   otherwise pass nil into `has`/`append` below and abort rendering. */ -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
+{{- if .Values.provisioner.clients.frontend.enabled -}}
+{{- $frontendSecretName := include "provisioner.frontendSecretName" . -}}
+{{- if not (has $frontendSecretName $extraEnvSecrets) -}}
+{{- $extraEnvSecrets = append $extraEnvSecrets $frontendSecretName -}}
+{{- end -}}
+{{- end -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -63,10 +73,14 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{- if or $gatewayUrl $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps }}
+        {{- if or $gatewayUrl $serviceValues.secretName $extraEnvSecrets $serviceValues.extraEnvConfigMaps }}
         envFrom:
         {{- end }}
-        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
+        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override
+        them -- EXCEPT the provisioner's generated Secret (appended to $extraEnvSecrets above,
+        when provisioner.clients.frontend.enabled), which is deliberately LAST/authoritative: it's
+        the freshly-generated credential, and a stale unrelated user value should not silently
+        shadow it. */}}
         {{- if $gatewayUrl }}
         - configMapRef:
             name: {{ include "frontend.configmap.name" $ | quote }}
@@ -81,7 +95,7 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $serviceValues.extraEnvSecrets }}
+        {{- with $extraEnvSecrets }}
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}

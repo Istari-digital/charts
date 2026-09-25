@@ -1,0 +1,139 @@
+{{- if and .Values.provisioner.enabled (eq (include "provisioner.anyClientEnabled" .) "true") }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "provisioner.jobName" . | quote }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "provisioner.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "1"
+    helm.sh/hook-delete-policy: {{ if .Values.provisioner.autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+spec:
+  backoffLimit: {{ .Values.provisioner.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "provisioner.labels" . | nindent 8 }}
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "provisioner.fullname" . | quote }}
+      {{- with .Values.provisioner.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default $.Values.imagePullSecrets .Values.provisioner.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # The image (istari-provisioner, Chainguard terraform-fips-rootless) has no shell at all --
+      # confirmed by a real build/run test (a `cat` entrypoint override fails with "not found in
+      # $PATH"). No entrypoint.sh, no bash: every step below execs the image's own ENTRYPOINT
+      # (terraform) directly with exec-form args, and `-chdir=/terraform` replaces a shell `cd`.
+      # init/apply are therefore two containers, not one script with a shell `&&` -- and plan-vs-
+      # apply is chosen at HELM RENDER TIME (provisioner.planOnly), not a runtime bash conditional.
+      initContainers:
+      - name: terraform-init
+        image: {{ printf "%s/%s:%s" .Values.provisioner.registry .Values.provisioner.image .Values.provisioner.tag | quote }}
+        imagePullPolicy: {{ .Values.provisioner.imagePullPolicy | quote }}
+        {{- with .Values.provisioner.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        args:
+        - "-chdir=/terraform"
+        - "init"
+        - "-input=false"
+        - {{ printf "-backend-config=secret_suffix=%s" .Values.provisioner.backend.secretSuffix | quote }}
+        - {{ printf "-backend-config=namespace=%s" .Release.Namespace | quote }}
+        - "-backend-config=in_cluster_config=true"
+        {{- with .Values.provisioner.env }}
+        env:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.provisioner.extraEnvSecrets }}
+        envFrom:
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        volumeMounts:
+        - name: terraform-files
+          mountPath: /terraform
+        - name: terraform-work
+          mountPath: /work/.terraform
+        {{- with .Values.provisioner.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      containers:
+      - name: provisioner
+        image: {{ printf "%s/%s:%s" .Values.provisioner.registry .Values.provisioner.image .Values.provisioner.tag | quote }}
+        imagePullPolicy: {{ .Values.provisioner.imagePullPolicy | quote }}
+        {{- with .Values.provisioner.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        args:
+        - "-chdir=/terraform"
+        {{- if .Values.provisioner.planOnly }}
+        - "plan"
+        - "-input=false"
+        - "-var-file=terraform.tfvars"
+        {{- else }}
+        - "apply"
+        - "-input=false"
+        - "-auto-approve"
+        - "-var-file=terraform.tfvars"
+        {{- end }}
+        {{- with .Values.provisioner.env }}
+        env:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.provisioner.extraEnvSecrets }}
+        envFrom:
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        volumeMounts:
+        - name: terraform-files
+          mountPath: /terraform
+        - name: terraform-work
+          mountPath: /work/.terraform
+        {{- with .Values.provisioner.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      volumes:
+      # terraform-files (the .tf/.tfvars/lock-file Secret) is mounted read-only at /terraform --
+      # Kubernetes always mounts Secret volumes read-only at the kernel level, regardless of any
+      # `readOnly` field here. terraform init/plan/apply need a writable directory for their own
+      # state (providers cache, etc.), so the image bakes in TF_DATA_DIR=/work/.terraform,
+      # entirely outside the Secret mount -- no nested-mount-under-a-read-only-volume question to
+      # resolve, and a plain top-level emptyDir at /work/.terraform shares that state between this
+      # Job's initContainer (terraform init) and its main container (plan/apply), which do NOT
+      # otherwise share a filesystem across separate containers.
+      - name: terraform-files
+        secret:
+          secretName: {{ include "provisioner.terraformFilesSecretName" . | quote }}
+      - name: terraform-work
+        emptyDir: {}
+      {{- with .Values.provisioner.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.provisioner.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.provisioner.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}

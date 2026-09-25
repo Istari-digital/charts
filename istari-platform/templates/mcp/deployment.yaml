@@ -1,4 +1,14 @@
 {{- $serviceValues := .Values.mcp -}}
+{{- /* default list here isn't re-documenting values.yaml's own [] default (that's already the
+   normal case) -- it's nil-safety: an overlay that explicitly sets extraEnvSecrets: null would
+   otherwise pass nil into `has`/`append` below and abort rendering. */ -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
+{{- if .Values.provisioner.clients.mcp.enabled -}}
+{{- $mcpSecretName := include "provisioner.mcpSecretName" . -}}
+{{- if not (has $mcpSecretName $extraEnvSecrets) -}}
+{{- $extraEnvSecrets = append $extraEnvSecrets $mcpSecretName -}}
+{{- end -}}
+{{- end -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -65,7 +75,11 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'mcp.extraEnvConfigMaps', 'mcp.secretName', 'mcp.extraEnvSecrets', and 'mcp.env' will always override them.
+        'mcp.extraEnvConfigMaps', 'mcp.secretName', 'mcp.extraEnvSecrets', and 'mcp.env' will always
+        override them -- EXCEPT the provisioner's generated Secret (appended to $extraEnvSecrets
+        above, when provisioner.clients.mcp.enabled), which is deliberately LAST/authoritative:
+        it's the freshly-generated credential, and a stale unrelated user value should not
+        silently shadow it.
         */}}
         - configMapRef:
             name: {{ include "mcp.configmap.name" . | quote }}
@@ -79,7 +93,7 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $serviceValues.extraEnvSecrets }}
+        {{- with $extraEnvSecrets }}
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
