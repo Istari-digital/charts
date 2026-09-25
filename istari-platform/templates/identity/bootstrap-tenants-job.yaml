@@ -6,6 +6,7 @@
 {{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.tenants.enabled requires identity.migrations.runAsJob=true, so the schema exists before this hook" }}{{ end }}
 {{- $provider := dig "provider" "zitadel" $tenants -}}
 {{- if ne $provider "zitadel" }}{{ fail (printf "identity.bootstrap.tenants.provider must be \"zitadel\", got %q" $provider) }}{{ end }}
+{{- if and (not (dig "issuer" "" $tenants)) (eq (dig "provider" "" $serviceValues.oidc) "keycloak") }}{{ fail "identity.bootstrap.tenants lists Zitadel organizations and needs an explicit Zitadel issuer in identity.bootstrap.tenants.issuer when identity.oidc.provider is keycloak; on a switch to Keycloak, the IdP migration hook (identity.idpMigration) maps tenants itself" }}{{ end }}
 {{- $issuer := required "identity.bootstrap.tenants.issuer or identity.oidc.issuer is required when identity.bootstrap.tenants.enabled is true" (default $serviceValues.oidc.issuer (dig "issuer" "" $tenants)) -}}
 {{- $credEnv := required "identity.bootstrap.tenants.credentialEnv must not be empty" (dig "credentialEnv" "ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY" $tenants) -}}
 {{- $slugPrefix := dig "slugPrefix" "zitadel" $tenants -}}
