@@ -213,13 +213,12 @@ resource "zitadel_machine_key" "identity-service-management-key" {
   }
 }
 
-# ORG_OWNER_VIEWER is read-only across the org: it can read user grants (all the
-# grants lookup needs) but cannot mutate them or escalate privileges —
-# deliberately narrower than the ORG_OWNER granted to the fileservice/SCS users.
+# ORG_OWNER_VIEWER reads user grants; ORG_USER_MANAGER creates and imports the org's
+# users on pre-registration. Still narrower than the ORG_OWNER the fileservice/SCS users get.
 resource "zitadel_org_member" "identity-service-management-default" {
   org_id  = zitadel_org.default.id
   user_id = zitadel_machine_user.identity-service-management-user.id
-  roles   = ["ORG_OWNER_VIEWER"]
+  roles   = ["ORG_OWNER_VIEWER", "ORG_USER_MANAGER"]
 }
 
 resource "zitadel_machine_user" "registry-service-user" {
