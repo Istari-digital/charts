@@ -310,7 +310,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.bootstrap.backoffLimit | int | `3` | `spec.backoffLimit` for each bootstrap Job. |
 | identity.bootstrap.databaseUrlEnv | string | `"ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"` | Env var (in `identity.secretName`) holding the PostgreSQL connection string. |
 | identity.bootstrap.enabled | bool | `false` | Render the bootstrap Jobs. Off by default. |
-| identity.bootstrap.platformAdminEmail | string | `""` | Email of the first platform administrator. Leave empty until that person has signed in once; granting `admin` ends open bootstrap mode for good. |
+| identity.bootstrap.platformAdminEmail | string | `""` | Email of the first platform administrator. Leave empty until that person has signed in once; granting `admin` ends open bootstrap mode for good. Clear it after the grant succeeds: the post-upgrade Job re-grants admin on every upgrade while it is set, undoing a deliberate revoke. |
 | identity.bootstrap.registryClientId | string | `""` | The registry's client id. Set this or `registryClientIdSecretRef`. |
 | identity.bootstrap.registryClientIdSecretRef | object | `{}` | Secret key holding the registry's client id, as `{name: ..., key: ...}` (both required). Used when `registryClientId` is empty. For the chart's provisioner use `{name: istari-provisioner-registry-credentials, key: ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_ID}`. |
 | identity.bootstrap.resources | object | `{}` | Resources for the bootstrap containers. |

@@ -49,6 +49,25 @@ spec:
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         command: ["/grant-platform-role"]
         args: ["-database-url-env", {{ $bootstrap.databaseUrlEnv | quote }}, "-email", {{ $bootstrap.platformAdminEmail | quote }}, "-role", "admin"]
+        envFrom:
+        - configMapRef:
+            name: {{ include "identity.configmap.name" . | quote }}
+        {{- with $serviceValues.extraEnvConfigMaps }}
+        {{- range . }}
+        - configMapRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if $serviceValues.secretName }}
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- end }}
+        {{- with $serviceValues.extraEnvSecrets }}
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
         env:
         {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "bootstrap-admin" "containerName" "grant-admin" "otelDefaults" false "extra" $extra) | nindent 8 }}
         {{- with $bootstrap.resources }}

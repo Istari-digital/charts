@@ -871,7 +871,7 @@ identity:
     registryClientId: ""
     # -- Secret key holding the registry's client id, as `{name: ..., key: ...}` (both required). Used when `registryClientId` is empty. For the chart's provisioner use `{name: istari-provisioner-registry-credentials, key: ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_ID}`.
     registryClientIdSecretRef: {}
-    # -- Email of the first platform administrator. Leave empty until that person has signed in once; granting `admin` ends open bootstrap mode for good.
+    # -- Email of the first platform administrator. Leave empty until that person has signed in once; granting `admin` ends open bootstrap mode for good. Clear it after the grant succeeds: the post-upgrade Job re-grants admin on every upgrade while it is set, undoing a deliberate revoke.
     platformAdminEmail: ""
     # -- Env var (in `identity.secretName`) holding the PostgreSQL connection string.
     databaseUrlEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
