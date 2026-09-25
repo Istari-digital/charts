@@ -928,9 +928,11 @@ identity:
     gateways: []
 
 # -- Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job
-# hook that generates and registers credentials for registry, secure-connection-service, frontend,
-# and mcp, feeding identity's `provision-service-clients` hook (`identity.serviceClientProvisioning`).
-# Off by default.
+# hook that generates and registers credentials for registry, frontend, and mcp, feeding
+# identity's `provision-service-clients` hook (`identity.serviceClientProvisioning`).
+# secure-connection-service is NOT covered here -- its credential/registration model isn't
+# supported by this mechanism; it stays on its existing path (helm-stack Terraform +
+# identity's `agentRegistration`). Off by default.
 # @default -- (see fields below)
 provisioner:
   # -- Whether to render the provisioner Job and its supporting resources. Also requires at least
@@ -1006,10 +1008,6 @@ provisioner:
     # client_id.
     registry:
       # -- Whether to generate and register the registry client.
-      enabled: false
-    # -- Secure-connection-service (`kind: service`; see DPLAT-924). Same shape as `registry`.
-    secureConnection:
-      # -- Whether to generate and register the secure-connection-service client.
       enabled: false
     # -- Frontend (`kind: public` / PKCE) — a generated client_id and a redirect allowlist.
     frontend:

@@ -483,7 +483,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | nats.reloader.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-server-config-reloader-fips"` | Config-reloader image repository. Defaults to the Chainguard FIPS variant. |
 | nats.reloader.image.tag | string | `"0.23.0"` | Config-reloader image tag. |
 | nats.statefulSet.merge.spec.persistentVolumeClaimRetentionPolicy | object | `{"whenDeleted":"Delete","whenScaled":"Delete"}` | Delete the JetStream PVCs when the StatefulSet is deleted or scaled down. Set to `Retain` if you need the data to outlive the StatefulSet. |
-| provisioner | object | (see fields below) | Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job hook that generates and registers credentials for registry, secure-connection-service, frontend, and mcp, feeding identity's `provision-service-clients` hook (`identity.serviceClientProvisioning`). Off by default. |
+| provisioner | object | (see fields below) | Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job hook that generates and registers credentials for registry, frontend, and mcp, feeding identity's `provision-service-clients` hook (`identity.serviceClientProvisioning`). secure-connection-service is NOT covered here -- its credential/registration model isn't supported by this mechanism; it stays on its existing path (helm-stack Terraform + identity's `agentRegistration`). Off by default. |
 | provisioner.affinity | object | `{}` | Affinity for the provisioning Job pod. |
 | provisioner.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful provisioning Job (`hook-succeeded`). |
 | provisioner.backend | object | (see fields below) | Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no external cloud state infra. |
@@ -500,8 +500,6 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | provisioner.clients.mcp.redirectUri | string | `""` | Explicit redirect URI. Overrides the `mainDomain` derivation. |
 | provisioner.clients.registry | object | `{"enabled":false}` | Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair and a generated client_id. |
 | provisioner.clients.registry.enabled | bool | `false` | Whether to generate and register the registry client. |
-| provisioner.clients.secureConnection | object | `{"enabled":false}` | Secure-connection-service (`kind: service`; see DPLAT-924). Same shape as `registry`. |
-| provisioner.clients.secureConnection.enabled | bool | `false` | Whether to generate and register the secure-connection-service client. |
 | provisioner.commonLabels | object | `{}` | Additional labels to add to all of this component's resources |
 | provisioner.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Provisioner container's security context. |
 | provisioner.enabled | bool | `false` | Whether to render the provisioner Job and its supporting resources. Also requires at least one `clients.*.enabled`. In a one-release-per-service topology, set this `true` only in the provisioner's own dedicated release — every other release only needs `clients.*.enabled` (not this) to pick up that client's Secret name; see the deployment templates and `identity.serviceClientProvisioning.secretName`. |

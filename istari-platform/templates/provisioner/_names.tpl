@@ -45,13 +45,6 @@ istari-provisioner-registry-credentials
 {{- end }}
 
 {{/*
-Secret carrying secure-connection-service's private credential blob (kind:service, DPLAT-924).
-*/}}
-{{- define "provisioner.secureConnectionSecretName" -}}
-istari-provisioner-secure-connection-credentials
-{{- end }}
-
-{{/*
 Secret carrying frontend's client_id.
 */}}
 {{- define "provisioner.frontendSecretName" -}}
@@ -77,7 +70,7 @@ Whether at least one client is enabled. Returns "true" or "".
 */}}
 {{- define "provisioner.anyClientEnabled" -}}
 {{- $c := .Values.provisioner.clients -}}
-{{- if or $c.registry.enabled $c.secureConnection.enabled $c.frontend.enabled $c.mcp.enabled -}}
+{{- if or $c.registry.enabled $c.frontend.enabled $c.mcp.enabled -}}
 true
 {{- end -}}
 {{- end }}

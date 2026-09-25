@@ -1,16 +1,6 @@
 {{- $serviceValues := .Values.secureConnection -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
-{{- /* default list here isn't re-documenting values.yaml's own [] default (that's already the
-   normal case) -- it's nil-safety: an overlay that explicitly sets extraEnvSecrets: null would
-   otherwise pass nil into `has`/`append` below and abort rendering. */ -}}
-{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
-{{- if .Values.provisioner.clients.secureConnection.enabled -}}
-{{- $scsSecretName := include "provisioner.secureConnectionSecretName" . -}}
-{{- if not (has $scsSecretName $extraEnvSecrets) -}}
-{{- $extraEnvSecrets = append $extraEnvSecrets $scsSecretName -}}
-{{- end -}}
-{{- end -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -89,11 +79,7 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'secureConnection.extraEnvConfigMaps', 'secureConnection.secretName', 'secureConnection.extraEnvSecrets', and 'secureConnection.env' will always
-        override them -- EXCEPT the provisioner's generated Secret (appended to $extraEnvSecrets
-        above, when provisioner.clients.secureConnection.enabled), which is deliberately
-        LAST/authoritative: it's the freshly-generated credential, and a stale unrelated user
-        value should not silently shadow it.
+        'secureConnection.extraEnvConfigMaps', 'secureConnection.secretName', 'secureConnection.extraEnvSecrets', and 'secureConnection.env' will always override them.
         */}}
         - configMapRef:
             name: {{ include "secure-connection.configmap.name" . | quote }}
@@ -107,7 +93,7 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $extraEnvSecrets }}
+        {{- with $serviceValues.extraEnvSecrets }}
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
@@ -148,11 +134,7 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'secureConnection.extraEnvConfigMaps', 'secureConnection.secretName', 'secureConnection.extraEnvSecrets', and 'secureConnection.env' will always
-        override them -- EXCEPT the provisioner's generated Secret (appended to $extraEnvSecrets
-        above, when provisioner.clients.secureConnection.enabled), which is deliberately
-        LAST/authoritative: it's the freshly-generated credential, and a stale unrelated user
-        value should not silently shadow it.
+        'secureConnection.extraEnvConfigMaps', 'secureConnection.secretName', 'secureConnection.extraEnvSecrets', and 'secureConnection.env' will always override them.
         */}}
         - configMapRef:
             name: {{ include "secure-connection.configmap.name" . | quote }}
@@ -166,7 +148,7 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $extraEnvSecrets }}
+        {{- with $serviceValues.extraEnvSecrets }}
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}

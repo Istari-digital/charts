@@ -7,12 +7,14 @@ locals {
     var.main_domain != "" ? "https://mcp.${var.main_domain}/auth/callback" : ""
   )
 
-  # identity-service's own public URL. Consumed by registry, secure-connection, and frontend's
-  # secrets -- NOT mcp's, which derives its issuer from apiGateway.apiUrl instead.
+  # identity-service's own public URL. Consumed by registry and frontend's secrets -- NOT mcp's,
+  # which derives its issuer from apiGateway.apiUrl instead. secure-connection-service is not
+  # provisioned through this mechanism (see helm-stack's identity-service-env generation) --
+  # its credential/registration model isn't supported here.
   identity_service_url = var.identity_service_url != "" ? var.identity_service_url : (
     var.main_domain != "" ? "https://identity.${var.main_domain}" : ""
   )
-  identity_service_url_required = var.registry_enabled || var.secure_connection_enabled || var.frontend_enabled
+  identity_service_url_required = var.registry_enabled || var.frontend_enabled
 
   frontend_all_redirect_uris = concat(
     local.frontend_redirect_uri != "" ? [local.frontend_redirect_uri] : [],
@@ -23,12 +25,10 @@ locals {
     var.mcp_extra_redirect_uris,
   )
 
-  registry_client_id          = var.registry_enabled ? "registry-${random_id.registry_client_id_suffix[0].hex}" : ""
-  registry_key_id             = var.registry_enabled ? "registry-key-${random_id.registry_key_id_suffix[0].hex}" : ""
-  secure_connection_client_id = var.secure_connection_enabled ? "secure-connection-${random_id.secure_connection_client_id_suffix[0].hex}" : ""
-  secure_connection_key_id    = var.secure_connection_enabled ? "secure-connection-key-${random_id.secure_connection_key_id_suffix[0].hex}" : ""
-  frontend_client_id          = var.frontend_enabled ? "frontend-${random_id.frontend_client_id_suffix[0].hex}" : ""
-  mcp_client_id               = var.mcp_enabled ? "mcp-${random_id.mcp_client_id_suffix[0].hex}" : ""
+  registry_client_id = var.registry_enabled ? "registry-${random_id.registry_client_id_suffix[0].hex}" : ""
+  registry_key_id    = var.registry_enabled ? "registry-key-${random_id.registry_key_id_suffix[0].hex}" : ""
+  frontend_client_id = var.frontend_enabled ? "frontend-${random_id.frontend_client_id_suffix[0].hex}" : ""
+  mcp_client_id      = var.mcp_enabled ? "mcp-${random_id.mcp_client_id_suffix[0].hex}" : ""
 
   service_clients = concat(
     var.registry_enabled ? [{
@@ -39,16 +39,6 @@ locals {
         clientId = local.registry_client_id
         keyId    = local.registry_key_id
         key      = tls_private_key.registry[0].public_key_pem
-      }))
-    }] : [],
-    var.secure_connection_enabled ? [{
-      serviceId         = "secure-connection"
-      kind              = "service"
-      canListPrincipals = false
-      credential = base64encode(jsonencode({
-        clientId = local.secure_connection_client_id
-        keyId    = local.secure_connection_key_id
-        key      = tls_private_key.secure_connection[0].public_key_pem
       }))
     }] : [],
     var.frontend_enabled ? [{
@@ -99,39 +89,6 @@ resource "kubernetes_secret_v1" "registry" {
     FILE_SERVICE_FEATURE_FLAGS__IDENTITY_ROUTER_ENABLED = "true"
     FILE_SERVICE_IDENTITY_ROUTER_URL                    = local.identity_service_url
     ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED             = "true"
-  }
-}
-
-# ---- secure-connection-service (kind: service, following registry's exact parameters) ----
-resource "random_id" "secure_connection_client_id_suffix" {
-  count       = var.secure_connection_enabled ? 1 : 0
-  byte_length = 4
-}
-resource "random_id" "secure_connection_key_id_suffix" {
-  count       = var.secure_connection_enabled ? 1 : 0
-  byte_length = 4
-}
-resource "tls_private_key" "secure_connection" {
-  count       = var.secure_connection_enabled ? 1 : 0
-  algorithm   = "ECDSA"
-  ecdsa_curve = "P384"
-}
-resource "kubernetes_secret_v1" "secure_connection" {
-  count = var.secure_connection_enabled ? 1 : 0
-  metadata {
-    name      = var.secure_connection_secret_name
-    namespace = var.namespace
-    labels    = var.common_labels
-  }
-  data = {
-    # SCS is kind:service, not an agent — no legacy ISTARI_DIGITAL_IDENTITY_ROUTER_AGENT_KEY name.
-    ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS = base64encode(jsonencode({
-      clientId = local.secure_connection_client_id
-      keyId    = local.secure_connection_key_id
-      key      = tls_private_key.secure_connection[0].private_key_pem_pkcs8
-    }))
-    ISTARI_DIGITAL_IDENTITY_ROUTER_ENABLED = "true"
-    ISTARI_DIGITAL_IDENTITY_ROUTER_URL     = local.identity_service_url
   }
 }
 
@@ -205,11 +162,11 @@ resource "kubernetes_secret_v1" "identity_service_clients" {
       error_message = "mcp is enabled but no redirect URI could be resolved — set provisioner.clients.mcp.redirectUri or provisioner.mainDomain."
     }
     precondition {
-      # Scoped to the clients that actually consume identity_service_url (registry,
-      # secure-connection, frontend) -- an mcp-only configuration never writes this value
-      # anywhere, so it must not be required for one.
+      # Scoped to the clients that actually consume identity_service_url (registry, frontend) --
+      # an mcp-only configuration never writes this value anywhere, so it must not be required
+      # for one.
       condition     = !local.identity_service_url_required || local.identity_service_url != ""
-      error_message = "registry, secure-connection, or frontend is enabled but the identity-service URL could not be resolved — set provisioner.identityServiceUrl or provisioner.mainDomain."
+      error_message = "registry or frontend is enabled but the identity-service URL could not be resolved — set provisioner.identityServiceUrl or provisioner.mainDomain."
     }
   }
 }

@@ -11,9 +11,6 @@ variable "common_labels" {
 variable "registry_enabled" {
   type = bool
 }
-variable "secure_connection_enabled" {
-  type = bool
-}
 variable "frontend_enabled" {
   type = bool
 }
@@ -23,9 +20,6 @@ variable "mcp_enabled" {
 
 # ---- Secret names this run writes into (from the shared naming helpers) ----
 variable "registry_secret_name" {
-  type = string
-}
-variable "secure_connection_secret_name" {
   type = string
 }
 variable "frontend_secret_name" {
