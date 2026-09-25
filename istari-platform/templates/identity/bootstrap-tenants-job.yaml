@@ -1,0 +1,95 @@
+{{- /* Maps each upstream IdP organization to a tenant: after the schema hook (weight 5), before the registry's role grants (weight 25). */ -}}
+{{- $serviceValues := .Values.identity -}}
+{{- $bootstrap := $serviceValues.bootstrap -}}
+{{- $tenants := dig "tenants" dict $bootstrap -}}
+{{- if and $serviceValues.enabled (dig "enabled" false $tenants) }}
+{{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.tenants.enabled requires identity.migrations.runAsJob=true, so the schema exists before this hook" }}{{ end }}
+{{- $provider := dig "provider" "zitadel" $tenants -}}
+{{- if ne $provider "zitadel" }}{{ fail (printf "identity.bootstrap.tenants.provider must be \"zitadel\", got %q" $provider) }}{{ end }}
+{{- $issuer := required "identity.bootstrap.tenants.issuer or identity.oidc.issuer is required when identity.bootstrap.tenants.enabled is true" (default $serviceValues.oidc.issuer (dig "issuer" "" $tenants)) -}}
+{{- $credEnv := required "identity.bootstrap.tenants.credentialEnv must not be empty" (dig "credentialEnv" "ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY" $tenants) -}}
+{{- $slugPrefix := dig "slugPrefix" "zitadel" $tenants -}}
+{{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.bootstrap.tenants.enabled is true" -}}
+{{- $dbEnv := list (dict "name" $bootstrap.databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $bootstrap.databaseUrlEnv))) -}}
+{{- $extra := list $dbEnv -}}
+{{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-bootstrap-tenants" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" | quote }}
+  labels:
+    {{- include "identity.labels" . | nindent 4 }}
+    istari.digital/job-type: "bootstrap-tenants"
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "15"
+    helm.sh/hook-delete-policy: {{ if $bootstrap.autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+spec:
+  backoffLimit: {{ $bootstrap.backoffLimit | int }}
+  template:
+    metadata:
+      labels:
+        {{- include "identity.labels" . | nindent 8 }}
+        istari.digital/job-type: "bootstrap-tenants"
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "identity.fullname" . | quote }}
+      automountServiceAccountToken: false
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: bootstrap-tenants
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command: ["/bootstrap-tenants"]
+        args: {{ list "-database-url-env" $bootstrap.databaseUrlEnv "-issuer" $issuer "-provider" $provider "-slug-prefix" $slugPrefix "-credential-env" $credEnv | toJson }}
+        envFrom:
+        - configMapRef:
+            name: {{ include "identity.configmap.name" . | quote }}
+        {{- with $serviceValues.extraEnvConfigMaps }}
+        {{- range . }}
+        - configMapRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if $serviceValues.secretName }}
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- end }}
+        {{- with $serviceValues.extraEnvSecrets }}
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        env:
+        {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "bootstrap-tenants" "containerName" "bootstrap-tenants" "otelDefaults" false "extra" $extra) | nindent 8 }}
+        {{- with $bootstrap.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        volumeMounts:
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+      {{- if .Values.trustedCertBundle }}
+      volumes:
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" . | quote }}
+      {{- end }}
+{{- end }}

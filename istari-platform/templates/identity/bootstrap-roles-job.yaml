@@ -3,17 +3,23 @@
 {{- $bootstrap := $serviceValues.bootstrap -}}
 {{- if and $serviceValues.enabled $bootstrap.enabled }}
 {{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.enabled requires identity.migrations.runAsJob=true, so the schema exists before this pre-install hook" }}{{ end }}
-{{- if and (not $bootstrap.registryClientId) (not $bootstrap.registryClientIdSecretRef) }}{{ fail "identity.bootstrap.enabled requires identity.bootstrap.registryClientId or identity.bootstrap.registryClientIdSecretRef" }}{{ end }}
-{{- if not $bootstrap.registryClientId }}
+{{- $fallback := dig "registryFallback" false $bootstrap -}}
+{{- if and (not $bootstrap.registryClientId) (not $bootstrap.registryClientIdSecretRef) (not $fallback) }}{{ fail "identity.bootstrap.enabled requires identity.bootstrap.registryClientId, identity.bootstrap.registryClientIdSecretRef or identity.bootstrap.registryFallback" }}{{ end }}
+{{- if and (not $bootstrap.registryClientId) $bootstrap.registryClientIdSecretRef }}
 {{- $_ := $bootstrap.registryClientIdSecretRef.name | required "identity.bootstrap.registryClientIdSecretRef.name must be set (with .key) when registryClientId is empty" -}}
 {{- $_ := $bootstrap.registryClientIdSecretRef.key | required "identity.bootstrap.registryClientIdSecretRef.key must be set (with .name) when registryClientId is empty" -}}
 {{- end }}
 {{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.bootstrap.enabled is true" -}}
 {{- $dbEnv := list (dict "name" $bootstrap.databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $bootstrap.databaseUrlEnv))) -}}
 {{- $clientEnv := list (dict "name" "REGISTRY_CLIENT_ID" "value" $bootstrap.registryClientId) -}}
-{{- if not $bootstrap.registryClientId -}}
-{{- $clientEnv = list (dict "name" "REGISTRY_CLIENT_ID" "valueFrom" (dict "secretKeyRef" $bootstrap.registryClientIdSecretRef)) -}}
+{{- if and (not $bootstrap.registryClientId) $bootstrap.registryClientIdSecretRef -}}
+{{- $ref := $bootstrap.registryClientIdSecretRef -}}
+{{- /* With the fallback on, a missing secret key must not stop the Pod from starting. */ -}}
+{{- if $fallback }}{{- $ref = merge (dict "optional" true) $ref }}{{- end -}}
+{{- $clientEnv = list (dict "name" "REGISTRY_CLIENT_ID" "valueFrom" (dict "secretKeyRef" $ref)) -}}
 {{- end -}}
+{{- $clientArgs := list "-client-id" "$(REGISTRY_CLIENT_ID)" -}}
+{{- if $fallback }}{{- $clientArgs = list "-registry-fallback" "-client-id-env" "REGISTRY_CLIENT_ID" }}{{- end -}}
 {{- $extra := list $clientEnv $dbEnv -}}
 {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end -}}
 apiVersion: batch/v1
@@ -57,7 +63,7 @@ spec:
         image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         command: ["/grant-platform-role"]
-        args: ["-database-url-env", {{ $bootstrap.databaseUrlEnv | quote }}, "-client-id", "$(REGISTRY_CLIENT_ID)", "-role", "agent_manager"]
+        args: {{ concat (list "-database-url-env" $bootstrap.databaseUrlEnv) $clientArgs (list "-role" "agent_manager") | toJson }}
         envFrom:
         - configMapRef:
             name: {{ include "identity.configmap.name" . | quote }}
@@ -98,7 +104,7 @@ spec:
         image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
         command: ["/grant-platform-role"]
-        args: ["-database-url-env", {{ $bootstrap.databaseUrlEnv | quote }}, "-client-id", "$(REGISTRY_CLIENT_ID)", "-role", "principal_viewer"]
+        args: {{ concat (list "-database-url-env" $bootstrap.databaseUrlEnv) $clientArgs (list "-role" "principal_viewer") | toJson }}
         envFrom:
         - configMapRef:
             name: {{ include "identity.configmap.name" . | quote }}

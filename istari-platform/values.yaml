@@ -881,6 +881,21 @@ identity:
     autoCleanupSuccessfulJob: true
     # -- Resources for the bootstrap containers.
     resources: {}
+    # -- When `registryClientId` names no platform service, grant the registry's roles to every service labelled `registry`, or failing that to every confidential service with no component. Needs an identity-service image whose `grant-platform-role` has `-registry-fallback`.
+    registryFallback: false
+    # -- Map each upstream IdP organization to an identity-service tenant with `bootstrap-tenants`, in a pre-install and pre-upgrade hook.
+    # @default -- (see fields below)
+    tenants:
+      # -- Render the Job. Off by default.
+      enabled: false
+      # -- Upstream IdP provider to enumerate. Only `zitadel` is supported.
+      provider: zitadel
+      # -- Issuer to enumerate. Empty uses `identity.oidc.issuer`.
+      issuer: ""
+      # -- Env var holding the IdP credential.
+      credentialEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY
+      # -- Prefix for derived tenant slugs.
+      slugPrefix: zitadel
   # -- One-shot Helm `pre-upgrade` hook that migrates an existing deployment from its current upstream IdP (e.g. Zitadel) to a new one (e.g. Keycloak). Runs the `migrate-idp` orchestrator (tenants → roles → users) once, before the identity Deployment rolls onto the new IdP. Idempotent and additive — safe to leave enabled across upgrades (a no-op once migrated). Requires `identity.migrations.runAsJob=true` (so the schema Job runs first, weight 5, before this weight-10 hook); rendering fails fast otherwise.
   # @default -- (see fields below)
   idpMigration:
