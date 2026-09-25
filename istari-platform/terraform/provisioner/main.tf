@@ -89,6 +89,11 @@ resource "kubernetes_secret_v1" "registry" {
     FILE_SERVICE_FEATURE_FLAGS__IDENTITY_ROUTER_ENABLED = "true"
     FILE_SERVICE_IDENTITY_ROUTER_URL                    = local.identity_service_url
     ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED             = "true"
+    # Bare (non-JSON) client_id so identity-service can mount this secret via
+    # extraEnvSecrets and allowlist the registry's real client_id on
+    # POST /api/v1/agents. Comma-separated in identity-service; a single id here
+    # is valid CSV of one.
+    ISTARI_DIGITAL_IDENTITY_SERVICE_AGENT_PROVISIONING_CLIENT_IDS = local.registry_client_id
   }
 }
 
