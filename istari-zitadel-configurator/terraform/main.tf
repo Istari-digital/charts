@@ -213,8 +213,8 @@ resource "zitadel_machine_key" "identity-service-management-key" {
   }
 }
 
-# ORG_OWNER_VIEWER reads user grants; ORG_USER_MANAGER creates and imports the org's
-# users on pre-registration. Still narrower than the ORG_OWNER the fileservice/SCS users get.
+# ORG_USER_MANAGER lets identity-service create users on pre-registration; it can also edit
+# and delete the org's users and their grants. Narrower than the fileservice/SCS users' ORG_OWNER.
 resource "zitadel_org_member" "identity-service-management-default" {
   org_id  = zitadel_org.default.id
   user_id = zitadel_machine_user.identity-service-management-user.id
