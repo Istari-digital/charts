@@ -213,13 +213,17 @@ resource "zitadel_machine_key" "identity-service-management-key" {
   }
 }
 
-# ORG_OWNER_VIEWER is read-only across the org: it can read user grants (all the
-# grants lookup needs) but cannot mutate them or escalate privileges —
-# deliberately narrower than the ORG_OWNER granted to the fileservice/SCS users.
+# Deliberately broad for pre-release testing: identity-service creates and looks up users in
+# every tenant's org. IAM_USER_MANAGER can edit and delete users and grants across the instance.
 resource "zitadel_org_member" "identity-service-management-default" {
   org_id  = zitadel_org.default.id
   user_id = zitadel_machine_user.identity-service-management-user.id
-  roles   = ["ORG_OWNER_VIEWER"]
+  roles   = ["ORG_OWNER", "ORG_OWNER_VIEWER"]
+}
+
+resource "zitadel_instance_member" "identity-service-management-instance" {
+  user_id = zitadel_machine_user.identity-service-management-user.id
+  roles   = ["IAM_USER_MANAGER"]
 }
 
 resource "zitadel_machine_user" "registry-service-user" {
