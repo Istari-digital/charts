@@ -213,12 +213,17 @@ resource "zitadel_machine_key" "identity-service-management-key" {
   }
 }
 
-# ORG_USER_MANAGER lets identity-service create users on pre-registration; it can also edit
-# and delete the org's users and their grants. Narrower than the fileservice/SCS users' ORG_OWNER.
+# Deliberately broad for pre-release testing: identity-service creates and looks up users in
+# every tenant's org. IAM_USER_MANAGER can edit and delete users and grants across the instance.
 resource "zitadel_org_member" "identity-service-management-default" {
   org_id  = zitadel_org.default.id
   user_id = zitadel_machine_user.identity-service-management-user.id
-  roles   = ["ORG_OWNER_VIEWER", "ORG_USER_MANAGER"]
+  roles   = ["ORG_OWNER", "ORG_OWNER_VIEWER"]
+}
+
+resource "zitadel_instance_member" "identity-service-management-instance" {
+  user_id = zitadel_machine_user.identity-service-management-user.id
+  roles   = ["IAM_USER_MANAGER"]
 }
 
 resource "zitadel_machine_user" "registry-service-user" {
