@@ -213,8 +213,8 @@ resource "zitadel_machine_key" "identity-service-management-key" {
   }
 }
 
-# Deliberately broad for pre-release testing: identity-service creates and looks up users in
-# every tenant's org. IAM_USER_MANAGER can edit and delete users and grants across the instance.
+# Deliberately broad for pre-release testing: identity-service creates each tenant's org and manages users
+# in every org. IAM_ORG_MANAGER adds creating and deleting orgs to IAM_USER_MANAGER's user rights.
 resource "zitadel_org_member" "identity-service-management-default" {
   org_id  = zitadel_org.default.id
   user_id = zitadel_machine_user.identity-service-management-user.id
@@ -223,7 +223,7 @@ resource "zitadel_org_member" "identity-service-management-default" {
 
 resource "zitadel_instance_member" "identity-service-management-instance" {
   user_id = zitadel_machine_user.identity-service-management-user.id
-  roles   = ["IAM_USER_MANAGER"]
+  roles   = ["IAM_USER_MANAGER", "IAM_ORG_MANAGER"]
 }
 
 resource "zitadel_machine_user" "registry-service-user" {
