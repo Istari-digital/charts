@@ -1,15 +1,15 @@
 {{- /* Maps each upstream IdP organization to a tenant: after the schema hook (weight 5), before the registry's role grants (weight 25). */ -}}
 {{- $serviceValues := .Values.identity -}}
 {{- $bootstrap := $serviceValues.bootstrap -}}
-{{- $tenants := dig "tenants" dict $bootstrap -}}
-{{- if and $serviceValues.enabled (dig "enabled" false $tenants) }}
+{{- $tenants := $bootstrap.tenants -}}
+{{- if and $serviceValues.enabled $tenants.enabled }}
 {{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.tenants.enabled requires identity.migrations.runAsJob=true, so the schema exists before this hook" }}{{ end }}
-{{- $provider := dig "provider" "zitadel" $tenants -}}
+{{- $provider := $tenants.provider -}}
 {{- if ne $provider "zitadel" }}{{ fail (printf "identity.bootstrap.tenants.provider must be \"zitadel\", got %q" $provider) }}{{ end }}
-{{- if and (not (dig "issuer" "" $tenants)) (eq (dig "provider" "" $serviceValues.oidc) "keycloak") }}{{ fail "identity.bootstrap.tenants lists Zitadel organizations and needs an explicit Zitadel issuer in identity.bootstrap.tenants.issuer when identity.oidc.provider is keycloak; on a switch to Keycloak, the IdP migration hook (identity.idpMigration) maps tenants itself" }}{{ end }}
-{{- $issuer := required "identity.bootstrap.tenants.issuer or identity.oidc.issuer is required when identity.bootstrap.tenants.enabled is true" (default $serviceValues.oidc.issuer (dig "issuer" "" $tenants)) -}}
-{{- $credEnv := required "identity.bootstrap.tenants.credentialEnv must not be empty" (dig "credentialEnv" "ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY" $tenants) -}}
-{{- $slugPrefix := dig "slugPrefix" "zitadel" $tenants -}}
+{{- if and (not $tenants.issuer) (eq $serviceValues.oidc.provider "keycloak") }}{{ fail "identity.bootstrap.tenants lists Zitadel organizations and needs an explicit Zitadel issuer in identity.bootstrap.tenants.issuer when identity.oidc.provider is keycloak; on a switch to Keycloak, the IdP migration hook (identity.idpMigration) maps tenants itself" }}{{ end }}
+{{- $issuer := required "identity.bootstrap.tenants.issuer or identity.oidc.issuer is required when identity.bootstrap.tenants.enabled is true" (default $serviceValues.oidc.issuer $tenants.issuer) -}}
+{{- $credEnv := required "identity.bootstrap.tenants.credentialEnv must not be empty" $tenants.credentialEnv -}}
+{{- $slugPrefix := $tenants.slugPrefix -}}
 {{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.bootstrap.tenants.enabled is true" -}}
 {{- $dbEnv := list (dict "name" $bootstrap.databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $bootstrap.databaseUrlEnv))) -}}
 {{- $extra := list $dbEnv -}}

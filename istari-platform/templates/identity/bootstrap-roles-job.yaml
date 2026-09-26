@@ -3,7 +3,7 @@
 {{- $bootstrap := $serviceValues.bootstrap -}}
 {{- if and $serviceValues.enabled $bootstrap.enabled }}
 {{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.enabled requires identity.migrations.runAsJob=true, so the schema exists before this pre-install hook" }}{{ end }}
-{{- $fallback := dig "registryFallback" false $bootstrap -}}
+{{- $fallback := $bootstrap.registryFallback -}}
 {{- if and (not $bootstrap.registryClientId) (not $bootstrap.registryClientIdSecretRef) (not $fallback) }}{{ fail "identity.bootstrap.enabled requires identity.bootstrap.registryClientId, identity.bootstrap.registryClientIdSecretRef or identity.bootstrap.registryFallback" }}{{ end }}
 {{- if and (not $bootstrap.registryClientId) $bootstrap.registryClientIdSecretRef }}
 {{- $_ := $bootstrap.registryClientIdSecretRef.name | required "identity.bootstrap.registryClientIdSecretRef.name must be set (with .key) when registryClientId is empty" -}}
