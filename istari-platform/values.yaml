@@ -895,7 +895,7 @@ identity:
       # -- Env var holding the IdP credential.
       credentialEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY
       # -- Prefix for derived tenant slugs.
-      slugPrefix: zitadel
+      slugPrefix: ""
   # -- One-shot Helm `pre-upgrade` hook that migrates an existing deployment from its current upstream IdP (e.g. Zitadel) to a new one (e.g. Keycloak). Runs the `migrate-idp` orchestrator (tenants → roles → users) once, before the identity Deployment rolls onto the new IdP. Idempotent and additive — safe to leave enabled across upgrades (a no-op once migrated). Requires `identity.migrations.runAsJob=true` (so the schema Job runs first, weight 5, before this weight-10 hook); rendering fails fast otherwise.
   # @default -- (see fields below)
   idpMigration:
