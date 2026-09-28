@@ -11,6 +11,7 @@
 {{- $credEnv := required "identity.bootstrap.tenants.credentialEnv must not be empty" $tenants.credentialEnv -}}
 {{- $slugPrefix := $tenants.slugPrefix -}}
 {{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.bootstrap.tenants.enabled is true" -}}
+{{- $_ := $bootstrap.databaseUrlEnv | required "identity.bootstrap.databaseUrlEnv must not be empty when identity.bootstrap.tenants.enabled is true (the identity.secretName key holding the PostgreSQL connection string)" -}}
 {{- $dbEnv := list (dict "name" $bootstrap.databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $bootstrap.databaseUrlEnv))) -}}
 {{- $extra := list $dbEnv -}}
 {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end -}}
@@ -92,5 +93,17 @@ spec:
       - name: trusted-certs
         configMap:
           name: {{ include "shared.trustedCerts.name" . | quote }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
       {{- end }}
 {{- end }}
