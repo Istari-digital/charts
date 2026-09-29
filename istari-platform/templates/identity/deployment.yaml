@@ -1,6 +1,14 @@
 {{- $serviceValues := .Values.identity -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $migrationResources := dig "migrations" "resources" dict $serviceValues -}}
+{{- /* default list is nil-safety for an overlay that sets extraEnvSecrets: null. */ -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
+{{- if eq (include "provisioner.identityPlatformClientsEnabled" .) "true" -}}
+{{- $platformClientsSecretName := include "provisioner.identityPlatformClientsSecretName" . -}}
+{{- if not (has $platformClientsSecretName $extraEnvSecrets) -}}
+{{- $extraEnvSecrets = append $extraEnvSecrets $platformClientsSecretName -}}
+{{- end -}}
+{{- end -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -93,7 +101,7 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $serviceValues.extraEnvSecrets }}
+        {{- with $extraEnvSecrets }}
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}

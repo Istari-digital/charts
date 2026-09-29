@@ -184,6 +184,28 @@ resource "kubernetes_secret_v1" "mcp" {
   }
 }
 
+# ---- identity's platform clients — what identity-service registers from at startup ----
+# identity-service 2.0.0-pre.14 and later refuse to start without these three settings.
+resource "kubernetes_secret_v1" "identity_platform_clients" {
+  count = var.registry_enabled || var.frontend_enabled || var.mcp_enabled ? 1 : 0
+  metadata {
+    name      = var.identity_platform_clients_secret_name
+    namespace = var.namespace
+    labels    = var.common_labels
+  }
+  data = merge(
+    var.registry_enabled ? {
+      ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_PUBLIC_KEY_B64 = base64encode(tls_private_key.registry[0].public_key_pem)
+    } : {},
+    var.frontend_enabled ? {
+      ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS = join(",", local.frontend_all_redirect_uris)
+    } : {},
+    var.mcp_enabled ? {
+      ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_REDIRECT_URIS = join(",", local.mcp_all_redirect_uris)
+    } : {},
+  )
+}
+
 # ---- identity's serviceClients Secret — what provision-service-clients mounts ----
 resource "kubernetes_secret_v1" "identity_service_clients" {
   count = length(local.service_clients) > 0 ? 1 : 0

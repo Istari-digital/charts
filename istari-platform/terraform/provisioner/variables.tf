@@ -34,6 +34,10 @@ variable "frontend_secret_name" {
 variable "mcp_secret_name" {
   type = string
 }
+variable "identity_platform_clients_secret_name" {
+  type        = string
+  description = "Secret carrying the settings identity-service registers the registry, frontend and mcp clients from at startup."
+}
 variable "identity_service_clients_secret_name" {
   type = string
 }

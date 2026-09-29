@@ -642,7 +642,7 @@ identity:
   tag: "1.2.3"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
-  # -- Secret name. The secret should contain the environment variables required by the service.
+  # -- Secret name. The secret should contain the environment variables required by the service. From identity-service 2.0.0-pre.14 these include `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_PUBLIC_KEY_B64` (the base64 of the registry client's PKIX public PEM), `ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS` and `ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_REDIRECT_URIS` (comma-separated redirect URLs); identity-service refuses to start without them. The chart supplies them when `provisioner.clients.registry`, `frontend` or `mcp` is enabled, and derives them from `serviceClientProvisioning.serviceClients` entries whose `serviceId` is `registry`, `frontend` or `mcp`; a value in this secret wins over a derived one.
   secretName: "istari-identity"
   # -- Upstream OIDC / IdP configuration — the NON-secret half of pointing identity at an IdP.
   # Each field set here renders as an explicit `env` entry on the identity container as the matching

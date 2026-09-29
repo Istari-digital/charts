@@ -73,6 +73,25 @@ istari-provisioner-service-clients
 {{- end }}
 
 {{/*
+Secret carrying the settings identity-service registers the registry, frontend and mcp clients
+from at startup. Listed in identity's extraEnvSecrets.
+*/}}
+{{- define "provisioner.identityPlatformClientsSecretName" -}}
+istari-provisioner-identity-platform-clients
+{{- end }}
+
+{{/*
+Whether identity-service's platform-clients Secret is written: the registry, frontend or mcp
+client is enabled. Returns "true" or "".
+*/}}
+{{- define "provisioner.identityPlatformClientsEnabled" -}}
+{{- $c := .Values.provisioner.clients -}}
+{{- if or $c.registry.enabled $c.frontend.enabled $c.mcp.enabled -}}
+true
+{{- end -}}
+{{- end }}
+
+{{/*
 Whether at least one client is enabled. Returns "true" or "".
 */}}
 {{- define "provisioner.anyClientEnabled" -}}
