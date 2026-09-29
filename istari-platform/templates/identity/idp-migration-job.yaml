@@ -96,7 +96,7 @@ spec:
         - {{ . | quote }}
         {{- end }}
         {{- else }}
-        - "-incoming-provider"
+        - "-to"
         - {{ $to | quote }}
         {{- end }}
         - "-database-url-env"
