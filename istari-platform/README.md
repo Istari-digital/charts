@@ -36,11 +36,24 @@ MCP consumes the gateway as a client; the gateway does not serve MCP requests. N
 > [!IMPORTANT]
 > Routing through the gateway and switching authentication to the identity service are **two independent settings**.
 >
-> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, off by default and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients. Environments that run one Helm release per service — every internal environment does — must set `clientIntegration.enabled` explicitly in each consuming release, since `enabled` is only ever true in the identity-service's own release.
+> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, on by default and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients. Environments that run one Helm release per service — every internal environment does — must set `clientIntegration.enabled` explicitly in each consuming release, since `enabled` is only ever true in the identity-service's own release.
 >
 > When you set both `apiGateway.apiUrl` and `identity.clientIntegration.enabled`, the chart emits the identity toggle to the registry service, the frontend, and MCP together. It never emits the toggle from `apiGateway.apiUrl` alone, because all three treat identity-enabled-without-a-gateway-URL as a fatal startup or config-load error.
 >
 > The former `…_IDENTITY_ROUTER_ENABLED` names (and the frontend's `VITE_IDENTITY_ROUTER_*`) remain supported as deprecated aliases, and are ignored when the corresponding new names are set. Prefer the new names; the aliases will be removed in a future release.
+
+### Turning identity-service off
+
+`identity.enabled` and `identity.clientIntegration.enabled` both default to `true`, so a release deploys the identity-service and moves its clients onto it unless told otherwise. Environments that run one Helm release per service should set `identity.enabled=false` in every release except the identity-service's own; otherwise each of those releases deploys an identity-service. To run without identity-service entirely, set both to `false`:
+
+```yaml
+identity:
+  enabled: false
+  clientIntegration:
+    enabled: false
+```
+
+The registry and the frontend then run on Zitadel alone. With the defaults, `apiGateway.apiUrl` is required: rendering with `identity.clientIntegration.enabled` true and no gateway URL fails with an error naming it. To stay on identity-service but use its v1 API, keep both `true` and set `ISTARI_DIGITAL_IDENTITY_SERVICE_DISCOVERY_API_VERSION=1` on the identity-service, `FILE_SERVICE_FEATURE_FLAGS__IDENTITY_V2_ENABLED=false` on the registry, and `VITE_ISTARI_DIGITAL_IDENTITY_API_VERSION=v1` on the frontend.
 
 Enabling the API Gateway pulls one additional image, `istaridigital.jfrog.io/customer-docker/istaridigital.com/caddy-fips` (the `istaridigital.com` path segment is part of the repository path, not a typo). Air-gapped installations must add it to their image mirror alongside the chart's other images; it uses the same pull credentials.
 
@@ -322,11 +335,11 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.bootstrap.tenants.provider | string | `"zitadel"` | Upstream IdP provider to enumerate. Only `zitadel` is supported. |
 | identity.bootstrap.tenants.slugPrefix | string | `""` | Prefix for derived tenant slugs. |
 | identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. Stage-style topologies run one release per service, so `enabled` is only ever true in the identity-service's own release — gating client behavior on it directly means the toggle never renders in any consuming release. |
-| identity.clientIntegration.enabled | bool | `false` | Whether clients in THIS release authenticate through the identity-service. Defaults to an explicit `false`, never derived from `identity.enabled`: a single-release install that wants identity now sets both values. Rendered in BOTH polarities whenever a gateway URL resolves, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set. |
+| identity.clientIntegration.enabled | bool | `true` | Whether clients in THIS release authenticate through the identity-service. Defaults to `true`, and is never derived from `identity.enabled`: a release that runs without identity sets both to `false`. Rendered in BOTH polarities whenever a gateway URL resolves, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set. |
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | identity.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | identity.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
-| identity.enabled | bool | `false` | Enable / Disable the whole deployment |
+| identity.enabled | bool | `true` | Enable / Disable the whole deployment. On by default: a release that must not deploy the identity-service sets this to `false`. |
 | identity.env | list | `[]` |  |
 | identity.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | identity.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
