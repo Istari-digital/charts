@@ -1,4 +1,4 @@
-{{- /* Ensures the listed people hold platform admin after every install and upgrade; a missing person only warns. */ -}}
+{{- /* Ensures the listed people hold platform admin after every install and upgrade; missing people are pre-registered. */ -}}
 {{- $serviceValues := .Values.identity -}}
 {{- $bootstrap := $serviceValues.bootstrap -}}
 {{- if hasKey $bootstrap "platformAdminEmail" }}{{ fail "identity.bootstrap.platformAdminEmail was replaced by identity.bootstrap.platformAdminEmails, a list of email addresses" }}{{ end }}
@@ -10,6 +10,7 @@
 {{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.bootstrap.enabled is true" -}}
 {{- $_ := $bootstrap.databaseUrlEnv | required "identity.bootstrap.databaseUrlEnv must not be empty when identity.bootstrap.enabled is true (the identity.secretName key holding the PostgreSQL connection string)" -}}
 {{- $args := list "-database-url-env" $bootstrap.databaseUrlEnv -}}
+{{- with ($bootstrap.platformAdminTenant | toString | trim) }}{{- $args = concat $args (list "-tenant" .) }}{{- end -}}
 {{- range $emails }}{{- $args = concat $args (list "-email" .) }}{{- end -}}
 {{- $dbEnv := list (dict "name" $bootstrap.databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $bootstrap.databaseUrlEnv))) -}}
 {{- $extra := list $dbEnv -}}
