@@ -28,3 +28,27 @@ controller at the {{ include "api-gateway.fullname" . }} Service on port 80, the
 registry service is exposed. TLS terminates there — the API Gateway itself serves plain HTTP.
 The chart can also create these for you: see `apiGateway.ingress` and `apiGateway.virtualService`.
 {{- end -}}
+
+{{- if .Values.identity.enabled }}
+{{- $bootstrap := .Values.identity.bootstrap }}
+{{- $exec := printf "kubectl exec -n %s deploy/%s -c istari-platform --" .Release.Namespace (include "identity.fullname" .) }}
+
+Identity Service: platform administration comes only from a platform `admin` grant.
+{{- if and $bootstrap.enabled $bootstrap.platformAdminEmails }}
+After install and each upgrade, a Job grants it to the people in identity.bootstrap.platformAdminEmails,
+pre-registering anyone who has not signed in yet. A newly created Zitadel user gets an email to set a
+password. Without a Zitadel mail server that email never arrives: sign in as the configurator's
+organization owner and set their password in the Zitadel console.
+{{- else }}
+No platform administrator is listed (identity.bootstrap.platformAdminEmails), so nobody can
+administer tenants, people or roles until you create one:
+
+  {{ $exec }} /ensure-platform-admins \
+      -database-url-env ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL -email admin@example.com
+{{- end }}
+
+To make someone a tenant administrator, pre-registering them if they have not signed in yet:
+
+  {{ $exec }} /grant-tenant-role \
+      -database-url-env ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL -tenant <slug> -email person@example.com -pre-register
+{{- end }}
