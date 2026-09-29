@@ -40,6 +40,6 @@ data:
   # "false" is the only way this chart can turn identity off where that legacy flag is
   # set. "Gateway on, identity off" is a supported state - registry traffic through the
   # gateway, OIDC straight to your existing IdP - so the chart must be able to say it.
-  ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: {{ dig "clientIntegration" "enabled" false .Values.identity | quote }}
+  ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: {{ include "istari-platform.identityClientIntegration" . | quote }}
   {{- end }}
 {{- end }}

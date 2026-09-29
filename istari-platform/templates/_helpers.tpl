@@ -238,3 +238,18 @@ whitespace are stripped, so <base>/registry never renders a double slash.
 {{- $r := default dict .Values.apiGateway -}}
 {{- trimSuffix "/" (trim (default "" $r.apiUrl)) -}}
 {{- end }}
+
+{{/*
+Whether clients in this release authenticate through the identity-service, as the string "true" or
+"false". identity.clientIntegration.enabled is a tri-state: true and false are taken as written, and
+unset (the default) means on whenever a gateway URL resolves and off otherwise, so a bare render is
+valid and an environment that sets apiGateway.apiUrl gets identity clients.
+*/}}
+{{- define "istari-platform.identityClientIntegration" -}}
+{{- $v := dig "clientIntegration" "enabled" "auto" .Values.identity -}}
+{{- if eq (toString $v) "auto" -}}
+{{- if include "istari-platform.apiGatewayUrl" . -}}true{{- else -}}false{{- end -}}
+{{- else -}}
+{{- toString $v -}}
+{{- end -}}
+{{- end }}

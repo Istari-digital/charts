@@ -632,8 +632,9 @@ identity:
   # -- Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. Stage-style topologies run one release per service, so `enabled` is only ever true in the identity-service's own release — gating client behavior on it directly means the toggle never renders in any consuming release.
   # @default -- (see fields below)
   clientIntegration:
-    # -- Whether clients in THIS release authenticate through the identity-service. Defaults to `true`, and is never derived from `identity.enabled`: a release that runs without identity sets both to `false`. Rendered in BOTH polarities whenever a gateway URL resolves, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set.
-    enabled: true
+    # -- Whether clients in THIS release authenticate through the identity-service. A tri-state: `true` and `false` are taken as written; unset (the default) means on whenever a gateway URL resolves (`apiGateway.apiUrl`) and off otherwise, and it is never derived from `identity.enabled`. A release that runs without identity sets both `identity.enabled` and this to `false`; `true` with no gateway URL fails the render. Rendered in BOTH polarities whenever a gateway URL resolves, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set.
+    # @default -- `null` (on when a gateway URL resolves, otherwise off)
+    enabled: null
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
@@ -1204,8 +1205,8 @@ docs:
 # change in a future release; such a change will never require values changes beyond
 # `registry`/`image`/`tag`.
 apiGateway:
-  # -- Enable / Disable the whole deployment
-  enabled: false
+  # -- Enable / Disable the whole deployment. On by default; it serves no traffic to clients until `apiUrl` is set.
+  enabled: true
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS Caddy variant in the Istari customer-docker JFrog repo, pulled with the same credentials as the rest of the chart. The `istaridigital.com/` path segment is part of the repository path — not a typo.
