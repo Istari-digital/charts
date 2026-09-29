@@ -3,8 +3,7 @@
 {{- $bootstrap := $serviceValues.bootstrap -}}
 {{- if and $serviceValues.enabled $bootstrap.enabled }}
 {{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.enabled requires identity.migrations.runAsJob=true, so the schema exists before this pre-install hook" }}{{ end }}
-{{- $fallback := $bootstrap.registryFallback -}}
-{{- if and (not $bootstrap.registryClientId) (not $bootstrap.registryClientIdSecretRef) (not $fallback) }}{{ fail "identity.bootstrap.enabled requires identity.bootstrap.registryClientId, identity.bootstrap.registryClientIdSecretRef or identity.bootstrap.registryFallback" }}{{ end }}
+{{- if and (not $bootstrap.registryClientId) (not $bootstrap.registryClientIdSecretRef) }}{{ fail "identity.bootstrap.enabled requires identity.bootstrap.registryClientId or identity.bootstrap.registryClientIdSecretRef" }}{{ end }}
 {{- if and (not $bootstrap.registryClientId) $bootstrap.registryClientIdSecretRef }}
 {{- $_ := $bootstrap.registryClientIdSecretRef.name | required "identity.bootstrap.registryClientIdSecretRef.name must be set (with .key) when registryClientId is empty" -}}
 {{- $_ := $bootstrap.registryClientIdSecretRef.key | required "identity.bootstrap.registryClientIdSecretRef.key must be set (with .name) when registryClientId is empty" -}}
@@ -15,12 +14,9 @@
 {{- $clientEnv := list (dict "name" "REGISTRY_CLIENT_ID" "value" $bootstrap.registryClientId) -}}
 {{- if and (not $bootstrap.registryClientId) $bootstrap.registryClientIdSecretRef -}}
 {{- $ref := $bootstrap.registryClientIdSecretRef -}}
-{{- /* With the fallback on, a missing secret key must not stop the Pod from starting. */ -}}
-{{- if $fallback }}{{- $ref = merge (dict "optional" true) $ref }}{{- end -}}
 {{- $clientEnv = list (dict "name" "REGISTRY_CLIENT_ID" "valueFrom" (dict "secretKeyRef" $ref)) -}}
 {{- end -}}
 {{- $clientArgs := list "-client-id" "$(REGISTRY_CLIENT_ID)" -}}
-{{- if $fallback }}{{- $clientArgs = list "-registry-fallback" "-client-id-env" "REGISTRY_CLIENT_ID" }}{{- end -}}
 {{- $extra := list $clientEnv $dbEnv -}}
 {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end -}}
 apiVersion: batch/v1

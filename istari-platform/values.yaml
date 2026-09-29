@@ -881,8 +881,6 @@ identity:
     autoCleanupSuccessfulJob: true
     # -- Resources for the bootstrap containers.
     resources: {}
-    # -- When `registryClientId` names no platform service, grant the registry's roles to every service labelled `registry`, or failing that to every confidential service with no component. Needs an identity-service image whose `grant-platform-role` has `-registry-fallback`.
-    registryFallback: false
     # -- Map each upstream IdP organization to an identity-service tenant with `bootstrap-tenants`, in a pre-install and pre-upgrade hook.
     # @default -- (see fields below)
     tenants:
