@@ -1,10 +1,16 @@
-{{- /* Grants the first platform administrator after install. Fails until that person has signed in once. */ -}}
+{{- /* Ensures the listed people hold platform admin after every install and upgrade; a missing person only warns. */ -}}
 {{- $serviceValues := .Values.identity -}}
 {{- $bootstrap := $serviceValues.bootstrap -}}
-{{- if and $serviceValues.enabled $bootstrap.enabled $bootstrap.platformAdminEmail }}
+{{- if hasKey $bootstrap "platformAdminEmail" }}{{ fail "identity.bootstrap.platformAdminEmail was replaced by identity.bootstrap.platformAdminEmails, a list of email addresses" }}{{ end }}
+{{- if not (kindIs "slice" $bootstrap.platformAdminEmails) }}{{ fail "identity.bootstrap.platformAdminEmails must be a list of email addresses" }}{{ end }}
+{{- $emails := list -}}
+{{- range $bootstrap.platformAdminEmails }}{{- $e := toString . | trim }}{{- if $e }}{{- $emails = append $emails $e }}{{- end }}{{- end -}}
+{{- if and $serviceValues.enabled $bootstrap.enabled $emails }}
 {{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.enabled requires identity.migrations.runAsJob=true, so the schema exists before this hook" }}{{ end }}
 {{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.bootstrap.enabled is true" -}}
 {{- $_ := $bootstrap.databaseUrlEnv | required "identity.bootstrap.databaseUrlEnv must not be empty when identity.bootstrap.enabled is true (the identity.secretName key holding the PostgreSQL connection string)" -}}
+{{- $args := list "-database-url-env" $bootstrap.databaseUrlEnv -}}
+{{- range $emails }}{{- $args = concat $args (list "-email" .) }}{{- end -}}
 {{- $dbEnv := list (dict "name" $bootstrap.databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $bootstrap.databaseUrlEnv))) -}}
 {{- $extra := list $dbEnv -}}
 {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end -}}
@@ -48,8 +54,8 @@ spec:
         {{- end }}
         image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
         imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
-        command: ["/grant-platform-role"]
-        args: ["-database-url-env", {{ $bootstrap.databaseUrlEnv | quote }}, "-email", {{ $bootstrap.platformAdminEmail | quote }}, "-role", "admin"]
+        command: ["/ensure-platform-admins"]
+        args: {{ toJson $args }}
         envFrom:
         - configMapRef:
             name: {{ include "identity.configmap.name" . | quote }}
