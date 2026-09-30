@@ -8,7 +8,7 @@ autoscaling, else replicaCount) is at least 2: a minAvailable: 1 budget over a
 single-replica Deployment would block every node drain indefinitely.
 */}}
 {{- $serviceValues := .Values.apiGateway -}}
-{{- if $serviceValues.enabled }}
+{{- if (include "istari-platform.apiGatewayEnabled" $) }}
 {{- $effectiveReplicas := ternary $serviceValues.autoscaling.minReplicas $serviceValues.replicaCount $serviceValues.autoscaling.enabled -}}
 {{- if ge (int $effectiveReplicas) 2 }}
 apiVersion: policy/v1

@@ -1,5 +1,5 @@
 {{- $serviceValues := .Values.identity -}}
-{{- if $serviceValues.enabled }}
+{{- if (include "istari-platform.identityEnabled" $) }}
 {{- if $serviceValues.autoscaling.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

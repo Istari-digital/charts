@@ -36,17 +36,11 @@ MCP consumes the gateway as a client; the gateway does not serve MCP requests. N
 > [!IMPORTANT]
 > Routing through the gateway and switching authentication to the identity service are **two independent settings**.
 >
-> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, which is on whenever a gateway URL resolves and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients. Environments that run one Helm release per service — every internal environment does — must set `clientIntegration.enabled` explicitly in each consuming release, since `enabled` is only ever true in the identity-service's own release.
->
-> When you set both `apiGateway.apiUrl` and `identity.clientIntegration.enabled`, the chart emits the identity toggle to the registry service, the frontend, and MCP together. It never emits the toggle from `apiGateway.apiUrl` alone, because all three treat identity-enabled-without-a-gateway-URL as a fatal startup or config-load error.
->
-> The former `…_IDENTITY_ROUTER_ENABLED` names (and the frontend's `VITE_IDENTITY_ROUTER_*`) remain supported as deprecated aliases, and are ignored when the corresponding new names are set. Prefer the new names; the aliases will be removed in a future release.
+> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, which is on whenever a gateway URL resolves and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients. ### Upgrading per-service releases
 
-### Turning identity-service off
+`identity.enabled` and `apiGateway.enabled` are tri-state. Unset (the default) turns each on only when the release deploys the whole platform, that is, `fileservice.enabled` and `frontend.enabled` are both true; a release that disables either one deploys neither. Environments that install one service per release need no change: the identity-service and API Gateway releases set their own `enabled: true`, and every other release leaves both off. A release that deploys only some services and should still run identity-service or the gateway sets `enabled: true` explicitly. A release with identity on, the gateway off and no `apiGateway.apiUrl` fails the render.
 
-`identity.enabled` and `apiGateway.enabled` default to `true`, so a release deploys the identity-service and the API Gateway. `identity.clientIntegration.enabled` is a tri-state that defaults to unset: clients (the registry, the frontend and MCP) authenticate through the identity-service whenever a gateway URL resolves, that is, whenever `apiGateway.apiUrl` is set, and stay on their existing authentication otherwise, so a bare `helm template` renders cleanly. Setting `identity.clientIntegration.enabled=true` without `apiGateway.apiUrl` fails the render.
-
-Environments that run one Helm release per service should set `identity.enabled=false` (and `apiGateway.enabled=false` where the gateway lives in another release) in every release except the one that owns each service; otherwise each of those releases deploys an identity-service and a gateway. To run without identity-service entirely, set:
+To run without identity-service entirely, set:
 
 ```yaml
 identity:
@@ -86,7 +80,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | apiGateway.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | apiGateway.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context. Unlike the other services, the root filesystem is read-only: Caddy only writes to the XDG state dirs, which the chart mounts as emptyDirs. |
 | apiGateway.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
-| apiGateway.enabled | bool | `true` | Enable / Disable the whole deployment. On by default; it serves no traffic to clients until `apiUrl` is set. `identity.enabled: true` requires it: with identity on and this off, the render fails. |
+| apiGateway.enabled | string | `null` (on when fileservice and frontend are both enabled) | Whether this release deploys the API Gateway. (bool/null) Unset (the default) turns it on when this release deploys the whole platform (fileservice and frontend both enabled) and off otherwise, so a per-service release deploys it only where set to true. `true` and `false` are taken as written. It serves no traffic to clients until `apiUrl` is set. |
 | apiGateway.env | list | `[]` | Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `apiGateway.tracing.enabled`). |
 | apiGateway.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables in the proxy container (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | apiGateway.extraEnvSecrets | list | `[]` | Names of Kubernetes Secrets whose keys become environment variables in the proxy container. Not needed for a standard deployment. (Unlike the other services, the API Gateway has no separate `secretName` — this list is the only Secret mechanism.) |
@@ -343,7 +337,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | identity.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | identity.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
-| identity.enabled | bool | `true` | Enable / Disable the whole deployment. On by default: a release that must not deploy the identity-service sets this to `false`. Requires `apiGateway.enabled: true`, or the render fails. |
+| identity.enabled | string | `null` (on when fileservice and frontend are both enabled) | Whether this release deploys the identity-service. (bool/null) Unset (the default) turns it on when this release deploys the whole platform (fileservice and frontend both enabled) and off otherwise, so a per-service release deploys it only where set to true. `true` and `false` are taken as written. Needs a gateway: with the API Gateway off and no `apiGateway.apiUrl` set, the render fails. |
 | identity.env | list | `[]` |  |
 | identity.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | identity.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |

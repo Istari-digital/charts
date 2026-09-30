@@ -9,7 +9,7 @@
        env so it wins on duplicate names — e.g. to correct OTEL k8s.container.name off
        the fanned-in service value. */ -}}
 {{- $registrationEnv := dig "env" list $registration -}}
-{{- if and $serviceValues.enabled $registrationEnabled }}
+{{- if and (include "istari-platform.identityEnabled" $) $registrationEnabled }}
 {{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.registryClientRegistration.enabled is true" -}}
 apiVersion: batch/v1
 kind: Job

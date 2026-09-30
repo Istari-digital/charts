@@ -8,7 +8,7 @@
 {{- $extraEnvSecrets = append $extraEnvSecrets $platformClientsSecretName -}}
 {{- end -}}
 {{- end -}}
-{{- if $serviceValues.enabled }}
+{{- if (include "istari-platform.identityEnabled" $) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

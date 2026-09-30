@@ -2,7 +2,7 @@
 {{- $registration := dig "agentRegistration" dict $serviceValues -}}
 {{- $registrationEnabled := dig "enabled" false $registration -}}
 {{- $agents := dig "agents" list $registration -}}
-{{- if and $serviceValues.enabled $registrationEnabled $agents }}
+{{- if and (include "istari-platform.identityEnabled" $) $registrationEnabled $agents }}
 {{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.agentRegistration.enabled is true" -}}
 {{- /* The hook (weight 20) assumes the DB schema exists. That only holds when
        migrations run as a pre-upgrade hook (weight 5), i.e. migrations.runAsJob=true.
