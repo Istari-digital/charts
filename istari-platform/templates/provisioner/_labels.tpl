@@ -18,7 +18,7 @@ helm.sh/chart: {{ include "istari-platform.chart" . }}
 {{- with .Values.commonLabels }}
 {{ toYaml . }}
 {{- end }}
-{{- with .Values.provisioner.commonLabels }}
+{{- with .Values.identity.provisioner.commonLabels }}
 {{ toYaml . }}
 {{- end }}
 {{- end }}

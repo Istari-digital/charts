@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 5.11.0](https://img.shields.io/badge/Version-5.11.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
+![Version: 6.0.0](https://img.shields.io/badge/Version-6.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -108,6 +108,8 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | apiGateway.virtualService.labels | object | `{}` | Additional labels on the VirtualService (in addition to the standard api-gateway labels). |
 | apiGateway.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | apiGateway.volumes | list | `[]` | Pod Volumes |
+| common | object | (see fields below) | Chart-wide settings shared across services. |
+| common.mainDomain | string | `""` | Base domain `identity.provisioner` derives frontend/mcp redirect URIs from. Required unless each enabled client sets its own `redirectUri`. |
 | commonLabels | object | `{}` | Additional labels to add to all resources of all services |
 | dgraph-sec.alpha.acl.bootstrap.enabled | bool | `false` | Run the ACL bootstrap/reconciler Job. |
 | dgraph-sec.alpha.acl.bootstrap.existingSecret | string | `""` | Secret holding groot and user passwords for the bootstrap Job. |
@@ -356,41 +358,44 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | identity.podLabels | object | `{}` | Additional labels to add to pods |
 | identity.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
-| identity.publicClientRegistration | object | (see fields below) | Settings for the `register-client -public-client-id` one-shot hook Jobs (pre-install/pre-upgrade). For each entry in `clients`, one Job registers a public (browser, PKCE) OAuth client — its `client_id` and exact-match redirect allowlist — in the Identity Service ClientStore, so `/oauth2/authorize` can validate the presented `client_id` and `redirect_uri`. Rendered only when BOTH `identity.enabled` and `identity.publicClientRegistration.enabled` are `true` AND `clients` is non-empty. Each entry names the `identity.secretName` keys holding its inputs (`clientIdKey`, `redirectUrisKey`); the DB URL is read from `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` in the same secret. No key material is involved — public clients have none. |
-| identity.publicClientRegistration.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up successful registration hook `Job`s by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). |
-| identity.publicClientRegistration.backoffLimit | int | `6` | `spec.backoffLimit` for each registration Job (number of retries after a failed Pod). |
-| identity.publicClientRegistration.clients | list | `[]` | Public clients to register, one Job each. Fields per entry: `name` (required; used in the Job name and the `istari.digital/client` label, so it must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, at most 63 characters), `clientIdKey` (required; the `identity.secretName` key holding the client_id), `redirectUrisKey` (required; the key holding the comma-separated exact-match redirect allowlist). Example: `{name: frontend, clientIdKey: ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_CLIENT_ID, redirectUrisKey: ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS}`. |
-| identity.publicClientRegistration.enabled | bool | `false` | Whether to render the registration Jobs. Off by default: only enable in environments where `identity.secretName` carries every listed client's `clientIdKey`/`redirectUrisKey` (provisioned by your environment's secret management); otherwise the hook Jobs fail the release with a missing-secret-key error. Also requires an Identity Service image whose `register-client` supports `-public-client-id` (Identity Service 1.1.0 or later), and `identity.migrations.runAsJob=true` (so migrations run as a pre-install/pre-upgrade hook, weight 5, before these — guaranteeing the `client_type`/`redirect_uris` schema exists on fresh installs and upgrades alike); rendering fails fast otherwise. |
-| identity.publicClientRegistration.env | list | `[]` | Extra environment variables for every `register-public-client` container, rendered after the service-level `env` — on duplicate names, these win. The chart injects the downward-API building blocks (incl. `CONTAINER_NAME=register-public-client`) but no `OTEL_*` default here, since this Job does not initialize the OTEL SDK. Set Job-specific variables here; if you wire tracing yourself, set `OTEL_RESOURCE_ATTRIBUTES` referencing `$(CONTAINER_NAME)`. |
-| identity.publicClientRegistration.podAnnotations | object | `{}` | Annotations for the registration Job Pod templates only (in addition to `sidecar.istio.io/inject: "false"`). |
-| identity.publicClientRegistration.podLabels | object | `{}` | Extra labels for the registration Job Pod templates only. |
-| identity.publicClientRegistration.resources | object | `{}` | Resources for the registration Job containers. |
+| identity.provisioner | object | (see fields below) | Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job hook that generates registry/frontend/mcp credentials and publishes them for identity to read at startup (identity-service#194). Not for secure-connection-service (see `agentRegistration`). No enable flag: renders whenever `identity.enabled` and at least one `clients.*.enabled` are true. |
+| identity.provisioner.affinity | object | `{}` | Affinity for the provisioning Job pod. |
+| identity.provisioner.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful provisioning Job (`hook-succeeded`). |
+| identity.provisioner.backend | object | (see fields below) | Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no external cloud state infra. |
+| identity.provisioner.backend.secretSuffix | string | `"istari-provisioner-terraform-state"` | Suffix for the state Secret's name — the Secret (and its Lease lock) is named `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Must not end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index. |
+| identity.provisioner.backoffLimit | int | `6` | `spec.backoffLimit` for the provisioning Job. |
+| identity.provisioner.clients | object | (see fields below) | Which clients to provision, and their per-client settings. |
+| identity.provisioner.clients.frontend | object | `{"enabled":false,"extraRedirectUris":[],"redirectUri":""}` | Frontend (`kind: public` / PKCE) — the fixed client id `frontend` and a redirect allowlist. |
+| identity.provisioner.clients.frontend.enabled | bool | `false` | Whether to generate and register the frontend client. |
+| identity.provisioner.clients.frontend.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
+| identity.provisioner.clients.frontend.redirectUri | string | `""` | Explicit redirect URI. Overrides the `common.mainDomain` derivation. |
+| identity.provisioner.clients.mcp | object | `{"enabled":false,"extraRedirectUris":[],"redirectUri":""}` | MCP service (`kind: public` / PKCE) — the fixed client id `mcp`, a placeholder client_secret, and a redirect allowlist. |
+| identity.provisioner.clients.mcp.enabled | bool | `false` | Whether to generate and register the mcp client. |
+| identity.provisioner.clients.mcp.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
+| identity.provisioner.clients.mcp.redirectUri | string | `""` | Explicit redirect URI. Overrides the `common.mainDomain` derivation. |
+| identity.provisioner.clients.registry | object | `{"enabled":false}` | Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair under the fixed client id `registry`. |
+| identity.provisioner.clients.registry.enabled | bool | `false` | Whether to generate and register the registry client. |
+| identity.provisioner.commonLabels | object | `{}` | Additional labels to add to all of this component's resources |
+| identity.provisioner.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Provisioner container's security context. |
+| identity.provisioner.env | list | `[]` | Extra environment variables for the provisioner container. |
+| identity.provisioner.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into the provisioner container. |
+| identity.provisioner.image | string | `"main-docker-local/provisioner"` | Image name. |
+| identity.provisioner.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy. |
+| identity.provisioner.nodeSelector | object | `{}` | Node selector for the provisioning Job pod. |
+| identity.provisioner.planOnly | bool | `false` | When true, run `terraform plan` only (no `apply`). |
+| identity.provisioner.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context. The image runs as nonroot (uid 65532) — fsGroup is required so the terraform-work emptyDir it writes `.terraform/` into is group-writable by that user. |
+| identity.provisioner.registry | string | `"istaridigital.jfrog.io"` | Registry URL for the provisioner's image (Istari's own build, published to `main-docker-local`). |
+| identity.provisioner.resources | object | `{}` | Resources for the provisioner container. |
+| identity.provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
+| identity.provisioner.tag | string | `"0.1.0"` | Image tag. |
+| identity.provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | identity.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
-| identity.registryClientRegistration | object | (see fields below) | Settings for the `register-client` one-shot hook Job (pre-install/pre-upgrade) that registers the registry-service client in the Identity Service ClientStore (required once the deployed Identity Service image enforces client authentication on `/oauth/v2/introspect`). The Job is rendered only when BOTH `identity.enabled` and `identity.registryClientRegistration.enabled` are `true`. It reads both `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT` (the public-only client blob) and `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` from `identity.secretName`, so the Identity Service never needs read access to the registry-service's secret. |
-| identity.registryClientRegistration.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful registration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). |
-| identity.registryClientRegistration.backoffLimit | int | `6` | `spec.backoffLimit` for the registration Job (number of retries after a failed Pod). |
-| identity.registryClientRegistration.enabled | bool | `false` | Whether to render the registration Job. Off by default: only enable in environments where the registry-service's Identity Service integration is turned on (so `identity.secretName` actually contains `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT`). Otherwise the hook Job fails the release with a missing-secret-key error. |
-| identity.registryClientRegistration.env | list | `[]` | Extra environment variables for the `register-client` container, rendered after the service-level `env` — on duplicate names, these win. The chart injects the downward-API building blocks (incl. `CONTAINER_NAME=register-client`) but no `OTEL_*` default here, since this Job does not initialize the OTEL SDK. Set Job-specific variables here; if you wire tracing yourself, set `OTEL_RESOURCE_ATTRIBUTES` referencing `$(CONTAINER_NAME)`. |
-| identity.registryClientRegistration.podAnnotations | object | `{}` | Annotations for the registration Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`). |
-| identity.registryClientRegistration.podLabels | object | `{}` | Extra labels for the registration Job Pod template only. |
-| identity.registryClientRegistration.resources | object | `{}` | Resources for the registration Job container. |
 | identity.replicaCount | int | `1` | Replica count |
 | identity.resources | object | `{"limits":{"memory":"2Gi"},"requests":{"cpu":"1","memory":"2Gi"}}` | Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request. |
 | identity.restartPolicy | string | `"Always"` | Restart policy |
 | identity.secretName | string | `"istari-identity"` | Secret name. The secret should contain the environment variables required by the service. |
 | identity.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | identity.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
-| identity.serviceClientProvisioning | object | (see fields below) | Settings for the `provision-service-clients` one-shot hook Job (pre-install/pre-upgrade, weight 20) that batch-registers service and agent clients in the Identity Service store — the consolidated form of the per-service `registryClientRegistration` / `agentRegistration` Jobs (N Jobs → 1). It reads a mounted ConfigMap of PUBLIC key blobs (`serviceClients` below) and upserts each client (ClientStore for services, AgentStore for agents). Registration only: it generates no keys and holds no private key material — the packaging layer (Terraform / `gen-client-credentials`) generates each keypair and distributes the PRIVATE blob to the owning service's Secret under `ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS`. Like the other registration Jobs it only talks to PostgreSQL (reads `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` from `identity.secretName`), never the Kubernetes API. Rendered when `identity.enabled`, `serviceClientProvisioning.enabled`, and a public-blob source — a non-empty `serviceClients`, an external `configMapName`, **or** a Secret source (`secretName`, explicit or auto-derived from the provisioner) — all hold; requires `identity.migrations.runAsJob=true` (the schema hook, weight 5, must run first) — rendering fails fast otherwise. Agent entries look up their tenant by slug and require it to already exist: create it before this hook (this weight-20 hook does not create tenants, and the `agentRegistration` hook's own `create-tenant` also runs at weight 20, so it is not guaranteed to precede this one). |
-| identity.serviceClientProvisioning.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful hook Job by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). The chart-rendered ConfigMap always uses `before-hook-creation` only (it must outlive the Job that mounts it) and is replaced on the next upgrade. |
-| identity.serviceClientProvisioning.backoffLimit | int | `6` | `spec.backoffLimit` for the Job (number of retries after a failed Pod). |
-| identity.serviceClientProvisioning.configMapName | string | `""` | Name of an EXTERNALLY-managed ConfigMap (public blobs) for the Job to mount instead of the chart rendering one from `serviceClients`. Set this when your provisioning tooling owns the ConfigMap (it must expose a `serviceClients.yaml` key in the same shape as `serviceClients` below). When set, the Job renders and mounts that ConfigMap even if `serviceClients` is empty, and the chart renders no ConfigMap of its own. When empty (default), the chart renders its own ConfigMap from `serviceClients` below. |
-| identity.serviceClientProvisioning.databaseUrlEnv | string | `"ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"` | Env var (in `identity.secretName`) holding the PostgreSQL connection string; also the name of the env var the Job sets from that secret key. Inherited, never re-declared — no new plaintext env vars. |
-| identity.serviceClientProvisioning.enabled | bool | `false` | Whether to render the provisioning Job and its ConfigMap. Off by default. |
-| identity.serviceClientProvisioning.env | list | `[]` | Extra environment variables for the `provision-service-clients` container, rendered after the service-level `env` — on duplicate names, these win. |
-| identity.serviceClientProvisioning.podAnnotations | object | `{}` | Annotations for the Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`). |
-| identity.serviceClientProvisioning.podLabels | object | `{}` | Extra labels for the Job Pod template only. |
-| identity.serviceClientProvisioning.resources | object | `{}` | Resources for the Job container. |
-| identity.serviceClientProvisioning.serviceClients | list | `[]` | Clients to register, all in one Job. Used only when `configMapName` above is empty (the chart renders the ConfigMap from this list); ignored when an external ConfigMap is provided. Three kinds. Common field: `serviceId` (required; a label used in logs and for de-duplication) and `kind` (required, `service`, `agent`, or `public`). Keypair clients (`service`, `agent`) carry `credential` (required; the base64-encoded `{clientId,keyId,key}` blob whose `key` is the PKIX PUBLIC PEM — the packaging layer generates the pair and puts the matching private blob in the service's Secret); `service` also takes `canListPrincipals` (optional; grant permission to list stable principals); `agent` also takes `tenantSlug` (required; the Identity Service tenant, must already exist), `username` (optional; upstream IdP user id to bind to), `displayName` (optional; name claim). Public (PKCE browser) clients (`public`) carry no key material — `clientId` (required) and `redirectUris` (required; the exact-match redirect allowlist) instead of `credential`. |
 | identity.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
 | identity.tag | string | `"1.2.3"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | identity.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
@@ -483,40 +488,6 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | nats.reloader.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-server-config-reloader-fips"` | Config-reloader image repository. Defaults to the Chainguard FIPS variant. |
 | nats.reloader.image.tag | string | `"0.23.0"` | Config-reloader image tag. |
 | nats.statefulSet.merge.spec.persistentVolumeClaimRetentionPolicy | object | `{"whenDeleted":"Delete","whenScaled":"Delete"}` | Delete the JetStream PVCs when the StatefulSet is deleted or scaled down. Set to `Retain` if you need the data to outlive the StatefulSet. |
-| provisioner | object | (see fields below) | Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job hook that generates and registers credentials for registry, frontend, and mcp, feeding identity's `provision-service-clients` hook (`identity.serviceClientProvisioning`). secure-connection-service is NOT covered here -- its credential/registration model isn't supported by this mechanism; it stays on its existing path (helm-stack Terraform + identity's `agentRegistration`). Off by default. |
-| provisioner.affinity | object | `{}` | Affinity for the provisioning Job pod. |
-| provisioner.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful provisioning Job (`hook-succeeded`). |
-| provisioner.backend | object | (see fields below) | Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no external cloud state infra. |
-| provisioner.backend.secretSuffix | string | `"istari-provisioner-terraform-state"` | Suffix for the state Secret's name — the Secret (and its Lease lock) is named `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Must not end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index. |
-| provisioner.backoffLimit | int | `6` | `spec.backoffLimit` for the provisioning Job. |
-| provisioner.clients | object | (see fields below) | Which clients to provision, and their per-client settings. |
-| provisioner.clients.frontend | object | `{"enabled":false,"extraRedirectUris":[],"redirectUri":""}` | Frontend (`kind: public` / PKCE) — a generated client_id and a redirect allowlist. |
-| provisioner.clients.frontend.enabled | bool | `false` | Whether to generate and register the frontend client. |
-| provisioner.clients.frontend.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
-| provisioner.clients.frontend.redirectUri | string | `""` | Explicit redirect URI. Overrides the `mainDomain` derivation. |
-| provisioner.clients.mcp | object | `{"enabled":false,"extraRedirectUris":[],"redirectUri":""}` | MCP service (`kind: public` / PKCE) — a generated client_id, a placeholder client_secret, and a redirect allowlist. |
-| provisioner.clients.mcp.enabled | bool | `false` | Whether to generate and register the mcp client. |
-| provisioner.clients.mcp.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
-| provisioner.clients.mcp.redirectUri | string | `""` | Explicit redirect URI. Overrides the `mainDomain` derivation. |
-| provisioner.clients.registry | object | `{"enabled":false}` | Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair and a generated client_id. |
-| provisioner.clients.registry.enabled | bool | `false` | Whether to generate and register the registry client. |
-| provisioner.commonLabels | object | `{}` | Additional labels to add to all of this component's resources |
-| provisioner.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Provisioner container's security context. |
-| provisioner.enabled | bool | `false` | Whether to render the provisioner Job and its supporting resources. Also requires at least one `clients.*.enabled`. In a one-release-per-service topology, set this `true` only in the provisioner's own dedicated release — every other release only needs `clients.*.enabled` (not this) to pick up that client's Secret name; see the deployment templates and `identity.serviceClientProvisioning.secretName`. |
-| provisioner.env | list | `[]` | Extra environment variables for the provisioner container. |
-| provisioner.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into the provisioner container. |
-| provisioner.identityServiceUrl | string | `""` | Explicit identity-service public URL, written into every enabled client's secret alongside its "identity enabled" flag. Overrides the `mainDomain` derivation. |
-| provisioner.image | string | `"main-docker-local/provisioner"` | Image name. |
-| provisioner.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy. |
-| provisioner.mainDomain | string | `""` | Base domain used to derive frontend/mcp redirect URIs and identity-service's own public URL: frontend at `https://<mainDomain>`, mcp at `https://mcp.<mainDomain>/auth/callback`, identity-service at `https://identity.<mainDomain>`. Required if a client below is enabled and its own override (`redirectUri` / `identityServiceUrl`) is left empty. |
-| provisioner.nodeSelector | object | `{}` | Node selector for the provisioning Job pod. |
-| provisioner.planOnly | bool | `false` | When true, run `terraform plan` only (no `apply`). |
-| provisioner.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context. The image runs as nonroot (uid 65532) — fsGroup is required so the (non-readOnly) terraform-files Secret volume it writes `.terraform/` into is group-writable by that user; Kubernetes Secret volumes default to root-owned files otherwise. |
-| provisioner.registry | string | `"istaridigital.jfrog.io"` | Registry URL for the provisioner's image (Istari's own build, published to `main-docker-local`). |
-| provisioner.resources | object | `{}` | Resources for the provisioner container. |
-| provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
-| provisioner.tag | string | `"0.1.0"` | Image tag. |
-| provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | secureConnection.affinity | object | `{}` | Affinity |
 | secureConnection.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
 | secureConnection.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |

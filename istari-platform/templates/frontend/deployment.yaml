@@ -4,7 +4,7 @@
    normal case) -- it's nil-safety: an overlay that explicitly sets extraEnvSecrets: null would
    otherwise pass nil into `has`/`append` below and abort rendering. */ -}}
 {{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
-{{- if .Values.provisioner.clients.frontend.enabled -}}
+{{- if .Values.identity.provisioner.clients.frontend.enabled -}}
 {{- $frontendSecretName := include "provisioner.frontendSecretName" . -}}
 {{- if not (has $frontendSecretName $extraEnvSecrets) -}}
 {{- $extraEnvSecrets = append $extraEnvSecrets $frontendSecretName -}}

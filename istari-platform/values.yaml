@@ -11,6 +11,13 @@ fullnameOverride: "istari"
 imagePullSecrets:
 - name: "docker-pull-secret"
 
+# -- Chart-wide settings shared across services.
+# @default -- (see fields below)
+common:
+  # -- Base domain `identity.provisioner` derives frontend/mcp redirect URIs from. Required unless
+  # each enabled client sets its own `redirectUri`.
+  mainDomain: ""
+
 # -- Override the value used for the label 'app.kubernetes.io/name', which defaults to the chart name (istari-platform).
 nameOverride: ""
 
@@ -780,42 +787,6 @@ identity:
       limits:
         cpu: 500m
         memory: 1Gi
-  # -- Settings for the `register-client` one-shot hook Job (pre-install/pre-upgrade) that registers the registry-service client in the Identity Service ClientStore (required once the deployed Identity Service image enforces client authentication on `/oauth/v2/introspect`). The Job is rendered only when BOTH `identity.enabled` and `identity.registryClientRegistration.enabled` are `true`. It reads both `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT` (the public-only client blob) and `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` from `identity.secretName`, so the Identity Service never needs read access to the registry-service's secret.
-  # @default -- (see fields below)
-  registryClientRegistration:
-    # -- Whether to render the registration Job. Off by default: only enable in environments where the registry-service's Identity Service integration is turned on (so `identity.secretName` actually contains `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_CLIENT`). Otherwise the hook Job fails the release with a missing-secret-key error.
-    enabled: false
-    # -- `spec.backoffLimit` for the registration Job (number of retries after a failed Pod).
-    backoffLimit: 6
-    # -- Automatically clean up the successful registration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`).
-    autoCleanupSuccessfulJob: true
-    # -- Annotations for the registration Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`).
-    podAnnotations: {}
-    # -- Extra labels for the registration Job Pod template only.
-    podLabels: {}
-    # -- Extra environment variables for the `register-client` container, rendered after the service-level `env` — on duplicate names, these win. The chart injects the downward-API building blocks (incl. `CONTAINER_NAME=register-client`) but no `OTEL_*` default here, since this Job does not initialize the OTEL SDK. Set Job-specific variables here; if you wire tracing yourself, set `OTEL_RESOURCE_ATTRIBUTES` referencing `$(CONTAINER_NAME)`.
-    env: []
-    # -- Resources for the registration Job container.
-    resources: {}
-  # -- Settings for the `register-client -public-client-id` one-shot hook Jobs (pre-install/pre-upgrade). For each entry in `clients`, one Job registers a public (browser, PKCE) OAuth client — its `client_id` and exact-match redirect allowlist — in the Identity Service ClientStore, so `/oauth2/authorize` can validate the presented `client_id` and `redirect_uri`. Rendered only when BOTH `identity.enabled` and `identity.publicClientRegistration.enabled` are `true` AND `clients` is non-empty. Each entry names the `identity.secretName` keys holding its inputs (`clientIdKey`, `redirectUrisKey`); the DB URL is read from `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` in the same secret. No key material is involved — public clients have none.
-  # @default -- (see fields below)
-  publicClientRegistration:
-    # -- Whether to render the registration Jobs. Off by default: only enable in environments where `identity.secretName` carries every listed client's `clientIdKey`/`redirectUrisKey` (provisioned by your environment's secret management); otherwise the hook Jobs fail the release with a missing-secret-key error. Also requires an Identity Service image whose `register-client` supports `-public-client-id` (Identity Service 1.1.0 or later), and `identity.migrations.runAsJob=true` (so migrations run as a pre-install/pre-upgrade hook, weight 5, before these — guaranteeing the `client_type`/`redirect_uris` schema exists on fresh installs and upgrades alike); rendering fails fast otherwise.
-    enabled: false
-    # -- Public clients to register, one Job each. Fields per entry: `name` (required; used in the Job name and the `istari.digital/client` label, so it must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, at most 63 characters), `clientIdKey` (required; the `identity.secretName` key holding the client_id), `redirectUrisKey` (required; the key holding the comma-separated exact-match redirect allowlist). Example: `{name: frontend, clientIdKey: ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_CLIENT_ID, redirectUrisKey: ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS}`.
-    clients: []
-    # -- `spec.backoffLimit` for each registration Job (number of retries after a failed Pod).
-    backoffLimit: 6
-    # -- Automatically clean up successful registration hook `Job`s by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`).
-    autoCleanupSuccessfulJob: true
-    # -- Annotations for the registration Job Pod templates only (in addition to `sidecar.istio.io/inject: "false"`).
-    podAnnotations: {}
-    # -- Extra labels for the registration Job Pod templates only.
-    podLabels: {}
-    # -- Extra environment variables for every `register-public-client` container, rendered after the service-level `env` — on duplicate names, these win. The chart injects the downward-API building blocks (incl. `CONTAINER_NAME=register-public-client`) but no `OTEL_*` default here, since this Job does not initialize the OTEL SDK. Set Job-specific variables here; if you wire tracing yourself, set `OTEL_RESOURCE_ATTRIBUTES` referencing `$(CONTAINER_NAME)`.
-    env: []
-    # -- Resources for the registration Job containers.
-    resources: {}
   # -- Settings for the agent-registration one-shot hook Jobs (pre-install/pre-upgrade). For each entry in `agents`, one Job runs `create-tenant` (idempotent, as an init container) and then `register-agent`, provisioning a service principal's tenant and public key in the Identity Service. Used to onboard autonomous service agents that authenticate to the Identity Service via `client_credentials` (e.g. the secure-connection-service). Rendered only when BOTH `identity.enabled` and `identity.agentRegistration.enabled` are `true` AND `agents` is non-empty. Each agent's inputs (its public-only credential blob, the DB URL, and — for upstream binding — its username / org id) are supplied as env vars via `envFrom` on `identity.secretName` plus `agentRegistration.extraEnvSecrets`, and the CLIs read them by name; the Identity Service never needs read access to another service's secret and is never handed private key material. The Job pods inherit the Identity Service's `nodeSelector`, `affinity`, `tolerations`, security contexts, and image-pull secrets; only `podAnnotations`, `podLabels`, and `resources` are configured separately here.
   # @default -- (see fields below)
   agentRegistration:
@@ -837,31 +808,88 @@ identity:
     env: []
     # -- Agents to provision, one Job each. All inputs are read from env vars supplied via `envFrom` (`identity.secretName` + `agentRegistration.extraEnvSecrets`); the fields below name those env vars. Fields per entry: `name` (required; used in the Job name and the `istari.digital/agent` label, so it must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, at most 63 characters); `tenantSlug` (required, Identity Service tenant the agent belongs to); `keyEnv` (required, the env var holding the base64-encoded public-only agent credential blob); `tenantDisplayName` (optional human-readable tenant name); `providerName` + `providerTenantIdEnv` (optional, supplied together; `providerName` is the upstream IdP name e.g. `zitadel` and `providerTenantIdEnv` names the env var holding the upstream org id — maps the tenant to the upstream org so the agent's token carries the resourceowner for Zitadel-namespaced role lookups); `usernameEnv` (optional, names the env var holding the upstream user id — binds the agent to a pre-existing IdP identity, e.g. the secure-connection-service's `rss_service_user` grant); `displayName` (optional agent name claim). An env var that is absent/empty makes the CLI skip that piece (register-agent no-ops; create-tenant skips the mapping).
     agents: []
-  # -- Settings for the `provision-service-clients` one-shot hook Job (pre-install/pre-upgrade, weight 20) that batch-registers service and agent clients in the Identity Service store — the consolidated form of the per-service `registryClientRegistration` / `agentRegistration` Jobs (N Jobs → 1). It reads a mounted ConfigMap of PUBLIC key blobs (`serviceClients` below) and upserts each client (ClientStore for services, AgentStore for agents). Registration only: it generates no keys and holds no private key material — the packaging layer (Terraform / `gen-client-credentials`) generates each keypair and distributes the PRIVATE blob to the owning service's Secret under `ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS`. Like the other registration Jobs it only talks to PostgreSQL (reads `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL` from `identity.secretName`), never the Kubernetes API. Rendered when `identity.enabled`, `serviceClientProvisioning.enabled`, and a public-blob source — a non-empty `serviceClients`, an external `configMapName`, **or** a Secret source (`secretName`, explicit or auto-derived from the provisioner) — all hold; requires `identity.migrations.runAsJob=true` (the schema hook, weight 5, must run first) — rendering fails fast otherwise. Agent entries look up their tenant by slug and require it to already exist: create it before this hook (this weight-20 hook does not create tenants, and the `agentRegistration` hook's own `create-tenant` also runs at weight 20, so it is not guaranteed to precede this one).
+  # -- Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job
+  # hook that generates registry/frontend/mcp credentials and publishes them for identity to read
+  # at startup (identity-service#194). Not for secure-connection-service (see `agentRegistration`).
+  # No enable flag: renders whenever `identity.enabled` and at least one `clients.*.enabled` are true.
   # @default -- (see fields below)
-  serviceClientProvisioning:
-    # -- Whether to render the provisioning Job and its ConfigMap. Off by default.
-    enabled: false
-    # -- Env var (in `identity.secretName`) holding the PostgreSQL connection string; also the name of the env var the Job sets from that secret key. Inherited, never re-declared — no new plaintext env vars.
-    databaseUrlEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
-    # -- Name of an EXTERNALLY-managed ConfigMap (public blobs) for the Job to mount instead of the chart rendering one from `serviceClients`. Set this when your provisioning tooling owns the ConfigMap (it must expose a `serviceClients.yaml` key in the same shape as `serviceClients` below). When set, the Job renders and mounts that ConfigMap even if `serviceClients` is empty, and the chart renders no ConfigMap of its own. When empty (default), the chart renders its own ConfigMap from `serviceClients` below.
-    configMapName: ""
-    # -- Name of an EXTERNALLY-managed Secret (a `serviceClients.yaml` key, same shape as `serviceClients` below) for the Job to mount instead of a ConfigMap. Defaults to `provisioner`'s own output Secret name whenever at least one `provisioner.clients.*` is enabled (regardless of `provisioner.enabled` -- that flag is only ever true in the provisioner's own dedicated release in a one-release-per-service topology; this release only needs the Secret's name); empty otherwise. Wins over `configMapName`/`serviceClients` when non-empty -- rendering fails if both a Secret source and a ConfigMap source are configured at once.
-    secretName: ""
-    # -- `spec.backoffLimit` for the Job (number of retries after a failed Pod).
+  provisioner:
+    # -- Registry URL for the provisioner's image (Istari's own build, published to `main-docker-local`).
+    registry: "istaridigital.jfrog.io"
+    # -- Image name.
+    image: "main-docker-local/provisioner"
+    # -- Image tag.
+    tag: "0.1.0"
+    # -- Image pull policy.
+    imagePullPolicy: IfNotPresent
+    # -- When true, run `terraform plan` only (no `apply`).
+    planOnly: false
+    # -- `spec.backoffLimit` for the provisioning Job.
     backoffLimit: 6
-    # -- Automatically clean up the successful hook Job by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). The chart-rendered ConfigMap always uses `before-hook-creation` only (it must outlive the Job that mounts it) and is replaced on the next upgrade.
+    # -- Automatically clean up the successful provisioning Job (`hook-succeeded`).
     autoCleanupSuccessfulJob: true
-    # -- Annotations for the Job Pod template only (in addition to `sidecar.istio.io/inject: "false"`).
-    podAnnotations: {}
-    # -- Extra labels for the Job Pod template only.
-    podLabels: {}
-    # -- Extra environment variables for the `provision-service-clients` container, rendered after the service-level `env` — on duplicate names, these win.
+    # -- Extra environment variables for the provisioner container.
     env: []
-    # -- Resources for the Job container.
+    # -- Extra secrets to mount (via `envFrom`) into the provisioner container.
+    extraEnvSecrets: []
+    # -- Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation.
+    serviceAccountAnnotations: {}
+    # -- Pod security context. The image runs as nonroot (uid 65532) — fsGroup is required so the
+    # terraform-work emptyDir it writes `.terraform/` into is group-writable by that user.
+    podSecurityContext:
+      fsGroup: 65532
+    # -- Provisioner container's security context.
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      readOnlyRootFilesystem: false
+      runAsNonRoot: true
+      runAsUser: 65532
+    # -- Additional labels to add to all of this component's resources
+    commonLabels: {}
+    # -- Resources for the provisioner container.
     resources: {}
-    # -- Clients to register, all in one Job. Used only when `configMapName` above is empty (the chart renders the ConfigMap from this list); ignored when an external ConfigMap is provided. Three kinds. Common field: `serviceId` (required; a label used in logs and for de-duplication) and `kind` (required, `service`, `agent`, or `public`). Keypair clients (`service`, `agent`) carry `credential` (required; the base64-encoded `{clientId,keyId,key}` blob whose `key` is the PKIX PUBLIC PEM — the packaging layer generates the pair and puts the matching private blob in the service's Secret); `service` also takes `canListPrincipals` (optional; grant permission to list stable principals); `agent` also takes `tenantSlug` (required; the Identity Service tenant, must already exist), `username` (optional; upstream IdP user id to bind to), `displayName` (optional; name claim). Public (PKCE browser) clients (`public`) carry no key material — `clientId` (required) and `redirectUris` (required; the exact-match redirect allowlist) instead of `credential`.
-    serviceClients: []
+    # -- Node selector for the provisioning Job pod.
+    nodeSelector: {}
+    # -- Affinity for the provisioning Job pod.
+    affinity: {}
+    # -- Tolerations for the provisioning Job pod.
+    tolerations: []
+    # -- Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no
+    # external cloud state infra.
+    # @default -- (see fields below)
+    backend:
+      # -- Suffix for the state Secret's name — the Secret (and its Lease lock) is named
+      # `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Must not
+      # end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index.
+      secretSuffix: "istari-provisioner-terraform-state"
+    # -- Which clients to provision, and their per-client settings.
+    # @default -- (see fields below)
+    clients:
+      # -- Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair under the fixed
+      # client id `registry`.
+      registry:
+        # -- Whether to generate and register the registry client.
+        enabled: false
+      # -- Frontend (`kind: public` / PKCE) — the fixed client id `frontend` and a redirect allowlist.
+      frontend:
+        # -- Whether to generate and register the frontend client.
+        enabled: false
+        # -- Explicit redirect URI. Overrides the `common.mainDomain` derivation.
+        redirectUri: ""
+        # -- Additional redirect URIs appended to whichever URI was resolved above.
+        extraRedirectUris: []
+      # -- MCP service (`kind: public` / PKCE) — the fixed client id `mcp`, a placeholder
+      # client_secret, and a redirect allowlist.
+      mcp:
+        # -- Whether to generate and register the mcp client.
+        enabled: false
+        # -- Explicit redirect URI. Overrides the `common.mainDomain` derivation.
+        redirectUri: ""
+        # -- Additional redirect URIs appended to whichever URI was resolved above.
+        extraRedirectUris: []
   # -- One-shot Helm `pre-upgrade` hook that migrates an existing deployment from its current upstream IdP (e.g. Zitadel) to a new one (e.g. Keycloak). Runs the `migrate-idp` orchestrator (tenants → roles → users) once, before the identity Deployment rolls onto the new IdP. Idempotent and additive — safe to leave enabled across upgrades (a no-op once migrated). Requires `identity.migrations.runAsJob=true` (so the schema Job runs first, weight 5, before this weight-10 hook); rendering fails fast otherwise.
   # @default -- (see fields below)
   idpMigration:
@@ -926,106 +954,6 @@ identity:
     - identity.example.com
     # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
     gateways: []
-
-# -- Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job
-# hook that generates and registers credentials for registry, frontend, and mcp, feeding
-# identity's `provision-service-clients` hook (`identity.serviceClientProvisioning`).
-# secure-connection-service is NOT covered here -- its credential/registration model isn't
-# supported by this mechanism; it stays on its existing path (helm-stack Terraform +
-# identity's `agentRegistration`). Off by default.
-# @default -- (see fields below)
-provisioner:
-  # -- Whether to render the provisioner Job and its supporting resources. Also requires at least
-  # one `clients.*.enabled`. In a one-release-per-service topology, set this `true` only in the
-  # provisioner's own dedicated release — every other release only needs `clients.*.enabled` (not
-  # this) to pick up that client's Secret name; see the deployment templates and
-  # `identity.serviceClientProvisioning.secretName`.
-  enabled: false
-  # -- Registry URL for the provisioner's image (Istari's own build, published to `main-docker-local`).
-  registry: "istaridigital.jfrog.io"
-  # -- Image name.
-  image: "main-docker-local/provisioner"
-  # -- Image tag.
-  tag: "0.1.0"
-  # -- Image pull policy.
-  imagePullPolicy: IfNotPresent
-  # -- When true, run `terraform plan` only (no `apply`).
-  planOnly: false
-  # -- `spec.backoffLimit` for the provisioning Job.
-  backoffLimit: 6
-  # -- Automatically clean up the successful provisioning Job (`hook-succeeded`).
-  autoCleanupSuccessfulJob: true
-  # -- Extra environment variables for the provisioner container.
-  env: []
-  # -- Extra secrets to mount (via `envFrom`) into the provisioner container.
-  extraEnvSecrets: []
-  # -- Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation.
-  serviceAccountAnnotations: {}
-  # -- Pod security context. The image runs as nonroot (uid 65532) — fsGroup is required so the
-  # (non-readOnly) terraform-files Secret volume it writes `.terraform/` into is group-writable
-  # by that user; Kubernetes Secret volumes default to root-owned files otherwise.
-  podSecurityContext:
-    fsGroup: 65532
-  # -- Provisioner container's security context.
-  containerSecurityContext:
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-      - ALL
-    readOnlyRootFilesystem: false
-    runAsNonRoot: true
-    runAsUser: 65532
-  # -- Additional labels to add to all of this component's resources
-  commonLabels: {}
-  # -- Resources for the provisioner container.
-  resources: {}
-  # -- Node selector for the provisioning Job pod.
-  nodeSelector: {}
-  # -- Affinity for the provisioning Job pod.
-  affinity: {}
-  # -- Tolerations for the provisioning Job pod.
-  tolerations: []
-  # -- Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no
-  # external cloud state infra.
-  # @default -- (see fields below)
-  backend:
-    # -- Suffix for the state Secret's name — the Secret (and its Lease lock) is named
-    # `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Must not
-    # end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index.
-    secretSuffix: "istari-provisioner-terraform-state"
-  # -- Base domain used to derive frontend/mcp redirect URIs and identity-service's own public URL:
-  # frontend at `https://<mainDomain>`, mcp at `https://mcp.<mainDomain>/auth/callback`,
-  # identity-service at `https://identity.<mainDomain>`. Required if a client below is enabled and
-  # its own override (`redirectUri` / `identityServiceUrl`) is left empty.
-  mainDomain: ""
-  # -- Explicit identity-service public URL, written into every enabled client's secret alongside
-  # its "identity enabled" flag. Overrides the `mainDomain` derivation.
-  identityServiceUrl: ""
-  # -- Which clients to provision, and their per-client settings.
-  # @default -- (see fields below)
-  clients:
-    # -- Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair and a generated
-    # client_id.
-    registry:
-      # -- Whether to generate and register the registry client.
-      enabled: false
-    # -- Frontend (`kind: public` / PKCE) — a generated client_id and a redirect allowlist.
-    frontend:
-      # -- Whether to generate and register the frontend client.
-      enabled: false
-      # -- Explicit redirect URI. Overrides the `mainDomain` derivation.
-      redirectUri: ""
-      # -- Additional redirect URIs appended to whichever URI was resolved above.
-      extraRedirectUris: []
-    # -- MCP service (`kind: public` / PKCE) — a generated client_id, a placeholder client_secret,
-    # and a redirect allowlist.
-    mcp:
-      # -- Whether to generate and register the mcp client.
-      enabled: false
-      # -- Explicit redirect URI. Overrides the `mainDomain` derivation.
-      redirectUri: ""
-      # -- Additional redirect URIs appended to whichever URI was resolved above.
-      extraRedirectUris: []
 
 # Default values for Istari Digital Documentation. This should only be used in airgapped environments.
 docs:

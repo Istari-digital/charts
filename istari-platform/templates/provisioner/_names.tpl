@@ -1,24 +1,13 @@
 {{/*
-Default name/prefix for provisioner resources (ServiceAccount/Role/RoleBinding/Job/terraform-files
-Secret -- all release-scoped, unlike the output-credential Secrets below).
+Name/prefix for provisioner resources (ServiceAccount/Role/RoleBinding/Job) -- release-scoped,
+unlike the static output-credential Secret names below.
 */}}
 {{- define "provisioner.fullname" -}}
-    {{- /* trunc 33, not 63: bounded so the longest suffix appended below (-terraform-files, 16
-           chars) never gets truncated away -- 63-16=47 would technically be tight enough, but 33
-           matches the same conservative bound reserved for the (now-static) output Secret names
-           this helper used to feed, kept here rather than re-tuned per suffix. */ -}}
     {{- if .Values.fullnameOverride }}
         {{- printf "%s-%s" .Values.fullnameOverride "provisioner" | trunc 33 | trimSuffix "-" | replace "_" "-" }}
     {{- else }}
         {{- printf "%s-%s" .Release.Name "provisioner" | trunc 33 | trimSuffix "-" | replace "_" "-" }}
     {{- end }}
-{{- end }}
-
-{{/*
-Secret carrying the packaged .tf files + rendered terraform.tfvars.
-*/}}
-{{- define "provisioner.terraformFilesSecretName" -}}
-{{ printf "%s-terraform-files" (include "provisioner.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
@@ -29,12 +18,8 @@ The one-shot provisioning Job name.
 {{- end }}
 
 {{/*
-Output-credential Secret names below are deliberately STATIC literals, not derived from
-.fullname/.Release.Name -- provisioner is meant to be a namespace-singleton (like
-istari-zitadel-configurator's own static "zitadel-*-env" Secret names), and a consuming release
-(one-release-per-service topology) computes these same helpers from ITS OWN .Release.Name. A
-release-relative name would make the producer and consumer releases derive different Secret
-names for the same credential, which is exactly the bug this fixes.
+Static literals, not .Release.Name-derived: producer and consumer releases must agree on these
+names regardless of which release renders which.
 */}}
 
 {{/*
@@ -59,17 +44,19 @@ istari-provisioner-mcp-credentials
 {{- end }}
 
 {{/*
-Secret carrying serviceClients.yaml — what identity's provision-service-clients Job mounts.
+Secret carrying the env vars identity-service reads at startup to self-register
+registry/frontend/mcp (identity-service#194). List it in identity.extraEnvSecrets yourself --
+not auto-mounted.
 */}}
-{{- define "provisioner.serviceClientsSecretName" -}}
-istari-provisioner-service-clients
+{{- define "provisioner.identityPlatformClientsSecretName" -}}
+istari-provisioner-identity-platform-clients
 {{- end }}
 
 {{/*
 Whether at least one client is enabled. Returns "true" or "".
 */}}
 {{- define "provisioner.anyClientEnabled" -}}
-{{- $c := .Values.provisioner.clients -}}
+{{- $c := .Values.identity.provisioner.clients -}}
 {{- if or $c.registry.enabled $c.frontend.enabled $c.mcp.enabled -}}
 true
 {{- end -}}
