@@ -13,7 +13,7 @@
 {{- with ($bootstrap.platformAdminTenant | toString | trim) }}{{- $args = concat $args (list "-tenant" .) }}{{- end -}}
 {{- range $emails }}{{- $args = concat $args (list "-email" .) }}{{- end -}}
 {{- $dbEnv := list (dict "name" $bootstrap.databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $bootstrap.databaseUrlEnv))) -}}
-{{- $extra := list $dbEnv -}}
+{{- $extra := concat (compact (list $serviceValues.env)) (list $dbEnv) -}}
 {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end -}}
 apiVersion: batch/v1
 kind: Job

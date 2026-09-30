@@ -232,9 +232,10 @@ Resolved API Gateway base URL, or "" when the gateway contract is off: apiGatewa
 https://api.<provisioner.mainDomain>, so one domain value serves both. Trailing slashes are stripped.
 */}}
 {{- define "istari-platform.apiGatewayUrl" -}}
-{{- $r := default dict .Values.apiGateway -}}
-{{- $url := trimSuffix "/" (trim (default "" $r.apiUrl)) -}}
-{{- $domain := trim (default "" (dig "mainDomain" "" (default dict .Values.provisioner))) -}}
+{{- $url := "" -}}
+{{- with .Values.apiGateway.apiUrl }}{{ $url = trimSuffix "/" (trim .) }}{{ end -}}
+{{- $domain := "" -}}
+{{- with .Values.provisioner.mainDomain }}{{ $domain = trim . }}{{ end -}}
 {{- if and (not $url) $domain -}}
 {{- $url = printf "https://api.%s" $domain -}}
 {{- end -}}
@@ -244,11 +245,11 @@ https://api.<provisioner.mainDomain>, so one domain value serves both. Trailing 
 {{/*
 Whether this release deploys the identity-service, as "true" or "". identity.enabled is a tri-state:
 true and false are taken as written; unset (the default) means on only when this release deploys
-the whole platform, that is, fileservice and frontend are both enabled. `dig` with a nil default
-keeps an explicit false from being read as unset.
+the whole platform, that is, fileservice and frontend are both enabled. `kindIs "bool"` keeps an
+explicit false from being read as unset.
 */}}
 {{- define "istari-platform.identityEnabled" -}}
-{{- $v := dig "enabled" nil (default dict .Values.identity) -}}
+{{- $v := .Values.identity.enabled -}}
 {{- if kindIs "bool" $v -}}
 {{- if $v -}}true{{- end -}}
 {{- else if and .Values.fileservice.enabled .Values.frontend.enabled -}}true
@@ -260,7 +261,7 @@ Whether this release deploys the API Gateway, as "true" or "". Same tri-state ru
 istari-platform.identityEnabled, read from apiGateway.enabled.
 */}}
 {{- define "istari-platform.apiGatewayEnabled" -}}
-{{- $v := dig "enabled" nil (default dict .Values.apiGateway) -}}
+{{- $v := .Values.apiGateway.enabled -}}
 {{- if kindIs "bool" $v -}}
 {{- if $v -}}true{{- end -}}
 {{- else if and .Values.fileservice.enabled .Values.frontend.enabled -}}true

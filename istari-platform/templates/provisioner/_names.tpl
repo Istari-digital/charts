@@ -96,7 +96,7 @@ true
 Whether this release runs the provisioner: as written, or, unset, where it deploys identity-service.
 */}}
 {{- define "provisioner.enabled" -}}
-{{- $v := dig "enabled" nil .Values.provisioner -}}
+{{- $v := .Values.provisioner.enabled -}}
 {{- if kindIs "bool" $v -}}
 {{- if $v }}true{{ end -}}
 {{- else if include "istari-platform.identityEnabled" . -}}
@@ -109,7 +109,7 @@ One client's enabled value as written, or, unset, whether clients use identity-s
 */}}
 {{- define "provisioner.clientEnabled" -}}
 {{- $root := index . 0 -}}
-{{- $v := dig (index . 1) "enabled" nil (default dict $root.Values.provisioner.clients) -}}
+{{- $v := (index $root.Values.provisioner.clients (index . 1)).enabled -}}
 {{- if kindIs "bool" $v -}}
 {{- if $v }}true{{ end -}}
 {{- else if eq (include "istari-platform.identityClientIntegration" $root) "true" -}}
@@ -122,7 +122,7 @@ Whether the bootstrap roles Job has a registry client id: set directly, in anoth
 */}}
 {{- define "identity.bootstrap.registryClientIdResolves" -}}
 {{- $b := .Values.identity.bootstrap -}}
-{{- $ref := default dict $b.registryClientIdSecretRef -}}
+{{- $ref := $b.registryClientIdSecretRef -}}
 {{- if $b.registryClientId -}}
 true
 {{- else if and $ref.name (ne $ref.name (include "provisioner.registrySecretName" .)) -}}

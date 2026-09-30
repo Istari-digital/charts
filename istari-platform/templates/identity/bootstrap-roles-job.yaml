@@ -17,7 +17,7 @@
 {{- $clientEnv = list (dict "name" "REGISTRY_CLIENT_ID" "valueFrom" (dict "secretKeyRef" $ref)) -}}
 {{- end -}}
 {{- $clientArgs := list "-client-id" "$(REGISTRY_CLIENT_ID)" -}}
-{{- $extra := list $clientEnv $dbEnv -}}
+{{- $extra := concat (compact (list $serviceValues.env)) (list $clientEnv $dbEnv) -}}
 {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end -}}
 apiVersion: batch/v1
 kind: Job

@@ -2,7 +2,7 @@
 {{- $serviceValues := .Values.identity -}}
 {{- $bootstrap := $serviceValues.bootstrap -}}
 {{- $tenants := $bootstrap.tenants -}}
-{{- if and (include "istari-platform.identityEnabled" $) $tenants.enabled }}
+{{- if and (include "istari-platform.identityEnabled" $) $bootstrap.enabled $tenants.enabled }}
 {{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.tenants.enabled requires identity.migrations.runAsJob=true, so the schema exists before this hook" }}{{ end }}
 {{- $provider := $tenants.provider -}}
 {{- if ne $provider "zitadel" }}{{ fail (printf "identity.bootstrap.tenants.provider must be \"zitadel\", got %q" $provider) }}{{ end }}
@@ -13,7 +13,7 @@
 {{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.bootstrap.tenants.enabled is true" -}}
 {{- $_ := $bootstrap.databaseUrlEnv | required "identity.bootstrap.databaseUrlEnv must not be empty when identity.bootstrap.tenants.enabled is true (the identity.secretName key holding the PostgreSQL connection string)" -}}
 {{- $dbEnv := list (dict "name" $bootstrap.databaseUrlEnv "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.secretName "key" $bootstrap.databaseUrlEnv))) -}}
-{{- $extra := list $dbEnv -}}
+{{- $extra := concat (compact (list $serviceValues.env)) (list $dbEnv) -}}
 {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end -}}
 apiVersion: batch/v1
 kind: Job
