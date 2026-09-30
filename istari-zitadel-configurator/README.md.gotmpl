@@ -30,6 +30,14 @@ helm repo add istari-digital https://istaridigital.jfrog.io/artifactory/api/helm
 helm install istari-zitadel-configurator istari-digital/istari-zitadel-configurator [--values my-values.yaml]
 ```
 
+## Upgrading
+
+The configurator writes identity-service's settings into the `zitadel-identity-service-env` Secret each time its hook runs. Pods that load that Secret through `envFrom` don't see a change until they restart, so restart identity-service after an upgrade that changes it:
+
+```sh
+kubectl rollout restart deployment/<identity-service deployment> -n <namespace>
+```
+
 ## Configuration
 You must customize the deployment by providing your own `values.yaml` file. See the [values.yaml](values.yaml) for all available configuration options.
 
