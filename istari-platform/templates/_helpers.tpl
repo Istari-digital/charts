@@ -228,15 +228,17 @@ stay in sync across web, init, and migration workloads.
 {{- end }}
 
 {{/*
-Resolved API Gateway base URL, or "" when the gateway contract is off.
-Only apiGateway.apiUrl activates the contract — this chart never derives one
-value's default from another, so a release that deploys the API Gateway with an
-Ingress still needs apiUrl set explicitly. Trailing slashes and surrounding
-whitespace are stripped, so <base>/registry never renders a double slash.
+Resolved API Gateway base URL, or "" when the gateway contract is off: apiGateway.apiUrl, else
+https://api.<provisioner.mainDomain>, so one domain value serves both. Trailing slashes are stripped.
 */}}
 {{- define "istari-platform.apiGatewayUrl" -}}
 {{- $r := default dict .Values.apiGateway -}}
-{{- trimSuffix "/" (trim (default "" $r.apiUrl)) -}}
+{{- $url := trimSuffix "/" (trim (default "" $r.apiUrl)) -}}
+{{- $domain := trim (default "" (dig "mainDomain" "" (default dict .Values.provisioner))) -}}
+{{- if and (not $url) $domain -}}
+{{- $url = printf "https://api.%s" $domain -}}
+{{- end -}}
+{{- $url -}}
 {{- end }}
 
 {{/*
