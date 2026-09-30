@@ -8,9 +8,9 @@
 {{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
 {{- if .Values.identity.provisioner.clients.registry.enabled -}}
 {{- $registrySecretName := include "provisioner.registrySecretName" . -}}
-{{- if not (has $registrySecretName $extraEnvSecrets) -}}
-{{- $extraEnvSecrets = append $extraEnvSecrets $registrySecretName -}}
-{{- end -}}
+{{- /* Unconditional remove-then-append: guarantees this is always last (wins on a duplicate
+   key), even if the user's own extraEnvSecrets already happens to list this name earlier. */ -}}
+{{- $extraEnvSecrets = append (without $extraEnvSecrets $registrySecretName) $registrySecretName -}}
 {{- end -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
