@@ -85,8 +85,7 @@ Whether identity-service's platform-clients Secret is written: the registry, fro
 client is enabled. Returns "true" or "".
 */}}
 {{- define "provisioner.identityPlatformClientsEnabled" -}}
-{{- $c := .Values.provisioner.clients -}}
-{{- if or $c.registry.enabled $c.frontend.enabled $c.mcp.enabled -}}
+{{- if or (include "provisioner.clientEnabled" (list . "registry")) (include "provisioner.clientEnabled" (list . "frontend")) (include "provisioner.clientEnabled" (list . "mcp")) -}}
 true
 {{- end -}}
 {{- end }}
@@ -95,8 +94,47 @@ true
 Whether at least one client is enabled. Returns "true" or "".
 */}}
 {{- define "provisioner.anyClientEnabled" -}}
-{{- $c := .Values.provisioner.clients -}}
-{{- if or $c.registry.enabled $c.secureConnection.enabled $c.frontend.enabled $c.mcp.enabled -}}
+{{- if or (include "provisioner.clientEnabled" (list . "registry")) (include "provisioner.clientEnabled" (list . "secureConnection")) (include "provisioner.clientEnabled" (list . "frontend")) (include "provisioner.clientEnabled" (list . "mcp")) -}}
+true
+{{- end -}}
+{{- end }}
+
+{{/*
+Whether this release runs the provisioner: as written, or, unset, where it deploys identity-service.
+*/}}
+{{- define "provisioner.enabled" -}}
+{{- $v := dig "enabled" nil .Values.provisioner -}}
+{{- if kindIs "bool" $v -}}
+{{- if $v }}true{{ end -}}
+{{- else if include "istari-platform.identityEnabled" . -}}
+true
+{{- end -}}
+{{- end }}
+
+{{/*
+One client's enabled value as written, or, unset, whether clients use identity-service; call with (list $ "<client>").
+*/}}
+{{- define "provisioner.clientEnabled" -}}
+{{- $root := index . 0 -}}
+{{- $v := dig (index . 1) "enabled" nil (default dict $root.Values.provisioner.clients) -}}
+{{- if kindIs "bool" $v -}}
+{{- if $v }}true{{ end -}}
+{{- else if eq (include "istari-platform.identityClientIntegration" $root) "true" -}}
+true
+{{- end -}}
+{{- end }}
+
+{{/*
+Whether the bootstrap roles Job has a registry client id: set directly, in another Secret, or written by this provisioner.
+*/}}
+{{- define "identity.bootstrap.registryClientIdResolves" -}}
+{{- $b := .Values.identity.bootstrap -}}
+{{- $ref := default dict $b.registryClientIdSecretRef -}}
+{{- if $b.registryClientId -}}
+true
+{{- else if and $ref.name (ne $ref.name (include "provisioner.registrySecretName" .)) -}}
+true
+{{- else if and $ref.name (include "provisioner.clientEnabled" (list . "registry")) -}}
 true
 {{- end -}}
 {{- end }}

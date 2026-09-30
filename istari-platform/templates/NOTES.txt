@@ -34,6 +34,10 @@ The chart can also create these for you: see `apiGateway.ingress` and `apiGatewa
 {{- $exec := printf "kubectl exec -n %s deploy/%s -c istari-platform --" .Release.Namespace (include "identity.fullname" .) }}
 
 Identity Service: platform administration comes only from a platform `admin` grant.
+{{- if and $bootstrap.enabled (not (include "identity.bootstrap.registryClientIdResolves" .)) }}
+The registry gets no platform roles yet: set provisioner.mainDomain (or apiGateway.apiUrl) so the
+provisioner creates its client, or set identity.bootstrap.registryClientId.
+{{- end }}
 {{- if and $bootstrap.enabled $bootstrap.platformAdminEmails }}
 After install and each upgrade, a Job grants it to the people in identity.bootstrap.platformAdminEmails,
 pre-registering anyone who has not signed in yet. A newly created Zitadel user gets an email to set a

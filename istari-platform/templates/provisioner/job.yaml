@@ -1,4 +1,4 @@
-{{- if and .Values.provisioner.enabled (eq (include "provisioner.anyClientEnabled" .) "true") }}
+{{- if and (include "provisioner.enabled" .) (eq (include "provisioner.anyClientEnabled" .) "true") }}
 apiVersion: batch/v1
 kind: Job
 metadata:

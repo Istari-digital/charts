@@ -5,7 +5,7 @@
    normal case) -- it's nil-safety: an overlay that explicitly sets extraEnvSecrets: null would
    otherwise pass nil into `has`/`append` below and abort rendering. */ -}}
 {{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
-{{- if .Values.provisioner.clients.secureConnection.enabled -}}
+{{- if (include "provisioner.clientEnabled" (list . "secureConnection")) -}}
 {{- $scsSecretName := include "provisioner.secureConnectionSecretName" . -}}
 {{- if not (has $scsSecretName $extraEnvSecrets) -}}
 {{- $extraEnvSecrets = append $extraEnvSecrets $scsSecretName -}}
@@ -111,6 +111,9 @@ spec:
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
+            {{- if hasPrefix "istari-provisioner-" . }}
+            optional: true
+            {{- end }}
         {{- end }}
         {{- end }}
         {{- /* Chart identity/OTEL defaults render first; the fragments below are appended in
@@ -170,6 +173,9 @@ spec:
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
+            {{- if hasPrefix "istari-provisioner-" . }}
+            optional: true
+            {{- end }}
         {{- end }}
         {{- end }}
         {{- /* Chart identity/OTEL defaults render first; the fragments below are appended in

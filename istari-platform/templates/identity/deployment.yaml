@@ -104,6 +104,9 @@ spec:
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
+            {{- if hasPrefix "istari-provisioner-" . }}
+            optional: true
+            {{- end }}
         {{- end }}
         {{- end }}
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
@@ -166,6 +169,9 @@ spec:
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
+            {{- if hasPrefix "istari-provisioner-" . }}
+            optional: true
+            {{- end }}
         {{- end }}
         {{- end }}
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}

@@ -68,7 +68,8 @@ provision-service-clients Job reads.
 {{/*
 Effective Secret name for provision-service-clients' public-blob source: explicit
 identity.serviceClientProvisioning.secretName always wins; otherwise auto-derives to the
-provisioner's own output Secret whenever at least one provisioner.clients.* is enabled
+provisioner's own output Secret whenever at least one provisioner.clients.* is enabled and no
+explicit ConfigMap source (configMapName or serviceClients) is set
 (deliberately NOT also gated on provisioner.enabled -- see service-client-provisioning-job.yaml
 for why). Returns "" when neither applies, meaning the ConfigMap source is effective instead.
 Shared by service-client-provisioning-job.yaml (which mounts it) and
@@ -78,7 +79,7 @@ service-client-provisioning-configmap.yaml (which must NOT render when this wins
 {{- $provisioning := .Values.identity.serviceClientProvisioning -}}
 {{- if $provisioning.secretName -}}
 {{- $provisioning.secretName -}}
-{{- else if eq (include "provisioner.anyClientEnabled" .) "true" -}}
+{{- else if and (eq (include "provisioner.anyClientEnabled" .) "true") (not $provisioning.configMapName) (not $provisioning.serviceClients) -}}
 {{- include "provisioner.serviceClientsSecretName" . -}}
 {{- end -}}
 {{- end }}
