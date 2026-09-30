@@ -627,8 +627,8 @@ secureConnection:
 
 # Default values for Identity Service.
 identity:
-  # -- Whether this release deploys the identity-service. (bool/null) Unset (the default) turns it on when this release deploys the whole platform (fileservice and frontend both enabled) and off otherwise, so a per-service release deploys it only where set to true. `true` and `false` are taken as written. Needs a gateway: with the API Gateway off and no `apiGateway.apiUrl` set, the render fails.
-  # @default -- `null` (on when fileservice and frontend are both enabled)
+  # -- Whether this release deploys the identity-service. (bool/null) Unset (the default) turns it on when this release deploys the whole platform (fileservice and frontend both enabled) and a gateway URL resolves (`provisioner.mainDomain` or `apiGateway.apiUrl`), and off otherwise, so a per-service release deploys it only where set to true. `true` and `false` are taken as written. In a whole-platform release, `true` with no gateway URL fails the render; a per-service release can't see a gateway another release deploys, so it is not checked.
+  # @default -- `null` (on when fileservice and frontend are both enabled and a gateway URL resolves)
   enabled: null
   # -- Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. Stage-style topologies run one release per service, so `enabled` is only ever true in the identity-service's own release — gating client behavior on it directly means the toggle never renders in any consuming release.
   # @default -- (see fields below)
@@ -1245,8 +1245,8 @@ docs:
 # change in a future release; such a change will never require values changes beyond
 # `registry`/`image`/`tag`.
 apiGateway:
-  # -- Whether this release deploys the API Gateway. (bool/null) Unset (the default) turns it on when this release deploys the whole platform (fileservice and frontend both enabled) and off otherwise, so a per-service release deploys it only where set to true. `true` and `false` are taken as written. It serves no traffic to clients until `apiUrl` is set.
-  # @default -- `null` (on when fileservice and frontend are both enabled)
+  # -- Whether this release deploys the API Gateway. (bool/null) Unset (the default) turns it on when this release deploys the whole platform (fileservice and frontend both enabled) and a gateway URL resolves (`apiUrl` or `provisioner.mainDomain`), and off otherwise, so a per-service release deploys it only where set to true. `true` and `false` are taken as written.
+  # @default -- `null` (on when fileservice and frontend are both enabled and a gateway URL resolves)
   enabled: null
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"
