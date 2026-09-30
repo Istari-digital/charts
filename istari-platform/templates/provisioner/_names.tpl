@@ -149,18 +149,21 @@ A service's own env Secrets (secretName, then extraEnvSecrets), minus the provis
 {{- end }}
 
 {{/*
-Adopt sources for one client as an HCL list: each service's own Secrets under its keys, then
-provisioner.adopt's entries; call with (list $ (list (list <service values> <keys>) ...) <adopt entries>).
+Adopt sources for one client as an HCL list: each service's own Secrets under its keys, where this
+release deploys that service, then provisioner.adopt's entries; call with
+(list $ (list (list <service values> <keys>) ...) <adopt entries>).
 */}}
 {{- define "provisioner.adoptSources" -}}
 {{- $root := index . 0 -}}
 {{- $sources := list -}}
 {{- range index . 1 -}}
 {{- $keys := index . 1 -}}
+{{- if (index . 0).enabled -}}
 {{- range include "provisioner.serviceEnvSecretNames" (list $root (index . 0)) | fromJsonArray -}}
 {{- $name := . -}}
 {{- range $keys -}}
 {{- $sources = append $sources (dict "secretName" $name "key" .) -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}

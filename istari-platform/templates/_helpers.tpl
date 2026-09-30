@@ -244,15 +244,14 @@ https://api.<provisioner.mainDomain>, so one domain value serves both. Trailing 
 {{/*
 Whether this release deploys the identity-service, as "true" or "". identity.enabled is a tri-state:
 true and false are taken as written; unset (the default) means on only when this release deploys
-the whole platform (fileservice and frontend both enabled) and a gateway URL resolves, since
-identity-service cannot start without the platform clients derived from it. `dig` with a nil
-default keeps an explicit false from being read as unset.
+the whole platform, that is, fileservice and frontend are both enabled. `dig` with a nil default
+keeps an explicit false from being read as unset.
 */}}
 {{- define "istari-platform.identityEnabled" -}}
 {{- $v := dig "enabled" nil (default dict .Values.identity) -}}
 {{- if kindIs "bool" $v -}}
 {{- if $v -}}true{{- end -}}
-{{- else if and .Values.fileservice.enabled .Values.frontend.enabled (include "istari-platform.apiGatewayUrl" .) -}}true
+{{- else if and .Values.fileservice.enabled .Values.frontend.enabled -}}true
 {{- end -}}
 {{- end }}
 
@@ -264,7 +263,7 @@ istari-platform.identityEnabled, read from apiGateway.enabled.
 {{- $v := dig "enabled" nil (default dict .Values.apiGateway) -}}
 {{- if kindIs "bool" $v -}}
 {{- if $v -}}true{{- end -}}
-{{- else if and .Values.fileservice.enabled .Values.frontend.enabled (include "istari-platform.apiGatewayUrl" .) -}}true
+{{- else if and .Values.fileservice.enabled .Values.frontend.enabled -}}true
 {{- end -}}
 {{- end }}
 
