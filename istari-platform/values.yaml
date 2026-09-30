@@ -1072,8 +1072,8 @@ provisioner:
       key: FILE_SERVICE_IDENTITY_ROUTER_URL
     # -- Secret holding the registered frontend and MCP redirect URIs, and any platform clients identity already registers.
     redirectUrisSecretName: identity-service-env
-  # -- Base domain used to derive identity-service's own public URL (`https://identity.<mainDomain>`)
-  # and, when `apiGateway.apiUrl` is unset, the gateway URL `https://api.<mainDomain>`. Redirect URIs
+  # -- Base domain used to derive the gateway URL `https://api.<mainDomain>` when `apiGateway.apiUrl`
+  # is unset; identity-service's public URL is that gateway URL plus `/identity`. Redirect URIs
   # come from each client's `redirectUri`, else the hosts of the frontend's and MCP's Ingress or
   # VirtualService in this release, else `https://<mainDomain>` and
   # `https://mcp.<mainDomain>/auth/callback`. Redirect URIs already registered are always kept and
@@ -1081,7 +1081,7 @@ provisioner:
   # `istari-provisioner-identity-platform-clients` Secret.
   mainDomain: ""
   # -- Explicit identity-service public URL, written into every enabled client's secret alongside
-  # its "identity enabled" flag. Overrides the `mainDomain` derivation.
+  # its "identity enabled" flag. Overrides the default, the gateway URL plus `/identity`.
   identityServiceUrl: ""
   # -- Which clients to provision, and their per-client settings.
   # @default -- (see fields below)

@@ -93,7 +93,7 @@ locals {
   # provisioned through this mechanism (see helm-stack's identity-service-env generation) --
   # its credential/registration model isn't supported here.
   identity_service_url = var.identity_service_url != "" ? var.identity_service_url : (
-    var.main_domain != "" ? "https://identity.${var.main_domain}" : local.existing_identity_service_url
+    var.api_gateway_url != "" ? "${trimsuffix(var.api_gateway_url, "/")}/identity" : local.existing_identity_service_url
   )
   identity_service_url_required = var.registry_enabled || var.frontend_enabled
 
