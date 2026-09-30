@@ -48,6 +48,7 @@ spec:
         - "-chdir=/terraform"
         - "init"
         - "-input=false"
+        - "-lockfile=readonly"
         - {{ printf "-backend-config=secret_suffix=%s" .Values.provisioner.backend.secretSuffix | quote }}
         - {{ printf "-backend-config=namespace=%s" .Release.Namespace | quote }}
         - "-backend-config=in_cluster_config=true"
