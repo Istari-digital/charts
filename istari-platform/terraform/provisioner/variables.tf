@@ -45,6 +45,10 @@ variable "identity_service_url" {
   type    = string
   default = ""
 }
+variable "api_gateway_url" {
+  type    = string
+  default = ""
+}
 variable "frontend_redirect_uri" {
   type    = string
   default = ""
