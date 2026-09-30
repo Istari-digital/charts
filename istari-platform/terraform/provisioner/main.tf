@@ -27,10 +27,11 @@ locals {
     ],
     var.adopt_existing ? var.adopt_identity_service_url_sources : [],
   )
-  redirect_uri_secret_names = compact([
-    var.identity_platform_clients_secret_name,
-    var.adopt_existing ? var.adopt_redirect_uris_secret_name : "",
-  ])
+  # identity's own Secrets, not this provisioner's: what it already registers clients from.
+  identity_env_secret_names = var.adopt_existing ? distinct(compact(concat(
+    var.identity_env_secret_names, [var.adopt_redirect_uris_secret_name],
+  ))) : []
+  redirect_uri_secret_names = distinct(concat([var.identity_platform_clients_secret_name], local.identity_env_secret_names))
 
   adopt_secret_names = local.any_client_enabled ? toset(concat(
     [for c in concat(local.registry_candidates, local.frontend_candidates,
@@ -39,13 +40,19 @@ locals {
   )) : toset([])
 
   # First non-empty value among a candidate list; "" when none holds one.
-  registry_blob_raw               = try(compact([for c in local.registry_candidates : try(data.kubernetes_secret_v1.existing[c.name].data[c.key], "")])[0], "")
-  existing_frontend_client_id     = nonsensitive(try(compact([for c in local.frontend_candidates : try(data.kubernetes_secret_v1.existing[c.name].data[c.key], "")])[0], ""))
-  existing_mcp_client_id          = nonsensitive(try(compact([for c in local.mcp_candidates : try(data.kubernetes_secret_v1.existing[c.name].data[c.key], "")])[0], ""))
-  existing_mcp_client_secret      = try(compact([for c in local.mcp_secret_candidates : try(data.kubernetes_secret_v1.existing[c.name].data[c.key], "")])[0], "")
-  existing_identity_service_url   = nonsensitive(try(compact([for c in local.identity_service_url_candidates : try(data.kubernetes_secret_v1.existing[c.name].data[c.key], "")])[0], ""))
-  existing_frontend_redirect_uris = nonsensitive(try(compact([for n in local.redirect_uri_secret_names : try(data.kubernetes_secret_v1.existing[n].data["ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS"], "")])[0], ""))
-  existing_mcp_redirect_uris      = nonsensitive(try(compact([for n in local.redirect_uri_secret_names : try(data.kubernetes_secret_v1.existing[n].data["ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_REDIRECT_URIS"], "")])[0], ""))
+  registry_blob_raw             = try(compact([for c in local.registry_candidates : try(data.kubernetes_secret_v1.existing[c.name].data[c.key], "")])[0], "")
+  existing_frontend_client_id   = nonsensitive(try(compact([for c in local.frontend_candidates : try(data.kubernetes_secret_v1.existing[c.name].data[c.key], "")])[0], ""))
+  existing_mcp_client_id        = nonsensitive(try(compact([for c in local.mcp_candidates : try(data.kubernetes_secret_v1.existing[c.name].data[c.key], "")])[0], ""))
+  existing_mcp_client_secret    = try(compact([for c in local.mcp_secret_candidates : try(data.kubernetes_secret_v1.existing[c.name].data[c.key], "")])[0], "")
+  existing_identity_service_url = nonsensitive(try(compact([for c in local.identity_service_url_candidates : try(data.kubernetes_secret_v1.existing[c.name].data[c.key], "")])[0], ""))
+  # Every registered redirect URI, from all sources rather than the first that holds any.
+  existing_frontend_redirect_uris = nonsensitive(join(",", [for n in local.redirect_uri_secret_names : try(data.kubernetes_secret_v1.existing[n].data["ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS"], "")]))
+  existing_mcp_redirect_uris      = nonsensitive(join(",", [for n in local.redirect_uri_secret_names : try(data.kubernetes_secret_v1.existing[n].data["ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_REDIRECT_URIS"], "")]))
+
+  # Platform clients identity already registers from its own Secrets; minting beside them would replace them.
+  identity_has_registry_key = anytrue([for n in local.identity_env_secret_names : nonsensitive(try(data.kubernetes_secret_v1.existing[n].data["ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_PUBLIC_KEY_B64"], "") != "")])
+  identity_has_frontend     = anytrue([for n in local.identity_env_secret_names : nonsensitive(try(data.kubernetes_secret_v1.existing[n].data["ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS"], "") != "")])
+  identity_has_mcp          = anytrue([for n in local.identity_env_secret_names : nonsensitive(try(data.kubernetes_secret_v1.existing[n].data["ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_REDIRECT_URIS"], "") != "")])
 
   registry_blob       = try(jsondecode(base64decode(local.registry_blob_raw)), null)
   registry_adopted    = var.registry_enabled && nonsensitive(local.registry_blob_raw != "")
@@ -69,16 +76,17 @@ data "tls_public_key" "registry_adopted" {
 }
 
 locals {
-  # Explicit per-client override always wins; otherwise derive from main_domain.
-  frontend_redirect_uri = var.frontend_redirect_uri != "" ? var.frontend_redirect_uri : (
-    var.main_domain != "" ? "https://${var.main_domain}" : ""
+  # Explicit URI first, then the hosts the chart serves each workload at, then main_domain.
+  frontend_resolved_uris = var.frontend_redirect_uri != "" ? [var.frontend_redirect_uri] : (
+    length(var.frontend_host_redirect_uris) > 0 ? var.frontend_host_redirect_uris : (
+      var.main_domain != "" ? ["https://${var.main_domain}"] : []
+    )
   )
-  mcp_redirect_uri = var.mcp_redirect_uri != "" ? var.mcp_redirect_uri : (
-    var.main_domain != "" ? "https://mcp.${var.main_domain}/auth/callback" : ""
+  mcp_resolved_uris = var.mcp_redirect_uri != "" ? [var.mcp_redirect_uri] : (
+    length(var.mcp_host_redirect_uris) > 0 ? var.mcp_host_redirect_uris : (
+      var.main_domain != "" ? ["https://mcp.${var.main_domain}/auth/callback"] : []
+    )
   )
-  # Configured URIs win; with none, the URIs already registered are kept.
-  frontend_configured_uris = local.frontend_redirect_uri != "" || length(var.frontend_extra_redirect_uris) > 0
-  mcp_configured_uris      = local.mcp_redirect_uri != "" || length(var.mcp_extra_redirect_uris) > 0
 
   # identity-service's own public URL. Consumed by registry and frontend's secrets -- NOT mcp's,
   # which derives its issuer from apiGateway.apiUrl instead. secure-connection-service is not
@@ -89,14 +97,17 @@ locals {
   )
   identity_service_url_required = var.registry_enabled || var.frontend_enabled
 
-  frontend_all_redirect_uris = local.frontend_configured_uris ? concat(
-    local.frontend_redirect_uri != "" ? [local.frontend_redirect_uri] : [],
+  # Registered URIs are never dropped: a derived URI can miss the host the workload is really served at.
+  frontend_all_redirect_uris = distinct(compact(concat(
+    [for u in split(",", local.existing_frontend_redirect_uris) : trimspace(u)],
+    local.frontend_resolved_uris,
     var.frontend_extra_redirect_uris,
-  ) : compact(split(",", local.existing_frontend_redirect_uris))
-  mcp_all_redirect_uris = local.mcp_configured_uris ? concat(
-    local.mcp_redirect_uri != "" ? [local.mcp_redirect_uri] : [],
+  )))
+  mcp_all_redirect_uris = distinct(compact(concat(
+    [for u in split(",", local.existing_mcp_redirect_uris) : trimspace(u)],
+    local.mcp_resolved_uris,
     var.mcp_extra_redirect_uris,
-  ) : compact(split(",", local.existing_mcp_redirect_uris))
+  )))
 
   registry_client_id = !var.registry_enabled ? "" : (
     local.registry_adopted ? nonsensitive(try(local.registry_blob.clientId, "")) : "registry-${random_id.registry_client_id_suffix[0].hex}"
@@ -169,6 +180,10 @@ resource "kubernetes_secret_v1" "registry" {
       condition     = local.registry_blob_valid
       error_message = "an existing registry credential was found but is not a base64 JSON blob with clientId, keyId and a PEM private key; fix or remove it rather than letting the provisioner mint a replacement."
     }
+    precondition {
+      condition     = local.registry_adopted || !local.identity_has_registry_key
+      error_message = "identity-service already has a registry public key, but no registry credential was found to reuse; add the Secret holding the registry's credential to provisioner.adopt.registry, or set provisioner.adoptExisting=false to mint a replacement on purpose."
+    }
   }
   metadata {
     name      = var.registry_secret_name
@@ -202,6 +217,12 @@ resource "random_id" "frontend_client_id_suffix" {
 }
 resource "kubernetes_secret_v1" "frontend" {
   count = var.frontend_enabled ? 1 : 0
+  lifecycle {
+    precondition {
+      condition     = local.frontend_adopted || !local.identity_has_frontend
+      error_message = "identity-service already registers a frontend client, but no frontend client id was found to reuse; add the Secret holding it to provisioner.adopt.frontend, or set provisioner.adoptExisting=false to mint a replacement on purpose."
+    }
+  }
   metadata {
     name      = var.frontend_secret_name
     namespace = var.namespace
@@ -229,6 +250,12 @@ resource "random_password" "mcp_client_secret" {
 }
 resource "kubernetes_secret_v1" "mcp" {
   count = var.mcp_enabled ? 1 : 0
+  lifecycle {
+    precondition {
+      condition     = local.mcp_adopted || !local.identity_has_mcp
+      error_message = "identity-service already registers an MCP client, but no MCP client id was found to reuse; add the Secret holding it to provisioner.adopt.mcp, or set provisioner.adoptExisting=false to mint a replacement on purpose."
+    }
+  }
   metadata {
     name      = var.mcp_secret_name
     namespace = var.namespace
