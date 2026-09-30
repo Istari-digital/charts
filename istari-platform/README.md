@@ -86,7 +86,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | apiGateway.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | apiGateway.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context. Unlike the other services, the root filesystem is read-only: Caddy only writes to the XDG state dirs, which the chart mounts as emptyDirs. |
 | apiGateway.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
-| apiGateway.enabled | bool | `true` | Enable / Disable the whole deployment. On by default; it serves no traffic to clients until `apiUrl` is set. |
+| apiGateway.enabled | bool | `true` | Enable / Disable the whole deployment. On by default; it serves no traffic to clients until `apiUrl` is set. `identity.enabled: true` requires it: with identity on and this off, the render fails. |
 | apiGateway.env | list | `[]` | Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `apiGateway.tracing.enabled`). |
 | apiGateway.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables in the proxy container (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | apiGateway.extraEnvSecrets | list | `[]` | Names of Kubernetes Secrets whose keys become environment variables in the proxy container. Not needed for a standard deployment. (Unlike the other services, the API Gateway has no separate `secretName` — this list is the only Secret mechanism.) |
@@ -343,7 +343,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | identity.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | identity.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
-| identity.enabled | bool | `true` | Enable / Disable the whole deployment. On by default: a release that must not deploy the identity-service sets this to `false`. |
+| identity.enabled | bool | `true` | Enable / Disable the whole deployment. On by default: a release that must not deploy the identity-service sets this to `false`. Requires `apiGateway.enabled: true`, or the render fails. |
 | identity.env | list | `[]` |  |
 | identity.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | identity.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
