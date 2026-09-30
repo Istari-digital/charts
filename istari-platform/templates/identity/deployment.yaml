@@ -1,7 +1,14 @@
 {{- $serviceValues := .Values.identity -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $migrationResources := dig "migrations" "resources" dict $serviceValues -}}
-{{- if $serviceValues.enabled }}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
+{{- if eq (include "provisioner.identityPlatformClientsEnabled" .) "true" -}}
+{{- $platformClientsSecretName := include "provisioner.identityPlatformClientsSecretName" . -}}
+{{- if not (has $platformClientsSecretName $extraEnvSecrets) -}}
+{{- $extraEnvSecrets = append $extraEnvSecrets $platformClientsSecretName -}}
+{{- end -}}
+{{- end -}}
+{{- if (include "istari-platform.identityEnabled" $) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -93,10 +100,13 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $serviceValues.extraEnvSecrets }}
+        {{- with $extraEnvSecrets }}
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
+            {{- if hasPrefix "istari-provisioner-" . }}
+            optional: true
+            {{- end }}
         {{- end }}
         {{- end }}
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
@@ -159,6 +169,9 @@ spec:
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
+            {{- if hasPrefix "istari-provisioner-" . }}
+            optional: true
+            {{- end }}
         {{- end }}
         {{- end }}
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}

@@ -4,7 +4,7 @@ We put the generated default env vars in this config map so that user-defined va
 */}}
 {{- $serviceValues := .Values.identity -}}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
-{{- if $serviceValues.enabled }}
+{{- if (include "istari-platform.identityEnabled" $) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -15,9 +15,25 @@ metadata:
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "-15"
+    # Keeps a plain helm upgrade from deleting it once it leaves the release manifest for a hook.
+    helm.sh/resource-policy: keep
   {{- end }}
 data:
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+  {{- /* identity-service registers the registry, frontend and mcp clients at startup from these;
+  derived here from serviceClients when the chart renders them, so identity.secretName still wins. */}}
+  {{- $provisioning := $serviceValues.serviceClientProvisioning }}
+  {{- if and $provisioning.enabled (not $provisioning.configMapName) }}
+  {{- range $provisioning.serviceClients }}
+  {{- if and (eq .serviceId "registry") (eq .kind "service") .credential }}
+  ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_PUBLIC_KEY_B64: {{ (.credential | b64dec | fromJson).key | b64enc | quote }}
+  {{- else if and (eq .serviceId "frontend") (eq .kind "public") .redirectUris }}
+  ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS: {{ join "," .redirectUris | quote }}
+  {{- else if and (eq .serviceId "mcp") (eq .kind "public") .redirectUris }}
+  ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_REDIRECT_URIS: {{ join "," .redirectUris | quote }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
   {{- if dig "enabled" false (default dict .Values.jaeger) }}
   {{- /* the Identity Service uses the OTLP/HTTP exporter → target Jaeger's 4318, not the gRPC 4317
   fileservice uses. Per-container OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES are set as

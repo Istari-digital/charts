@@ -9,3 +9,4 @@ istari-*
 scripts/
 
 README.md.gotmpl
+ci/

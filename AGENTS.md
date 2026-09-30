@@ -188,7 +188,9 @@ There is no unit or integration test suite. A change is verified when:
    the `helmlint` hook, so a separate lint pass is only useful for reading one chart's
    output.
 2. `helm template <release> <chart>` renders cleanly with default values for every chart
-   touched. If you cannot stage the umbrella chart's subcharts, do not claim it verified —
+   touched. `istari-platform` needs a domain by default, so render it with
+   `-f istari-platform/ci/lint-values.yaml`; without it, the render must fail naming
+   `provisioner.mainDomain`. If you cannot stage the umbrella chart's subcharts, do not claim it verified —
    say which chart went unrendered and why.
 
 Two things these steps do not cover, so do not describe a change to either as verified:

@@ -1,7 +1,7 @@
 {{- $serviceValues := .Values.identity -}}
 {{- $idp := dig "idpMigration" dict $serviceValues -}}
 {{- $idpEnabled := dig "enabled" false $idp -}}
-{{- if and $serviceValues.enabled $idpEnabled }}
+{{- if and (include "istari-platform.identityEnabled" $) $idpEnabled }}
 {{- /* This weight-10 pre-upgrade hook runs migrate-idp against the schema, so
        the weight-5 db-migrate hook must have run first — which it only does
        when migrations.runAsJob=true. With runAsJob=false migrations run as a

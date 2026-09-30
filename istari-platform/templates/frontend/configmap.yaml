@@ -21,5 +21,5 @@ data:
   # explicit "false" is the only way this chart can turn identity off where that legacy
   # flag is set. Emitted only alongside the gateway URL because the frontend treats
   # identity-enabled-without-a-gateway-URL as a fatal config-load error.
-  VITE_ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: {{ dig "clientIntegration" "enabled" false .Values.identity | quote }}
+  VITE_ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: {{ include "istari-platform.identityClientIntegration" . | quote }}
 {{- end }}

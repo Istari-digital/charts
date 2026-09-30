@@ -1,5 +1,5 @@
 {{- $serviceValues := .Values.identity -}}
-{{- if $serviceValues.enabled }}
+{{- if (include "istari-platform.identityEnabled" $) }}
 apiVersion: v1
 kind: Service
 metadata:

@@ -31,7 +31,7 @@ data:
   # It is rendered anyway so all three services read the same way and the manifest
   # states the operator's intent. note: a Secret or extraEnvSecret still overrides it,
   # being later in the Deployment's envFrom chain.
-  ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: {{ dig "clientIntegration" "enabled" false .Values.identity | quote }}
+  ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: {{ include "istari-platform.identityClientIntegration" . | quote }}
   {{- end }}
   {{- if dig "enabled" false (default dict .Values.jaeger) }}
   {{- /* mcp-service runs under opentelemetry-instrument with the SDK disabled by default;

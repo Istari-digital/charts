@@ -15,7 +15,7 @@ another sanctioned proxy (Envoy, nginx — see the service-router engspec) must 
 change the chart's values interface beyond apiGateway.registry/image/tag.
 */}}
 {{- $serviceValues := .Values.apiGateway -}}
-{{- if $serviceValues.enabled }}
+{{- if (include "istari-platform.apiGatewayEnabled" $) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

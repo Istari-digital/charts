@@ -1,5 +1,5 @@
 {{- $serviceValues := .Values.apiGateway -}}
-{{- if and $serviceValues.enabled $serviceValues.virtualService.enabled }}
+{{- if and (include "istari-platform.apiGatewayEnabled" $) $serviceValues.virtualService.enabled }}
 {{- if not $serviceValues.virtualService.hosts -}}
 {{- fail "apiGateway.virtualService.hosts must contain at least one entry when apiGateway.virtualService.enabled is true" -}}
 {{- end }}

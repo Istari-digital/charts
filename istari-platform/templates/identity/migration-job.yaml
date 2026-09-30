@@ -6,7 +6,7 @@
 {{- $migrationsBackoffLimit := dig "migrations" "backoffLimit" 0 $serviceValues -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $migrationsResources := dig "migrations" "resources" dict $serviceValues -}}
-{{- if and $serviceValues.enabled $migrationsRunAsJob }}
+{{- if and (include "istari-platform.identityEnabled" $) $migrationsRunAsJob }}
 apiVersion: batch/v1
 kind: Job
 metadata:

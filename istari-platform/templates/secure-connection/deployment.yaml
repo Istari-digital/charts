@@ -97,6 +97,9 @@ spec:
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
+            {{- if hasPrefix "istari-provisioner-" . }}
+            optional: true
+            {{- end }}
         {{- end }}
         {{- end }}
         {{- /* Chart identity/OTEL defaults render first; the fragments below are appended in
@@ -152,6 +155,9 @@ spec:
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
+            {{- if hasPrefix "istari-provisioner-" . }}
+            optional: true
+            {{- end }}
         {{- end }}
         {{- end }}
         {{- /* Chart identity/OTEL defaults render first; the fragments below are appended in

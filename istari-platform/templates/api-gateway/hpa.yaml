@@ -1,5 +1,5 @@
 {{- $serviceValues := .Values.apiGateway -}}
-{{- if $serviceValues.enabled }}
+{{- if (include "istari-platform.apiGatewayEnabled" $) }}
 {{- if $serviceValues.autoscaling.enabled }}
 {{- if not (or $serviceValues.autoscaling.cpuUtilization $serviceValues.autoscaling.memoryUtilization) }}
 {{- fail "apiGateway.autoscaling is enabled but cpuUtilization and memoryUtilization are both null — set at least one so the HPA has a metric to scale on" }}

@@ -5,8 +5,12 @@ enables. Unlike a `_helpers.tpl` `define`, which only runs where something
 every render, so an unconditional `fail` here cannot be skipped by disabling a
 service. This file never emits a manifest.
 */}}
-{{- if and (dig "clientIntegration" "enabled" false .Values.identity) (not (include "istari-platform.apiGatewayUrl" .)) }}
-{{- fail "identity.clientIntegration.enabled is true but no gateway URL resolves — set apiGateway.apiUrl so the registry service, the frontend, and MCP have a gateway to authenticate through" }}
+{{- /* A per-service release can't see a gateway another release deploys, so only a whole-platform release is checked. */ -}}
+{{- if and (include "istari-platform.identityEnabled" .) (not (include "istari-platform.apiGatewayUrl" .)) .Values.fileservice.enabled .Values.frontend.enabled }}
+{{- fail "identity-service is on (identity.enabled is true, or unset in a release that deploys the whole platform) but no gateway URL resolves, and identity-service cannot start without the client settings derived from it: set provisioner.mainDomain (or apiGateway.apiUrl), or set identity.enabled and apiGateway.enabled to false to run without identity" }}
+{{- end }}
+{{- if and (eq (include "istari-platform.identityClientIntegration" .) "true") (not (include "istari-platform.apiGatewayUrl" .)) }}
+{{- fail "identity.clientIntegration.enabled is set to true but no gateway URL resolves — set apiGateway.apiUrl so the registry service, the frontend, and MCP have a gateway to authenticate through" }}
 {{- end }}
 
 {{- /*
@@ -19,9 +23,12 @@ a dedicated provisioner release that only generates/registers credentials for a 
 deployed in a SEPARATE release (one-release-per-service topology) never runs that workload
 here, so it has no need for apiGateway.apiUrl itself.
 */}}
-{{- if and .Values.provisioner.clients.frontend.enabled .Values.frontend.enabled (not (include "istari-platform.apiGatewayUrl" .)) }}
+{{- if and (include "provisioner.clientEnabled" (list . "frontend")) .Values.frontend.enabled (not (include "istari-platform.apiGatewayUrl" .)) }}
 {{- fail "provisioner.clients.frontend.enabled and frontend.enabled are both true but no gateway URL resolves — set apiGateway.apiUrl so the frontend has a gateway to authenticate through" }}
 {{- end }}
-{{- if and .Values.provisioner.clients.mcp.enabled .Values.mcp.enabled (not (include "istari-platform.apiGatewayUrl" .)) }}
+{{- if and (include "provisioner.clientEnabled" (list . "mcp")) .Values.mcp.enabled (not (include "istari-platform.apiGatewayUrl" .)) }}
 {{- fail "provisioner.clients.mcp.enabled and mcp.enabled are both true but no gateway URL resolves — set apiGateway.apiUrl so MCP has a gateway to authenticate through" }}
+{{- end }}
+{{- if and (include "provisioner.enabled" .) (not .Values.provisioner.adoptExisting) (not .Values.provisioner.mainDomain) (not .Values.provisioner.identityServiceUrl) (or (include "provisioner.clientEnabled" (list . "registry")) (include "provisioner.clientEnabled" (list . "frontend"))) }}
+{{- fail "provisioner.adoptExisting is false, so the provisioner mints every client its own earlier Secrets do not hold, but no domain is set — set provisioner.mainDomain (or provisioner.identityServiceUrl)" }}
 {{- end }}

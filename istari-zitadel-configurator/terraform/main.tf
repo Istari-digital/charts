@@ -187,13 +187,8 @@ resource "zitadel_application_key" "identity-service-key" {
   expiration_date = "2519-04-01T08:45:00Z"
 }
 
-# Dedicated, least-privilege machine user for the identity-service's Zitadel
-# management calls — the customer_admin user-grants lookup behind the admin
-# key-management endpoints (resolveAdminTenant/hasAdminGrant in identity-router).
-# Kept separate from the identity-service OIDC RP app key above (which is only
-# for id_token exchange) and from the fileservice/SCS machine users. The key
-# blob is wired to ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY via
-# outputs.tf.
+# Machine user for the identity-service's Zitadel management calls, separate from its OIDC app key.
+# Its instance roles below let it create tenant organizations and manage users in every organization.
 resource "zitadel_machine_user" "identity-service-management-user" {
   org_id            = zitadel_org.default.id
   user_name         = "IdentityServiceManagementUser"
@@ -213,13 +208,17 @@ resource "zitadel_machine_key" "identity-service-management-key" {
   }
 }
 
-# ORG_OWNER_VIEWER is read-only across the org: it can read user grants (all the
-# grants lookup needs) but cannot mutate them or escalate privileges —
-# deliberately narrower than the ORG_OWNER granted to the fileservice/SCS users.
+# Deliberately broad for pre-release testing: identity-service creates each tenant's org and manages users
+# in every org. IAM_ORG_MANAGER adds creating and deleting orgs to IAM_USER_MANAGER's user rights.
 resource "zitadel_org_member" "identity-service-management-default" {
   org_id  = zitadel_org.default.id
   user_id = zitadel_machine_user.identity-service-management-user.id
-  roles   = ["ORG_OWNER_VIEWER"]
+  roles   = ["ORG_OWNER", "ORG_OWNER_VIEWER"]
+}
+
+resource "zitadel_instance_member" "identity-service-management-instance" {
+  user_id = zitadel_machine_user.identity-service-management-user.id
+  roles   = ["IAM_USER_MANAGER", "IAM_ORG_MANAGER"]
 }
 
 resource "zitadel_machine_user" "registry-service-user" {
