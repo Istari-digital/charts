@@ -7,7 +7,7 @@ service. This file never emits a manifest.
 */}}
 {{- /* A per-service release can't see a gateway another release deploys, so only a whole-platform release is checked. */ -}}
 {{- if and (include "istari-platform.identityEnabled" .) (not (include "istari-platform.apiGatewayUrl" .)) .Values.fileservice.enabled .Values.frontend.enabled }}
-{{- fail "identity.enabled is true but no gateway URL resolves — identity-service cannot register the registry, frontend and MCP clients without one: set provisioner.mainDomain (or apiGateway.apiUrl), or set identity.enabled to false to run without identity" }}
+{{- fail "identity-service is on (identity.enabled is true, or unset in a release that deploys the whole platform) but no gateway URL resolves, and identity-service cannot start without the client settings derived from it: set provisioner.mainDomain (or apiGateway.apiUrl), or set identity.enabled and apiGateway.enabled to false to run without identity" }}
 {{- end }}
 {{- if and (eq (include "istari-platform.identityClientIntegration" .) "true") (not (include "istari-platform.apiGatewayUrl" .)) }}
 {{- fail "identity.clientIntegration.enabled is set to true but no gateway URL resolves — set apiGateway.apiUrl so the registry service, the frontend, and MCP have a gateway to authenticate through" }}

@@ -1,0 +1,3 @@
+# Minimum values for linting and rendering the chart: identity-service is on by default and needs a domain.
+provisioner:
+  mainDomain: example.com

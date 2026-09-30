@@ -35,7 +35,8 @@ jobs:
         fetch-depth: 0  # needed so we can create and push tags
 
     - name: Helm lint
-      run: helm lint .
+      # The chart requires a domain once identity-service is on, which it is by default.
+      run: helm lint . -f ci/lint-values.yaml
 
     - name: Setup JFrog CLI
       uses: jfrog/setup-jfrog-cli@v4
