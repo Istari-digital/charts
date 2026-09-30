@@ -27,9 +27,9 @@
 {{- if and (eq $mode "migrate") (eq $to "") }}{{ fail "identity.idpMigration.to is required when identity.idpMigration.enabled=true and mode is migrate (the incoming IdP provider, e.g. keycloak)" }}{{ end }}
 {{- $defaultTenant := dig "defaultTenant" "" $idp -}}
 {{- if and (eq $mode "migrate") (ne $defaultTenant "") }}{{ fail "identity.idpMigration.defaultTenant is only meaningful when mode is import" }}{{ end }}
-{{- /* -to and -mode arrived in identity-service 2.0.0; a tag that isn't a version is a custom image and isn't checked. */ -}}
-{{- $tag := toString $serviceValues.tag | trimPrefix "v" -}}
-{{- if and (regexMatch "^[0-9]+\\.[0-9]+\\.[0-9]+" $tag) (not (semverCompare ">=2.0.0-0" $tag)) }}{{ fail (printf "identity.idpMigration needs identity-service 2.0.0 or later (migrate-idp's -to and -mode flags), but identity.tag is %q: set identity.tag to a 2.0.0 or later image" $serviceValues.tag) }}{{ end }}
+{{- /* -to and -mode arrived in identity-service 2.0.0. Only a tag's leading x.y.z is compared; a tag without one isn't checked. */ -}}
+{{- $version := regexFind "^[0-9]+\\.[0-9]+\\.[0-9]+" (toString $serviceValues.tag | trimPrefix "v") -}}
+{{- if and $version (not (semverCompare ">=2.0.0" $version)) }}{{ fail (printf "identity.idpMigration needs identity-service 2.0.0 or later (migrate-idp's -to and -mode flags), but identity.tag is %q: set identity.tag to a 2.0.0 or later image" $serviceValues.tag) }}{{ end }}
 {{- /* required guards an EXPLICIT empty override (dig still supplies the default when the key is
        absent): an empty -database-url-env / -credential-env would pass through to migrate-idp and
        fail only at runtime, after the upgrade has begun. Fail at render instead. */ -}}
