@@ -35,6 +35,8 @@ The configurator writes identity-service's settings into the `zitadel-identity-s
 kubectl rollout restart deployment/<identity-service deployment> -n <namespace>
 ```
 
+Sign-in providers enabled by hand on the instance's default login policy stay in place across upgrades; the configurator doesn't manage that list.
+
 ## Configuration
 You must customize the deployment by providing your own `values.yaml` file. See the [values.yaml](values.yaml) for all available configuration options.
 
