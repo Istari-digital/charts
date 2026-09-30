@@ -67,3 +67,34 @@ variable "mcp_extra_redirect_uris" {
   type    = list(string)
   default = []
 }
+
+# ---- reuse of credentials that already exist ----
+# Each source is a Secret and a key, tried in order after this provisioner's own earlier Secret.
+variable "adopt_existing" {
+  type    = bool
+  default = true
+}
+variable "adopt_registry_sources" {
+  type    = list(object({ name = string, key = string }))
+  default = []
+}
+variable "adopt_frontend_sources" {
+  type    = list(object({ name = string, key = string }))
+  default = []
+}
+variable "adopt_mcp_sources" {
+  type    = list(object({ name = string, key = string }))
+  default = []
+}
+variable "adopt_mcp_secret_sources" {
+  type    = list(object({ name = string, key = string }))
+  default = []
+}
+variable "adopt_identity_service_url_sources" {
+  type    = list(object({ name = string, key = string }))
+  default = []
+}
+variable "adopt_redirect_uris_secret_name" {
+  type    = string
+  default = ""
+}
