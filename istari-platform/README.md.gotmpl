@@ -35,17 +35,11 @@ MCP consumes the gateway as a client; the gateway does not serve MCP requests. N
 > [!IMPORTANT]
 > Routing through the gateway and switching authentication to the identity service are **two independent settings**.
 >
-> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, which is on whenever a gateway URL resolves and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients. Environments that run one Helm release per service — every internal environment does — must set `clientIntegration.enabled` explicitly in each consuming release, since `enabled` is only ever true in the identity-service's own release.
->
-> When you set both `apiGateway.apiUrl` and `identity.clientIntegration.enabled`, the chart emits the identity toggle to the registry service, the frontend, and MCP together. It never emits the toggle from `apiGateway.apiUrl` alone, because all three treat identity-enabled-without-a-gateway-URL as a fatal startup or config-load error.
->
-> The former `…_IDENTITY_ROUTER_ENABLED` names (and the frontend's `VITE_IDENTITY_ROUTER_*`) remain supported as deprecated aliases, and are ignored when the corresponding new names are set. Prefer the new names; the aliases will be removed in a future release.
+> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, which is on whenever a gateway URL resolves and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients. ### Upgrading per-service releases
 
-### Turning identity-service off
+An environment that installs one service per Helm release must set `identity.enabled: false` and `apiGateway.enabled: false` in every release except two: the identity-service release keeps `identity.enabled: true` and sets `apiGateway.enabled: false` together with `apiGateway.apiUrl` (the public URL of the gateway the other release deploys), and the API Gateway release keeps `apiGateway.enabled: true` with `identity.enabled: false`. Without these overrides every release deploys its own identity-service and API Gateway, under the same names as the dedicated releases. A release with identity on, the gateway off and no `apiGateway.apiUrl` fails the render.
 
-`identity.enabled` and `apiGateway.enabled` default to `true`, so a release deploys the identity-service and the API Gateway. `identity.clientIntegration.enabled` is a tri-state that defaults to unset: clients (the registry, the frontend and MCP) authenticate through the identity-service whenever a gateway URL resolves, that is, whenever `apiGateway.apiUrl` is set, and stay on their existing authentication otherwise, so a bare `helm template` renders cleanly. Setting `identity.clientIntegration.enabled=true` without `apiGateway.apiUrl` fails the render.
-
-Environments that run one Helm release per service should set `identity.enabled=false` (and `apiGateway.enabled=false` where the gateway lives in another release) in every release except the one that owns each service; otherwise each of those releases deploys an identity-service and a gateway. To run without identity-service entirely, set:
+To run without identity-service entirely, set:
 
 ```yaml
 identity:

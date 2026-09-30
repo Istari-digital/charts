@@ -5,8 +5,8 @@ enables. Unlike a `_helpers.tpl` `define`, which only runs where something
 every render, so an unconditional `fail` here cannot be skipped by disabling a
 service. This file never emits a manifest.
 */}}
-{{- if and .Values.identity.enabled (not .Values.apiGateway.enabled) }}
-{{- fail "identity.enabled is true but apiGateway.enabled is false — identity-service is reached through the API Gateway, so enable apiGateway, or set both identity.enabled and apiGateway.enabled to false to run without identity" }}
+{{- if and .Values.identity.enabled (not .Values.apiGateway.enabled) (not (include "istari-platform.apiGatewayUrl" .)) }}
+{{- fail "identity.enabled is true but apiGateway.enabled is false and no gateway URL resolves — identity-service is reached through the API Gateway: enable apiGateway, or set apiGateway.apiUrl to the URL of a gateway deployed by another release, or set both identity.enabled and apiGateway.enabled to false to run without identity" }}
 {{- end }}
 {{- if and (eq (include "istari-platform.identityClientIntegration" .) "true") (not (include "istari-platform.apiGatewayUrl" .)) }}
 {{- fail "identity.clientIntegration.enabled is set to true but no gateway URL resolves — set apiGateway.apiUrl so the registry service, the frontend, and MCP have a gateway to authenticate through" }}
