@@ -61,6 +61,15 @@ variable "mcp_extra_redirect_uris" {
   type    = list(string)
   default = []
 }
+# Redirect URIs for the hosts this release serves the frontend and MCP at (Ingress or VirtualService).
+variable "frontend_host_redirect_uris" {
+  type    = list(string)
+  default = []
+}
+variable "mcp_host_redirect_uris" {
+  type    = list(string)
+  default = []
+}
 
 # ---- reuse of credentials that already exist ----
 # Each source is a Secret and a key, tried in order after this provisioner's own earlier Secret.
@@ -86,6 +95,11 @@ variable "adopt_mcp_secret_sources" {
 }
 variable "adopt_identity_service_url_sources" {
   type    = list(object({ name = string, key = string }))
+  default = []
+}
+# identity-service's own env Secrets: checked for platform clients it already registers.
+variable "identity_env_secret_names" {
+  type    = list(string)
   default = []
 }
 variable "adopt_redirect_uris_secret_name" {

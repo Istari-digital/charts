@@ -131,3 +131,62 @@ true
 true
 {{- end -}}
 {{- end }}
+
+{{/*
+A service's own env Secrets (secretName, then extraEnvSecrets), minus the provisioner's; call with (list $ <service values>). Returns a JSON list.
+*/}}
+{{- define "provisioner.serviceEnvSecretNames" -}}
+{{- $root := index . 0 -}}
+{{- $svc := index . 1 -}}
+{{- $own := list (include "provisioner.registrySecretName" $root) (include "provisioner.frontendSecretName" $root) (include "provisioner.mcpSecretName" $root) (include "provisioner.identityPlatformClientsSecretName" $root) -}}
+{{- $names := list -}}
+{{- range concat (compact (list $svc.secretName)) ($svc.extraEnvSecrets | default list) -}}
+{{- if and . (not (has . $own)) (not (has . $names)) -}}
+{{- $names = append $names . -}}
+{{- end -}}
+{{- end -}}
+{{- toJson $names -}}
+{{- end }}
+
+{{/*
+Adopt sources for one client as an HCL list: each service's own Secrets under its keys, then
+provisioner.adopt's entries; call with (list $ (list (list <service values> <keys>) ...) <adopt entries>).
+*/}}
+{{- define "provisioner.adoptSources" -}}
+{{- $root := index . 0 -}}
+{{- $sources := list -}}
+{{- range index . 1 -}}
+{{- $keys := index . 1 -}}
+{{- range include "provisioner.serviceEnvSecretNames" (list $root (index . 0)) | fromJsonArray -}}
+{{- $name := . -}}
+{{- range $keys -}}
+{{- $sources = append $sources (dict "secretName" $name "key" .) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $sources = concat $sources (index . 2 | default list) | uniq -}}
+[{{- range $i, $s := $sources }}{{ if $i }}, {{ end }}{ name = {{ $s.secretName | quote }}, key = {{ $s.key | quote }} }{{- end }}]
+{{- end }}
+
+{{/*
+Redirect URIs for the hosts this release serves a workload at, from its Ingress and VirtualService,
+as an HCL list; call with (list <service values> <path>). VirtualService short names are skipped.
+*/}}
+{{- define "provisioner.hostRedirectUris" -}}
+{{- $svc := index . 0 -}}
+{{- $path := index . 1 -}}
+{{- $uris := list -}}
+{{- if $svc.enabled -}}
+{{- if $svc.ingress.enabled -}}
+{{- range $svc.ingress.hosts -}}
+{{- if .host -}}{{- $uris = append $uris (printf "https://%s%s" .host $path) -}}{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- if $svc.virtualService.enabled -}}
+{{- range $svc.virtualService.hosts -}}
+{{- if contains "." . -}}{{- $uris = append $uris (printf "https://%s%s" . $path) -}}{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+[{{- range $i, $u := uniq $uris }}{{ if $i }}, {{ end }}{{ $u | quote }}{{- end }}]
+{{- end }}
