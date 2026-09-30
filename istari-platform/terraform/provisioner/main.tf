@@ -58,7 +58,7 @@ locals {
   registry_adopted    = var.registry_enabled && nonsensitive(local.registry_blob_raw != "")
   frontend_adopted    = var.frontend_enabled && local.existing_frontend_client_id != ""
   mcp_adopted         = var.mcp_enabled && local.existing_mcp_client_id != ""
-  registry_blob_valid = !local.registry_adopted || nonsensitive(can(local.registry_blob.clientId) && can(local.registry_blob.keyId) && can(regex("PRIVATE KEY", local.registry_blob.key)))
+  registry_blob_valid = !local.registry_adopted || nonsensitive(try(trimspace(local.registry_blob.clientId) != "", false) && try(trimspace(local.registry_blob.keyId) != "", false) && can(regex("PRIVATE KEY", local.registry_blob.key)))
 }
 
 # A missing Secret reads as null data, not an error (hashicorp/kubernetes 2.38.0, as locked).

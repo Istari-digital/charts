@@ -30,5 +30,5 @@ here, so it has no need for apiGateway.apiUrl itself.
 {{- fail "provisioner.clients.mcp.enabled and mcp.enabled are both true but no gateway URL resolves — set apiGateway.apiUrl so MCP has a gateway to authenticate through" }}
 {{- end }}
 {{- if and (include "provisioner.enabled" .) (not .Values.provisioner.adoptExisting) (not .Values.provisioner.mainDomain) (not .Values.provisioner.identityServiceUrl) (or (include "provisioner.clientEnabled" (list . "registry")) (include "provisioner.clientEnabled" (list . "frontend"))) }}
-{{- fail "provisioner.adoptExisting is false, so the provisioner mints every client, but no domain is set — set provisioner.mainDomain (or provisioner.identityServiceUrl)" }}
+{{- fail "provisioner.adoptExisting is false, so the provisioner mints every client its own earlier Secrets do not hold, but no domain is set — set provisioner.mainDomain (or provisioner.identityServiceUrl)" }}
 {{- end }}

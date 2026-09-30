@@ -1,7 +1,7 @@
 {{- $serviceValues := .Values.identity -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $migrationResources := dig "migrations" "resources" dict $serviceValues -}}
-{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
 {{- if eq (include "provisioner.identityPlatformClientsEnabled" .) "true" -}}
 {{- $platformClientsSecretName := include "provisioner.identityPlatformClientsSecretName" . -}}
 {{- if not (has $platformClientsSecretName $extraEnvSecrets) -}}

@@ -1046,25 +1046,31 @@ provisioner:
   # redirect URIs, as does `identity.secretName`.
   # @default -- (see values.yaml)
   adopt:
+    # -- Sources of the registry's private credential blob.
     registry:
     - secretName: fileservice2-env
       key: ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS
     - secretName: fileservice2-env
       key: FILE_SERVICE_IDENTITY_ROUTER_SECRET
+    # -- Sources of the frontend's client id.
     frontend:
     - secretName: frontendv2-env
       key: VITE_IDENTITY_SERVICE_CLIENT_ID
     - secretName: frontendv2-env
       key: VITE_IDENTITY_ROUTER_CLIENT_ID
+    # -- Sources of MCP's client id.
     mcp:
     - secretName: istari-mcp
       key: ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_ID
+    # -- Sources of MCP's client secret.
     mcpClientSecret:
     - secretName: istari-mcp
       key: ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_SECRET
+    # -- Sources of identity-service's public URL.
     identityServiceUrl:
     - secretName: fileservice2-env
       key: FILE_SERVICE_IDENTITY_ROUTER_URL
+    # -- Secret holding the registered frontend and MCP redirect URIs, and any platform clients identity already registers.
     redirectUrisSecretName: identity-service-env
   # -- Base domain used to derive identity-service's own public URL (`https://identity.<mainDomain>`)
   # and, when `apiGateway.apiUrl` is unset, the gateway URL `https://api.<mainDomain>`. Redirect URIs
