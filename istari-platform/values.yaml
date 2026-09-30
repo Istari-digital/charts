@@ -1081,7 +1081,8 @@ provisioner:
   # `istari-provisioner-identity-platform-clients` Secret.
   mainDomain: ""
   # -- Explicit identity-service public URL, written into every enabled client's secret alongside
-  # its "identity enabled" flag. Overrides the default, the gateway URL plus `/identity`.
+  # its "identity enabled" flag. Overrides the default: the URL already in the registry's or
+  # frontend's Secret, else the gateway URL plus `/identity`. Set it to move an existing install.
   identityServiceUrl: ""
   # -- Which clients to provision, and their per-client settings.
   # @default -- (see fields below)

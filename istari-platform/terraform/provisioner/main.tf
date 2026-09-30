@@ -92,8 +92,11 @@ locals {
   # which derives its issuer from apiGateway.apiUrl instead. secure-connection-service is not
   # provisioned through this mechanism (see helm-stack's identity-service-env generation) --
   # its credential/registration model isn't supported here.
+  # An environment's existing URL is kept over the gateway default, so an upgrade never moves it.
   identity_service_url = var.identity_service_url != "" ? var.identity_service_url : (
-    var.api_gateway_url != "" ? "${trimsuffix(var.api_gateway_url, "/")}/identity" : local.existing_identity_service_url
+    local.existing_identity_service_url != "" ? local.existing_identity_service_url : (
+      var.api_gateway_url != "" ? "${trimsuffix(var.api_gateway_url, "/")}/identity" : ""
+    )
   )
   identity_service_url_required = var.registry_enabled || var.frontend_enabled
 
@@ -318,7 +321,7 @@ resource "kubernetes_secret_v1" "identity_service_clients" {
       # an mcp-only configuration never writes this value anywhere, so it must not be required
       # for one.
       condition     = !local.identity_service_url_required || local.identity_service_url != ""
-      error_message = "registry or frontend is enabled but the identity-service URL could not be resolved and no earlier credential records one — set provisioner.mainDomain (or provisioner.identityServiceUrl)."
+      error_message = "registry or frontend is enabled but the identity-service URL could not be resolved and no earlier credential records one — set provisioner.mainDomain or apiGateway.apiUrl (or provisioner.identityServiceUrl)."
     }
   }
 }
