@@ -1,6 +1,6 @@
 # istari-zitadel-configurator
 
-![Version: 1.10.2](https://img.shields.io/badge/Version-1.10.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 8.13.4](https://img.shields.io/badge/AppVersion-8.13.4-informational?style=flat-square)
+![Version: 1.10.3](https://img.shields.io/badge/Version-1.10.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 8.13.4](https://img.shields.io/badge/AppVersion-8.13.4-informational?style=flat-square)
 
 A Helm chart for configuring Zitadel instance to work with Istari.
 
@@ -26,6 +26,16 @@ This chart automates the setup and configuration of Zitadel resources for the Is
 helm repo add istari-digital https://istaridigital.jfrog.io/artifactory/api/helm/main-helm-local --username <username> --password <token>
 helm install istari-zitadel-configurator istari-digital/istari-zitadel-configurator [--values my-values.yaml]
 ```
+
+## Upgrading
+
+The configurator writes identity-service's settings into the `zitadel-identity-service-env` Secret each time its hook runs. Pods that load that Secret through `envFrom` don't see a change until they restart, so restart identity-service after an upgrade that changes it. With `configurator.plan_only: true` the hook only plans and leaves the Secret unchanged, so no restart is needed. Replace both placeholders with your values:
+
+```sh
+kubectl rollout restart deployment/IDENTITY_SERVICE_DEPLOYMENT -n NAMESPACE
+```
+
+Sign-in providers enabled by hand on the instance's default login policy stay in place across upgrades; the configurator doesn't manage that list.
 
 ## Configuration
 You must customize the deployment by providing your own `values.yaml` file. See the [values.yaml](values.yaml) for all available configuration options.

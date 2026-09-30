@@ -315,6 +315,11 @@ resource "zitadel_default_login_policy" "default" {
   allow_domain_discovery        = true
   disable_login_with_email      = false
   disable_login_with_phone      = false
+
+  # Sign-in providers are enabled by hand in the console; leave them in place.
+  lifecycle {
+    ignore_changes = [idps]
+  }
 }
 
 resource "zitadel_default_privacy_policy" "default" {
