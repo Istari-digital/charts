@@ -10,7 +10,7 @@
        service-level env so it wins on duplicate names — e.g. to correct OTEL
        k8s.container.name off the fanned-in service value. */ -}}
 {{- $registrationEnv := dig "env" list $registration -}}
-{{- if and $serviceValues.enabled $registrationEnabled $clients }}
+{{- if and (include "istari-platform.identityEnabled" $) $registrationEnabled $clients }}
 {{- /* These hooks run pre-install/pre-upgrade; the columns register-client
        -public-client-id writes (client_type, redirect_uris — Identity Service
        migration 00012) only exist if migrations run as a pre-install/pre-upgrade

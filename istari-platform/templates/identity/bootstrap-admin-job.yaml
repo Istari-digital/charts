@@ -5,7 +5,7 @@
 {{- if not (kindIs "slice" $bootstrap.platformAdminEmails) }}{{ fail "identity.bootstrap.platformAdminEmails must be a list of email addresses" }}{{ end }}
 {{- $emails := list -}}
 {{- range $bootstrap.platformAdminEmails }}{{- $e := toString . | trim }}{{- if $e }}{{- $emails = append $emails $e }}{{- end }}{{- end -}}
-{{- if and $serviceValues.enabled $bootstrap.enabled $emails }}
+{{- if and (include "istari-platform.identityEnabled" $) $bootstrap.enabled $emails }}
 {{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.enabled requires identity.migrations.runAsJob=true, so the schema exists before this hook" }}{{ end }}
 {{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.bootstrap.enabled is true" -}}
 {{- $_ := $bootstrap.databaseUrlEnv | required "identity.bootstrap.databaseUrlEnv must not be empty when identity.bootstrap.enabled is true (the identity.secretName key holding the PostgreSQL connection string)" -}}

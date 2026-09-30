@@ -1,7 +1,7 @@
 {{- /* Grants the registry agent_manager and principal_viewer after every registration hook (weights 10 and 20). */ -}}
 {{- $serviceValues := .Values.identity -}}
 {{- $bootstrap := $serviceValues.bootstrap -}}
-{{- if and $serviceValues.enabled $bootstrap.enabled }}
+{{- if and (include "istari-platform.identityEnabled" $) $bootstrap.enabled }}
 {{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.enabled requires identity.migrations.runAsJob=true, so the schema exists before this pre-install hook" }}{{ end }}
 {{- if and (not $bootstrap.registryClientId) (not $bootstrap.registryClientIdSecretRef) }}{{ fail "identity.bootstrap.enabled requires identity.bootstrap.registryClientId or identity.bootstrap.registryClientIdSecretRef" }}{{ end }}
 {{- if and (not $bootstrap.registryClientId) $bootstrap.registryClientIdSecretRef }}

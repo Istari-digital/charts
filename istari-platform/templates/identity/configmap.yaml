@@ -4,7 +4,7 @@ We put the generated default env vars in this config map so that user-defined va
 */}}
 {{- $serviceValues := .Values.identity -}}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
-{{- if $serviceValues.enabled }}
+{{- if (include "istari-platform.identityEnabled" $) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

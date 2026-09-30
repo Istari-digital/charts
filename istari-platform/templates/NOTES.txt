@@ -9,7 +9,7 @@ then open http://localhost:16686 in your browser.
 
 In-cluster services export traces via OTLP to {{ include "istari-platform.jaeger.otlpUrl" . }} (gRPC) or {{ include "istari-platform.jaeger.otlpHttpUrl" . }} (HTTP).
 {{- end }}
-{{- if .Values.apiGateway.enabled }}
+{{- if include "istari-platform.apiGatewayEnabled" . }}
 {{- $routes := include "api-gateway.routes" . | fromJsonArray }}
 
 The API Gateway is enabled. In-cluster clients reach it at http://{{ include "api-gateway.fullname" . }} (port 80) with these routes:
@@ -29,7 +29,7 @@ registry service is exposed. TLS terminates there — the API Gateway itself ser
 The chart can also create these for you: see `apiGateway.ingress` and `apiGateway.virtualService`.
 {{- end -}}
 
-{{- if .Values.identity.enabled }}
+{{- if include "istari-platform.identityEnabled" . }}
 {{- $bootstrap := .Values.identity.bootstrap }}
 {{- $exec := printf "kubectl exec -n %s deploy/%s -c istari-platform --" .Release.Namespace (include "identity.fullname" .) }}
 

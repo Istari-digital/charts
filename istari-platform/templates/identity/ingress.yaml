@@ -1,5 +1,5 @@
 {{- $serviceValues := .Values.identity -}}
-{{- if and $serviceValues.enabled $serviceValues.ingress.enabled }}
+{{- if and (include "istari-platform.identityEnabled" $) $serviceValues.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

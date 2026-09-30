@@ -627,8 +627,9 @@ secureConnection:
 
 # Default values for Identity Service.
 identity:
-  # -- Enable / Disable the whole deployment. On by default: a release that must not deploy the identity-service sets this to `false`. Needs `apiGateway.enabled: true` or an `apiGateway.apiUrl`, or the render fails. Releases that install one service each set this to `false` except in their own identity-service release.
-  enabled: true
+  # -- Whether this release deploys the identity-service. (bool/null) Unset (the default) turns it on when this release deploys the whole platform (fileservice and frontend both enabled) and off otherwise, so a per-service release deploys it only where set to true. `true` and `false` are taken as written. Needs a gateway: with the API Gateway off and no `apiGateway.apiUrl` set, the render fails.
+  # @default -- `null` (on when fileservice and frontend are both enabled)
+  enabled: null
   # -- Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. Stage-style topologies run one release per service, so `enabled` is only ever true in the identity-service's own release — gating client behavior on it directly means the toggle never renders in any consuming release.
   # @default -- (see fields below)
   clientIntegration:
@@ -1205,8 +1206,9 @@ docs:
 # change in a future release; such a change will never require values changes beyond
 # `registry`/`image`/`tag`.
 apiGateway:
-  # -- Enable / Disable the whole deployment. On by default; it serves no traffic to clients until `apiUrl` is set. `identity.enabled: true` needs a gateway: with this off and no `apiUrl` set, the render fails. Releases that install one service each set this to `false` except in their own api-gateway release.
-  enabled: true
+  # -- Whether this release deploys the API Gateway. (bool/null) Unset (the default) turns it on when this release deploys the whole platform (fileservice and frontend both enabled) and off otherwise, so a per-service release deploys it only where set to true. `true` and `false` are taken as written. It serves no traffic to clients until `apiUrl` is set.
+  # @default -- `null` (on when fileservice and frontend are both enabled)
+  enabled: null
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS Caddy variant in the Istari customer-docker JFrog repo, pulled with the same credentials as the rest of the chart. The `istaridigital.com/` path segment is part of the repository path — not a typo.

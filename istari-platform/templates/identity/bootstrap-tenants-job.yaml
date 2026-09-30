@@ -2,7 +2,7 @@
 {{- $serviceValues := .Values.identity -}}
 {{- $bootstrap := $serviceValues.bootstrap -}}
 {{- $tenants := $bootstrap.tenants -}}
-{{- if and $serviceValues.enabled $tenants.enabled }}
+{{- if and (include "istari-platform.identityEnabled" $) $tenants.enabled }}
 {{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.tenants.enabled requires identity.migrations.runAsJob=true, so the schema exists before this hook" }}{{ end }}
 {{- $provider := $tenants.provider -}}
 {{- if ne $provider "zitadel" }}{{ fail (printf "identity.bootstrap.tenants.provider must be \"zitadel\", got %q" $provider) }}{{ end }}

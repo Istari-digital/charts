@@ -1,5 +1,5 @@
 {{- $serviceValues := .Values.apiGateway -}}
-{{- if $serviceValues.enabled }}
+{{- if (include "istari-platform.apiGatewayEnabled" $) }}
 apiVersion: v1
 kind: Service
 metadata:

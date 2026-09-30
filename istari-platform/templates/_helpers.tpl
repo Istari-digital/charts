@@ -240,6 +240,32 @@ whitespace are stripped, so <base>/registry never renders a double slash.
 {{- end }}
 
 {{/*
+Whether this release deploys the identity-service, as "true" or "". identity.enabled is a tri-state:
+true and false are taken as written; unset (the default) means on only when this release deploys
+the whole platform, that is, fileservice and frontend are both enabled. `dig` with a nil default
+keeps an explicit false from being read as unset.
+*/}}
+{{- define "istari-platform.identityEnabled" -}}
+{{- $v := dig "enabled" nil (default dict .Values.identity) -}}
+{{- if kindIs "bool" $v -}}
+{{- if $v -}}true{{- end -}}
+{{- else if and .Values.fileservice.enabled .Values.frontend.enabled -}}true
+{{- end -}}
+{{- end }}
+
+{{/*
+Whether this release deploys the API Gateway, as "true" or "". Same tri-state rule as
+istari-platform.identityEnabled, read from apiGateway.enabled.
+*/}}
+{{- define "istari-platform.apiGatewayEnabled" -}}
+{{- $v := dig "enabled" nil (default dict .Values.apiGateway) -}}
+{{- if kindIs "bool" $v -}}
+{{- if $v -}}true{{- end -}}
+{{- else if and .Values.fileservice.enabled .Values.frontend.enabled -}}true
+{{- end -}}
+{{- end }}
+
+{{/*
 Whether clients in this release authenticate through the identity-service, as the string "true" or
 "false". identity.clientIntegration.enabled is a tri-state: true and false are taken as written, and
 unset (the default) means on whenever a gateway URL resolves and off otherwise, so a bare render is
