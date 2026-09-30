@@ -45,8 +45,10 @@ istari-provisioner-mcp-credentials
 
 {{/*
 Secret carrying the env vars identity-service reads at startup to self-register
-registry/frontend/mcp (identity-service#194). List it in identity.extraEnvSecrets yourself --
-not auto-mounted.
+registry/frontend/mcp (identity-service#194). Auto-appended to identity's own extraEnvSecrets
+by templates/identity/deployment.yaml whenever provisioner.anyClientEnabled -- unlike
+registry/frontend/mcp's own Secrets (which each need release-side wiring since they're consumed
+across releases), this one is entirely internal to identity's own release.
 */}}
 {{- define "provisioner.identityPlatformClientsSecretName" -}}
 istari-provisioner-identity-platform-clients
