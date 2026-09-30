@@ -1034,7 +1034,7 @@ provisioner:
     # end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index.
     secretSuffix: "istari-provisioner-terraform-state"
   # -- Reuse client credentials that already exist instead of minting new ones: this provisioner's
-  # own earlier Secrets first, then each service's own `secretName` and `extraEnvSecrets`, then the
+  # own earlier Secrets first, then the `secretName` and `extraEnvSecrets` of each service this release deploys, then the
   # Secrets in `adopt`. Only a client with none is minted, so an upgrade never replaces credentials
   # the services already use. When identity-service's own Secrets already register a client but no
   # credential for it is found, the provisioner fails rather than mint a replacement. Set `false` to
@@ -1070,7 +1070,9 @@ provisioner:
   # and, when `apiGateway.apiUrl` is unset, the gateway URL `https://api.<mainDomain>`. Redirect URIs
   # come from each client's `redirectUri`, else the hosts of the frontend's and MCP's Ingress or
   # VirtualService in this release, else `https://<mainDomain>` and
-  # `https://mcp.<mainDomain>/auth/callback`. Redirect URIs already registered are always kept.
+  # `https://mcp.<mainDomain>/auth/callback`. Redirect URIs already registered are always kept and
+  # never pruned: a stale URI stays allowed until it is removed from the
+  # `istari-provisioner-identity-platform-clients` Secret.
   mainDomain: ""
   # -- Explicit identity-service public URL, written into every enabled client's secret alongside
   # its "identity enabled" flag. Overrides the `mainDomain` derivation.
