@@ -888,6 +888,8 @@ provisioner:
   tag: "0.1.0"
   # -- Image pull policy.
   imagePullPolicy: IfNotPresent
+  # -- Image pull secrets for the provisioning Job pod. When empty, the chart-wide `imagePullSecrets` apply.
+  imagePullSecrets: []
   # -- When true, run `terraform plan` only (no `apply`).
   planOnly: false
   # -- `spec.backoffLimit` for the provisioning Job.

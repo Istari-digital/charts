@@ -481,6 +481,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | provisioner.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into the provisioner container. |
 | provisioner.image | string | `"main-docker-local/provisioner"` | Image name. |
 | provisioner.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy. |
+| provisioner.imagePullSecrets | list | `[]` | Image pull secrets for the provisioning Job pod. When empty, the chart-wide `imagePullSecrets` apply. |
 | provisioner.nodeSelector | object | `{}` | Node selector for the provisioning Job pod. |
 | provisioner.planOnly | bool | `false` | When true, run `terraform plan` only (no `apply`). |
 | provisioner.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context. The image runs as nonroot (uid 65532) — fsGroup is required so the terraform-work emptyDir it writes `.terraform/` into is group-writable by that user. |
