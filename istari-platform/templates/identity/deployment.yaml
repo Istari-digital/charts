@@ -1,14 +1,10 @@
 {{- $serviceValues := .Values.identity -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $migrationResources := dig "migrations" "resources" dict $serviceValues -}}
-{{- /* default list here isn't re-documenting values.yaml's own [] default (that's already the
-   normal case) -- it's nil-safety: an overlay that explicitly sets extraEnvSecrets: null would
-   otherwise pass nil into `without`/`append` below and abort rendering. */ -}}
-{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
 {{- if and .Values.provisioner.enabled (eq (include "provisioner.anyClientEnabled" .) "true") -}}
 {{- $identityPlatformClientsSecretName := include "provisioner.identityPlatformClientsSecretName" . -}}
-{{- /* Prepended, not appended: an overlay's own extraEnvSecrets listing the same key later
-   wins on purpose -- that's the overlay's call, not the chart's. */ -}}
+{{- /* Prepended so a consumer's own later entry for the same key wins. */ -}}
 {{- $extraEnvSecrets = prepend $extraEnvSecrets $identityPlatformClientsSecretName -}}
 {{- end -}}
 {{- if $serviceValues.enabled }}
@@ -89,10 +85,7 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'identity.extraEnvConfigMaps', 'identity.secretName', 'identity.extraEnvSecrets', and 'identity.env' will always override them
-        -- the provisioner's identity-facing Secret (prepended to $extraEnvSecrets above, when
-        provisioner.enabled and provisioner.anyClientEnabled) is the one exception, listed first: a consumer's own
-        extraEnvSecrets can still list the same key later and win, by their own choice.
+        'identity.extraEnvConfigMaps', 'identity.secretName', 'identity.extraEnvSecrets', and 'identity.env' will always override them.
         */}}
         - configMapRef:
             name: {{ include "identity.configmap.name" . | quote }}

@@ -23,7 +23,7 @@ names regardless of which release renders which.
 */}}
 
 {{/*
-Secret carrying registry's private credential blob. Listed in fileservice.extraEnvSecrets.
+Secret carrying registry's private credential blob.
 */}}
 {{- define "provisioner.registrySecretName" -}}
 istari-provisioner-registry-credentials
@@ -45,9 +45,7 @@ istari-provisioner-mcp-credentials
 
 {{/*
 Secret carrying the env vars identity-service reads at startup to self-register
-registry/frontend/mcp (identity-service#194). Auto-appended to identity's own extraEnvSecrets
-by templates/identity/deployment.yaml whenever provisioner.anyClientEnabled, the same way
-registry/frontend/mcp's own Secrets are auto-appended into their consumers.
+registry/frontend/mcp.
 */}}
 {{- define "provisioner.identityPlatformClientsSecretName" -}}
 istari-provisioner-identity-platform-clients

@@ -457,7 +457,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | nats.reloader.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-server-config-reloader-fips"` | Config-reloader image repository. Defaults to the Chainguard FIPS variant. |
 | nats.reloader.image.tag | string | `"0.23.0"` | Config-reloader image tag. |
 | nats.statefulSet.merge.spec.persistentVolumeClaimRetentionPolicy | object | `{"whenDeleted":"Delete","whenScaled":"Delete"}` | Delete the JetStream PVCs when the StatefulSet is deleted or scaled down. Set to `Retain` if you need the data to outlive the StatefulSet. |
-| provisioner | object | (see fields below) | Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job hook that generates registry/frontend/mcp credentials and publishes them for identity to read at startup (identity-service#194). Not for secure-connection-service (see `identity.agentRegistration`). |
+| provisioner | object | (see fields below) | Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job hook that generates registry/frontend/mcp credentials and publishes them for identity to read at startup. Not for secure-connection-service (see `identity.agentRegistration`). |
 | provisioner.affinity | object | `{}` | Affinity for the provisioning Job pod. |
 | provisioner.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful provisioning Job (`hook-succeeded`). |
 | provisioner.backend | object | (see fields below) | Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no external cloud state infra. |
@@ -473,7 +473,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | provisioner.clients.mcp.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
 | provisioner.clients.mcp.redirectUri | string | `""` | Explicit redirect URI. Overrides the `common.mainDomain` derivation. |
 | provisioner.clients.registry | object | `{"enabled":true}` | Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair under the fixed client id `registry`. |
-| provisioner.clients.registry.enabled | bool | `true` | Whether to generate and register the registry client. Defaults true: enabling the provisioner registers everything by default, so turning off one client is an explicit opt-out. Consumers mount the generated Secret only when `provisioner.enabled` is also true (a single release with everything enabled); a consumer deployed as a separate release lists the Secret in its own `extraEnvSecrets` instead. |
+| provisioner.clients.registry.enabled | bool | `true` | Whether to generate and register the registry client. Consumers auto-mount its Secret only when `provisioner.enabled` is also true; a consumer in a separate release lists the Secret in its own `extraEnvSecrets`. |
 | provisioner.commonLabels | object | `{}` | Additional labels to add to all of this component's resources |
 | provisioner.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Provisioner container's security context. |
 | provisioner.enabled | bool | `false` | Enable / Disable the whole provisioner release. |

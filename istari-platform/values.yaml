@@ -875,7 +875,7 @@ identity:
 
 # -- Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job
 # hook that generates registry/frontend/mcp credentials and publishes them for identity to read
-# at startup (identity-service#194). Not for secure-connection-service (see `identity.agentRegistration`).
+# at startup. Not for secure-connection-service (see `identity.agentRegistration`).
 # @default -- (see fields below)
 provisioner:
   # -- Enable / Disable the whole provisioner release.
@@ -937,11 +937,9 @@ provisioner:
     # -- Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair under the fixed
     # client id `registry`.
     registry:
-      # -- Whether to generate and register the registry client. Defaults true: enabling the
-      # provisioner registers everything by default, so turning off one client is an explicit
-      # opt-out. Consumers mount the generated Secret only when `provisioner.enabled` is also true
-      # (a single release with everything enabled); a consumer deployed as a separate release
-      # lists the Secret in its own `extraEnvSecrets` instead.
+      # -- Whether to generate and register the registry client. Consumers auto-mount its Secret
+      # only when `provisioner.enabled` is also true; a consumer in a separate release lists the
+      # Secret in its own `extraEnvSecrets`.
       enabled: true
     # -- Frontend (`kind: public` / PKCE) — the fixed client id `frontend` and a redirect allowlist.
     frontend:

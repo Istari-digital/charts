@@ -2,14 +2,10 @@
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{- /* provisioner's client key here is "registry", not "fileservice" — intentional. */ -}}
-{{- /* default list here isn't re-documenting values.yaml's own [] default (that's already the
-   normal case) -- it's nil-safety: an overlay that explicitly sets extraEnvSecrets: null would
-   otherwise pass nil into `has`/`append` below and abort rendering. */ -}}
-{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
 {{- if and .Values.provisioner.enabled .Values.provisioner.clients.registry.enabled -}}
 {{- $registrySecretName := include "provisioner.registrySecretName" . -}}
-{{- /* Prepended, not appended: an overlay's own extraEnvSecrets listing the same key later
-   wins on purpose -- that's the overlay's call, not the chart's. */ -}}
+{{- /* Prepended so a consumer's own later entry for the same key wins. */ -}}
 {{- $extraEnvSecrets = prepend $extraEnvSecrets $registrySecretName -}}
 {{- end -}}
 {{- if $serviceValues.enabled }}
@@ -91,10 +87,7 @@ spec:
         {{- if or $serviceValues.secretName $extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
         envFrom:
         {{- end }}
-        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override
-        them -- the provisioner's generated Secret (prepended to $extraEnvSecrets above, when
-        provisioner.enabled and provisioner.clients.registry.enabled) is the one exception, listed first: a consumer's
-        own extraEnvSecrets can still list the same key later and win, by their own choice. */}}
+        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
         {{- if or $jaegerEnabled $gatewayUrl }}
         - configMapRef:
             name: {{ include "fileservice.configmap.name" . | quote }}
@@ -154,10 +147,7 @@ spec:
         {{- if or $serviceValues.secretName $extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
         envFrom:
         {{- end }}
-        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override
-        them -- the provisioner's generated Secret (prepended to $extraEnvSecrets above, when
-        provisioner.enabled and provisioner.clients.registry.enabled) is the one exception, listed first: a consumer's
-        own extraEnvSecrets can still list the same key later and win, by their own choice. */}}
+        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
         {{- if or $jaegerEnabled $gatewayUrl }}
         - configMapRef:
             name: {{ include "fileservice.configmap.name" . | quote }}

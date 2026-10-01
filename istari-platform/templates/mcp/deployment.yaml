@@ -1,12 +1,8 @@
 {{- $serviceValues := .Values.mcp -}}
-{{- /* default list here isn't re-documenting values.yaml's own [] default (that's already the
-   normal case) -- it's nil-safety: an overlay that explicitly sets extraEnvSecrets: null would
-   otherwise pass nil into `has`/`append` below and abort rendering. */ -}}
-{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
+{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
 {{- if and .Values.provisioner.enabled .Values.provisioner.clients.mcp.enabled -}}
 {{- $mcpSecretName := include "provisioner.mcpSecretName" . -}}
-{{- /* Prepended, not appended: an overlay's own extraEnvSecrets listing the same key later
-   wins on purpose -- that's the overlay's call, not the chart's. */ -}}
+{{- /* Prepended so a consumer's own later entry for the same key wins. */ -}}
 {{- $extraEnvSecrets = prepend $extraEnvSecrets $mcpSecretName -}}
 {{- end -}}
 {{- if $serviceValues.enabled }}
@@ -75,10 +71,7 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'mcp.extraEnvConfigMaps', 'mcp.secretName', 'mcp.extraEnvSecrets', and 'mcp.env' will always
-        override them -- the provisioner's generated Secret (prepended to $extraEnvSecrets above,
-        when provisioner.enabled and provisioner.clients.mcp.enabled) is the one exception, listed first: a consumer's
-        own extraEnvSecrets can still list the same key later and win, by their own choice.
+        'mcp.extraEnvConfigMaps', 'mcp.secretName', 'mcp.extraEnvSecrets', and 'mcp.env' will always override them.
         */}}
         - configMapRef:
             name: {{ include "mcp.configmap.name" . | quote }}
