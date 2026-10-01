@@ -3,7 +3,6 @@
 {{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
 {{- if and .Values.provisioner.enabled .Values.provisioner.clients.frontend.enabled -}}
 {{- $frontendSecretName := include "provisioner.frontendSecretName" . -}}
-{{- /* Prepended so a consumer's own later entry for the same key wins. */ -}}
 {{- $extraEnvSecrets = prepend $extraEnvSecrets $frontendSecretName -}}
 {{- end -}}
 {{- if $serviceValues.enabled }}

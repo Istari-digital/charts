@@ -2,7 +2,6 @@
 {{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
 {{- if and .Values.provisioner.enabled .Values.provisioner.clients.mcp.enabled -}}
 {{- $mcpSecretName := include "provisioner.mcpSecretName" . -}}
-{{- /* Prepended so a consumer's own later entry for the same key wins. */ -}}
 {{- $extraEnvSecrets = prepend $extraEnvSecrets $mcpSecretName -}}
 {{- end -}}
 {{- if $serviceValues.enabled }}

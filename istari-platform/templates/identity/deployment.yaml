@@ -4,7 +4,6 @@
 {{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
 {{- if and .Values.provisioner.enabled (eq (include "provisioner.anyClientEnabled" .) "true") -}}
 {{- $identityPlatformClientsSecretName := include "provisioner.identityPlatformClientsSecretName" . -}}
-{{- /* Prepended so a consumer's own later entry for the same key wins. */ -}}
 {{- $extraEnvSecrets = prepend $extraEnvSecrets $identityPlatformClientsSecretName -}}
 {{- end -}}
 {{- if $serviceValues.enabled }}

@@ -1,11 +1,9 @@
 {{- $serviceValues := .Values.fileservice -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
-{{- /* provisioner's client key here is "registry", not "fileservice" — intentional. */ -}}
 {{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
 {{- if and .Values.provisioner.enabled .Values.provisioner.clients.registry.enabled -}}
 {{- $registrySecretName := include "provisioner.registrySecretName" . -}}
-{{- /* Prepended so a consumer's own later entry for the same key wins. */ -}}
 {{- $extraEnvSecrets = prepend $extraEnvSecrets $registrySecretName -}}
 {{- end -}}
 {{- if $serviceValues.enabled }}
