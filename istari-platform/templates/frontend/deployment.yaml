@@ -1,10 +1,6 @@
 {{- $serviceValues := .Values.frontend -}}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
-{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
-{{- if and .Values.provisioner.enabled .Values.provisioner.clients.frontend.enabled -}}
-{{- $frontendSecretName := include "provisioner.frontendSecretName" . -}}
-{{- $extraEnvSecrets = prepend $extraEnvSecrets $frontendSecretName -}}
-{{- end -}}
+{{- $mountProvisionerSecret := and .Values.provisioner.enabled .Values.provisioner.clients.frontend.enabled -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -68,13 +64,18 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{- if or $gatewayUrl $serviceValues.secretName $extraEnvSecrets $serviceValues.extraEnvConfigMaps }}
+        {{- if or $gatewayUrl $mountProvisionerSecret $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps }}
         envFrom:
         {{- end }}
         {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
         {{- if $gatewayUrl }}
         - configMapRef:
             name: {{ include "frontend.configmap.name" $ | quote }}
+        {{- end }}
+        {{- /* Right after the chart ConfigMap, so every user-supplied source below overrides it. */}}
+        {{- if $mountProvisionerSecret }}
+        - secretRef:
+            name: {{ include "provisioner.frontendSecretName" . | quote }}
         {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
@@ -86,7 +87,7 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $extraEnvSecrets }}
+        {{- with $serviceValues.extraEnvSecrets }}
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}

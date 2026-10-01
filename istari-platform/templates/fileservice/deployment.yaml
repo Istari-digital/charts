@@ -1,11 +1,7 @@
 {{- $serviceValues := .Values.fileservice -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
-{{- $extraEnvSecrets := $serviceValues.extraEnvSecrets -}}
-{{- if and .Values.provisioner.enabled .Values.provisioner.clients.registry.enabled -}}
-{{- $registrySecretName := include "provisioner.registrySecretName" . -}}
-{{- $extraEnvSecrets = prepend $extraEnvSecrets $registrySecretName -}}
-{{- end -}}
+{{- $mountProvisionerSecret := and .Values.provisioner.enabled .Values.provisioner.clients.registry.enabled -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -82,13 +78,18 @@ spec:
           {{- toYaml . | nindent 10 }}
         {{- end }}
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
-        {{- if or $serviceValues.secretName $extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
+        {{- if or $mountProvisionerSecret $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
         envFrom:
         {{- end }}
         {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
         {{- if or $jaegerEnabled $gatewayUrl }}
         - configMapRef:
             name: {{ include "fileservice.configmap.name" . | quote }}
+        {{- end }}
+        {{- /* Right after the chart ConfigMap, so every user-supplied source below overrides it. */}}
+        {{- if $mountProvisionerSecret }}
+        - secretRef:
+            name: {{ include "provisioner.registrySecretName" . | quote }}
         {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
@@ -100,7 +101,7 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $extraEnvSecrets }}
+        {{- with $serviceValues.extraEnvSecrets }}
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
@@ -142,13 +143,17 @@ spec:
         - "alembic"
         - "upgrade"
         - "head"
-        {{- if or $serviceValues.secretName $extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
+        {{- if or $mountProvisionerSecret $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
         envFrom:
         {{- end }}
         {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
         {{- if or $jaegerEnabled $gatewayUrl }}
         - configMapRef:
             name: {{ include "fileservice.configmap.name" . | quote }}
+        {{- end }}
+        {{- if $mountProvisionerSecret }}
+        - secretRef:
+            name: {{ include "provisioner.registrySecretName" . | quote }}
         {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
@@ -160,7 +165,7 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $extraEnvSecrets }}
+        {{- with $serviceValues.extraEnvSecrets }}
         {{- range . }}
         - secretRef:
             name: {{ . | quote }}
