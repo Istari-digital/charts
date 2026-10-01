@@ -479,13 +479,13 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | provisioner.enabled | bool | `false` | Enable / Disable the whole provisioner release. |
 | provisioner.env | list | `[]` | Extra environment variables for the provisioner container. |
 | provisioner.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into the provisioner container. |
-| provisioner.image | string | `"main-docker-local/provisioner"` | Image name. |
+| provisioner.image | string | `"provisioner"` | Image name. |
 | provisioner.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy. |
 | provisioner.imagePullSecrets | list | `[]` | Image pull secrets for the provisioning Job pod. When empty, the chart-wide `imagePullSecrets` apply. |
 | provisioner.nodeSelector | object | `{}` | Node selector for the provisioning Job pod. |
 | provisioner.planOnly | bool | `false` | When true, run `terraform plan` only (no `apply`). |
 | provisioner.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context. The image runs as nonroot (uid 65532) — fsGroup is required so the terraform-work emptyDir it writes `.terraform/` into is group-writable by that user. |
-| provisioner.registry | string | `"istaridigital.jfrog.io"` | Registry URL for the provisioner's image (Istari's own build, published to `main-docker-local`). |
+| provisioner.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for the provisioner's image. |
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
 | provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
 | provisioner.tag | string | `"0.1.0"` | Image tag. |

@@ -880,10 +880,10 @@ identity:
 provisioner:
   # -- Enable / Disable the whole provisioner release.
   enabled: false
-  # -- Registry URL for the provisioner's image (Istari's own build, published to `main-docker-local`).
-  registry: "istaridigital.jfrog.io"
+  # -- Registry URL for the provisioner's image.
+  registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name.
-  image: "main-docker-local/provisioner"
+  image: "provisioner"
   # -- Image tag.
   tag: "0.1.0"
   # -- Image pull policy.
