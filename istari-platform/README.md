@@ -27,7 +27,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 ## API Gateway
 
-The API Gateway (`apiGateway.enabled`, on by default in a release that deploys the whole platform) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
+The API Gateway (`apiGateway.enabled`, off by default) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
 
 Enabling the API Gateway is additive and optional: the existing per-service endpoints keep working unchanged, so you can adopt it at your own pace. Once DNS and TLS for the API host are in place, update each client's configured base URL (the `ISTARI_DIGITAL_API_URL` setting in Istari's client tools) to `https://<your-api-host>` with no path; clients append the `/registry`, `/identity`, … prefixes themselves. Set `apiGateway.apiUrl` to the same value, and the chart configures the deployed services to match: the registry service receives `ISTARI_DIGITAL_API_URL`, the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, and MCP (when `mcp.enabled`) receives the same bare `ISTARI_DIGITAL_API_URL` as of `mcp-service` `0.6.0`. The browser then reaches the registry service through `<your-api-host>/registry`. Before chart 3.31.0 the chart consumed neither variable, and the browser kept addressing the registry service directly no matter how the client tools were configured.
 
@@ -36,24 +36,26 @@ MCP consumes the gateway as a client; the gateway does not serve MCP requests. N
 > [!IMPORTANT]
 > Routing through the gateway and switching authentication to the identity service are **two independent settings**.
 >
-> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, which is on whenever a gateway URL resolves and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients.
+> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, which by default follows `identity.enabled` once a gateway URL resolves: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients.
 
-### Upgrading per-service releases
+### Turning identity-service on
 
-`identity.enabled` and `apiGateway.enabled` are tri-state. Unset (the default) turns each on only when the release deploys the whole platform, that is, `fileservice.enabled` and `frontend.enabled` are both true; a release that disables either one deploys neither. Environments that install one service per release need no change: the identity-service and API Gateway releases set their own `enabled: true`, and every other release leaves both off. A release that deploys only some services and should still run identity-service or the gateway sets `enabled: true` explicitly. A whole-platform release with identity on and neither `provisioner.mainDomain` nor `apiGateway.apiUrl` set fails the render, because identity-service cannot start without the client settings derived from the gateway URL.
-
-To run without identity-service entirely, set:
+identity-service and the API Gateway are off by default; the registry service and the frontend authenticate as before. To turn them on, set both `enabled` flags and a domain (or `apiGateway.apiUrl`) so the gateway URL resolves:
 
 ```yaml
 identity:
-  enabled: false
-  clientIntegration:
-    enabled: false
+  enabled: true
 apiGateway:
-  enabled: false
+  enabled: true
+provisioner:
+  mainDomain: example.com
 ```
 
-The registry and the frontend then run on Zitadel alone. To stay on identity-service but use its v1 API, keep the defaults and set `ISTARI_DIGITAL_IDENTITY_SERVICE_DISCOVERY_API_VERSION=1` on the identity-service, `FILE_SERVICE_FEATURE_FLAGS__IDENTITY_V2_ENABLED=false` on the registry, and `VITE_ISTARI_DIGITAL_IDENTITY_API_VERSION=v1` on the frontend.
+With identity-service on, the registry service, the frontend, and MCP authenticate through it and use its v2 API: `identity.clientIntegration.enabled`, unset by default, is on when `identity.enabled` is true and a gateway URL resolves. A release that deploys the registry and the frontend with `identity.enabled` true and neither `provisioner.mainDomain` nor `apiGateway.apiUrl` set fails the render, because identity-service cannot start without the client settings derived from the gateway URL.
+
+Environments that install one service per release set `identity.enabled: true` and `apiGateway.enabled: true` only in the identity-service and API Gateway releases. Every other release that should authenticate through identity-service sets `identity.clientIntegration.enabled: true` and `apiGateway.apiUrl`, because it cannot see the identity-service another release deploys.
+
+To use identity-service's v1 API instead of v2, set `ISTARI_DIGITAL_IDENTITY_SERVICE_DISCOVERY_API_VERSION=1` on the identity-service, `FILE_SERVICE_FEATURE_FLAGS__IDENTITY_V2_ENABLED=false` on the registry, and `VITE_ISTARI_DIGITAL_IDENTITY_API_VERSION=v1` on the frontend.
 
 Enabling the API Gateway pulls one additional image, `istaridigital.jfrog.io/customer-docker/istaridigital.com/caddy-fips` (the `istaridigital.com` path segment is part of the repository path, not a typo). Air-gapped installations must add it to their image mirror alongside the chart's other images; it uses the same pull credentials.
 
@@ -82,7 +84,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | apiGateway.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | apiGateway.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context. Unlike the other services, the root filesystem is read-only: Caddy only writes to the XDG state dirs, which the chart mounts as emptyDirs. |
 | apiGateway.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
-| apiGateway.enabled | string | `null` (on when fileservice and frontend are both enabled) | Whether this release deploys the API Gateway. (bool/null) Unset (the default) turns it on when this release deploys the whole platform (fileservice and frontend both enabled) and off otherwise, so a per-service release deploys it only where set to true. `true` and `false` are taken as written. |
+| apiGateway.enabled | bool | `false` | Whether this release deploys the API Gateway. Off unless set to `true`. |
 | apiGateway.env | list | `[]` | Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `apiGateway.tracing.enabled`). |
 | apiGateway.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables in the proxy container (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | apiGateway.extraEnvSecrets | list | `[]` | Names of Kubernetes Secrets whose keys become environment variables in the proxy container. Not needed for a standard deployment. (Unlike the other services, the API Gateway has no separate `secretName` — this list is the only Secret mechanism.) |
@@ -335,11 +337,11 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.bootstrap.tenants.provider | string | `"zitadel"` | Upstream IdP provider to enumerate. Only `zitadel` is supported. |
 | identity.bootstrap.tenants.slugPrefix | string | `""` | Prefix for derived tenant slugs. |
 | identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. Stage-style topologies run one release per service, so `enabled` is only ever true in the identity-service's own release — gating client behavior on it directly means the toggle never renders in any consuming release. |
-| identity.clientIntegration.enabled | string | `null` (on when a gateway URL resolves, otherwise off) | Whether clients in THIS release authenticate through the identity-service. A tri-state: `true` and `false` are taken as written; unset (the default) means on whenever a gateway URL resolves (`apiGateway.apiUrl`) and off otherwise, and it is never derived from `identity.enabled`. A release that runs without identity sets both `identity.enabled` and this to `false`; `true` with no gateway URL fails the render. Rendered in BOTH polarities whenever a gateway URL resolves, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set. |
+| identity.clientIntegration.enabled | string | `null` (on when `identity.enabled` is true and a gateway URL resolves, otherwise off) | Whether clients in THIS release authenticate through the identity-service. A tri-state: `true` and `false` are taken as written; unset (the default) means on only when this release deploys the identity-service (`identity.enabled`) and a gateway URL resolves (`apiGateway.apiUrl` or `provisioner.mainDomain`), and off otherwise. A release that consumes an identity-service deployed by another release sets this to `true` explicitly, with `apiGateway.apiUrl`; `true` with no gateway URL fails the render. Rendered in BOTH polarities whenever a gateway URL resolves, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set. |
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | identity.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | identity.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
-| identity.enabled | string | `null` (on when fileservice and frontend are both enabled) | Whether this release deploys the identity-service. (bool/null) Unset (the default) turns it on when this release deploys the whole platform (fileservice and frontend both enabled) and off otherwise, so a per-service release deploys it only where set to true. `true` and `false` are taken as written. When it is on in a whole-platform release, `provisioner.mainDomain` or `apiGateway.apiUrl` must be set, or the render fails; a per-service release can't see a gateway another release deploys, so it is not checked. |
+| identity.enabled | bool | `false` | Whether this release deploys the identity-service. Off unless set to `true`. When it is on in a release that deploys the registry and the frontend, `provisioner.mainDomain` or `apiGateway.apiUrl` must be set, or the render fails; a per-service release can't see a gateway another release deploys, so it is not checked. Turning it on also needs `apiGateway.enabled` in the same release, or a gateway deployed by another. |
 | identity.env | list | `[]` |  |
 | identity.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | identity.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
@@ -529,15 +531,15 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | provisioner.backoffLimit | int | `6` | `spec.backoffLimit` for the provisioning Job. |
 | provisioner.clients | object | (see fields below) | Which clients to provision, and their per-client settings. |
 | provisioner.clients.frontend | object | `{"enabled":null,"extraRedirectUris":[],"redirectUri":""}` | Frontend (`kind: public` / PKCE) — a generated client_id and a redirect allowlist. |
-| provisioner.clients.frontend.enabled | string | unset (follows identity client integration) | Whether to generate and register the frontend client. Unset (the default) follows `identity.clientIntegration`, so it turns on once a gateway URL resolves; existing credentials are reused. |
+| provisioner.clients.frontend.enabled | string | unset (follows identity client integration) | Whether to generate and register the frontend client. Unset (the default) follows `identity.clientIntegration`, so it is off unless identity-service is on (or `identity.clientIntegration.enabled` is true); existing credentials are reused. |
 | provisioner.clients.frontend.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
 | provisioner.clients.frontend.redirectUri | string | `""` | Explicit redirect URI. Overrides the derivation from the frontend's hosts or `mainDomain`. |
 | provisioner.clients.mcp | object | `{"enabled":null,"extraRedirectUris":[],"redirectUri":""}` | MCP service (`kind: public` / PKCE) — a generated client_id, a placeholder client_secret, and a redirect allowlist. |
-| provisioner.clients.mcp.enabled | string | unset (follows identity client integration) | Whether to generate and register the mcp client. Unset (the default) follows `identity.clientIntegration`, so it turns on once a gateway URL resolves; existing credentials are reused. |
+| provisioner.clients.mcp.enabled | string | unset (follows identity client integration) | Whether to generate and register the mcp client. Unset (the default) follows `identity.clientIntegration`, so it is off unless identity-service is on (or `identity.clientIntegration.enabled` is true); existing credentials are reused. |
 | provisioner.clients.mcp.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
 | provisioner.clients.mcp.redirectUri | string | `""` | Explicit redirect URI. Overrides the derivation from MCP's hosts or `mainDomain`. |
 | provisioner.clients.registry | object | `{"enabled":null}` | Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair and a generated client_id. |
-| provisioner.clients.registry.enabled | string | unset (follows identity client integration) | Whether to generate and register the registry client. Unset (the default) follows `identity.clientIntegration`, so it turns on once a gateway URL resolves; existing credentials are reused. |
+| provisioner.clients.registry.enabled | string | unset (follows identity client integration) | Whether to generate and register the registry client. Unset (the default) follows `identity.clientIntegration`, so it is off unless identity-service is on (or `identity.clientIntegration.enabled` is true); existing credentials are reused. |
 | provisioner.commonLabels | object | `{}` | Additional labels to add to all of this component's resources |
 | provisioner.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Provisioner container's security context. |
 | provisioner.enabled | string | unset (follows identity-service) | Whether to run the provisioner Job. Unset (the default) runs it in the release that deploys identity-service and nowhere else, so a one-release-per-service install runs it once; `true` or `false` is taken as written. Also requires at least one `clients.*.enabled`. Other releases only need `clients.*.enabled` to pick up that client's Secret, which they mount as optional. |

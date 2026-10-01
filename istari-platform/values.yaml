@@ -627,14 +627,14 @@ secureConnection:
 
 # Default values for Identity Service.
 identity:
-  # -- Whether this release deploys the identity-service. (bool/null) Unset (the default) turns it on when this release deploys the whole platform (fileservice and frontend both enabled) and off otherwise, so a per-service release deploys it only where set to true. `true` and `false` are taken as written. When it is on in a whole-platform release, `provisioner.mainDomain` or `apiGateway.apiUrl` must be set, or the render fails; a per-service release can't see a gateway another release deploys, so it is not checked.
-  # @default -- `null` (on when fileservice and frontend are both enabled)
-  enabled: null
+  # -- Whether this release deploys the identity-service. Off unless set to `true`. When it is on in a release that deploys the registry and the frontend, `provisioner.mainDomain` or `apiGateway.apiUrl` must be set, or the render fails; a per-service release can't see a gateway another release deploys, so it is not checked. Turning it on also needs `apiGateway.enabled` in the same release, or a gateway deployed by another.
+  # @default -- `false`
+  enabled: false
   # -- Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. Stage-style topologies run one release per service, so `enabled` is only ever true in the identity-service's own release — gating client behavior on it directly means the toggle never renders in any consuming release.
   # @default -- (see fields below)
   clientIntegration:
-    # -- Whether clients in THIS release authenticate through the identity-service. A tri-state: `true` and `false` are taken as written; unset (the default) means on whenever a gateway URL resolves (`apiGateway.apiUrl`) and off otherwise, and it is never derived from `identity.enabled`. A release that runs without identity sets both `identity.enabled` and this to `false`; `true` with no gateway URL fails the render. Rendered in BOTH polarities whenever a gateway URL resolves, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set.
-    # @default -- `null` (on when a gateway URL resolves, otherwise off)
+    # -- Whether clients in THIS release authenticate through the identity-service. A tri-state: `true` and `false` are taken as written; unset (the default) means on only when this release deploys the identity-service (`identity.enabled`) and a gateway URL resolves (`apiGateway.apiUrl` or `provisioner.mainDomain`), and off otherwise. A release that consumes an identity-service deployed by another release sets this to `true` explicitly, with `apiGateway.apiUrl`; `true` with no gateway URL fails the render. Rendered in BOTH polarities whenever a gateway URL resolves, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set.
+    # @default -- `null` (on when `identity.enabled` is true and a gateway URL resolves, otherwise off)
     enabled: null
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"
@@ -1090,12 +1090,12 @@ provisioner:
     # -- Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair and a generated
     # client_id.
     registry:
-      # -- Whether to generate and register the registry client. Unset (the default) follows `identity.clientIntegration`, so it turns on once a gateway URL resolves; existing credentials are reused.
+      # -- Whether to generate and register the registry client. Unset (the default) follows `identity.clientIntegration`, so it is off unless identity-service is on (or `identity.clientIntegration.enabled` is true); existing credentials are reused.
       # @default -- unset (follows identity client integration)
       enabled: null
     # -- Frontend (`kind: public` / PKCE) — a generated client_id and a redirect allowlist.
     frontend:
-      # -- Whether to generate and register the frontend client. Unset (the default) follows `identity.clientIntegration`, so it turns on once a gateway URL resolves; existing credentials are reused.
+      # -- Whether to generate and register the frontend client. Unset (the default) follows `identity.clientIntegration`, so it is off unless identity-service is on (or `identity.clientIntegration.enabled` is true); existing credentials are reused.
       # @default -- unset (follows identity client integration)
       enabled: null
       # -- Explicit redirect URI. Overrides the derivation from the frontend's hosts or `mainDomain`.
@@ -1105,7 +1105,7 @@ provisioner:
     # -- MCP service (`kind: public` / PKCE) — a generated client_id, a placeholder client_secret,
     # and a redirect allowlist.
     mcp:
-      # -- Whether to generate and register the mcp client. Unset (the default) follows `identity.clientIntegration`, so it turns on once a gateway URL resolves; existing credentials are reused.
+      # -- Whether to generate and register the mcp client. Unset (the default) follows `identity.clientIntegration`, so it is off unless identity-service is on (or `identity.clientIntegration.enabled` is true); existing credentials are reused.
       # @default -- unset (follows identity client integration)
       enabled: null
       # -- Explicit redirect URI. Overrides the derivation from MCP's hosts or `mainDomain`.
@@ -1254,9 +1254,9 @@ docs:
 # change in a future release; such a change will never require values changes beyond
 # `registry`/`image`/`tag`.
 apiGateway:
-  # -- Whether this release deploys the API Gateway. (bool/null) Unset (the default) turns it on when this release deploys the whole platform (fileservice and frontend both enabled) and off otherwise, so a per-service release deploys it only where set to true. `true` and `false` are taken as written.
-  # @default -- `null` (on when fileservice and frontend are both enabled)
-  enabled: null
+  # -- Whether this release deploys the API Gateway. Off unless set to `true`.
+  # @default -- `false`
+  enabled: false
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS Caddy variant in the Istari customer-docker JFrog repo, pulled with the same credentials as the rest of the chart. The `istaridigital.com/` path segment is part of the repository path — not a typo.

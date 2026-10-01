@@ -228,7 +228,7 @@ stay in sync across web, init, and migration workloads.
 {{- end }}
 
 {{/*
-Resolved API Gateway base URL, or "" when the gateway contract is off: apiGateway.apiUrl, else
+Resolved API Gateway base URL, or "" when none is configured: apiGateway.apiUrl, else
 https://api.<provisioner.mainDomain>, so one domain value serves both. Trailing slashes are stripped.
 */}}
 {{- define "istari-platform.apiGatewayUrl" -}}
@@ -243,41 +243,27 @@ https://api.<provisioner.mainDomain>, so one domain value serves both. Trailing 
 {{- end }}
 
 {{/*
-Whether this release deploys the identity-service, as "true" or "". identity.enabled is a tri-state:
-true and false are taken as written; unset (the default) means on only when this release deploys
-the whole platform, that is, fileservice and frontend are both enabled. `kindIs "bool"` keeps an
-explicit false from being read as unset.
+Whether this release deploys the identity-service, as "true" or "". Off unless identity.enabled is true.
 */}}
 {{- define "istari-platform.identityEnabled" -}}
-{{- $v := .Values.identity.enabled -}}
-{{- if kindIs "bool" $v -}}
-{{- if $v -}}true{{- end -}}
-{{- else if and .Values.fileservice.enabled .Values.frontend.enabled -}}true
-{{- end -}}
+{{- if eq (toString .Values.identity.enabled) "true" -}}true{{- end -}}
 {{- end }}
 
 {{/*
-Whether this release deploys the API Gateway, as "true" or "". Same tri-state rule as
-istari-platform.identityEnabled, read from apiGateway.enabled.
+Whether this release deploys the API Gateway, as "true" or "". Off unless apiGateway.enabled is true.
 */}}
 {{- define "istari-platform.apiGatewayEnabled" -}}
-{{- $v := .Values.apiGateway.enabled -}}
-{{- if kindIs "bool" $v -}}
-{{- if $v -}}true{{- end -}}
-{{- else if and .Values.fileservice.enabled .Values.frontend.enabled -}}true
-{{- end -}}
+{{- if eq (toString .Values.apiGateway.enabled) "true" -}}true{{- end -}}
 {{- end }}
 
 {{/*
-Whether clients in this release authenticate through the identity-service, as the string "true" or
-"false". identity.clientIntegration.enabled is a tri-state: true and false are taken as written, and
-unset (the default) means on whenever a gateway URL resolves and off otherwise, so a bare render is
-valid and an environment that sets apiGateway.apiUrl gets identity clients.
+Whether clients here use the identity-service, as "true" or "false": identity.clientIntegration.enabled
+as written, else true only when identity.enabled is true and a gateway URL resolves.
 */}}
 {{- define "istari-platform.identityClientIntegration" -}}
 {{- $v := dig "clientIntegration" "enabled" "auto" .Values.identity -}}
 {{- if eq (toString $v) "auto" -}}
-{{- if include "istari-platform.apiGatewayUrl" . -}}true{{- else -}}false{{- end -}}
+{{- if and (include "istari-platform.identityEnabled" .) (include "istari-platform.apiGatewayUrl" .) -}}true{{- else -}}false{{- end -}}
 {{- else -}}
 {{- toString $v -}}
 {{- end -}}

@@ -26,7 +26,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 ## API Gateway
 
-The API Gateway (`apiGateway.enabled`, on by default in a release that deploys the whole platform) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
+The API Gateway (`apiGateway.enabled`, off by default) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
 
 Enabling the API Gateway is additive and optional: the existing per-service endpoints keep working unchanged, so you can adopt it at your own pace. Once DNS and TLS for the API host are in place, update each client's configured base URL (the `ISTARI_DIGITAL_API_URL` setting in Istari's client tools) to `https://<your-api-host>` with no path; clients append the `/registry`, `/identity`, … prefixes themselves. Set `apiGateway.apiUrl` to the same value, and the chart configures the deployed services to match: the registry service receives `ISTARI_DIGITAL_API_URL`, the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, and MCP (when `mcp.enabled`) receives the same bare `ISTARI_DIGITAL_API_URL` as of `mcp-service` `0.6.0`. The browser then reaches the registry service through `<your-api-host>/registry`. Before chart 3.31.0 the chart consumed neither variable, and the browser kept addressing the registry service directly no matter how the client tools were configured.
 
@@ -35,24 +35,26 @@ MCP consumes the gateway as a client; the gateway does not serve MCP requests. N
 > [!IMPORTANT]
 > Routing through the gateway and switching authentication to the identity service are **two independent settings**.
 >
-> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, which is on whenever a gateway URL resolves and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients.
+> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, which by default follows `identity.enabled` once a gateway URL resolves: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients.
 
-### Upgrading per-service releases
+### Turning identity-service on
 
-`identity.enabled` and `apiGateway.enabled` are tri-state. Unset (the default) turns each on only when the release deploys the whole platform, that is, `fileservice.enabled` and `frontend.enabled` are both true; a release that disables either one deploys neither. Environments that install one service per release need no change: the identity-service and API Gateway releases set their own `enabled: true`, and every other release leaves both off. A release that deploys only some services and should still run identity-service or the gateway sets `enabled: true` explicitly. A whole-platform release with identity on and neither `provisioner.mainDomain` nor `apiGateway.apiUrl` set fails the render, because identity-service cannot start without the client settings derived from the gateway URL.
-
-To run without identity-service entirely, set:
+identity-service and the API Gateway are off by default; the registry service and the frontend authenticate as before. To turn them on, set both `enabled` flags and a domain (or `apiGateway.apiUrl`) so the gateway URL resolves:
 
 ```yaml
 identity:
-  enabled: false
-  clientIntegration:
-    enabled: false
+  enabled: true
 apiGateway:
-  enabled: false
+  enabled: true
+provisioner:
+  mainDomain: example.com
 ```
 
-The registry and the frontend then run on Zitadel alone. To stay on identity-service but use its v1 API, keep the defaults and set `ISTARI_DIGITAL_IDENTITY_SERVICE_DISCOVERY_API_VERSION=1` on the identity-service, `FILE_SERVICE_FEATURE_FLAGS__IDENTITY_V2_ENABLED=false` on the registry, and `VITE_ISTARI_DIGITAL_IDENTITY_API_VERSION=v1` on the frontend.
+With identity-service on, the registry service, the frontend, and MCP authenticate through it and use its v2 API: `identity.clientIntegration.enabled`, unset by default, is on when `identity.enabled` is true and a gateway URL resolves. A release that deploys the registry and the frontend with `identity.enabled` true and neither `provisioner.mainDomain` nor `apiGateway.apiUrl` set fails the render, because identity-service cannot start without the client settings derived from the gateway URL.
+
+Environments that install one service per release set `identity.enabled: true` and `apiGateway.enabled: true` only in the identity-service and API Gateway releases. Every other release that should authenticate through identity-service sets `identity.clientIntegration.enabled: true` and `apiGateway.apiUrl`, because it cannot see the identity-service another release deploys.
+
+To use identity-service's v1 API instead of v2, set `ISTARI_DIGITAL_IDENTITY_SERVICE_DISCOVERY_API_VERSION=1` on the identity-service, `FILE_SERVICE_FEATURE_FLAGS__IDENTITY_V2_ENABLED=false` on the registry, and `VITE_ISTARI_DIGITAL_IDENTITY_API_VERSION=v1` on the frontend.
 
 Enabling the API Gateway pulls one additional image, `istaridigital.jfrog.io/customer-docker/istaridigital.com/caddy-fips` (the `istaridigital.com` path segment is part of the repository path, not a typo). Air-gapped installations must add it to their image mirror alongside the chart's other images; it uses the same pull credentials.
 
