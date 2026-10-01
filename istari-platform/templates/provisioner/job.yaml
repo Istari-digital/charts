@@ -4,21 +4,21 @@
 {{- $identityServiceUrl := "" }}
 {{- if $gatewayUrl }}{{- $identityServiceUrl = printf "%s/identity" $gatewayUrl }}{{- end }}
 {{- $tfVars := list
-  (dict "name" "TF_VAR_namespace" "value" .Release.Namespace)
   (dict "name" "TF_VAR_common_labels" "value" (include "provisioner.labels" . | fromYaml | toJson))
-  (dict "name" "TF_VAR_registry_enabled" "value" ($p.clients.registry.enabled | toString))
   (dict "name" "TF_VAR_frontend_enabled" "value" ($p.clients.frontend.enabled | toString))
-  (dict "name" "TF_VAR_mcp_enabled" "value" ($p.clients.mcp.enabled | toString))
-  (dict "name" "TF_VAR_registry_secret_name" "value" (include "provisioner.registrySecretName" .))
-  (dict "name" "TF_VAR_frontend_secret_name" "value" (include "provisioner.frontendSecretName" .))
-  (dict "name" "TF_VAR_mcp_secret_name" "value" (include "provisioner.mcpSecretName" .))
-  (dict "name" "TF_VAR_identity_platform_clients_secret_name" "value" (include "provisioner.identityPlatformClientsSecretName" .))
-  (dict "name" "TF_VAR_main_domain" "value" .Values.common.mainDomain)
-  (dict "name" "TF_VAR_identity_service_url" "value" $identityServiceUrl)
-  (dict "name" "TF_VAR_frontend_redirect_uri" "value" $p.clients.frontend.redirectUri)
   (dict "name" "TF_VAR_frontend_extra_redirect_uris" "value" ($p.clients.frontend.extraRedirectUris | toJson))
-  (dict "name" "TF_VAR_mcp_redirect_uri" "value" $p.clients.mcp.redirectUri)
+  (dict "name" "TF_VAR_frontend_redirect_uri" "value" $p.clients.frontend.redirectUri)
+  (dict "name" "TF_VAR_frontend_secret_name" "value" (include "provisioner.frontendSecretName" .))
+  (dict "name" "TF_VAR_identity_platform_clients_secret_name" "value" (include "provisioner.identityPlatformClientsSecretName" .))
+  (dict "name" "TF_VAR_identity_service_url" "value" $identityServiceUrl)
+  (dict "name" "TF_VAR_main_domain" "value" .Values.common.mainDomain)
+  (dict "name" "TF_VAR_mcp_enabled" "value" ($p.clients.mcp.enabled | toString))
   (dict "name" "TF_VAR_mcp_extra_redirect_uris" "value" ($p.clients.mcp.extraRedirectUris | toJson))
+  (dict "name" "TF_VAR_mcp_redirect_uri" "value" $p.clients.mcp.redirectUri)
+  (dict "name" "TF_VAR_mcp_secret_name" "value" (include "provisioner.mcpSecretName" .))
+  (dict "name" "TF_VAR_namespace" "value" .Release.Namespace)
+  (dict "name" "TF_VAR_registry_enabled" "value" ($p.clients.registry.enabled | toString))
+  (dict "name" "TF_VAR_registry_secret_name" "value" (include "provisioner.registrySecretName" .))
 -}}
 apiVersion: batch/v1
 kind: Job
