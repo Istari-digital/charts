@@ -1,7 +1,0 @@
-{{- /*
-No leading underscore -- this file renders (and its `fail`s run) on every release, unlike a
-`_helpers.tpl` define. Emits no manifest.
-*/}}
-{{- if and (dig "clientIntegration" "enabled" false .Values.identity) (not (include "istari-platform.apiGatewayUrl" .)) }}
-{{- fail "identity.clientIntegration.enabled is true but no gateway URL resolves — set apiGateway.apiUrl so the registry service, the frontend, and MCP have a gateway to authenticate through" }}
-{{- end }}

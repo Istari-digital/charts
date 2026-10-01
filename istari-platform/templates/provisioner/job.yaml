@@ -1,5 +1,5 @@
-{{- if and .Values.identity.enabled (eq (include "provisioner.anyClientEnabled" .) "true") }}
-{{- $p := .Values.identity.provisioner }}
+{{- if and .Values.provisioner.enabled (eq (include "provisioner.anyClientEnabled" .) "true") }}
+{{- $p := .Values.provisioner }}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . }}
 {{- /* Empty, not "/identity", when the gateway is off -- lets Terraform's own precondition catch it. */}}
 {{- $identityServiceUrl := "" }}
@@ -52,7 +52,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       # The image has no shell -- exec-form args only. init/apply are separate containers, not a
-      # shell script; plan-vs-apply is chosen at render time (identity.provisioner.planOnly).
+      # shell script; plan-vs-apply is chosen at render time (provisioner.planOnly).
       initContainers:
       - name: terraform-init
         image: {{ printf "%s/%s:%s" $p.registry $p.image $p.tag | quote }}

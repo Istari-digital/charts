@@ -3,11 +3,11 @@
    normal case) -- it's nil-safety: an overlay that explicitly sets extraEnvSecrets: null would
    otherwise pass nil into `has`/`append` below and abort rendering. */ -}}
 {{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
-{{- if .Values.identity.provisioner.clients.mcp.enabled -}}
+{{- if and .Values.provisioner.enabled .Values.provisioner.clients.mcp.enabled -}}
 {{- $mcpSecretName := include "provisioner.mcpSecretName" . -}}
-{{- /* Unconditional remove-then-append: guarantees this is always last (wins on a duplicate
-   key), even if the user's own extraEnvSecrets already happens to list this name earlier. */ -}}
-{{- $extraEnvSecrets = append (without $extraEnvSecrets $mcpSecretName) $mcpSecretName -}}
+{{- /* Prepended, not appended: an overlay's own extraEnvSecrets listing the same key later
+   wins on purpose -- that's the overlay's call, not the chart's. */ -}}
+{{- $extraEnvSecrets = prepend $extraEnvSecrets $mcpSecretName -}}
 {{- end -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
@@ -76,10 +76,9 @@ spec:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
         'mcp.extraEnvConfigMaps', 'mcp.secretName', 'mcp.extraEnvSecrets', and 'mcp.env' will always
-        override them -- EXCEPT the provisioner's generated Secret (appended to $extraEnvSecrets
-        above, when provisioner.clients.mcp.enabled), which is deliberately LAST/authoritative:
-        it's the freshly-generated credential, and a stale unrelated user value should not
-        silently shadow it.
+        override them -- the provisioner's generated Secret (prepended to $extraEnvSecrets above,
+        when provisioner.enabled and provisioner.clients.mcp.enabled) is the one exception, listed first: a consumer's
+        own extraEnvSecrets can still list the same key later and win, by their own choice.
         */}}
         - configMapRef:
             name: {{ include "mcp.configmap.name" . | quote }}

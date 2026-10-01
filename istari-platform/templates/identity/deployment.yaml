@@ -5,13 +5,11 @@
    normal case) -- it's nil-safety: an overlay that explicitly sets extraEnvSecrets: null would
    otherwise pass nil into `without`/`append` below and abort rendering. */ -}}
 {{- $extraEnvSecrets := $serviceValues.extraEnvSecrets | default list -}}
-{{- if eq (include "provisioner.anyClientEnabled" .) "true" -}}
+{{- if and .Values.provisioner.enabled (eq (include "provisioner.anyClientEnabled" .) "true") -}}
 {{- $identityPlatformClientsSecretName := include "provisioner.identityPlatformClientsSecretName" . -}}
-{{- /* Unconditional remove-then-append: guarantees this is always last (wins on a duplicate
-   key), even if an overlay's own extraEnvSecrets already happens to list this name earlier --
-   and, unlike the other three services, removes the silent-drop risk of relying on every
-   overlay to manually relist it (Helm replaces lists on override, it never merges them). */ -}}
-{{- $extraEnvSecrets = append (without $extraEnvSecrets $identityPlatformClientsSecretName) $identityPlatformClientsSecretName -}}
+{{- /* Prepended, not appended: an overlay's own extraEnvSecrets listing the same key later
+   wins on purpose -- that's the overlay's call, not the chart's. */ -}}
+{{- $extraEnvSecrets = prepend $extraEnvSecrets $identityPlatformClientsSecretName -}}
 {{- end -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
@@ -92,9 +90,9 @@ spec:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
         'identity.extraEnvConfigMaps', 'identity.secretName', 'identity.extraEnvSecrets', and 'identity.env' will always override them
-        -- EXCEPT the provisioner's identity-facing Secret (appended to $extraEnvSecrets above,
-        when provisioner.anyClientEnabled), which is deliberately LAST/authoritative and not
-        overlay-droppable, same as the registry/frontend/mcp Secrets in their own deployments.
+        -- the provisioner's identity-facing Secret (prepended to $extraEnvSecrets above, when
+        provisioner.enabled and provisioner.anyClientEnabled) is the one exception, listed first: a consumer's own
+        extraEnvSecrets can still list the same key later and win, by their own choice.
         */}}
         - configMapRef:
             name: {{ include "identity.configmap.name" . | quote }}

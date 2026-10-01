@@ -46,9 +46,8 @@ istari-provisioner-mcp-credentials
 {{/*
 Secret carrying the env vars identity-service reads at startup to self-register
 registry/frontend/mcp (identity-service#194). Auto-appended to identity's own extraEnvSecrets
-by templates/identity/deployment.yaml whenever provisioner.anyClientEnabled -- unlike
-registry/frontend/mcp's own Secrets (which each need release-side wiring since they're consumed
-across releases), this one is entirely internal to identity's own release.
+by templates/identity/deployment.yaml whenever provisioner.anyClientEnabled, the same way
+registry/frontend/mcp's own Secrets are auto-appended into their consumers.
 */}}
 {{- define "provisioner.identityPlatformClientsSecretName" -}}
 istari-provisioner-identity-platform-clients
@@ -58,7 +57,7 @@ istari-provisioner-identity-platform-clients
 Whether at least one client is enabled. Returns "true" or "".
 */}}
 {{- define "provisioner.anyClientEnabled" -}}
-{{- $c := .Values.identity.provisioner.clients -}}
+{{- $c := .Values.provisioner.clients -}}
 {{- if or $c.registry.enabled $c.frontend.enabled $c.mcp.enabled -}}
 true
 {{- end -}}

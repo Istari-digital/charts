@@ -14,7 +14,7 @@ imagePullSecrets:
 # -- Chart-wide settings shared across services.
 # @default -- (see fields below)
 common:
-  # -- Base domain `identity.provisioner` derives frontend/mcp redirect URIs from. Required unless
+  # -- Base domain `provisioner` derives frontend/mcp redirect URIs from. Required unless
   # each enabled client sets its own `redirectUri`.
   mainDomain: ""
 
@@ -808,88 +808,6 @@ identity:
     env: []
     # -- Agents to provision, one Job each. All inputs are read from env vars supplied via `envFrom` (`identity.secretName` + `agentRegistration.extraEnvSecrets`); the fields below name those env vars. Fields per entry: `name` (required; used in the Job name and the `istari.digital/agent` label, so it must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, at most 63 characters); `tenantSlug` (required, Identity Service tenant the agent belongs to); `keyEnv` (required, the env var holding the base64-encoded public-only agent credential blob); `tenantDisplayName` (optional human-readable tenant name); `providerName` + `providerTenantIdEnv` (optional, supplied together; `providerName` is the upstream IdP name e.g. `zitadel` and `providerTenantIdEnv` names the env var holding the upstream org id — maps the tenant to the upstream org so the agent's token carries the resourceowner for Zitadel-namespaced role lookups); `usernameEnv` (optional, names the env var holding the upstream user id — binds the agent to a pre-existing IdP identity, e.g. the secure-connection-service's `rss_service_user` grant); `displayName` (optional agent name claim). An env var that is absent/empty makes the CLI skip that piece (register-agent no-ops; create-tenant skips the mapping).
     agents: []
-  # -- Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job
-  # hook that generates registry/frontend/mcp credentials and publishes them for identity to read
-  # at startup (identity-service#194). Not for secure-connection-service (see `agentRegistration`).
-  # No enable flag: renders whenever `identity.enabled` and at least one `clients.*.enabled` are true.
-  # @default -- (see fields below)
-  provisioner:
-    # -- Registry URL for the provisioner's image (Istari's own build, published to `main-docker-local`).
-    registry: "istaridigital.jfrog.io"
-    # -- Image name.
-    image: "main-docker-local/provisioner"
-    # -- Image tag.
-    tag: "0.1.0"
-    # -- Image pull policy.
-    imagePullPolicy: IfNotPresent
-    # -- When true, run `terraform plan` only (no `apply`).
-    planOnly: false
-    # -- `spec.backoffLimit` for the provisioning Job.
-    backoffLimit: 6
-    # -- Automatically clean up the successful provisioning Job (`hook-succeeded`).
-    autoCleanupSuccessfulJob: true
-    # -- Extra environment variables for the provisioner container.
-    env: []
-    # -- Extra secrets to mount (via `envFrom`) into the provisioner container.
-    extraEnvSecrets: []
-    # -- Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation.
-    serviceAccountAnnotations: {}
-    # -- Pod security context. The image runs as nonroot (uid 65532) — fsGroup is required so the
-    # terraform-work emptyDir it writes `.terraform/` into is group-writable by that user.
-    podSecurityContext:
-      fsGroup: 65532
-    # -- Provisioner container's security context.
-    containerSecurityContext:
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-        - ALL
-      readOnlyRootFilesystem: false
-      runAsNonRoot: true
-      runAsUser: 65532
-    # -- Additional labels to add to all of this component's resources
-    commonLabels: {}
-    # -- Resources for the provisioner container.
-    resources: {}
-    # -- Node selector for the provisioning Job pod.
-    nodeSelector: {}
-    # -- Affinity for the provisioning Job pod.
-    affinity: {}
-    # -- Tolerations for the provisioning Job pod.
-    tolerations: []
-    # -- Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no
-    # external cloud state infra.
-    # @default -- (see fields below)
-    backend:
-      # -- Suffix for the state Secret's name — the Secret (and its Lease lock) is named
-      # `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Must not
-      # end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index.
-      secretSuffix: "istari-provisioner-terraform-state"
-    # -- Which clients to provision, and their per-client settings.
-    # @default -- (see fields below)
-    clients:
-      # -- Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair under the fixed
-      # client id `registry`.
-      registry:
-        # -- Whether to generate and register the registry client.
-        enabled: false
-      # -- Frontend (`kind: public` / PKCE) — the fixed client id `frontend` and a redirect allowlist.
-      frontend:
-        # -- Whether to generate and register the frontend client.
-        enabled: false
-        # -- Explicit redirect URI. Overrides the `common.mainDomain` derivation.
-        redirectUri: ""
-        # -- Additional redirect URIs appended to whichever URI was resolved above.
-        extraRedirectUris: []
-      # -- MCP service (`kind: public` / PKCE) — the fixed client id `mcp`, a placeholder
-      # client_secret, and a redirect allowlist.
-      mcp:
-        # -- Whether to generate and register the mcp client.
-        enabled: false
-        # -- Explicit redirect URI. Overrides the `common.mainDomain` derivation.
-        redirectUri: ""
-        # -- Additional redirect URIs appended to whichever URI was resolved above.
-        extraRedirectUris: []
   # -- One-shot Helm `pre-upgrade` hook that migrates an existing deployment from its current upstream IdP (e.g. Zitadel) to a new one (e.g. Keycloak). Runs the `migrate-idp` orchestrator (tenants → roles → users) once, before the identity Deployment rolls onto the new IdP. Idempotent and additive — safe to leave enabled across upgrades (a no-op once migrated). Requires `identity.migrations.runAsJob=true` (so the schema Job runs first, weight 5, before this weight-10 hook); rendering fails fast otherwise.
   # @default -- (see fields below)
   idpMigration:
@@ -954,6 +872,94 @@ identity:
     - identity.example.com
     # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
     gateways: []
+
+# -- Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job
+# hook that generates registry/frontend/mcp credentials and publishes them for identity to read
+# at startup (identity-service#194). Not for secure-connection-service (see `identity.agentRegistration`).
+# @default -- (see fields below)
+provisioner:
+  # -- Enable / Disable the whole provisioner release.
+  enabled: false
+  # -- Registry URL for the provisioner's image (Istari's own build, published to `main-docker-local`).
+  registry: "istaridigital.jfrog.io"
+  # -- Image name.
+  image: "main-docker-local/provisioner"
+  # -- Image tag.
+  tag: "0.1.0"
+  # -- Image pull policy.
+  imagePullPolicy: IfNotPresent
+  # -- When true, run `terraform plan` only (no `apply`).
+  planOnly: false
+  # -- `spec.backoffLimit` for the provisioning Job.
+  backoffLimit: 6
+  # -- Automatically clean up the successful provisioning Job (`hook-succeeded`).
+  autoCleanupSuccessfulJob: true
+  # -- Extra environment variables for the provisioner container.
+  env: []
+  # -- Extra secrets to mount (via `envFrom`) into the provisioner container.
+  extraEnvSecrets: []
+  # -- Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation.
+  serviceAccountAnnotations: {}
+  # -- Pod security context. The image runs as nonroot (uid 65532) — fsGroup is required so the
+  # terraform-work emptyDir it writes `.terraform/` into is group-writable by that user.
+  podSecurityContext:
+    fsGroup: 65532
+  # -- Provisioner container's security context.
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 65532
+  # -- Additional labels to add to all of this component's resources
+  commonLabels: {}
+  # -- Resources for the provisioner container.
+  resources: {}
+  # -- Node selector for the provisioning Job pod.
+  nodeSelector: {}
+  # -- Affinity for the provisioning Job pod.
+  affinity: {}
+  # -- Tolerations for the provisioning Job pod.
+  tolerations: []
+  # -- Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no
+  # external cloud state infra.
+  # @default -- (see fields below)
+  backend:
+    # -- Suffix for the state Secret's name — the Secret (and its Lease lock) is named
+    # `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Must not
+    # end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index.
+    secretSuffix: "istari-provisioner-terraform-state"
+  # -- Which clients to provision, and their per-client settings.
+  # @default -- (see fields below)
+  clients:
+    # -- Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair under the fixed
+    # client id `registry`.
+    registry:
+      # -- Whether to generate and register the registry client. Defaults true: enabling the
+      # provisioner registers everything by default, so turning off one client is an explicit
+      # opt-out. Consumers mount the generated Secret only when `provisioner.enabled` is also true
+      # (a single release with everything enabled); a consumer deployed as a separate release
+      # lists the Secret in its own `extraEnvSecrets` instead.
+      enabled: true
+    # -- Frontend (`kind: public` / PKCE) — the fixed client id `frontend` and a redirect allowlist.
+    frontend:
+      # -- Whether to generate and register the frontend client. Defaults true, see `registry.enabled`.
+      enabled: true
+      # -- Explicit redirect URI. Overrides the `common.mainDomain` derivation.
+      redirectUri: ""
+      # -- Additional redirect URIs appended to whichever URI was resolved above.
+      extraRedirectUris: []
+    # -- MCP service (`kind: public` / PKCE) — the fixed client id `mcp`, a placeholder
+    # client_secret, and a redirect allowlist.
+    mcp:
+      # -- Whether to generate and register the mcp client. Defaults true, see `registry.enabled`.
+      enabled: true
+      # -- Explicit redirect URI. Overrides the `common.mainDomain` derivation.
+      redirectUri: ""
+      # -- Additional redirect URIs appended to whichever URI was resolved above.
+      extraRedirectUris: []
 
 # Default values for Istari Digital Documentation. This should only be used in airgapped environments.
 docs:

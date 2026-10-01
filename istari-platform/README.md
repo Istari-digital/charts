@@ -109,7 +109,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | apiGateway.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | apiGateway.volumes | list | `[]` | Pod Volumes |
 | common | object | (see fields below) | Chart-wide settings shared across services. |
-| common.mainDomain | string | `""` | Base domain `identity.provisioner` derives frontend/mcp redirect URIs from. Required unless each enabled client sets its own `redirectUri`. |
+| common.mainDomain | string | `""` | Base domain `provisioner` derives frontend/mcp redirect URIs from. Required unless each enabled client sets its own `redirectUri`. |
 | commonLabels | object | `{}` | Additional labels to add to all resources of all services |
 | dgraph-sec.alpha.acl.bootstrap.enabled | bool | `false` | Run the ACL bootstrap/reconciler Job. |
 | dgraph-sec.alpha.acl.bootstrap.existingSecret | string | `""` | Secret holding groot and user passwords for the bootstrap Job. |
@@ -358,37 +358,6 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | identity.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | identity.podLabels | object | `{}` | Additional labels to add to pods |
 | identity.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
-| identity.provisioner | object | (see fields below) | Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job hook that generates registry/frontend/mcp credentials and publishes them for identity to read at startup (identity-service#194). Not for secure-connection-service (see `agentRegistration`). No enable flag: renders whenever `identity.enabled` and at least one `clients.*.enabled` are true. |
-| identity.provisioner.affinity | object | `{}` | Affinity for the provisioning Job pod. |
-| identity.provisioner.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful provisioning Job (`hook-succeeded`). |
-| identity.provisioner.backend | object | (see fields below) | Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no external cloud state infra. |
-| identity.provisioner.backend.secretSuffix | string | `"istari-provisioner-terraform-state"` | Suffix for the state Secret's name — the Secret (and its Lease lock) is named `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Must not end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index. |
-| identity.provisioner.backoffLimit | int | `6` | `spec.backoffLimit` for the provisioning Job. |
-| identity.provisioner.clients | object | (see fields below) | Which clients to provision, and their per-client settings. |
-| identity.provisioner.clients.frontend | object | `{"enabled":false,"extraRedirectUris":[],"redirectUri":""}` | Frontend (`kind: public` / PKCE) — the fixed client id `frontend` and a redirect allowlist. |
-| identity.provisioner.clients.frontend.enabled | bool | `false` | Whether to generate and register the frontend client. |
-| identity.provisioner.clients.frontend.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
-| identity.provisioner.clients.frontend.redirectUri | string | `""` | Explicit redirect URI. Overrides the `common.mainDomain` derivation. |
-| identity.provisioner.clients.mcp | object | `{"enabled":false,"extraRedirectUris":[],"redirectUri":""}` | MCP service (`kind: public` / PKCE) — the fixed client id `mcp`, a placeholder client_secret, and a redirect allowlist. |
-| identity.provisioner.clients.mcp.enabled | bool | `false` | Whether to generate and register the mcp client. |
-| identity.provisioner.clients.mcp.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
-| identity.provisioner.clients.mcp.redirectUri | string | `""` | Explicit redirect URI. Overrides the `common.mainDomain` derivation. |
-| identity.provisioner.clients.registry | object | `{"enabled":false}` | Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair under the fixed client id `registry`. |
-| identity.provisioner.clients.registry.enabled | bool | `false` | Whether to generate and register the registry client. |
-| identity.provisioner.commonLabels | object | `{}` | Additional labels to add to all of this component's resources |
-| identity.provisioner.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Provisioner container's security context. |
-| identity.provisioner.env | list | `[]` | Extra environment variables for the provisioner container. |
-| identity.provisioner.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into the provisioner container. |
-| identity.provisioner.image | string | `"main-docker-local/provisioner"` | Image name. |
-| identity.provisioner.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy. |
-| identity.provisioner.nodeSelector | object | `{}` | Node selector for the provisioning Job pod. |
-| identity.provisioner.planOnly | bool | `false` | When true, run `terraform plan` only (no `apply`). |
-| identity.provisioner.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context. The image runs as nonroot (uid 65532) — fsGroup is required so the terraform-work emptyDir it writes `.terraform/` into is group-writable by that user. |
-| identity.provisioner.registry | string | `"istaridigital.jfrog.io"` | Registry URL for the provisioner's image (Istari's own build, published to `main-docker-local`). |
-| identity.provisioner.resources | object | `{}` | Resources for the provisioner container. |
-| identity.provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
-| identity.provisioner.tag | string | `"0.1.0"` | Image tag. |
-| identity.provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | identity.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | identity.replicaCount | int | `1` | Replica count |
 | identity.resources | object | `{"limits":{"memory":"2Gi"},"requests":{"cpu":"1","memory":"2Gi"}}` | Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request. |
@@ -488,6 +457,38 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | nats.reloader.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-server-config-reloader-fips"` | Config-reloader image repository. Defaults to the Chainguard FIPS variant. |
 | nats.reloader.image.tag | string | `"0.23.0"` | Config-reloader image tag. |
 | nats.statefulSet.merge.spec.persistentVolumeClaimRetentionPolicy | object | `{"whenDeleted":"Delete","whenScaled":"Delete"}` | Delete the JetStream PVCs when the StatefulSet is deleted or scaled down. Set to `Retain` if you need the data to outlive the StatefulSet. |
+| provisioner | object | (see fields below) | Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job hook that generates registry/frontend/mcp credentials and publishes them for identity to read at startup (identity-service#194). Not for secure-connection-service (see `identity.agentRegistration`). |
+| provisioner.affinity | object | `{}` | Affinity for the provisioning Job pod. |
+| provisioner.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful provisioning Job (`hook-succeeded`). |
+| provisioner.backend | object | (see fields below) | Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no external cloud state infra. |
+| provisioner.backend.secretSuffix | string | `"istari-provisioner-terraform-state"` | Suffix for the state Secret's name — the Secret (and its Lease lock) is named `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Must not end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index. |
+| provisioner.backoffLimit | int | `6` | `spec.backoffLimit` for the provisioning Job. |
+| provisioner.clients | object | (see fields below) | Which clients to provision, and their per-client settings. |
+| provisioner.clients.frontend | object | `{"enabled":true,"extraRedirectUris":[],"redirectUri":""}` | Frontend (`kind: public` / PKCE) — the fixed client id `frontend` and a redirect allowlist. |
+| provisioner.clients.frontend.enabled | bool | `true` | Whether to generate and register the frontend client. Defaults true, see `registry.enabled`. |
+| provisioner.clients.frontend.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
+| provisioner.clients.frontend.redirectUri | string | `""` | Explicit redirect URI. Overrides the `common.mainDomain` derivation. |
+| provisioner.clients.mcp | object | `{"enabled":true,"extraRedirectUris":[],"redirectUri":""}` | MCP service (`kind: public` / PKCE) — the fixed client id `mcp`, a placeholder client_secret, and a redirect allowlist. |
+| provisioner.clients.mcp.enabled | bool | `true` | Whether to generate and register the mcp client. Defaults true, see `registry.enabled`. |
+| provisioner.clients.mcp.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
+| provisioner.clients.mcp.redirectUri | string | `""` | Explicit redirect URI. Overrides the `common.mainDomain` derivation. |
+| provisioner.clients.registry | object | `{"enabled":true}` | Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair under the fixed client id `registry`. |
+| provisioner.clients.registry.enabled | bool | `true` | Whether to generate and register the registry client. Defaults true: enabling the provisioner registers everything by default, so turning off one client is an explicit opt-out. Consumers mount the generated Secret only when `provisioner.enabled` is also true (a single release with everything enabled); a consumer deployed as a separate release lists the Secret in its own `extraEnvSecrets` instead. |
+| provisioner.commonLabels | object | `{}` | Additional labels to add to all of this component's resources |
+| provisioner.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Provisioner container's security context. |
+| provisioner.enabled | bool | `false` | Enable / Disable the whole provisioner release. |
+| provisioner.env | list | `[]` | Extra environment variables for the provisioner container. |
+| provisioner.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into the provisioner container. |
+| provisioner.image | string | `"main-docker-local/provisioner"` | Image name. |
+| provisioner.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy. |
+| provisioner.nodeSelector | object | `{}` | Node selector for the provisioning Job pod. |
+| provisioner.planOnly | bool | `false` | When true, run `terraform plan` only (no `apply`). |
+| provisioner.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context. The image runs as nonroot (uid 65532) — fsGroup is required so the terraform-work emptyDir it writes `.terraform/` into is group-writable by that user. |
+| provisioner.registry | string | `"istaridigital.jfrog.io"` | Registry URL for the provisioner's image (Istari's own build, published to `main-docker-local`). |
+| provisioner.resources | object | `{}` | Resources for the provisioner container. |
+| provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
+| provisioner.tag | string | `"0.1.0"` | Image tag. |
+| provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | secureConnection.affinity | object | `{}` | Affinity |
 | secureConnection.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
 | secureConnection.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
