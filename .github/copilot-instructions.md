@@ -45,6 +45,15 @@ instructions (`AGENTS.md`) within repository instructions, so anything here that
 - A new `values.yaml` key with no `# --` comment above it — it renders as an
   undocumented row in the generated README.
 - A values combination that can produce a broken release without a render-time `fail`.
+- A comment the PR **adds or changes** that is verbose, redundant, or merely restates the
+  code. Comments in code and config (templates, scripts, Terraform, non-template YAML) should
+  be sparse and written for a human. Not this: the `# --` / `# @default --` doc comments above
+  `values.yaml` keys, which are the helm-docs interface, nor the chart's existing multi-line
+  why-comments that a diff leaves untouched.
+- A comment the PR **adds or changes** that cites the ticket which introduced the change —
+  `git blame` already provides that. Ticket IDs belong in a comment only for planned future
+  work, e.g. `TODO(INF-1234)`. Also flag a `TODO` / ticket comment left in place for work the
+  same PR completes.
 
 ## Do not comment on
 

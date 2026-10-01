@@ -91,6 +91,55 @@ a leak.
 Every pull request title leads with its ticket ID: `<PROJECT-KEY>-<number>: Subject`, e.g.
 `INF-1242: Add the thing`. Keys in use here are `INF`, `OPS`, `CPD`, `DGR`, `DPLAT`.
 
+**Open every PR you create as a draft** (`gt submit --draft`, `gh pr create --draft`) — a
+release PR that bumps a `Chart.yaml` most of all, since its publish is irreversible — unless
+the user asks otherwise. The user's request is the only exception; a release PR is never one.
+`--draft` only applies when a PR is first created; re-submitting does not turn a ready PR back
+into a draft.
+
+Copilot and CodeRabbit review this repo automatically, so drafting spares the human reviewers
+(`.github/CODEOWNERS`) the bot round-trip — code-owner requests fire when a PR is marked ready,
+not on a draft. The rulesets have Copilot review drafts and re-review on every push. CodeRabbit
+reviews a draft too, but only when the PR targets `main`; a stacked PR based on another branch
+gets `Review skipped` and no CodeRabbit gate.
+
+Address every AI comment — fix it, or reply and decline it — and don't request human reviewers
+while the PR is a draft. Pushing a fix triggers a re-review that can raise new comments, so
+addressing comments is not by itself the signal to mark ready. Mark it ready, without waiting
+for a human, once every AI comment is addressed **and** each reviewer's latest review of the
+head commit is clean, or it has not reviewed the head commit within 15 minutes of the push:
+
+- Copilot's review overview reads `### 🟢 Approval recommended` when clean. A
+  `🟡 Changes recommended` review counts as clean once each of its comments is fixed or
+  declined. `🔵 Needs a closer look` flags what only a human can verify — address what you can,
+  list the rest under a "For human review" heading in the PR description, then treat it as
+  clean. Match a review to the head commit by its `commit_id`, not by reading the text.
+- CodeRabbit's summary comment (edited in place, not reposted) reads
+  `No actionable comments were generated in the recent review.` when clean, or `Review skipped`
+  on a stacked PR — which counts as clean at once, with nothing to wait 15 minutes for, since
+  no CodeRabbit review is coming. An `Actionable comments posted: N` summary is clean once each
+  comment is fixed or declined. Its `Reviewing files that changed ... between <base> and <sha>.`
+  line names the commit it reviewed; replies don't trigger a re-review, so don't wait for one.
+
+Mark one PR ready at a time with `gh pr ready <number>` — it takes exactly that PR out of
+draft. Every `gt submit --publish` variant also publishes the branch's downstack ancestors
+(even `--no-stack`, which only skips descendants), including ones whose comments are still open.
+
+### Comments
+
+These govern explanatory comments in templates, scripts, Terraform, and non-template YAML —
+not the `# --` / `# @default --` lines above `values.yaml` keys, which are the helm-docs interface
+(see below). They apply to comments a change adds or edits, not to a sweep of existing ones.
+
+- Comment to explain *why*, for a human skimming the file; don't restate what the code already
+  says. The chart's existing multi-line why-comments are fine — the target is new redundant or
+  filler comments, not a trim of what is there.
+- Ticket IDs belong in a comment only to track planned future work (e.g.
+  `# TODO(INF-1234): ...`). Don't cite the ticket that introduced a change — `git blame` finds
+  it. Don't strip existing ticket references as drive-by cleanup.
+- When a PR completes the work a `TODO` / ticket comment describes, delete that comment in the
+  same PR.
+
 ### Documenting values
 
 `helm-docs` builds each README from `values.yaml`. Document a key with a `# --` comment
