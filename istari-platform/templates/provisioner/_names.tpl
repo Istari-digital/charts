@@ -96,9 +96,10 @@ true
 Whether this release runs the provisioner: as written, or, unset, where it deploys identity-service.
 */}}
 {{- define "provisioner.enabled" -}}
-{{- $v := .Values.provisioner.enabled -}}
-{{- if kindIs "bool" $v -}}
-{{- if $v }}true{{ end -}}
+{{- $v := lower (toString .Values.provisioner.enabled) -}}
+{{- if eq $v "true" -}}
+true
+{{- else if eq $v "false" -}}
 {{- else if include "istari-platform.identityEnabled" . -}}
 true
 {{- end -}}
@@ -109,9 +110,10 @@ One client's enabled value as written, or, unset, whether clients use identity-s
 */}}
 {{- define "provisioner.clientEnabled" -}}
 {{- $root := index . 0 -}}
-{{- $v := (index $root.Values.provisioner.clients (index . 1)).enabled -}}
-{{- if kindIs "bool" $v -}}
-{{- if $v }}true{{ end -}}
+{{- $v := lower (toString (index $root.Values.provisioner.clients (index . 1)).enabled) -}}
+{{- if eq $v "true" -}}
+true
+{{- else if eq $v "false" -}}
 {{- else if eq (include "istari-platform.identityClientIntegration" $root) "true" -}}
 true
 {{- end -}}

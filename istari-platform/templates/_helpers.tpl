@@ -243,17 +243,18 @@ https://api.<provisioner.mainDomain>, so one domain value serves both. Trailing 
 {{- end }}
 
 {{/*
-Whether this release deploys the identity-service, as "true" or "". Off unless identity.enabled is true.
+Whether this release deploys the identity-service, as "true" or "". Off unless identity.enabled is true
+(case-insensitive, so a --set-string value counts).
 */}}
 {{- define "istari-platform.identityEnabled" -}}
-{{- if eq (toString .Values.identity.enabled) "true" -}}true{{- end -}}
+{{- if eq (lower (toString .Values.identity.enabled)) "true" -}}true{{- end -}}
 {{- end }}
 
 {{/*
 Whether this release deploys the API Gateway, as "true" or "". Off unless apiGateway.enabled is true.
 */}}
 {{- define "istari-platform.apiGatewayEnabled" -}}
-{{- if eq (toString .Values.apiGateway.enabled) "true" -}}true{{- end -}}
+{{- if eq (lower (toString .Values.apiGateway.enabled)) "true" -}}true{{- end -}}
 {{- end }}
 
 {{/*
@@ -261,10 +262,13 @@ Whether clients here use the identity-service, as "true" or "false": identity.cl
 as written, else true only when identity.enabled is true and a gateway URL resolves.
 */}}
 {{- define "istari-platform.identityClientIntegration" -}}
-{{- $v := dig "clientIntegration" "enabled" "auto" .Values.identity -}}
-{{- if eq (toString $v) "auto" -}}
+{{- $v := lower (toString (dig "clientIntegration" "enabled" "auto" .Values.identity)) -}}
+{{- if not (has $v (list "auto" "true" "false")) -}}
+{{- fail (printf "identity.clientIntegration.enabled must be true, false, or unset; got %q" $v) -}}
+{{- end -}}
+{{- if eq $v "auto" -}}
 {{- if and (include "istari-platform.identityEnabled" .) (include "istari-platform.apiGatewayUrl" .) -}}true{{- else -}}false{{- end -}}
 {{- else -}}
-{{- toString $v -}}
+{{- $v -}}
 {{- end -}}
 {{- end }}

@@ -10,7 +10,7 @@ service. This file never emits a manifest.
 {{- fail "identity.enabled is true but no gateway URL resolves, and identity-service cannot start without the client settings derived from it: set provisioner.mainDomain (or apiGateway.apiUrl), or set identity.enabled to false to run without identity" }}
 {{- end }}
 {{- if and (eq (include "istari-platform.identityClientIntegration" .) "true") (not (include "istari-platform.apiGatewayUrl" .)) }}
-{{- fail "identity.clientIntegration.enabled is set to true but no gateway URL resolves — set apiGateway.apiUrl so the registry service, the frontend, and MCP have a gateway to authenticate through" }}
+{{- fail "identity.clientIntegration.enabled is set to true but no gateway URL resolves — set apiGateway.apiUrl or provisioner.mainDomain so the registry service, the frontend, and MCP have a gateway to authenticate through" }}
 {{- end }}
 
 {{- /*
