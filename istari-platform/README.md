@@ -55,6 +55,20 @@ Expose it the same way as the registry service: point your external load balance
 
 The proxy software inside the API Gateway (currently Caddy) is an internal implementation detail and may change in a future release; such a change will never affect values other than `apiGateway.registry` / `apiGateway.image` / `apiGateway.tag`.
 
+## Provisioner
+
+The provisioner (`provisioner.enabled`, default `false`) is a one-shot Job that registers the platform's services as OAuth/OIDC clients against the identity service and writes their credentials into Kubernetes Secrets that the consuming services mount.
+
+It is an ordinary release resource, not a Helm hook, so it needs no special install, upgrade, or uninstall steps: `helm uninstall` removes the Job and its ServiceAccount, Role, and RoleBinding along with the rest of the release. The credential Secrets it generated and its Terraform state are left in place, so a later reinstall reuses them. The Job reruns automatically whenever its inputs change — a client is toggled, a redirect URI is edited, the image tag moves — because its name embeds a hash of those inputs, so each change produces a new Job that Helm applies while pruning the previous one. An input that does not change leaves the completed Job in place; a completed provisioner Job is expected and safe to leave, not a sign that anything is wrong.
+
+To rerun the provisioner without changing any input — for example to re-apply after an identity-service issue was fixed out of band — set `provisioner.rerunToken` to any new value:
+
+```bash
+helm upgrade --reuse-values --set provisioner.rerunToken=$(date +%s) <release> <chart>
+```
+
+A changed token is itself an input, so this renames the Job and reruns it. The value is arbitrary; only a change from the previous value matters.
+
 ## Values
 
 | Key | Type | Default | Description |
@@ -458,8 +472,8 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | nats.reloader.image.tag | string | `"0.23.0"` | Config-reloader image tag. |
 | nats.statefulSet.merge.spec.persistentVolumeClaimRetentionPolicy | object | `{"whenDeleted":"Delete","whenScaled":"Delete"}` | Delete the JetStream PVCs when the StatefulSet is deleted or scaled down. Set to `Retain` if you need the data to outlive the StatefulSet. |
 | provisioner | object | (see fields below) | Settings for the client-registration provisioner: a pre-install/pre-upgrade Terraform-in-a-Job hook that generates registry/frontend/mcp credentials and publishes them for identity to read at startup. Not for secure-connection-service (see `identity.agentRegistration`). |
+| provisioner.activeDeadlineSeconds | int | `180` | `spec.activeDeadlineSeconds` for the provisioning Job — a wall-clock ceiling after which a stuck or failing Job goes `Failed`, surfacing the error instead of leaving consumer pods waiting on a Secret that never arrives. The Terraform run normally completes in seconds. |
 | provisioner.affinity | object | `{}` | Affinity for the provisioning Job pod. |
-| provisioner.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful provisioning Job (`hook-succeeded`). |
 | provisioner.backend | object | (see fields below) | Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no external cloud state infra. |
 | provisioner.backend.secretSuffix | string | `"istari-provisioner-terraform-state"` | Suffix for the state Secret's name — the Secret (and its Lease lock) is named `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Must not end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index. |
 | provisioner.backoffLimit | int | `6` | `spec.backoffLimit` for the provisioning Job. |
@@ -488,6 +502,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | provisioner.podAnnotations | object | `{}` | Annotations for the provisioning Job Pod template only (e.g. `sidecar.istio.io/inject: "false"` to disable Istio sidecar injection). |
 | provisioner.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context. The image runs as nonroot (uid 65532) — fsGroup is required so the terraform-work emptyDir it writes `.terraform/` into is group-writable by that user. |
 | provisioner.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for the provisioner's image. |
+| provisioner.rerunToken | string | `""` | Change this to any new value to force the provisioning Job to rerun without changing any other input: `helm upgrade --reuse-values --set provisioner.rerunToken=<anything>`. The Job's name is a hash of its inputs, and this token is one of them. |
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
 | provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
 | provisioner.tag | string | `"0.1.0"` | Image tag. |

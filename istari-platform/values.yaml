@@ -897,8 +897,14 @@ provisioner:
   planOnly: false
   # -- `spec.backoffLimit` for the provisioning Job.
   backoffLimit: 6
-  # -- Automatically clean up the successful provisioning Job (`hook-succeeded`).
-  autoCleanupSuccessfulJob: true
+  # -- `spec.activeDeadlineSeconds` for the provisioning Job — a wall-clock ceiling after which a
+  # stuck or failing Job goes `Failed`, surfacing the error instead of leaving consumer pods
+  # waiting on a Secret that never arrives. The Terraform run normally completes in seconds.
+  activeDeadlineSeconds: 180
+  # -- Change this to any new value to force the provisioning Job to rerun without changing any
+  # other input: `helm upgrade --reuse-values --set provisioner.rerunToken=<anything>`. The Job's
+  # name is a hash of its inputs, and this token is one of them.
+  rerunToken: ""
   # -- Extra environment variables for the provisioner container.
   env: []
   # -- Extra secrets to mount (via `envFrom`) into the provisioner container.

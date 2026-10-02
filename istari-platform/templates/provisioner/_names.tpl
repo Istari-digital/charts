@@ -11,11 +11,9 @@ unlike the static output-credential Secret names below.
 {{- end }}
 
 {{/*
-The one-shot provisioning Job name.
+The provisioning Job's name is built in job.yaml, not here: it appends a hash of the Job's pod
+template to this prefix so a changed input renames the Job (see provisioner/_helpers.tpl).
 */}}
-{{- define "provisioner.jobName" -}}
-{{ printf "%s-apply" (include "provisioner.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- end }}
 
 {{/*
 Static literals, not .Release.Name-derived: producer and consumer releases must agree on these

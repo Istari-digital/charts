@@ -54,6 +54,20 @@ Expose it the same way as the registry service: point your external load balance
 
 The proxy software inside the API Gateway (currently Caddy) is an internal implementation detail and may change in a future release; such a change will never affect values other than `apiGateway.registry` / `apiGateway.image` / `apiGateway.tag`.
 
+## Provisioner
+
+The provisioner (`provisioner.enabled`, default `false`) is a one-shot Job that registers the platform's services as OAuth/OIDC clients against the identity service and writes their credentials into Kubernetes Secrets that the consuming services mount.
+
+It is an ordinary release resource, not a Helm hook, so it needs no special install, upgrade, or uninstall steps: `helm uninstall` removes the Job and its ServiceAccount, Role, and RoleBinding along with the rest of the release. The credential Secrets it generated and its Terraform state are left in place, so a later reinstall reuses them. The Job reruns automatically whenever its inputs change — a client is toggled, a redirect URI is edited, the image tag moves — because its name embeds a hash of those inputs, so each change produces a new Job that Helm applies while pruning the previous one. An input that does not change leaves the completed Job in place; a completed provisioner Job is expected and safe to leave, not a sign that anything is wrong.
+
+To rerun the provisioner without changing any input — for example to re-apply after an identity-service issue was fixed out of band — set `provisioner.rerunToken` to any new value:
+
+```bash
+helm upgrade --reuse-values --set provisioner.rerunToken=$(date +%s) <release> <chart>
+```
+
+A changed token is itself an input, so this renames the Job and reruns it. The value is arbitrary; only a change from the previous value matters.
+
 {{ template "chart.valuesSection" . }}
 
 {{ template "chart.maintainersSection" . }}

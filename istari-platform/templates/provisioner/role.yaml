@@ -12,4 +12,11 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "create", "update", "delete"]
+  # Lets the image read its own ServiceAccount's uid to set it as the ownerReference on the
+  # Secrets it creates, so they are garbage-collected when the SA is deleted on uninstall. The
+  # owner is the SA, not the Job -- the Job is replaced on every input change.
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    resourceNames: [{{ include "provisioner.fullname" . | quote }}]
+    verbs: ["get"]
 {{- end }}

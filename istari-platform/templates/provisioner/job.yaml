@@ -1,135 +1,25 @@
 {{- if and .Values.provisioner.enabled (or .Values.provisioner.clients.registry.enabled .Values.provisioner.clients.frontend.enabled .Values.provisioner.clients.mcp.enabled) }}
 {{- $provisioner := .Values.provisioner }}
-{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . }}
-{{- $identityServiceUrl := "" }}
-{{- if $gatewayUrl }}{{- $identityServiceUrl = printf "%s/identity" $gatewayUrl }}{{- end }}
-{{- $tfVars := list
-  (dict "name" "TF_VAR_common_labels" "value" (include "provisioner.labels" . | fromYaml | toJson))
-  (dict "name" "TF_VAR_frontend_enabled" "value" ($provisioner.clients.frontend.enabled | toString))
-  (dict "name" "TF_VAR_frontend_extra_redirect_uris" "value" ($provisioner.clients.frontend.extraRedirectUris | toJson))
-  (dict "name" "TF_VAR_frontend_redirect_uri" "value" $provisioner.clients.frontend.redirectUri)
-  (dict "name" "TF_VAR_frontend_secret_name" "value" (include "provisioner.frontendSecretName" .))
-  (dict "name" "TF_VAR_identity_platform_clients_secret_name" "value" (include "provisioner.identityPlatformClientsSecretName" .))
-  (dict "name" "TF_VAR_identity_service_url" "value" $identityServiceUrl)
-  (dict "name" "TF_VAR_main_domain" "value" .Values.common.mainDomain)
-  (dict "name" "TF_VAR_mcp_enabled" "value" ($provisioner.clients.mcp.enabled | toString))
-  (dict "name" "TF_VAR_mcp_extra_redirect_uris" "value" ($provisioner.clients.mcp.extraRedirectUris | toJson))
-  (dict "name" "TF_VAR_mcp_redirect_uri" "value" $provisioner.clients.mcp.redirectUri)
-  (dict "name" "TF_VAR_mcp_secret_name" "value" (include "provisioner.mcpSecretName" .))
-  (dict "name" "TF_VAR_namespace" "value" .Release.Namespace)
-  (dict "name" "TF_VAR_registry_enabled" "value" ($provisioner.clients.registry.enabled | toString))
-  (dict "name" "TF_VAR_registry_secret_name" "value" (include "provisioner.registrySecretName" .))
--}}
-{{- $env := include "istari-platform.dedupeEnv" (concat $tfVars $provisioner.env) }}
+{{- $podTemplate := include "provisioner.podTemplate" . }}
+{{/*
+The Job name embeds a hash of its pod template so a changed input renames the Job: Helm prunes
+the old one and the new one reruns, sidestepping the `spec.template` immutability that would make
+an in-place `helm upgrade` of a fixed-name Job fail. `rerunToken` is folded in so an operator can
+force a rerun without changing any input (`--set provisioner.rerunToken=<anything>`).
+*/}}
+{{- $hash := printf "%s%s" $podTemplate $provisioner.rerunToken | sha256sum | trunc 8 }}
+{{- $jobName := printf "%s-apply-%s" (include "provisioner.fullname" .) $hash | trunc 63 | trimSuffix "-" }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "provisioner.jobName" . | quote }}
+  name: {{ $jobName | quote }}
   labels:
     {{- include "provisioner.labels" . | nindent 4 }}
 spec:
   backoffLimit: {{ $provisioner.backoffLimit }}
+  # A failing apply hits this ceiling and the Job goes Failed, surfacing the error, instead of
+  # leaving the consumers' pods stuck waiting on a Secret that never arrives.
+  activeDeadlineSeconds: {{ $provisioner.activeDeadlineSeconds }}
   template:
-    metadata:
-      labels:
-        {{- include "provisioner.labels" . | nindent 8 }}
-      {{- with $provisioner.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-    spec:
-      restartPolicy: Never
-      serviceAccountName: {{ include "provisioner.fullname" . | quote }}
-      {{- with $provisioner.podSecurityContext }}
-      securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with default $.Values.imagePullSecrets $provisioner.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      # The image has no shell -- exec-form args only. init/apply are separate containers, not a
-      # shell script; plan-vs-apply is chosen at render time (provisioner.planOnly).
-      initContainers:
-      - name: terraform-init
-        image: {{ printf "%s/%s:%s" $provisioner.registry $provisioner.image $provisioner.tag | quote }}
-        imagePullPolicy: {{ $provisioner.imagePullPolicy | quote }}
-        {{- with $provisioner.containerSecurityContext }}
-        securityContext:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
-        args:
-        - "-chdir=/terraform"
-        - "init"
-        - "-input=false"
-        - {{ printf "-backend-config=secret_suffix=%s" $provisioner.backend.secretSuffix | quote }}
-        - {{ printf "-backend-config=namespace=%s" .Release.Namespace | quote }}
-        - "-backend-config=in_cluster_config=true"
-        env:
-        {{- $env | nindent 8 }}
-        {{- with $provisioner.extraEnvSecrets }}
-        envFrom:
-        {{- range . }}
-        - secretRef:
-            name: {{ . | quote }}
-        {{- end }}
-        {{- end }}
-        volumeMounts:
-        - name: terraform-work
-          mountPath: /work/.terraform
-        {{- with $provisioner.resources }}
-        resources:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
-      containers:
-      - name: provisioner
-        image: {{ printf "%s/%s:%s" $provisioner.registry $provisioner.image $provisioner.tag | quote }}
-        imagePullPolicy: {{ $provisioner.imagePullPolicy | quote }}
-        {{- with $provisioner.containerSecurityContext }}
-        securityContext:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
-        args:
-        - "-chdir=/terraform"
-        {{- if $provisioner.planOnly }}
-        - "plan"
-        - "-input=false"
-        {{- else }}
-        - "apply"
-        - "-input=false"
-        - "-auto-approve"
-        {{- end }}
-        env:
-        {{- $env | nindent 8 }}
-        {{- with $provisioner.extraEnvSecrets }}
-        envFrom:
-        {{- range . }}
-        - secretRef:
-            name: {{ . | quote }}
-        {{- end }}
-        {{- end }}
-        volumeMounts:
-        - name: terraform-work
-          mountPath: /work/.terraform
-        {{- with $provisioner.resources }}
-        resources:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
-      volumes:
-      # .tf files are baked into the image at /terraform. This emptyDir is just Terraform's
-      # writable state dir (TF_DATA_DIR), shared between the init and apply containers.
-      - name: terraform-work
-        emptyDir: {}
-      {{- with $provisioner.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with $provisioner.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with $provisioner.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 6 }}
-      {{- end }}
+    {{- $podTemplate | trim | nindent 4 }}
 {{- end }}
