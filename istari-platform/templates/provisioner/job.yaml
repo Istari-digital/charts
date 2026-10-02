@@ -1,52 +1,53 @@
 {{- if and .Values.provisioner.enabled (or .Values.provisioner.clients.registry.enabled .Values.provisioner.clients.frontend.enabled .Values.provisioner.clients.mcp.enabled) }}
-{{- $p := .Values.provisioner }}
+{{- $provisioner := .Values.provisioner }}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . }}
 {{- $identityServiceUrl := "" }}
 {{- if $gatewayUrl }}{{- $identityServiceUrl = printf "%s/identity" $gatewayUrl }}{{- end }}
 {{- $tfVars := list
   (dict "name" "TF_VAR_common_labels" "value" (include "provisioner.labels" . | fromYaml | toJson))
-  (dict "name" "TF_VAR_frontend_enabled" "value" ($p.clients.frontend.enabled | toString))
-  (dict "name" "TF_VAR_frontend_extra_redirect_uris" "value" ($p.clients.frontend.extraRedirectUris | toJson))
-  (dict "name" "TF_VAR_frontend_redirect_uri" "value" $p.clients.frontend.redirectUri)
+  (dict "name" "TF_VAR_frontend_enabled" "value" ($provisioner.clients.frontend.enabled | toString))
+  (dict "name" "TF_VAR_frontend_extra_redirect_uris" "value" ($provisioner.clients.frontend.extraRedirectUris | toJson))
+  (dict "name" "TF_VAR_frontend_redirect_uri" "value" $provisioner.clients.frontend.redirectUri)
   (dict "name" "TF_VAR_frontend_secret_name" "value" (include "provisioner.frontendSecretName" .))
   (dict "name" "TF_VAR_identity_platform_clients_secret_name" "value" (include "provisioner.identityPlatformClientsSecretName" .))
   (dict "name" "TF_VAR_identity_service_url" "value" $identityServiceUrl)
   (dict "name" "TF_VAR_main_domain" "value" .Values.common.mainDomain)
-  (dict "name" "TF_VAR_mcp_enabled" "value" ($p.clients.mcp.enabled | toString))
-  (dict "name" "TF_VAR_mcp_extra_redirect_uris" "value" ($p.clients.mcp.extraRedirectUris | toJson))
-  (dict "name" "TF_VAR_mcp_redirect_uri" "value" $p.clients.mcp.redirectUri)
+  (dict "name" "TF_VAR_mcp_enabled" "value" ($provisioner.clients.mcp.enabled | toString))
+  (dict "name" "TF_VAR_mcp_extra_redirect_uris" "value" ($provisioner.clients.mcp.extraRedirectUris | toJson))
+  (dict "name" "TF_VAR_mcp_redirect_uri" "value" $provisioner.clients.mcp.redirectUri)
   (dict "name" "TF_VAR_mcp_secret_name" "value" (include "provisioner.mcpSecretName" .))
   (dict "name" "TF_VAR_namespace" "value" .Release.Namespace)
-  (dict "name" "TF_VAR_registry_enabled" "value" ($p.clients.registry.enabled | toString))
+  (dict "name" "TF_VAR_registry_enabled" "value" ($provisioner.clients.registry.enabled | toString))
   (dict "name" "TF_VAR_registry_secret_name" "value" (include "provisioner.registrySecretName" .))
 -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ include "provisioner.jobName" . | quote }}
-  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "provisioner.labels" . | nindent 4 }}
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "1"
-    helm.sh/hook-delete-policy: {{ if $p.autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
+    helm.sh/hook-delete-policy: {{ if $provisioner.autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
 spec:
-  backoffLimit: {{ $p.backoffLimit }}
+  backoffLimit: {{ $provisioner.backoffLimit }}
   template:
     metadata:
       labels:
         {{- include "provisioner.labels" . | nindent 8 }}
+      {{- with $provisioner.podAnnotations }}
       annotations:
-        sidecar.istio.io/inject: "false"
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       restartPolicy: Never
       serviceAccountName: {{ include "provisioner.fullname" . | quote }}
-      {{- with $p.podSecurityContext }}
+      {{- with $provisioner.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with default $.Values.imagePullSecrets $p.imagePullSecrets }}
+      {{- with default $.Values.imagePullSecrets $provisioner.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -54,9 +55,9 @@ spec:
       # shell script; plan-vs-apply is chosen at render time (provisioner.planOnly).
       initContainers:
       - name: terraform-init
-        image: {{ printf "%s/%s:%s" $p.registry $p.image $p.tag | quote }}
-        imagePullPolicy: {{ $p.imagePullPolicy | quote }}
-        {{- with $p.containerSecurityContext }}
+        image: {{ printf "%s/%s:%s" $provisioner.registry $provisioner.image $provisioner.tag | quote }}
+        imagePullPolicy: {{ $provisioner.imagePullPolicy | quote }}
+        {{- with $provisioner.containerSecurityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}
         {{- end }}
@@ -64,15 +65,15 @@ spec:
         - "-chdir=/terraform"
         - "init"
         - "-input=false"
-        - {{ printf "-backend-config=secret_suffix=%s" $p.backend.secretSuffix | quote }}
+        - {{ printf "-backend-config=secret_suffix=%s" $provisioner.backend.secretSuffix | quote }}
         - {{ printf "-backend-config=namespace=%s" .Release.Namespace | quote }}
         - "-backend-config=in_cluster_config=true"
         env:
         {{- $tfVars | toYaml | nindent 8 }}
-        {{- with $p.env }}
+        {{- with $provisioner.env }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        {{- with $p.extraEnvSecrets }}
+        {{- with $provisioner.extraEnvSecrets }}
         envFrom:
         {{- range . }}
         - secretRef:
@@ -82,21 +83,21 @@ spec:
         volumeMounts:
         - name: terraform-work
           mountPath: /work/.terraform
-        {{- with $p.resources }}
+        {{- with $provisioner.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
       containers:
       - name: provisioner
-        image: {{ printf "%s/%s:%s" $p.registry $p.image $p.tag | quote }}
-        imagePullPolicy: {{ $p.imagePullPolicy | quote }}
-        {{- with $p.containerSecurityContext }}
+        image: {{ printf "%s/%s:%s" $provisioner.registry $provisioner.image $provisioner.tag | quote }}
+        imagePullPolicy: {{ $provisioner.imagePullPolicy | quote }}
+        {{- with $provisioner.containerSecurityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}
         {{- end }}
         args:
         - "-chdir=/terraform"
-        {{- if $p.planOnly }}
+        {{- if $provisioner.planOnly }}
         - "plan"
         - "-input=false"
         {{- else }}
@@ -106,10 +107,10 @@ spec:
         {{- end }}
         env:
         {{- $tfVars | toYaml | nindent 8 }}
-        {{- with $p.env }}
+        {{- with $provisioner.env }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        {{- with $p.extraEnvSecrets }}
+        {{- with $provisioner.extraEnvSecrets }}
         envFrom:
         {{- range . }}
         - secretRef:
@@ -119,7 +120,7 @@ spec:
         volumeMounts:
         - name: terraform-work
           mountPath: /work/.terraform
-        {{- with $p.resources }}
+        {{- with $provisioner.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
@@ -128,15 +129,15 @@ spec:
       # writable state dir (TF_DATA_DIR), shared between the init and apply containers.
       - name: terraform-work
         emptyDir: {}
-      {{- with $p.nodeSelector }}
+      {{- with $provisioner.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with $p.affinity }}
+      {{- with $provisioner.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with $p.tolerations }}
+      {{- with $provisioner.tolerations }}
       tolerations:
         {{- toYaml . | nindent 6 }}
       {{- end }}

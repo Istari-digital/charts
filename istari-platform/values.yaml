@@ -796,7 +796,7 @@ identity:
     backoffLimit: 6
     # -- Automatically clean up successful registration hook `Job`s by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`).
     autoCleanupSuccessfulJob: true
-    # -- Annotations for the registration Job Pod templates only (in addition to `sidecar.istio.io/inject: "false"`).
+    # -- Annotations for the registration Job Pod templates only (e.g. `sidecar.istio.io/inject: "false"` to disable Istio sidecar injection).
     podAnnotations: {}
     # -- Extra labels for the registration Job Pod templates only.
     podLabels: {}
@@ -920,6 +920,8 @@ provisioner:
     runAsUser: 65532
   # -- Additional labels to add to all of this component's resources
   commonLabels: {}
+  # -- Annotations for the provisioning Job Pod template only (e.g. `sidecar.istio.io/inject: "false"` to disable Istio sidecar injection).
+  podAnnotations: {}
   # -- Resources for the provisioner container.
   resources: {}
   # -- Node selector for the provisioning Job pod.
