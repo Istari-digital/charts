@@ -187,13 +187,10 @@ resource "zitadel_application_key" "identity-service-key" {
   expiration_date = "2519-04-01T08:45:00Z"
 }
 
-# Dedicated, least-privilege machine user for the identity-service's Zitadel
-# management calls — the customer_admin user-grants lookup behind the admin
-# key-management endpoints (resolveAdminTenant/hasAdminGrant in identity-router).
-# Kept separate from the identity-service OIDC RP app key above (which is only
-# for id_token exchange) and from the fileservice/SCS machine users. The key
-# blob is wired to ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY via
-# outputs.tf.
+# Formerly identity-service's Zitadel management user. Unused since
+# ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY carries the registry
+# service user's key (secrets.yaml.tftpl); kept so rolling back to an earlier
+# configurator release finds its user and key unchanged.
 resource "zitadel_machine_user" "identity-service-management-user" {
   org_id            = zitadel_org.default.id
   user_name         = "IdentityServiceManagementUser"
