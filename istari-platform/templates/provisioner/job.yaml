@@ -27,10 +27,6 @@ metadata:
   name: {{ include "provisioner.jobName" . | quote }}
   labels:
     {{- include "provisioner.labels" . | nindent 4 }}
-  annotations:
-    helm.sh/hook: pre-install,pre-upgrade
-    helm.sh/hook-weight: "1"
-    helm.sh/hook-delete-policy: {{ if $provisioner.autoCleanupSuccessfulJob }}before-hook-creation,hook-succeeded{{ else }}before-hook-creation{{ end }}
 spec:
   backoffLimit: {{ $provisioner.backoffLimit }}
   template:
