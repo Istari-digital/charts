@@ -873,7 +873,7 @@ identity:
     to: ""
     # -- Env var (in the mounted secret/config) holding the PostgreSQL connection string. Inherited, never re-declared — no new plaintext env vars.
     databaseUrlEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
-    # -- Env var holding the outgoing-IdP credential. With istari-zitadel-configurator 1.11.0 or later it is the registry service user's key, which is Org Owner in every organization set up for Istari, so the import reads exactly those organizations. Inherited, never re-declared.
+    # -- Env var holding the outgoing-IdP viewer credential (the least-privilege service-account key identity already provisions). Inherited, never re-declared.
     credentialEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY
     # -- Optional slug prefix for derived tenants (recommended to avoid cross-provider collisions); forwarded to bootstrap-tenants.
     slugPrefix: ""
