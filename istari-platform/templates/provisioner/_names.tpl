@@ -50,13 +50,3 @@ registry/frontend/mcp.
 {{- define "provisioner.identityPlatformClientsSecretName" -}}
 istari-provisioner-identity-platform-clients
 {{- end }}
-
-{{/*
-Whether at least one client is enabled. Returns "true" or "".
-*/}}
-{{- define "provisioner.anyClientEnabled" -}}
-{{- $c := .Values.provisioner.clients -}}
-{{- if or $c.registry.enabled $c.frontend.enabled $c.mcp.enabled -}}
-true
-{{- end -}}
-{{- end }}

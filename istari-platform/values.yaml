@@ -880,6 +880,9 @@ identity:
 provisioner:
   # -- Enable / Disable the whole provisioner release.
   enabled: false
+  # -- Set when the provisioner runs in a separate release: this release then mounts the Secrets of
+  # its enabled clients but does not run the provisioner. Not needed when `enabled` is true.
+  external: false
   # -- Registry URL for the provisioner's image.
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name.
@@ -939,9 +942,8 @@ provisioner:
     # -- Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair under the fixed
     # client id `registry`.
     registry:
-      # -- Whether to generate and register the registry client. Consumers auto-mount its Secret
-      # only when `provisioner.enabled` is also true; a consumer in a separate release lists the
-      # Secret in its own `extraEnvSecrets`.
+      # -- Whether to generate and register the registry client. Consumers mount its Secret
+      # when `provisioner.enabled` or `provisioner.external` is also true.
       enabled: true
     # -- Frontend (`kind: public` / PKCE) — the fixed client id `frontend` and a redirect allowlist.
     frontend:

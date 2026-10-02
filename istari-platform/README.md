@@ -473,11 +473,12 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 | provisioner.clients.mcp.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
 | provisioner.clients.mcp.redirectUri | string | `""` | Explicit redirect URI. Overrides the `common.mainDomain` derivation. |
 | provisioner.clients.registry | object | `{"enabled":true}` | Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair under the fixed client id `registry`. |
-| provisioner.clients.registry.enabled | bool | `true` | Whether to generate and register the registry client. Consumers auto-mount its Secret only when `provisioner.enabled` is also true; a consumer in a separate release lists the Secret in its own `extraEnvSecrets`. |
+| provisioner.clients.registry.enabled | bool | `true` | Whether to generate and register the registry client. Consumers mount its Secret when `provisioner.enabled` or `provisioner.external` is also true. |
 | provisioner.commonLabels | object | `{}` | Additional labels to add to all of this component's resources |
 | provisioner.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Provisioner container's security context. |
 | provisioner.enabled | bool | `false` | Enable / Disable the whole provisioner release. |
 | provisioner.env | list | `[]` | Extra environment variables for the provisioner container. |
+| provisioner.external | bool | `false` | Set when the provisioner runs in a separate release: this release then mounts the Secrets of its enabled clients but does not run the provisioner. Not needed when `enabled` is true. |
 | provisioner.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into the provisioner container. |
 | provisioner.image | string | `"provisioner"` | Image name. |
 | provisioner.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy. |

@@ -1,4 +1,4 @@
-{{- if and .Values.provisioner.enabled (eq (include "provisioner.anyClientEnabled" .) "true") }}
+{{- if and .Values.provisioner.enabled (or .Values.provisioner.clients.registry.enabled .Values.provisioner.clients.frontend.enabled .Values.provisioner.clients.mcp.enabled) }}
 {{- $p := .Values.provisioner }}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . }}
 {{- $identityServiceUrl := "" }}
