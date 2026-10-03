@@ -91,3 +91,10 @@ selects a Terraform workspace, so the workspace segment is always `default`.
 {{- define "provisioner.stateSecretName" -}}
 {{- printf "tfstate-default-%s" (include "provisioner.stateSecretSuffix" .) -}}
 {{- end }}
+
+{{/*
+The kubernetes backend's lock Lease name: `lock-<stateSecretName>`.
+*/}}
+{{- define "provisioner.stateLockLeaseName" -}}
+{{- printf "lock-%s" (include "provisioner.stateSecretName" .) -}}
+{{- end }}

@@ -25,9 +25,17 @@ rules:
       - {{ include "provisioner.identityPlatformClientsSecretName" . | quote }}
       - {{ include "provisioner.stateSecretName" . | quote }}
     verbs: ["get", "update", "patch", "delete"]
+  # Lease access mirrors the Secret scoping: create stays broad (the backend creates the lock Lease
+  # at runtime and resourceNames can't restrict create), while the read/mutate verbs are scoped to
+  # just the backend's own lock Lease, not every Lease in the namespace.
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
-    verbs: ["get", "create", "update", "delete"]
+    verbs: ["create"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    resourceNames:
+      - {{ include "provisioner.stateLockLeaseName" . | quote }}
+    verbs: ["get", "update", "delete"]
   # Lets the image read its own ServiceAccount's uid to set it as the ownerReference on the
   # Secrets it creates. That is the intended mechanism for garbage-collecting them when the SA is
   # deleted on uninstall; it is not active yet, because the image's `kubernetes_secret_v1` cannot
