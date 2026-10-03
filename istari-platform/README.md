@@ -61,6 +61,8 @@ The provisioner (`provisioner.enabled`, default `false`) is a one-shot Job that 
 
 It is an ordinary release resource, not a Helm hook, so it needs no special install, upgrade, or uninstall steps: `helm uninstall` removes the Job and its ServiceAccount, Role, and RoleBinding along with the rest of the release. The credential Secrets it generated and its Terraform state are left in place, so a later reinstall reuses them. The Job reruns automatically whenever its inputs change — a client is toggled, a redirect URI is edited, the image tag moves — because its name embeds a hash of those inputs, so each change produces a new Job that Helm applies while pruning the previous one. An input that does not change leaves the completed Job in place; a completed provisioner Job is expected and safe to leave, not a sign that anything is wrong.
 
+The services that consume the generated Secrets mount them directly, so their Pods stay in `ContainerCreating` until the provisioner Job has written the Secrets, then start normally. A plain `helm install` or `helm upgrade` returns before this settles, and the release converges on its own. If you install or upgrade with `--wait` (or deploy through a tool that gates on resource health, such as Argo CD), allow enough timeout for the provisioner Job to finish — pulling its image and running Terraform — before the consuming services can report Ready; the default timeout is usually sufficient, but a slow image pull (for example from an air-gapped mirror) may need more.
+
 To rerun the provisioner without changing any input — for example to re-apply after an identity-service issue was fixed out of band — set `provisioner.rerunToken` to any new value:
 
 ```bash
