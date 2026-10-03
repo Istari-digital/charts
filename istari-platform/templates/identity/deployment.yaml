@@ -1,6 +1,7 @@
 {{- $serviceValues := .Values.identity -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $migrationResources := dig "migrations" "resources" dict $serviceValues -}}
+{{- $mountProvisionerSecret := and (or .Values.provisioner.enabled .Values.provisioner.external) (or .Values.provisioner.clients.registry.enabled .Values.provisioner.clients.frontend.enabled .Values.provisioner.clients.mcp.enabled) -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -83,6 +84,11 @@ spec:
         */}}
         - configMapRef:
             name: {{ include "identity.configmap.name" . | quote }}
+        {{- /* Right after the chart ConfigMap, so every user-supplied source below overrides it. */}}
+        {{- if $mountProvisionerSecret }}
+        - secretRef:
+            name: {{ include "provisioner.identityPlatformClientsSecretName" . | quote }}
+        {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
         - configMapRef:
@@ -93,11 +99,9 @@ spec:
         - secretRef:
             name: {{ $serviceValues.secretName | quote }}
         {{- end }}
-        {{- with $serviceValues.extraEnvSecrets }}
-        {{- range . }}
+        {{- range $serviceValues.extraEnvSecrets }}
         - secretRef:
             name: {{ . | quote }}
-        {{- end }}
         {{- end }}
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
         {{- /* Chart identity/OTEL defaults render first; the fragments below are appended in
