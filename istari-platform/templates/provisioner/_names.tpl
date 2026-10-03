@@ -1,6 +1,6 @@
 {{/*
-Name/prefix for provisioner resources (ServiceAccount/Role/RoleBinding/Job) -- release-scoped,
-unlike the static output-credential Secret names below.
+Name/prefix for provisioner resources (ServiceAccount/Role/RoleBinding/Job), and the base the
+generated Secret names below derive from. Honours fullnameOverride, otherwise release-scoped.
 */}}
 {{- define "provisioner.fullname" -}}
     {{- if .Values.fullnameOverride }}
@@ -16,29 +16,46 @@ template to this prefix so a changed input renames the Job (see provisioner/_hel
 */}}
 
 {{/*
-Static literals, not .Release.Name-derived: producer and consumer releases must agree on these
-names regardless of which release renders which.
+Generated-credential Secret names.
+
+Each defaults to a name derived from `provisioner.fullname`, so a single release that installs the
+provisioner and its consumers together agrees on the names with no configuration, and two releases
+in one namespace get distinct names instead of colliding. Each can be pinned with an explicit
+override: set the matching override on every release involved when the provisioner runs in a
+separate release from a consumer (`provisioner.external`), so the two agree on the name.
 */}}
 
 {{/*
 Secret carrying registry's private credential blob.
 */}}
 {{- define "provisioner.registrySecretName" -}}
-istari-provisioner-registry-credentials
+{{- if .Values.provisioner.clients.registry.secretName -}}
+{{- .Values.provisioner.clients.registry.secretName -}}
+{{- else -}}
+{{- printf "%s-registry-credentials" (include "provisioner.fullname" .) -}}
+{{- end -}}
 {{- end }}
 
 {{/*
 Secret carrying frontend's client_id.
 */}}
 {{- define "provisioner.frontendSecretName" -}}
-istari-provisioner-frontend-credentials
+{{- if .Values.provisioner.clients.frontend.secretName -}}
+{{- .Values.provisioner.clients.frontend.secretName -}}
+{{- else -}}
+{{- printf "%s-frontend-credentials" (include "provisioner.fullname" .) -}}
+{{- end -}}
 {{- end }}
 
 {{/*
 Secret carrying mcp's client_id + placeholder client_secret.
 */}}
 {{- define "provisioner.mcpSecretName" -}}
-istari-provisioner-mcp-credentials
+{{- if .Values.provisioner.clients.mcp.secretName -}}
+{{- .Values.provisioner.clients.mcp.secretName -}}
+{{- else -}}
+{{- printf "%s-mcp-credentials" (include "provisioner.fullname" .) -}}
+{{- end -}}
 {{- end }}
 
 {{/*
@@ -46,5 +63,31 @@ Secret carrying the env vars identity-service reads at startup to self-register
 registry/frontend/mcp.
 */}}
 {{- define "provisioner.identityPlatformClientsSecretName" -}}
-istari-provisioner-identity-platform-clients
+{{- if .Values.provisioner.identityPlatformClientsSecretName -}}
+{{- .Values.provisioner.identityPlatformClientsSecretName -}}
+{{- else -}}
+{{- printf "%s-identity-platform-clients" (include "provisioner.fullname" .) -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Suffix for the Terraform kubernetes backend's state Secret / lock Lease. Defaults to a name
+derived from `provisioner.fullname` so separate releases keep separate state; override to pin it.
+The backend reserves a trailing `-<number>` for its own state-chunking index, so an override must
+not end in one.
+*/}}
+{{- define "provisioner.stateSecretSuffix" -}}
+{{- if .Values.provisioner.backend.secretSuffix -}}
+{{- .Values.provisioner.backend.secretSuffix -}}
+{{- else -}}
+{{- printf "%s-terraform-state" (include "provisioner.fullname" .) -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+The kubernetes backend's state Secret name: `tfstate-<workspace>-<suffix>`. This release never
+selects a Terraform workspace, so the workspace segment is always `default`.
+*/}}
+{{- define "provisioner.stateSecretName" -}}
+{{- printf "tfstate-default-%s" (include "provisioner.stateSecretSuffix" .) -}}
 {{- end }}

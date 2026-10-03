@@ -68,6 +68,8 @@ helm upgrade --reuse-values --set provisioner.rerunToken=$(date +%s) <release> <
 
 A changed token is itself an input, so this renames the Job and reruns it. The value is arbitrary; only a change from the previous value matters.
 
+The generated Secret names derive from the release name (via `fullnameOverride`), so installing the chart more than once in a single namespace — with distinct release names or `fullnameOverride` values — produces distinct Secrets instead of colliding. Each name can be pinned with an explicit override (`provisioner.clients.<name>.secretName`, `provisioner.identityPlatformClientsSecretName`); when the provisioner runs in a separate release from a consumer (`provisioner.external`), set the same override on both releases so they agree on the name.
+
 {{ template "chart.valuesSection" . }}
 
 {{ template "chart.maintainersSection" . }}

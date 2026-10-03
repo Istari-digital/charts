@@ -23,7 +23,7 @@ rules:
       - {{ include "provisioner.frontendSecretName" . | quote }}
       - {{ include "provisioner.mcpSecretName" . | quote }}
       - {{ include "provisioner.identityPlatformClientsSecretName" . | quote }}
-      - {{ printf "tfstate-default-%s" .Values.provisioner.backend.secretSuffix | quote }}
+      - {{ include "provisioner.stateSecretName" . | quote }}
     verbs: ["get", "update", "patch", "delete"]
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]

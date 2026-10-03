@@ -64,7 +64,7 @@ spec:
     - "-chdir=/terraform"
     - "init"
     - "-input=false"
-    - {{ printf "-backend-config=secret_suffix=%s" $provisioner.backend.secretSuffix | quote }}
+    - {{ printf "-backend-config=secret_suffix=%s" (include "provisioner.stateSecretSuffix" .) | quote }}
     - {{ printf "-backend-config=namespace=%s" .Release.Namespace | quote }}
     - "-backend-config=in_cluster_config=true"
     env:

@@ -69,6 +69,8 @@ helm upgrade --reuse-values --set provisioner.rerunToken=$(date +%s) <release> <
 
 A changed token is itself an input, so this renames the Job and reruns it. The value is arbitrary; only a change from the previous value matters.
 
+The generated Secret names derive from the release name (via `fullnameOverride`), so installing the chart more than once in a single namespace — with distinct release names or `fullnameOverride` values — produces distinct Secrets instead of colliding. Each name can be pinned with an explicit override (`provisioner.clients.<name>.secretName`, `provisioner.identityPlatformClientsSecretName`); when the provisioner runs in a separate release from a consumer (`provisioner.external`), set the same override on both releases so they agree on the name.
+
 ## Values
 
 | Key | Type | Default | Description |
@@ -475,25 +477,29 @@ A changed token is itself an input, so this renames the Job and reruns it. The v
 | provisioner.activeDeadlineSeconds | int | `180` | `spec.activeDeadlineSeconds` for the provisioning Job — a wall-clock ceiling after which a stuck or failing Job goes `Failed`, surfacing the error instead of leaving consumer pods waiting on a Secret that never arrives. The Terraform run normally completes in seconds. |
 | provisioner.affinity | object | `{}` | Affinity for the provisioning Job pod. |
 | provisioner.backend | object | (see fields below) | Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no external cloud state infra. |
-| provisioner.backend.secretSuffix | string | `"istari-provisioner-terraform-state"` | Suffix for the state Secret's name — the Secret (and its Lease lock) is named `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Must not end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index. |
+| provisioner.backend.secretSuffix | string | derived from the release name, e.g. `<release>-provisioner-terraform-state` | Suffix for the state Secret's name — the Secret (and its Lease lock) is named `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Empty derives the suffix from the release name, so separate releases keep separate state. Must not end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index. |
 | provisioner.backoffLimit | int | `6` | `spec.backoffLimit` for the provisioning Job. |
 | provisioner.clients | object | (see fields below) | Which clients to provision, and their per-client settings. |
-| provisioner.clients.frontend | object | `{"enabled":true,"extraRedirectUris":[],"redirectUri":""}` | Frontend (`kind: public` / PKCE) — the fixed client id `frontend` and a redirect allowlist. |
+| provisioner.clients.frontend | object | `{"enabled":true,"extraRedirectUris":[],"redirectUri":"","secretName":""}` | Frontend (`kind: public` / PKCE) — the fixed client id `frontend` and a redirect allowlist. |
 | provisioner.clients.frontend.enabled | bool | `true` | Whether to generate and register the frontend client. Defaults true, see `registry.enabled`. |
 | provisioner.clients.frontend.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
 | provisioner.clients.frontend.redirectUri | string | `""` | Explicit redirect URI. Overrides the `common.mainDomain` derivation. |
-| provisioner.clients.mcp | object | `{"enabled":true,"extraRedirectUris":[],"redirectUri":""}` | MCP service (`kind: public` / PKCE) — the fixed client id `mcp`, a placeholder client_secret, and a redirect allowlist. |
+| provisioner.clients.frontend.secretName | string | derived from the release name, e.g. `<release>-provisioner-frontend-credentials` | Override the generated name of frontend's credential Secret. See `registry.secretName`. |
+| provisioner.clients.mcp | object | `{"enabled":true,"extraRedirectUris":[],"redirectUri":"","secretName":""}` | MCP service (`kind: public` / PKCE) — the fixed client id `mcp`, a placeholder client_secret, and a redirect allowlist. |
 | provisioner.clients.mcp.enabled | bool | `true` | Whether to generate and register the mcp client. Defaults true, see `registry.enabled`. |
 | provisioner.clients.mcp.extraRedirectUris | list | `[]` | Additional redirect URIs appended to whichever URI was resolved above. |
 | provisioner.clients.mcp.redirectUri | string | `""` | Explicit redirect URI. Overrides the `common.mainDomain` derivation. |
-| provisioner.clients.registry | object | `{"enabled":true}` | Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair under the fixed client id `registry`. |
+| provisioner.clients.mcp.secretName | string | derived from the release name, e.g. `<release>-provisioner-mcp-credentials` | Override the generated name of mcp's credential Secret. See `registry.secretName`. |
+| provisioner.clients.registry | object | `{"enabled":true,"secretName":""}` | Registry (`kind: service`, private_key_jwt) — an ECDSA P-384 keypair under the fixed client id `registry`. |
 | provisioner.clients.registry.enabled | bool | `true` | Whether to generate and register the registry client. Consumers mount its Secret when `provisioner.enabled` or `provisioner.external` is also true. |
+| provisioner.clients.registry.secretName | string | derived from the release name, e.g. `<release>-provisioner-registry-credentials` | Override the generated name of registry's credential Secret. Empty derives it from the release name. Set the same value on every release involved when the provisioner runs separately from a consumer (`external`), so the two agree. |
 | provisioner.commonLabels | object | `{}` | Additional labels to add to all of this component's resources |
 | provisioner.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Provisioner container's security context. |
 | provisioner.enabled | bool | `false` | Enable / Disable the whole provisioner release. |
 | provisioner.env | list | `[]` | Extra environment variables for the provisioner container. |
 | provisioner.external | bool | `false` | Set when the provisioner runs in a separate release: this release then mounts the Secrets of its enabled clients but does not run the provisioner. Not needed when `enabled` is true. |
 | provisioner.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into the provisioner container. |
+| provisioner.identityPlatformClientsSecretName | string | derived from the release name, e.g. `<release>-provisioner-identity-platform-clients` | Override the generated name of the Secret identity-service reads to self-register the clients. Empty derives it from the release name. Set the same value on every release involved when the provisioner runs separately from identity-service (`external`), so the two agree. |
 | provisioner.image | string | `"provisioner"` | Image name. |
 | provisioner.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy. |
 | provisioner.imagePullSecrets | list | `[]` | Image pull secrets for the provisioning Job pod. When empty, the chart-wide `imagePullSecrets` apply. |

@@ -936,14 +936,21 @@ provisioner:
   affinity: {}
   # -- Tolerations for the provisioning Job pod.
   tolerations: []
+  # -- Override the generated name of the Secret identity-service reads to self-register the
+  # clients. Empty derives it from the release name. Set the same value on every release involved
+  # when the provisioner runs separately from identity-service (`external`), so the two agree.
+  # @default -- derived from the release name, e.g. `<release>-provisioner-identity-platform-clients`
+  identityPlatformClientsSecretName: ""
   # -- Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no
   # external cloud state infra.
   # @default -- (see fields below)
   backend:
     # -- Suffix for the state Secret's name — the Secret (and its Lease lock) is named
-    # `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Must not
+    # `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Empty
+    # derives the suffix from the release name, so separate releases keep separate state. Must not
     # end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index.
-    secretSuffix: "istari-provisioner-terraform-state"
+    # @default -- derived from the release name, e.g. `<release>-provisioner-terraform-state`
+    secretSuffix: ""
   # -- Which clients to provision, and their per-client settings.
   # @default -- (see fields below)
   clients:
@@ -953,10 +960,18 @@ provisioner:
       # -- Whether to generate and register the registry client. Consumers mount its Secret
       # when `provisioner.enabled` or `provisioner.external` is also true.
       enabled: true
+      # -- Override the generated name of registry's credential Secret. Empty derives it from the
+      # release name. Set the same value on every release involved when the provisioner runs
+      # separately from a consumer (`external`), so the two agree.
+      # @default -- derived from the release name, e.g. `<release>-provisioner-registry-credentials`
+      secretName: ""
     # -- Frontend (`kind: public` / PKCE) — the fixed client id `frontend` and a redirect allowlist.
     frontend:
       # -- Whether to generate and register the frontend client. Defaults true, see `registry.enabled`.
       enabled: true
+      # -- Override the generated name of frontend's credential Secret. See `registry.secretName`.
+      # @default -- derived from the release name, e.g. `<release>-provisioner-frontend-credentials`
+      secretName: ""
       # -- Explicit redirect URI. Overrides the `common.mainDomain` derivation.
       redirectUri: ""
       # -- Additional redirect URIs appended to whichever URI was resolved above.
@@ -966,6 +981,9 @@ provisioner:
     mcp:
       # -- Whether to generate and register the mcp client. Defaults true, see `registry.enabled`.
       enabled: true
+      # -- Override the generated name of mcp's credential Secret. See `registry.secretName`.
+      # @default -- derived from the release name, e.g. `<release>-provisioner-mcp-credentials`
+      secretName: ""
       # -- Explicit redirect URI. Overrides the `common.mainDomain` derivation.
       redirectUri: ""
       # -- Additional redirect URIs appended to whichever URI was resolved above.
