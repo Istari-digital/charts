@@ -18,44 +18,31 @@ template to this prefix so a changed input renames the Job (see provisioner/_hel
 {{/*
 Generated-credential Secret names.
 
-Each defaults to a name derived from `provisioner.fullname`, so a single release that installs the
-provisioner and its consumers together agrees on the names with no configuration, and two releases
-in one namespace get distinct names instead of colliding. Each can be pinned with an explicit
-override: set the matching override on every release involved when the provisioner runs in a
-separate release from a consumer (`provisioner.external`), so the two agree on the name.
+Each derives from `provisioner.fullname`, so a single release that installs the provisioner and its
+consumers together agrees on the names with no configuration, two releases in one namespace get
+distinct names instead of colliding, and a consumer in a separate release (`provisioner.external`)
+agrees by sharing the same `fullnameOverride`/release name.
 */}}
 
 {{/*
 Secret carrying registry's private credential blob.
 */}}
 {{- define "provisioner.registrySecretName" -}}
-{{- if .Values.provisioner.clients.registry.secretName -}}
-{{- .Values.provisioner.clients.registry.secretName -}}
-{{- else -}}
 {{- printf "%s-registry-credentials" (include "provisioner.fullname" .) -}}
-{{- end -}}
 {{- end }}
 
 {{/*
 Secret carrying frontend's client_id.
 */}}
 {{- define "provisioner.frontendSecretName" -}}
-{{- if .Values.provisioner.clients.frontend.secretName -}}
-{{- .Values.provisioner.clients.frontend.secretName -}}
-{{- else -}}
 {{- printf "%s-frontend-credentials" (include "provisioner.fullname" .) -}}
-{{- end -}}
 {{- end }}
 
 {{/*
 Secret carrying mcp's client_id + placeholder client_secret.
 */}}
 {{- define "provisioner.mcpSecretName" -}}
-{{- if .Values.provisioner.clients.mcp.secretName -}}
-{{- .Values.provisioner.clients.mcp.secretName -}}
-{{- else -}}
 {{- printf "%s-mcp-credentials" (include "provisioner.fullname" .) -}}
-{{- end -}}
 {{- end }}
 
 {{/*
@@ -63,11 +50,7 @@ Secret carrying the env vars identity-service reads at startup to self-register
 registry/frontend/mcp.
 */}}
 {{- define "provisioner.identityPlatformClientsSecretName" -}}
-{{- if .Values.provisioner.identityPlatformClientsSecretName -}}
-{{- .Values.provisioner.identityPlatformClientsSecretName -}}
-{{- else -}}
 {{- printf "%s-identity-platform-clients" (include "provisioner.fullname" .) -}}
-{{- end -}}
 {{- end }}
 
 {{/*

@@ -1,7 +1,7 @@
 {{- $serviceValues := .Values.identity -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $migrationResources := dig "migrations" "resources" dict $serviceValues -}}
-{{- $mountProvisionerSecret := and (or .Values.provisioner.enabled .Values.provisioner.external) (or .Values.provisioner.clients.registry.enabled .Values.provisioner.clients.frontend.enabled .Values.provisioner.clients.mcp.enabled) -}}
+{{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment

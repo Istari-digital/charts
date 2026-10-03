@@ -1,4 +1,4 @@
-{{- if and .Values.provisioner.enabled (or .Values.provisioner.clients.registry.enabled .Values.provisioner.clients.frontend.enabled .Values.provisioner.clients.mcp.enabled) }}
+{{- if .Values.provisioner.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:

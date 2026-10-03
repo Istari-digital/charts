@@ -70,7 +70,9 @@ helm upgrade --reuse-values --set provisioner.rerunToken=$(date +%s) <release> <
 
 A changed token is itself an input, so this renames the Job and reruns it. The value is arbitrary; only a change from the previous value matters.
 
-The generated Secret names derive from the release name (via `fullnameOverride`), so installing the chart more than once in a single namespace — with distinct release names or `fullnameOverride` values — produces distinct Secrets instead of colliding. Each name can be pinned with an explicit override (`provisioner.clients.<name>.secretName`, `provisioner.identityPlatformClientsSecretName`); when the provisioner runs in a separate release from a consumer (`provisioner.external`), set the same override on both releases so they agree on the name.
+When enabled, the provisioner registers a fixed set of clients — registry, frontend, and MCP. The frontend and MCP OIDC redirect URIs are derived from `common.mainDomain` (`https://<mainDomain>` and `https://mcp.<mainDomain>/auth/callback`). To use different or additional redirect URIs, set them on the identity service directly via its environment — `ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS` / `..._MCP_REDIRECT_URIS` — which the identity service reads in preference to the provisioner-supplied defaults.
+
+The generated Secret names derive from the release name (via `fullnameOverride`), so installing the chart more than once in a single namespace — with distinct release names or `fullnameOverride` values — produces distinct Secrets instead of colliding. When the provisioner runs in a separate release from a consumer (`provisioner.external`), the two agree on the names by sharing the same `fullnameOverride` (or release name).
 
 {{ template "chart.valuesSection" . }}
 

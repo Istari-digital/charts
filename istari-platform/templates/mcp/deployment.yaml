@@ -1,5 +1,5 @@
 {{- $serviceValues := .Values.mcp -}}
-{{- $mountProvisionerSecret := and (or .Values.provisioner.enabled .Values.provisioner.external) .Values.provisioner.clients.mcp.enabled -}}
+{{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment

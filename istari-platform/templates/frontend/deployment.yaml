@@ -1,6 +1,6 @@
 {{- $serviceValues := .Values.frontend -}}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
-{{- $mountProvisionerSecret := and (or .Values.provisioner.enabled .Values.provisioner.external) .Values.provisioner.clients.frontend.enabled -}}
+{{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
