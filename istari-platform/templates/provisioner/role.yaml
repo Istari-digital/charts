@@ -6,14 +6,32 @@ metadata:
   labels:
     {{- include "provisioner.labels" . | nindent 4 }}
 rules:
+  # create and list cannot be restricted by resourceNames: the Terraform kubernetes backend
+  # lists Secrets by label to find its state, and both the client credential Secrets and the
+  # state Secret are created at runtime with names that don't yet exist when the verb is checked.
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get", "list", "create", "update", "patch", "delete"]
+    verbs: ["create", "list"]
+  # The reading/mutating verbs are scoped to exactly the Secrets the image owns: the four client
+  # credential Secrets and the Terraform state Secret. If the state ever outgrows a single Secret
+  # the backend writes additional numbered state Secrets -- far larger than this provisioner's
+  # state will ever be, but broaden this rule if that assumption changes.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      - {{ include "provisioner.registrySecretName" . | quote }}
+      - {{ include "provisioner.frontendSecretName" . | quote }}
+      - {{ include "provisioner.mcpSecretName" . | quote }}
+      - {{ include "provisioner.identityPlatformClientsSecretName" . | quote }}
+      - {{ printf "tfstate-default-%s" .Values.provisioner.backend.secretSuffix | quote }}
+    verbs: ["get", "update", "patch", "delete"]
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "create", "update", "delete"]
   # Lets the image read its own ServiceAccount's uid to set it as the ownerReference on the
-  # Secrets it creates, so they are garbage-collected when the SA is deleted on uninstall. The
+  # Secrets it creates. That is the intended mechanism for garbage-collecting them when the SA is
+  # deleted on uninstall; it is not active yet, because the image's `kubernetes_secret_v1` cannot
+  # set ownerReferences, so today those Secrets persist after uninstall (see the README). The
   # owner is the SA, not the Job -- the Job is replaced on every input change.
   - apiGroups: [""]
     resources: ["serviceaccounts"]
