@@ -250,3 +250,40 @@ double slash.
 {{- printf "https://%s" $host -}}
 {{- end -}}
 {{- end }}
+
+{{/*
+The identity-service OIDC authority URL (`<apiGatewayUrl>/identity`), or "" when the gateway
+contract is off. Shared by the provisioner and the services that register against it, so they
+agree on the value without routing it through the provisioner-generated Secret.
+*/}}
+{{- define "istari-platform.identityServiceUrl" -}}
+{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
+{{- if $gatewayUrl -}}
+{{- printf "%s/identity" $gatewayUrl -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+The frontend's OIDC redirect URI (`https://<common.mainFqdn>`), or "" when `mainFqdn` is unset.
+*/}}
+{{- define "istari-platform.frontendRedirectUri" -}}
+{{- $mainFqdn := trim .Values.common.mainFqdn -}}
+{{- if $mainFqdn -}}
+{{- printf "https://%s" $mainFqdn -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+The mcp OIDC redirect URI (`https://<mcp host>/auth/callback`), where the host is
+`common.mcpFqdnOverride` or `mcp.<common.mainFqdn>`; "" when neither is set.
+*/}}
+{{- define "istari-platform.mcpRedirectUri" -}}
+{{- $mainFqdn := trim .Values.common.mainFqdn -}}
+{{- $mcpHost := trim .Values.common.mcpFqdnOverride -}}
+{{- if and (not $mcpHost) $mainFqdn -}}
+{{- $mcpHost = printf "mcp.%s" $mainFqdn -}}
+{{- end -}}
+{{- if $mcpHost -}}
+{{- printf "https://%s/auth/callback" $mcpHost -}}
+{{- end -}}
+{{- end }}

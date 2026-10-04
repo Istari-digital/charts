@@ -33,4 +33,15 @@ data:
   # identity derives its gateway-prefixed assertion audience from this directly.
   ISTARI_DIGITAL_API_URL: {{ $gatewayUrl | quote }}
   {{- end }}
+  {{- if or .Values.provisioner.enabled .Values.provisioner.external }}
+  {{- /* The frontend/mcp OIDC redirect allowlists are chart-derivable (from common.*), so they come
+  from this ConfigMap rather than only the provisioner Secret. The registry public key the identity
+  service also needs is generated and still mounts from the provisioner Secret. */}}
+  {{- with include "istari-platform.frontendRedirectUri" . }}
+  ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS: {{ . | quote }}
+  {{- end }}
+  {{- with include "istari-platform.mcpRedirectUri" . }}
+  ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_REDIRECT_URIS: {{ . | quote }}
+  {{- end }}
+  {{- end }}
 {{- end }}

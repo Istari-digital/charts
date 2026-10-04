@@ -72,6 +72,8 @@ A changed token is itself an input, so this renames the Job and reruns it. The v
 
 When enabled, the provisioner registers a fixed set of clients — registry, frontend, and MCP. The OIDC redirect URIs are derived from `common.mainFqdn`: the frontend at `https://<mainFqdn>` and MCP at `https://mcp.<mainFqdn>/auth/callback` (override the MCP host with `common.mcpFqdnOverride`). To use additional, or entirely different, redirect URIs, set them on the identity service directly via its environment — `ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS` / `..._MCP_REDIRECT_URIS` — which the identity service reads in preference to the provisioner-supplied defaults.
 
+Only the values the provisioner actually generates come from its Secrets — the registry's private key, the MCP client secret, and the registry public key the identity service reads. The deployment-specific identity values the services need (the authority URL and the redirect allowlists) are chart-derived and rendered into each service's own ConfigMap, ahead of the provisioner Secret and any user-supplied source in `envFrom`, so user overrides still win. The fixed OIDC client ids are service-level defaults, not chart-injected. The frontend has nothing generated, so it does not mount a provisioner Secret at all.
+
 The generated Secret names derive from the release name (via `fullnameOverride`), so installing the chart more than once in a single namespace — with distinct release names or `fullnameOverride` values — produces distinct Secrets instead of colliding. When the provisioner runs in a separate release from a consumer (`provisioner.external`), the two agree on the names by sharing the same `fullnameOverride` (or release name).
 
 {{ template "chart.valuesSection" . }}

@@ -10,17 +10,9 @@ immutability error that an in-place `helm upgrade` of a fixed-name Job would rai
 */}}
 {{- define "provisioner.podTemplate" -}}
 {{- $provisioner := .Values.provisioner }}
-{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . }}
-{{- $identityServiceUrl := "" }}
-{{- if $gatewayUrl }}{{- $identityServiceUrl = printf "%s/identity" $gatewayUrl }}{{- end }}
-{{- $common := .Values.common }}
-{{- $mainFqdn := trim $common.mainFqdn }}
-{{- $mcpHost := trim $common.mcpFqdnOverride }}
-{{- if and (not $mcpHost) $mainFqdn }}{{- $mcpHost = printf "mcp.%s" $mainFqdn }}{{- end }}
-{{- $frontendRedirect := "" }}
-{{- if $mainFqdn }}{{- $frontendRedirect = printf "https://%s" $mainFqdn }}{{- end }}
-{{- $mcpRedirect := "" }}
-{{- if $mcpHost }}{{- $mcpRedirect = printf "https://%s/auth/callback" $mcpHost }}{{- end }}
+{{- $identityServiceUrl := include "istari-platform.identityServiceUrl" . }}
+{{- $frontendRedirect := include "istari-platform.frontendRedirectUri" . }}
+{{- $mcpRedirect := include "istari-platform.mcpRedirectUri" . }}
 {{/*
 The chart computes the frontend/mcp redirect URIs from `common` and passes them as
 TF_VAR_*_redirect_uri. The *_enabled and *_extra_redirect_uris vars are constants (all three clients
@@ -38,7 +30,7 @@ still declares *_enabled, *_extra_redirect_uris, and main_domain; TODO(INF-1784)
   (dict "name" "TF_VAR_frontend_secret_name" "value" (include "provisioner.frontendSecretName" .))
   (dict "name" "TF_VAR_identity_platform_clients_secret_name" "value" (include "provisioner.identityPlatformClientsSecretName" .))
   (dict "name" "TF_VAR_identity_service_url" "value" $identityServiceUrl)
-  (dict "name" "TF_VAR_main_domain" "value" $mainFqdn)
+  (dict "name" "TF_VAR_main_domain" "value" (trim .Values.common.mainFqdn))
   (dict "name" "TF_VAR_mcp_enabled" "value" "true")
   (dict "name" "TF_VAR_mcp_extra_redirect_uris" "value" "[]")
   (dict "name" "TF_VAR_mcp_redirect_uri" "value" $mcpRedirect)
