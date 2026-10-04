@@ -5,6 +5,9 @@
 # -- Additional labels to add to all resources of all services
 commonLabels: {}
 
+# -- Override the value used for the label 'app.kubernetes.io/name', which defaults to the chart name (istari-platform).
+nameOverride: ""
+
 # -- Override the prefix used for resource names, which defaults to the chart name (istari-platform).
 fullnameOverride: "istari"
 
@@ -14,13 +17,15 @@ imagePullSecrets:
 # -- Chart-wide settings shared across services.
 # @default -- (see fields below)
 common:
-  # -- Base domain the `provisioner` derives the frontend/mcp OIDC redirect URIs from. Required when
-  # the provisioner is enabled, unless those redirects are supplied to identity-service directly via
-  # its env (`ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS` / `..._MCP_REDIRECT_URIS`).
-  mainDomain: ""
-
-# -- Override the value used for the label 'app.kubernetes.io/name', which defaults to the chart name (istari-platform).
-nameOverride: ""
+  # -- Platform host — the frontend FQDN, e.g. `istari.customer_domain.com`. The API gateway and mcp
+  # hosts default to subdomains of it. Drives the `ISTARI_DIGITAL_API_URL` the services receive and
+  # the OIDC redirect URIs the provisioner registers; setting it activates the API-URL contract.
+  mainFqdn: ""
+  # -- Override the API gateway host outright, e.g. `istari-api.example.com`. Empty uses the default,
+  # `api.<mainFqdn>`.
+  apiFqdnOverride: ""
+  # -- Override the mcp host outright. Empty uses the default, `mcp.<mainFqdn>`.
+  mcpFqdnOverride: ""
 
 # -- Optional: Trusted certificate bundle for when using a self-signed certificate. This is a PEM-encoded certificate bundle. AWS, Azure, and GCP root certs will also automatically be trusted.
 trustedCertBundle: ""
@@ -1105,8 +1110,6 @@ apiGateway:
   extraEnvSecrets: []
   # -- Port the proxy container listens on. The API Gateway's `kind: Service` receives traffic on port 80 and forwards it here; you should never need to change this.
   listen: 8080
-  # -- Public base URL of this environment's API Gateway, with no path (e.g. `https://api.your-domain.com`). Setting it turns on the gateway environment-variable contract: the registry and frontend address the registry through `<base>/registry`, and the identity-service publishes and accepts the gateway-prefixed URL. Leave empty to keep every client on the per-service hostnames. This chart never derives a default for this value from another (including `apiGateway.ingress`), so a release that deploys the API Gateway still needs `apiUrl` set explicitly to turn the contract on. Trailing slashes and surrounding whitespace are stripped.
-  apiUrl: ""
   # -- Additional path-prefix routes served alongside the chart-managed ones, for reaching in-cluster services this chart does not deploy. Each entry maps a URL path prefix to a Kubernetes Service in the same namespace as this release (cross-namespace and FQDN targets are not supported): the API Gateway matches the prefix and everything under it (never other prefixes that merely share its leading characters), strips it, and forwards the request to `service:port` over plain HTTP. A prefix must start with `/`, must not end with `/`, may use letters, digits, `-`, `_`, and `/` segment separators, and may not duplicate a chart-managed route or the reserved `/healthz` — invalid entries fail the render. When prefixes overlap, the longest match wins. Most deployments should leave this empty: routes for platform services are built into the chart and appear automatically.
   extraRoutes: []
   # # Example:

@@ -228,13 +228,25 @@ stay in sync across web, init, and migration workloads.
 {{- end }}
 
 {{/*
-Resolved API Gateway base URL, or "" when the gateway contract is off.
-Only apiGateway.apiUrl activates the contract — this chart never derives one
-value's default from another, so a release that deploys the API Gateway with an
-Ingress still needs apiUrl set explicitly. Trailing slashes and surrounding
-whitespace are stripped, so <base>/registry never renders a double slash.
+Resolved API Gateway base URL (scheme + host), or "" when the gateway contract is off.
+The host is `common.apiFqdnOverride` when set, otherwise derived as `api.<common.mainFqdn>`; setting
+either `common.mainFqdn` or `common.apiFqdnOverride` activates the contract. This is the one place
+the chart deliberately derives one value from another — the whole domain surface flows from
+`common.mainFqdn` by design. Inputs are scheme-less; the `https://` scheme is added here. Trailing
+slashes and surrounding whitespace on the override are stripped, so <base>/registry never renders a
+double slash.
 */}}
 {{- define "istari-platform.apiGatewayUrl" -}}
-{{- $r := default dict .Values.apiGateway -}}
-{{- trimSuffix "/" (trim (default "" $r.apiUrl)) -}}
+{{- $common := default dict .Values.common -}}
+{{- $override := trimSuffix "/" (trim (default "" $common.apiFqdnOverride)) -}}
+{{- $mainFqdn := trim (default "" $common.mainFqdn) -}}
+{{- $host := "" -}}
+{{- if $override -}}
+{{- $host = $override -}}
+{{- else if $mainFqdn -}}
+{{- $host = printf "api.%s" $mainFqdn -}}
+{{- end -}}
+{{- if $host -}}
+{{- printf "https://%s" $host -}}
+{{- end -}}
 {{- end }}
