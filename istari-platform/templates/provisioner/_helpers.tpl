@@ -15,28 +15,19 @@ immutability error that an in-place `helm upgrade` of a fixed-name Job would rai
 {{- $mcpRedirect := include "istari-platform.mcpRedirectUri" . }}
 {{/*
 The chart computes the frontend/mcp redirect URIs from `common` and passes them as
-TF_VAR_*_redirect_uri. The *_enabled and *_extra_redirect_uris vars are constants (all three clients
-always register; extra redirects are supplied to identity-service directly), and TF_VAR_main_domain
-is now redundant -- the image only falls back to deriving a redirect from it when the passed
-redirect is empty, which is exactly when mainFqdn is unset, so it never changes the result. The image
-still declares *_enabled, *_extra_redirect_uris, and main_domain; TODO(INF-1784) removes them there
-(along with the image-side redirect derivation), after which these pass-through lines go.
+TF_VAR_*_redirect_uri; the image applies them directly. As of the image's `0.2.0` Terraform rework
+it always registers all three clients, takes the redirect URIs as given, no longer derives anything
+from a base domain, and no longer creates a frontend Secret -- so the chart no longer passes the
+client-enable flags, extra-redirect lists, `main_domain`, or the frontend Secret name.
 */}}
 {{- $tfVars := list
   (dict "name" "TF_VAR_common_labels" "value" (include "provisioner.podLabels" . | fromYaml | toJson))
-  (dict "name" "TF_VAR_frontend_enabled" "value" "true")
-  (dict "name" "TF_VAR_frontend_extra_redirect_uris" "value" "[]")
   (dict "name" "TF_VAR_frontend_redirect_uri" "value" $frontendRedirect)
-  (dict "name" "TF_VAR_frontend_secret_name" "value" (include "provisioner.frontendSecretName" .))
   (dict "name" "TF_VAR_identity_platform_clients_secret_name" "value" (include "provisioner.identityPlatformClientsSecretName" .))
   (dict "name" "TF_VAR_identity_service_url" "value" $identityServiceUrl)
-  (dict "name" "TF_VAR_main_domain" "value" (trim .Values.common.mainFqdn))
-  (dict "name" "TF_VAR_mcp_enabled" "value" "true")
-  (dict "name" "TF_VAR_mcp_extra_redirect_uris" "value" "[]")
   (dict "name" "TF_VAR_mcp_redirect_uri" "value" $mcpRedirect)
   (dict "name" "TF_VAR_mcp_secret_name" "value" (include "provisioner.mcpSecretName" .))
   (dict "name" "TF_VAR_namespace" "value" .Release.Namespace)
-  (dict "name" "TF_VAR_registry_enabled" "value" "true")
   (dict "name" "TF_VAR_registry_secret_name" "value" (include "provisioner.registrySecretName" .))
   (dict "name" "TF_VAR_service_account_name" "value" (include "provisioner.fullname" .))
 -}}

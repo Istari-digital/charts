@@ -32,14 +32,7 @@ Secret carrying registry's private credential blob.
 {{- end }}
 
 {{/*
-Secret carrying frontend's client_id.
-*/}}
-{{- define "provisioner.frontendSecretName" -}}
-{{- printf "%s-frontend-credentials" (include "provisioner.fullname" .) -}}
-{{- end }}
-
-{{/*
-Secret carrying mcp's client_id + placeholder client_secret.
+Secret carrying mcp's placeholder client_secret.
 */}}
 {{- define "provisioner.mcpSecretName" -}}
 {{- printf "%s-mcp-credentials" (include "provisioner.fullname" .) -}}

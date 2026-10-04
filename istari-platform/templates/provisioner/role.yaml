@@ -23,7 +23,6 @@ rules:
     resources: ["secrets"]
     resourceNames:
       - {{ include "provisioner.registrySecretName" . | quote }}
-      - {{ include "provisioner.frontendSecretName" . | quote }}
       - {{ include "provisioner.mcpSecretName" . | quote }}
       - {{ include "provisioner.identityPlatformClientsSecretName" . | quote }}
       - {{ include "provisioner.stateSecretName" . | quote }}
