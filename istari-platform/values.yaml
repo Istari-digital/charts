@@ -879,10 +879,11 @@ identity:
     # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
     gateways: []
 
-# -- Settings for the client-registration provisioner: a one-shot Terraform-in-a-Job (an ordinary
-# release resource, not a Helm hook) that generates registry/frontend/mcp credentials and publishes
-# them for identity to read at startup. Not for secure-connection-service (see
-# `identity.agentRegistration`).
+# -- Settings for the provisioner: a one-shot Terraform-in-a-Job (an ordinary release resource, not
+# a Helm hook) that generates and publishes platform secrets. Its current use is registering the
+# registry/frontend/mcp services as OAuth/OIDC clients — generating their credentials for identity
+# to read at startup — and it may grow to other secret-generation uses. Not for
+# secure-connection-service (see `identity.agentRegistration`).
 # @default -- (see fields below)
 provisioner:
   # -- Enable / Disable the whole provisioner release.
