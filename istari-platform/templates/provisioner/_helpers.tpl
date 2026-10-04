@@ -10,22 +10,16 @@ immutability error that an in-place `helm upgrade` of a fixed-name Job would rai
 */}}
 {{- define "provisioner.podTemplate" -}}
 {{- $provisioner := .Values.provisioner }}
-{{- $identityServiceUrl := include "istari-platform.identityServiceUrl" . }}
-{{- $frontendRedirect := include "istari-platform.frontendRedirectUri" . }}
-{{- $mcpRedirect := include "istari-platform.mcpRedirectUri" . }}
 {{/*
-The chart computes the frontend/mcp redirect URIs from `common` and passes them as
-TF_VAR_*_redirect_uri; the image applies them directly. As of the image's `0.2.0` Terraform rework
-it always registers all three clients, takes the redirect URIs as given, no longer derives anything
-from a base domain, and no longer creates a frontend Secret -- so the chart no longer passes the
-client-enable flags, extra-redirect lists, `main_domain`, or the frontend Secret name.
+The image emits only generated credential material (the registry private key, the mcp client
+secret, and the registry public key), so the chart passes just the Secret names, namespace, labels,
+and the ServiceAccount name (the image sets an ownerReference to it). The identity config the
+services need -- redirect URIs, the authority URL, the enable flags -- comes from their own
+ConfigMaps, not the provisioner.
 */}}
 {{- $tfVars := list
   (dict "name" "TF_VAR_common_labels" "value" (include "provisioner.podLabels" . | fromYaml | toJson))
-  (dict "name" "TF_VAR_frontend_redirect_uri" "value" $frontendRedirect)
   (dict "name" "TF_VAR_identity_platform_clients_secret_name" "value" (include "provisioner.identityPlatformClientsSecretName" .))
-  (dict "name" "TF_VAR_identity_service_url" "value" $identityServiceUrl)
-  (dict "name" "TF_VAR_mcp_redirect_uri" "value" $mcpRedirect)
   (dict "name" "TF_VAR_mcp_secret_name" "value" (include "provisioner.mcpSecretName" .))
   (dict "name" "TF_VAR_namespace" "value" .Release.Namespace)
   (dict "name" "TF_VAR_registry_secret_name" "value" (include "provisioner.registrySecretName" .))
