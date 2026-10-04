@@ -13,9 +13,9 @@ immutability error that an in-place `helm upgrade` of a fixed-name Job would rai
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . }}
 {{- $identityServiceUrl := "" }}
 {{- if $gatewayUrl }}{{- $identityServiceUrl = printf "%s/identity" $gatewayUrl }}{{- end }}
-{{- $common := default dict .Values.common }}
-{{- $mainFqdn := trim (default "" $common.mainFqdn) }}
-{{- $mcpHost := trim (default "" $common.mcpFqdnOverride) }}
+{{- $common := .Values.common }}
+{{- $mainFqdn := trim $common.mainFqdn }}
+{{- $mcpHost := trim $common.mcpFqdnOverride }}
 {{- if and (not $mcpHost) $mainFqdn }}{{- $mcpHost = printf "mcp.%s" $mainFqdn }}{{- end }}
 {{- $frontendRedirect := "" }}
 {{- if $mainFqdn }}{{- $frontendRedirect = printf "https://%s" $mainFqdn }}{{- end }}

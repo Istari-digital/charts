@@ -129,7 +129,7 @@ The generated Secret names derive from the release name (via `fullnameOverride`)
 | apiGateway.volumes | list | `[]` | Pod Volumes |
 | common | object | (see fields below) | Chart-wide settings shared across services. |
 | common.apiFqdnOverride | string | `""` | Override the API gateway host outright, e.g. `istari-api.example.com`. Empty uses the default, `api.<mainFqdn>`. |
-| common.mainFqdn | string | `""` | Platform host — the frontend FQDN, e.g. `istari.customer_domain.com`. The API gateway and mcp hosts default to subdomains of it. Drives the `ISTARI_DIGITAL_API_URL` the services receive and the OIDC redirect URIs the provisioner registers; setting it activates the API-URL contract. |
+| common.mainFqdn | string | `""` | Platform host — the frontend FQDN, e.g. `istari.customer-domain.com`. The API gateway and mcp hosts default to subdomains of it. Drives the `ISTARI_DIGITAL_API_URL` the services receive and the OIDC redirect URIs the provisioner registers; setting it activates the API-URL contract. |
 | common.mcpFqdnOverride | string | `""` | Override the mcp host outright. Empty uses the default, `mcp.<mainFqdn>`. |
 | commonLabels | object | `{}` | Additional labels to add to all resources of all services |
 | dgraph-sec.alpha.acl.bootstrap.enabled | bool | `false` | Run the ACL bootstrap/reconciler Job. |

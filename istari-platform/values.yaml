@@ -17,7 +17,7 @@ imagePullSecrets:
 # -- Chart-wide settings shared across services.
 # @default -- (see fields below)
 common:
-  # -- Platform host — the frontend FQDN, e.g. `istari.customer_domain.com`. The API gateway and mcp
+  # -- Platform host — the frontend FQDN, e.g. `istari.customer-domain.com`. The API gateway and mcp
   # hosts default to subdomains of it. Drives the `ISTARI_DIGITAL_API_URL` the services receive and
   # the OIDC redirect URIs the provisioner registers; setting it activates the API-URL contract.
   mainFqdn: ""

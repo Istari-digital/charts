@@ -9,6 +9,9 @@ rules:
   # create and list cannot be restricted by resourceNames: the Terraform kubernetes backend
   # lists Secrets by label to find its state, and both the client credential Secrets and the
   # state Secret are created at runtime with names that don't yet exist when the verb is checked.
+  # `list` returns full Secret objects, so this unavoidably grants read access to every Secret in
+  # the namespace -- an inherent cost of the backend requiring `list`; the resourceNames rule below
+  # still limits which Secrets the provisioner can modify.
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["create", "list"]

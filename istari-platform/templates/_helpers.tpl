@@ -237,9 +237,9 @@ slashes and surrounding whitespace on the override are stripped, so <base>/regis
 double slash.
 */}}
 {{- define "istari-platform.apiGatewayUrl" -}}
-{{- $common := default dict .Values.common -}}
-{{- $override := trimSuffix "/" (trim (default "" $common.apiFqdnOverride)) -}}
-{{- $mainFqdn := trim (default "" $common.mainFqdn) -}}
+{{- $common := .Values.common -}}
+{{- $override := trimSuffix "/" (trim $common.apiFqdnOverride) -}}
+{{- $mainFqdn := trim $common.mainFqdn -}}
 {{- $host := "" -}}
 {{- if $override -}}
 {{- $host = $override -}}
