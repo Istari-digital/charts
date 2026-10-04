@@ -38,11 +38,10 @@ rules:
     resourceNames:
       - {{ include "provisioner.stateLockLeaseName" . | quote }}
     verbs: ["get", "update", "delete"]
-  # Lets the image read its own ServiceAccount's uid to set it as the ownerReference on the
-  # Secrets it creates. That is the intended mechanism for garbage-collecting them when the SA is
-  # deleted on uninstall; it is not active yet, because the image's `kubernetes_secret_v1` cannot
-  # set ownerReferences, so today those Secrets persist after uninstall (see the README). The
-  # owner is the SA, not the Job -- the Job is replaced on every input change.
+  # Lets the image read its own ServiceAccount's uid and set it as the ownerReference on the
+  # Secrets it creates (via kubernetes_manifest, as of provisioner 0.2.0), so Kubernetes
+  # garbage-collects them when the SA is deleted on uninstall. The owner is the SA, not the Job --
+  # the Job is replaced on every input change, which would collect a Job-owned Secret prematurely.
   - apiGroups: [""]
     resources: ["serviceaccounts"]
     resourceNames: [{{ include "provisioner.fullname" . | quote }}]
