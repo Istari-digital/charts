@@ -12,6 +12,8 @@ An umbrella helm chart used to install all Kubernetes components of the Istari D
 
 Instructions for installing the istari-platform chart are available in the IT Admins section of the [official Istari Documentation](https://docs.istaridigital.com/).
 
+`common.mainFqdn` is **required** — set it to the platform's frontend FQDN. The chart derives every platform host and URL from it and fails to render without it.
+
 ## Requirements
 
 | Repository | Name | Version |
@@ -133,7 +135,7 @@ The generated Secret names derive from `provisioner.fullname` — `<fullnameOver
 | apiGateway.volumes | list | `[]` | Pod Volumes |
 | common | object | (see fields below) | Chart-wide settings shared across services. |
 | common.apiFqdnOverride | string | `""` | Override the API gateway host outright, e.g. `api.istari.customer-domain.com`. Empty uses the default, `api.<mainFqdn>`. |
-| common.mainFqdn | string | `""` | Platform host — the frontend FQDN, e.g. `istari.customer-domain.com`. The API gateway and mcp hosts default to subdomains of it. Drives the `ISTARI_DIGITAL_API_URL` the services receive and the OIDC redirect URIs the provisioner registers; setting it activates the API-URL contract. |
+| common.mainFqdn | string | `""` | **Required** platform host — the frontend FQDN, e.g. `istari.customer-domain.com`. The API gateway and mcp hosts default to subdomains of it. Drives the `ISTARI_DIGITAL_API_URL` the services receive and the OIDC redirect URIs the provisioner registers. The chart fails to render with an empty value, since every platform host and URL derives from it. |
 | common.mcpFqdnOverride | string | `""` | Override the mcp host outright. Empty uses the default, `mcp.<mainFqdn>`. |
 | commonLabels | object | `{}` | Additional labels to add to all resources of all services |
 | dgraph-sec.alpha.acl.bootstrap.enabled | bool | `false` | Run the ACL bootstrap/reconciler Job. |

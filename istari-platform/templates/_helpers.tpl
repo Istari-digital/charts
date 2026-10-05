@@ -228,9 +228,9 @@ stay in sync across web, init, and migration workloads.
 {{- end }}
 
 {{/*
-Resolved API Gateway base URL (scheme + host), or "" when the gateway contract is off.
-The host is `common.apiFqdnOverride` when set, otherwise derived as `api.<common.mainFqdn>`; setting
-either `common.mainFqdn` or `common.apiFqdnOverride` activates the contract. This is the one place
+Resolved API Gateway base URL (scheme + host). The host is `common.apiFqdnOverride` when set,
+otherwise derived as `api.<common.mainFqdn>`. `common.mainFqdn` is required (see validations.yaml),
+so this always resolves; the empty-host guard below is retained only as defence. This is the one place
 the chart deliberately derives one value from another — the whole domain surface flows from
 `common.mainFqdn` by design. Inputs are scheme-less; the `https://` scheme is added here. Trailing
 slashes and surrounding whitespace on the override are stripped, so <base>/registry never renders a
@@ -264,7 +264,8 @@ agree on the value without routing it through the provisioner-generated Secret.
 {{- end }}
 
 {{/*
-The frontend's OIDC redirect URI (`https://<common.mainFqdn>`), or "" when `mainFqdn` is unset.
+The frontend's OIDC redirect URI (`https://<common.mainFqdn>`). `common.mainFqdn` is required, so
+this always resolves; the guard below is retained only as defence.
 */}}
 {{- define "istari-platform.frontendRedirectUri" -}}
 {{- $mainFqdn := trim .Values.common.mainFqdn -}}
@@ -275,7 +276,8 @@ The frontend's OIDC redirect URI (`https://<common.mainFqdn>`), or "" when `main
 
 {{/*
 The mcp OIDC redirect URI (`https://<mcp host>/auth/callback`), where the host is
-`common.mcpFqdnOverride` or `mcp.<common.mainFqdn>`; "" when neither is set.
+`common.mcpFqdnOverride` or `mcp.<common.mainFqdn>`. `common.mainFqdn` is required, so the host
+always resolves; the guard below is retained only as defence.
 */}}
 {{- define "istari-platform.mcpRedirectUri" -}}
 {{- $mainFqdn := trim .Values.common.mainFqdn -}}

@@ -1,0 +1,7 @@
+{{- /*
+Chart-wide preconditions. This file deliberately has no leading underscore, so Helm evaluates it on
+every render and these fail calls cannot be skipped by disabling a service. It emits no manifest.
+*/ -}}
+{{- if not (trim .Values.common.mainFqdn) }}
+{{- fail "common.mainFqdn is required: set it to the platform's frontend FQDN (e.g. `common.mainFqdn: istari.example.com`). Every platform host and URL the chart emits derives from it, so an empty value renders a non-functional release." }}
+{{- end }}
