@@ -951,7 +951,8 @@ provisioner:
     # -- Suffix for the state Secret's name — the Secret (and its Lease lock) is named
     # `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Empty
     # derives the suffix from the release name, so separate releases keep separate state. Must not
-    # end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index.
+    # end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index,
+    # and a value ending that way is rejected at render time.
     # @default -- derived from the release name, e.g. `<release>-provisioner-terraform-state`
     secretSuffix: ""
 

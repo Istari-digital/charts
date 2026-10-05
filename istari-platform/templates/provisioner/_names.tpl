@@ -51,11 +51,14 @@ registry/frontend/mcp.
 {{/*
 Suffix for the Terraform kubernetes backend's state Secret / lock Lease. Defaults to a name
 derived from `provisioner.fullname` so separate releases keep separate state; override to pin it.
-The backend reserves a trailing `-<number>` for its own state-chunking index, so an override must
-not end in one.
+The backend reserves a trailing `-<number>` for its own state-chunking index, so an override ending
+in one would collide with those chunk names and yield unreadable state -- rejected at render time.
 */}}
 {{- define "provisioner.stateSecretSuffix" -}}
 {{- if .Values.provisioner.backend.secretSuffix -}}
+{{- if regexMatch "-[0-9]+$" .Values.provisioner.backend.secretSuffix -}}
+{{- fail (printf "provisioner.backend.secretSuffix (%q) must not end in -<number>: the Terraform kubernetes backend reserves that suffix shape for its own state-chunking index, so such a value produces colliding, unreadable state Secret names" .Values.provisioner.backend.secretSuffix) -}}
+{{- end -}}
 {{- .Values.provisioner.backend.secretSuffix -}}
 {{- else -}}
 {{- printf "%s-terraform-state" (include "provisioner.fullname" .) -}}
