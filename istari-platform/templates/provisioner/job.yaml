@@ -2,12 +2,18 @@
 {{- $provisioner := .Values.provisioner }}
 {{- $podTemplate := include "provisioner.podTemplate" . }}
 {{/*
-The Job name embeds a hash of its pod template so a changed input renames the Job: Helm prunes
-the old one and the new one reruns, sidestepping the `spec.template` immutability that would make
-an in-place `helm upgrade` of a fixed-name Job fail. `rerunToken` is folded in so an operator can
-force a rerun without changing any input (`--set provisioner.rerunToken=<anything>`).
+The Job name embeds a hash of its inputs so a changed input renames the Job: Helm prunes the old one
+and the new one reruns, sidestepping the `spec.template` immutability that would make an in-place
+`helm upgrade` of a fixed-name Job fail. The hash covers the pod template (image, env, mounts, SA
+name), the Job-spec execution knobs `backoffLimit` and `activeDeadlineSeconds` -- `backoffLimit` is
+itself immutable on an existing Job, so hashing it renames rather than patches and avoids the same
+upgrade error -- and `serviceAccountAnnotations`, which lives on the ServiceAccount object outside
+the pod template (e.g. a pod-identity annotation added to recover a failed run). `rerunToken` is
+folded in so an operator can force a rerun without changing any input
+(`--set provisioner.rerunToken=<anything>`). The annotations map is hashed via `toJson`, which sorts
+keys, so an unchanged map always yields the same hash.
 */}}
-{{- $hash := printf "%s%s" $podTemplate $provisioner.rerunToken | sha256sum | trunc 8 }}
+{{- $hash := printf "%s|%v|%v|%s|%s" $podTemplate $provisioner.backoffLimit $provisioner.activeDeadlineSeconds (toJson $provisioner.serviceAccountAnnotations) $provisioner.rerunToken | sha256sum | trunc 8 }}
 {{- $jobName := printf "%s-apply-%s" (include "provisioner.fullname" .) $hash | trunc 63 | trimSuffix "-" }}
 apiVersion: batch/v1
 kind: Job

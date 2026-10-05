@@ -11,8 +11,8 @@ generated Secret names below derive from. Honours fullnameOverride, otherwise re
 {{- end }}
 
 {{/*
-The provisioning Job's name is built in job.yaml, not here: it appends a hash of the Job's pod
-template to this prefix so a changed input renames the Job (see provisioner/_helpers.tpl).
+The provisioning Job's name is built in job.yaml, not here: it appends a hash of the Job's inputs
+to this prefix so a changed input renames the Job (see provisioner/_helpers.tpl and job.yaml).
 */}}
 
 {{/*
