@@ -19,9 +19,11 @@ template to this prefix so a changed input renames the Job (see provisioner/_hel
 Generated-credential Secret names.
 
 Each derives from `provisioner.fullname`, so a single release that installs the provisioner and its
-consumers together agrees on the names with no configuration, two releases in one namespace get
-distinct names instead of colliding, and a consumer in a separate release (`provisioner.external`)
-agrees by sharing the same `fullnameOverride`/release name.
+consumers together agrees on the names with no configuration, and a consumer in a separate release
+(`provisioner.external`) agrees by sharing the same `fullnameOverride`/release name. Two releases in
+one namespace collide on these names -- as on every other chart-named resource -- unless given
+distinct `fullnameOverride` values, since `fullnameOverride` defaults to `istari` and takes
+precedence over the release name.
 */}}
 
 {{/*

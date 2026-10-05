@@ -15,7 +15,7 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["create", "list"]
-  # The reading/mutating verbs are scoped to exactly the Secrets the image owns: the four client
+  # The reading/mutating verbs are scoped to exactly the Secrets the image owns: the three client
   # credential Secrets and the Terraform state Secret. If the state ever outgrows a single Secret
   # the backend writes additional numbered state Secrets -- far larger than this provisioner's
   # state will ever be, but broaden this rule if that assumption changes.
