@@ -6,7 +6,15 @@
        identity.oidc.provider, else zitadel (identity-service's own default). A deployment that stays on
        the outgoing provider needs the import, so it runs unless enabled is explicitly false; switching
        providers still takes enabled=true. */ -}}
-{{- $incoming := dig "to" "" $idp | default (dig "provider" "" $oidc) | default "zitadel" -}}
+{{- $envProvider := "" -}}
+{{- range $e := (default list $serviceValues.env) }}
+{{- if eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER" }}
+{{- /* identity.env overrides identity.oidc.provider in the Deployment, so it does here too. */ -}}
+{{- if and $serviceValues.enabled $e.valueFrom (not (dig "to" "" $idp)) (ne (toString (index $idp "enabled")) "false") }}{{ fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER through valueFrom, which the chart cannot read: set identity.idpMigration.to to the provider identity-service runs (zitadel to import, or the incoming provider to switch), or identity.idpMigration.enabled=false" }}{{ end }}
+{{- $envProvider = toString (default "" $e.value) -}}
+{{- end }}
+{{- end }}
+{{- $incoming := dig "to" "" $idp | default $envProvider | default (dig "provider" "" $oidc) | default "zitadel" -}}
 {{- $import := eq $incoming $from -}}
 {{- $idpEnabled := index $idp "enabled" -}}
 {{- $render := ternary (ne (toString $idpEnabled) "false") (eq (toString $idpEnabled) "true") $import -}}
@@ -37,7 +45,7 @@
 {{- $_ := required (printf "identity.idpMigration.to is required to switch identity providers (identity.oidc.provider is %q); set it to the incoming provider, e.g. keycloak" $incoming) (dig "to" "" $idp) -}}
 {{- end }}
 {{- $fromIssuerApiUrl := dig "fromIssuerApiUrl" "" $idp -}}
-{{- if and $fromIssuerApiUrl (not (regexMatch "^https?://[^/]+" $fromIssuerApiUrl)) }}{{ fail (printf "identity.idpMigration.fromIssuerApiUrl must be an absolute http(s) URL, got %q" $fromIssuerApiUrl) }}{{ end }}
+{{- if and $fromIssuerApiUrl (not (regexMatch "^https?://[^/?#[:space:]]+(/[^[:space:]]*)?$" $fromIssuerApiUrl)) }}{{ fail (printf "identity.idpMigration.fromIssuerApiUrl must be an absolute http(s) URL, got %q" $fromIssuerApiUrl) }}{{ end }}
 {{- $idpExtraEnvSecrets := dig "extraEnvSecrets" list $idp -}}
 {{- /* required guards an EXPLICIT empty override (dig still supplies the default when the key is
        absent): an empty -database-url-env / -credential-env would pass through to migrate-idp and
