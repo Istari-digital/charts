@@ -1,21 +1,15 @@
 {{/*
 The provisioning Job's full pod template (`metadata` + `spec`), rendered identically for the Job
-manifest and for the Job's name hash.
-
-Everything here must be deterministic -- no `.Release.Revision`, timestamps, or random values, and
-no chart-version labels (see `provisioner.podLabels`). The Job name embeds `sha256sum` of this
-block, so a changed input produces a new name: Helm prunes the old Job and the new one reruns.
-That is how the provisioner picks up changed inputs without ever hitting the Job `spec.template`
-immutability error that an in-place `helm upgrade` of a fixed-name Job would raise.
+manifest and the Job's name hash. Everything here must be deterministic -- no `.Release.Revision`,
+timestamps, random values, or chart-version labels (see `provisioner.podLabels`) -- because the Job
+name hashes this block to rerun on change (mechanism and immutability rationale in job.yaml).
 */}}
 {{- define "provisioner.podTemplate" -}}
 {{- $provisioner := .Values.provisioner }}
 {{/*
-The image emits only generated credential material (the registry private key, the mcp client
-secret, and the registry public key), so the chart passes just the Secret names, namespace, labels,
-and the ServiceAccount name (the image sets an ownerReference to it). The identity config the
-services need -- redirect URIs, the authority URL, the enable flags -- comes from their own
-ConfigMaps, not the provisioner.
+The image emits only generated credential material, so the chart passes just the Secret names,
+namespace, labels, and ServiceAccount name. The identity config the services need (redirect URIs,
+authority URL, enable flags) comes from their own ConfigMaps, not the provisioner.
 */}}
 {{- $tfVars := list
   (dict "name" "TF_VAR_common_labels" "value" (include "provisioner.podLabels" . | fromYaml | toJson))
