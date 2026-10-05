@@ -5,14 +5,14 @@
 # -- Additional labels to add to all resources of all services
 commonLabels: {}
 
-# -- Override the value used for the label 'app.kubernetes.io/name', which defaults to the chart name (istari-platform).
-nameOverride: ""
-
 # -- Override the prefix used for resource names, which defaults to the chart name (istari-platform).
 fullnameOverride: "istari"
 
 imagePullSecrets:
 - name: "docker-pull-secret"
+
+# -- Override the value used for the label 'app.kubernetes.io/name', which defaults to the chart name (istari-platform).
+nameOverride: ""
 
 # -- Chart-wide settings shared across services.
 # @default -- (see fields below)
