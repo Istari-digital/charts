@@ -22,10 +22,13 @@ spec:
       {{- include "fileservice.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with $serviceValues.podAnnotations }}
       annotations:
+        # Rolls the Pods when the chart ConfigMap changes (e.g. a common.mainFqdn edit): envFrom
+        # alone leaves a running Pod on the old values until something else changes its pod template.
+        checksum/config: {{ include (print $.Template.BasePath "/fileservice/configmap.yaml") . | sha256sum }}
+        {{- with $serviceValues.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "fileservice.labels" . | nindent 8 }}
         {{- with $serviceValues.podLabels }}
