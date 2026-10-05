@@ -897,7 +897,7 @@ provisioner:
   # -- Image name.
   image: "provisioner"
   # -- Image tag.
-  tag: "0.2.0"
+  tag: "0.3.0"
   # -- Image pull policy.
   imagePullPolicy: IfNotPresent
   # -- Image pull secrets for the provisioning Job pod. When empty, the chart-wide `imagePullSecrets` apply.
