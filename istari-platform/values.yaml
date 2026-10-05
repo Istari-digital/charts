@@ -950,11 +950,14 @@ provisioner:
   # @default -- (see fields below)
   backend:
     # -- Suffix for the state Secret's name — the Secret (and its Lease lock) is named
-    # `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Empty
-    # derives the suffix from the release name, so separate releases keep separate state. Must not
-    # end with `-<number>` — the backend reserves that suffix shape for its own state-chunking index,
-    # and a value ending that way is rejected at render time.
-    # @default -- derived from the release name, e.g. `<release>-provisioner-terraform-state`
+    # `tfstate-<workspace>-<secretSuffix>` / `lock-tfstate-<workspace>-<secretSuffix>`. Empty derives
+    # the suffix from `provisioner.fullname` (`<fullnameOverride>-provisioner`, or
+    # `<release>-provisioner` when `fullnameOverride` is unset). Because `fullnameOverride` defaults
+    # to `istari`, two releases in one namespace share state unless given distinct `fullnameOverride`
+    # values (or a distinct `secretSuffix` here). Must not end with `-<number>` — the backend reserves
+    # that suffix shape for its own state-chunking index, and a value ending that way is rejected at
+    # render time.
+    # @default -- derived from `provisioner.fullname`, e.g. `istari-provisioner-terraform-state`
     secretSuffix: ""
 
 # Default values for Istari Digital Documentation. This should only be used in airgapped environments.
