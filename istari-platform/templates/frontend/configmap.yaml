@@ -22,11 +22,4 @@ data:
   # flag is set. Emitted only alongside the gateway URL because the frontend treats
   # identity-enabled-without-a-gateway-URL as a fatal config-load error.
   VITE_ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: {{ dig "clientIntegration" "enabled" false .Values.identity | quote }}
-  {{- if or .Values.provisioner.enabled .Values.provisioner.external }}
-  # The frontend's OIDC authority is deployment-specific (derived from common.mainFqdn), so it comes
-  # from this ConfigMap rather than the provisioner's generated Secret -- the frontend no longer
-  # mounts that Secret at all (it had nothing generated). The fixed client id is a service-level
-  # default owned by the frontend image, not injected by the chart.
-  VITE_IDENTITY_ROUTER_AUTHORITY: {{ include "istari-platform.identityServiceUrl" . | quote }}
-  {{- end }}
 {{- end }}

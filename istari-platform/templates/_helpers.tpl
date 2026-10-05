@@ -252,18 +252,6 @@ double slash.
 {{- end }}
 
 {{/*
-The identity-service OIDC authority URL (`<apiGatewayUrl>/identity`), or "" when the gateway
-contract is off. Shared by the provisioner and the services that register against it, so they
-agree on the value without routing it through the provisioner-generated Secret.
-*/}}
-{{- define "istari-platform.identityServiceUrl" -}}
-{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
-{{- if $gatewayUrl -}}
-{{- printf "%s/identity" $gatewayUrl -}}
-{{- end -}}
-{{- end }}
-
-{{/*
 The frontend's OIDC redirect URI (`https://<common.mainFqdn>`). `common.mainFqdn` is required, so
 this always resolves; the guard below is retained only as defence.
 */}}
