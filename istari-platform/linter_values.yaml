@@ -1,7 +1,8 @@
 # Values fed to `helm lint` — picked up automatically by the gruntwork `helmlint` pre-commit hook,
 # and passed explicitly by the publish workflow. `common.mainFqdn` is required at render time, so
 # without a value here `helm lint` aborts at the validations.yaml `fail` before exercising any
-# template, and lints nothing. This example FQDN lets the linter render the whole chart. It is a
-# lint fixture only — not a default or a deployment value.
+# template, and lints nothing. This example FQDN lets the linter exercise the parent chart's own
+# templates; the subcharts are not staged at lint time, so lint does not cover them. It is a lint
+# fixture only — not a default or a deployment value.
 common:
   mainFqdn: istari.istaridigital.com
