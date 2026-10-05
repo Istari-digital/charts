@@ -26,7 +26,7 @@ data:
   # The frontend's OIDC authority is deployment-specific (derived from common.mainFqdn), so it comes
   # from this ConfigMap rather than the provisioner's generated Secret -- the frontend no longer
   # mounts that Secret at all (it had nothing generated). The fixed client id is a service-level
-  # default owned by the frontend image (DPLAT-1207), not injected by the chart.
+  # default owned by the frontend image, not injected by the chart.
   VITE_IDENTITY_ROUTER_AUTHORITY: {{ include "istari-platform.identityServiceUrl" . | quote }}
   {{- end }}
 {{- end }}
