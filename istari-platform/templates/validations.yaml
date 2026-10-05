@@ -5,3 +5,12 @@ every render and these fail calls cannot be skipped by disabling a service. It e
 {{- if not (trim .Values.common.mainFqdn) }}
 {{- fail "common.mainFqdn is required: set it to the platform's frontend FQDN (e.g. `common.mainFqdn: istari.example.com`). Every platform host and URL the chart emits derives from it, so an empty value renders a non-functional release." }}
 {{- end }}
+{{- /* The common.* hosts are scheme-less: the chart adds `https://` and paths where it emits a URL.
+A value carrying a scheme or path (a common migration mistake) would render e.g.
+`https://https://api.example.com` or corrupt a callback URI, so reject it here naming the key. */ -}}
+{{- range $key := list "mainFqdn" "apiFqdnOverride" "mcpFqdnOverride" }}
+{{- $val := trim (index $.Values.common $key) }}
+{{- if and $val (contains "/" $val) }}
+{{- fail (printf "common.%s must be a scheme-less host (e.g. `api.example.com`), not a URL or path — got %q. Drop the scheme and any trailing path; the chart adds `https://` where it emits a URL." $key $val) }}
+{{- end }}
+{{- end }}
