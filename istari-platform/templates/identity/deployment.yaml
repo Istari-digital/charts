@@ -23,9 +23,10 @@ spec:
   template:
     metadata:
       annotations:
-        # Rolls the Pods when the chart ConfigMap changes (e.g. a common.mainFqdn edit): envFrom
-        # alone leaves a running Pod on the old values until something else changes its pod template.
-        checksum/config: {{ include (print $.Template.BasePath "/identity/configmap.yaml") . | sha256sum }}
+        # Rolls the Pods when the ConfigMap's data changes (e.g. a common.mainFqdn edit): envFrom
+        # alone leaves a running Pod on the old values. Hashes only .data, so a label- or
+        # chart-version-only change does not needlessly roll the Pods.
+        checksum/config: {{ include (print $.Template.BasePath "/identity/configmap.yaml") . | fromYaml | dig "data" dict | toYaml | sha256sum }}
         {{- with $serviceValues.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
