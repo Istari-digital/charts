@@ -21,8 +21,8 @@ common:
   # hosts default to subdomains of it. Drives the `ISTARI_DIGITAL_API_URL` the services receive and
   # the OIDC redirect URIs the provisioner registers; setting it activates the API-URL contract.
   mainFqdn: ""
-  # -- Override the API gateway host outright, e.g. `istari-api.example.com`. Empty uses the default,
-  # `api.<mainFqdn>`.
+  # -- Override the API gateway host outright, e.g. `api.istari.customer-domain.com`. Empty uses the
+  # default, `api.<mainFqdn>`.
   apiFqdnOverride: ""
   # -- Override the mcp host outright. Empty uses the default, `mcp.<mainFqdn>`.
   mcpFqdnOverride: ""
