@@ -80,7 +80,7 @@ spec:
         - {{ $from | quote }}
         - "-issuer"
         - {{ $fromIssuer | quote }}
-        - "-incoming-provider"
+        - "-to"
         - {{ $to | quote }}
         - "-database-url-env"
         - {{ $dbEnv | quote }}

@@ -2,15 +2,11 @@
 {{- $provisioner := .Values.provisioner }}
 {{- $podTemplate := include "provisioner.podTemplate" . }}
 {{/*
-The Job name embeds a hash of its inputs, so a changed input renames the Job: Helm prunes the old
-one and runs the new one, sidestepping the `spec.template` immutability an in-place `helm upgrade`
-of a fixed-name Job would hit. The hash covers the pod template, the Job-spec knobs `backoffLimit`
-and `activeDeadlineSeconds`, `serviceAccountAnnotations` (on the SA, outside the pod template), and
-`rerunToken` (a manual rerun lever). The non-template inputs are folded in for the same rerun goal:
-a completed Job won't re-execute if those fields are patched in place, so a change to any of them
-must rename the Job to produce a fresh run. Annotations hash via `toJson` for stable key order. The
-pod template is trimmed before hashing, exactly as the manifest renders it, so the hash tracks the
-deployed pod and isn't perturbed by leading/trailing whitespace from the include.
+The Job name embeds a hash of its inputs, so a changed input renames the Job -- Helm prunes the old
+one and runs the new one -- rather than patching a fixed-name Job: `spec.template` is immutable, and
+a completed Job won't re-execute on an in-place patch anyway, so renaming is the only way to rerun.
+The pod template is hashed trimmed (as the manifest renders it) and annotations via `toJson` (stable
+key order), so the hash tracks the deployed pod exactly and nothing spurious perturbs it.
 */}}
 {{- $hash := printf "%s|%v|%v|%s|%s" (trim $podTemplate) $provisioner.backoffLimit $provisioner.activeDeadlineSeconds (toJson $provisioner.serviceAccountAnnotations) $provisioner.rerunToken | sha256sum | trunc 8 }}
 {{- $verb := ternary "plan" "apply" $provisioner.planOnly }}
