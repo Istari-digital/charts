@@ -71,8 +71,6 @@ spec:
         - configMapRef:
             name: {{ include "frontend.configmap.name" $ | quote }}
         {{- end }}
-        {{- /* The frontend does not mount a provisioner Secret: its identity config is all
-        chart-derivable and lives in the ConfigMap above. */}}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
         - configMapRef:
