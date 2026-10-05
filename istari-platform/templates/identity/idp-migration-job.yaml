@@ -29,9 +29,9 @@
 {{- if ne $from "zitadel" }}{{ fail (printf "identity.idpMigration.from must be \"zitadel\" (the only supported outgoing IdP), got %q" $from) }}{{ end }}
 {{- $fromIssuer := dig "fromIssuer" "" $idp -}}
 {{- if $import }}
-{{- /* Staying on Zitadel, the outgoing issuer is identity-service's own. Most installs set it only in a
-       mounted Secret, so fall back to the kubelet's $(VAR) expansion, which also reads envFrom sources. */ -}}
-{{- $fromIssuer = $fromIssuer | default (dig "issuer" "" $oidc) | default "$(ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER)" -}}
+{{- /* Staying on Zitadel, the outgoing issuer is identity-service's own, from identity.oidc.issuer, a
+       mounted Secret or identity.env. The kubelet's $(VAR) expansion reads the same sources, envFrom included. */ -}}
+{{- $fromIssuer = $fromIssuer | default "$(ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER)" -}}
 {{- else }}
 {{- $fromIssuer = required "identity.idpMigration.fromIssuer is required when identity.idpMigration.enabled=true (the outgoing IdP issuer, still reachable at pre-upgrade time)" $fromIssuer -}}
 {{- $_ := required (printf "identity.idpMigration.to is required to switch identity providers (identity.oidc.provider is %q); set it to the incoming provider, e.g. keycloak" $incoming) (dig "to" "" $idp) -}}
@@ -132,6 +132,7 @@ spec:
         {{- $initExtra := list }}
         {{- with $serviceValues.env }}{{- $initExtra = append $initExtra . }}{{- end }}
         {{- with $migrationsEnv }}{{- $initExtra = append $initExtra . }}{{- end }}
+        {{- with $idpEnv }}{{- $initExtra = append $initExtra . }}{{- end }}
         {{- if .Values.trustedCertBundle }}{{- $initExtra = append $initExtra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
         env:
         {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "db-migrate" "containerName" "db-migrate" "otelDefaults" (dig "enabled" false (default dict .Values.jaeger)) "extra" $initExtra) | nindent 8 }}
@@ -224,6 +225,8 @@ spec:
         order (service env, then idpMigration.env, then cert) and deduped last-wins, so later
         fragments override earlier ones and a repeated name collapses to one patchable entry. */}}
         {{- $extra := list }}
+        {{- /* As in the Deployment: identity.oidc.* first, so identity.env still overrides it. */}}
+        {{- if $import }}{{- $extra = append $extra (include "identity.oidcEnv" $serviceValues | fromYamlArray) }}{{- end }}
         {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
         {{- with $idpEnv }}{{- $extra = append $extra . }}{{- end }}
         {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
