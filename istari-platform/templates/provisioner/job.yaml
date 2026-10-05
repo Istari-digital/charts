@@ -7,10 +7,13 @@ one and runs the new one, sidestepping the `spec.template` immutability an in-pl
 of a fixed-name Job would hit. The hash covers the pod template, the Job-spec knobs `backoffLimit`
 and `activeDeadlineSeconds`, `serviceAccountAnnotations` (on the SA, outside the pod template), and
 `rerunToken` (a manual rerun lever). `backoffLimit` is itself immutable on an existing Job, so
-hashing it renames rather than patches. Annotations hash via `toJson` for stable key order.
+hashing it renames rather than patches. Annotations hash via `toJson` for stable key order. The
+pod template is trimmed before hashing, exactly as the manifest renders it, so the hash tracks the
+deployed pod and isn't perturbed by leading/trailing whitespace from the include.
 */}}
-{{- $hash := printf "%s|%v|%v|%s|%s" $podTemplate $provisioner.backoffLimit $provisioner.activeDeadlineSeconds (toJson $provisioner.serviceAccountAnnotations) $provisioner.rerunToken | sha256sum | trunc 8 }}
-{{- $jobName := printf "%s-apply-%s" (include "provisioner.fullname" .) $hash | trunc 63 | trimSuffix "-" }}
+{{- $hash := printf "%s|%v|%v|%s|%s" (trim $podTemplate) $provisioner.backoffLimit $provisioner.activeDeadlineSeconds (toJson $provisioner.serviceAccountAnnotations) $provisioner.rerunToken | sha256sum | trunc 8 }}
+{{- $verb := ternary "plan" "apply" $provisioner.planOnly }}
+{{- $jobName := printf "%s-%s-%s" (include "provisioner.fullname" .) $verb $hash | trunc 63 | trimSuffix "-" }}
 apiVersion: batch/v1
 kind: Job
 metadata:
