@@ -35,7 +35,9 @@ jobs:
         fetch-depth: 0  # needed so we can create and push tags
 
     - name: Helm lint
-      run: helm lint .
+      # linter_values.yaml supplies the required common.mainFqdn so lint renders the whole chart;
+      # without it the validations.yaml fail aborts the render and lint checks nothing.
+      run: helm lint . -f linter_values.yaml
 
     - name: Setup JFrog CLI
       uses: jfrog/setup-jfrog-cli@v4
