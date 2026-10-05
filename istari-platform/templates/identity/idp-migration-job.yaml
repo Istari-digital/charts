@@ -50,10 +50,8 @@ spec:
         {{- with $idpPodLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- with $idpPodAnnotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- include "istari-platform.jobPodAnnotations" $idpPodAnnotations | nindent 8 }}
     spec:
       restartPolicy: Never
       serviceAccountName: {{ include "identity.fullname" . | quote }}

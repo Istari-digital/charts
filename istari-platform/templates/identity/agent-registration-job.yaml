@@ -71,10 +71,8 @@ spec:
         {{- with $registrationPodLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- with $registrationPodAnnotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- include "istari-platform.jobPodAnnotations" $registrationPodAnnotations | nindent 8 }}
     spec:
       restartPolicy: Never
       serviceAccountName: {{ include "identity.fullname" $ | quote }}

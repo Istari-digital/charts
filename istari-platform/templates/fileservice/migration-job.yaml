@@ -26,10 +26,8 @@ spec:
         {{- with $migrationsPodLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- with $migrationsPodAnnotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- include "istari-platform.jobPodAnnotations" $migrationsPodAnnotations | nindent 8 }}
     spec:
       restartPolicy: Never
       serviceAccountName: {{ include "fileservice.fullname" . | quote }}

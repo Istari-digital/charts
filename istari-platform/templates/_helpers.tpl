@@ -212,6 +212,17 @@ Input: a list of env maps (each with a `name`). Output: YAML for the deduped lis
 {{- end }}
 
 {{/*
+Pod-template annotations for the chart's one-shot Jobs. Defaults `sidecar.istio.io/inject` to
+"false" -- an injected sidecar never exits, so a one-shot Job pod with one never completes -- then
+merges the caller's `podAnnotations` on top, so an operator can still override it (even back to
+"true") or add their own. Input: the service's podAnnotations map (may be empty); output: YAML for
+the annotations map, with the caller supplying the `annotations:` key.
+*/}}
+{{- define "istari-platform.jobPodAnnotations" -}}
+{{- toYaml (merge (deepCopy (default (dict) .)) (dict "sidecar.istio.io/inject" "false")) -}}
+{{- end }}
+
+{{/*
 Env that points common TLS/CA-bundle libraries at the mounted trusted-cert bundle. Injected
 into every service container when `.Values.trustedCertBundle` is set. Centralized so the paths
 stay in sync across web, init, and migration workloads.

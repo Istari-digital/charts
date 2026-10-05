@@ -23,10 +23,8 @@ authority URL, enable flags) comes from their own ConfigMaps, not the provisione
 metadata:
   labels:
     {{- include "provisioner.podLabels" . | nindent 4 }}
-  {{- with $provisioner.podAnnotations }}
   annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- include "istari-platform.jobPodAnnotations" $provisioner.podAnnotations | nindent 4 }}
 spec:
   restartPolicy: Never
   serviceAccountName: {{ include "provisioner.fullname" . | quote }}
