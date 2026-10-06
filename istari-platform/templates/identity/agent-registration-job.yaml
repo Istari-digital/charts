@@ -52,6 +52,10 @@
        an empty value (it has no tenant to fall back to). */ -}}
 {{- if and $agent.providerName (not $agent.providerTenantIdEnv) }}{{ fail (printf "agentRegistration agent %q sets providerName but not providerTenantIdEnv (both are needed to map the tenant to an upstream org)" $agent.name) }}{{ end }}
 {{- if and $agent.providerTenantIdEnv (not $agent.providerName) }}{{ fail (printf "agentRegistration agent %q sets providerTenantIdEnv but not providerName" $agent.name) }}{{ end }}
+{{- if and (hasKey $agent "platformRoles") (not (kindIs "invalid" $agent.platformRoles)) (not (kindIs "slice" $agent.platformRoles)) }}{{ fail (printf "agentRegistration agent %q: platformRoles must be a list of platform role ids, e.g. [secure_connector]" $agent.name) }}{{ end }}
+{{- range $role := $agent.platformRoles }}
+{{- if not (and (kindIs "string" $role) (trim $role)) }}{{ fail (printf "agentRegistration agent %q: every platformRoles entry must be a non-empty role id string" $agent.name) }}{{ end }}
+{{- end }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -201,6 +205,10 @@ spec:
         {{- with $agent.displayName }}
         - "-display-name"
         - {{ . | quote }}
+        {{- end }}
+        {{- range $role := $agent.platformRoles }}
+        - "-platform-role"
+        - {{ $role | quote }}
         {{- end }}
         envFrom:
         - secretRef:
