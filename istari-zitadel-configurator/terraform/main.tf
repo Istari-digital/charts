@@ -166,7 +166,7 @@ resource "zitadel_application_oidc" "identity-service" {
   name           = "identity-service"
   redirect_uris  = ["${local.identity_service_base_url}/callback"]
   response_types = ["OIDC_RESPONSE_TYPE_CODE"]
-  grant_types    = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"]
+  grant_types    = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE", "OIDC_GRANT_TYPE_REFRESH_TOKEN"]
   post_logout_redirect_uris = concat(
     ["${local.identity_service_base_url}/callback"],
     local.frontend_service_post_logout_redirect_uris,
