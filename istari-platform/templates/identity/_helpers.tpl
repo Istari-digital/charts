@@ -11,8 +11,8 @@ OIDC_PRIVATE_KEY).
 Reads the identity.oidc.* fields directly — values.yaml is the source of truth
 for their defaults (per AGENTS.md), so the template adds no fallbacks of its own.
 Each field emits only when non-empty, so an empty block adds nothing. provider
-and clientAuthMethod are validated against the supported enums, so a typo fails
-`helm template` rather than the running pod.
+and clientAuthMethod are validated against the supported enums, and apiBaseUrl
+as a URL, so a typo fails `helm template` rather than the running pod.
 */}}
 {{- define "identity.oidcEnv" -}}
 {{- $oidc := .oidc -}}
@@ -26,6 +26,12 @@ and clientAuthMethod are validated against the supported enums, so a typo fails
 {{- end }}
 {{- with $oidc.issuer }}
 - name: ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER
+  value: {{ . | quote }}
+{{- end }}
+{{- with $oidc.apiBaseUrl }}
+{{- /* scheme, optional userinfo, a non-empty host (name, IPv4 or bracketed IPv6), optional port, optional path */}}
+{{- if not (regexMatch `^https?://([^/?#@[:space:]]+@)?([^/?#@:\[\][:space:]]+|\[[0-9A-Fa-f:.]+\])(:[0-9]+)?(/[^[:space:]]*)?$` .) }}{{- fail (printf "identity.oidc.apiBaseUrl must be an absolute http(s) URL, got %q" .) }}{{- end }}
+- name: ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_API_BASE_URL
   value: {{ . | quote }}
 {{- end }}
 {{- with $oidc.clientId }}

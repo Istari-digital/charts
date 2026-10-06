@@ -19,12 +19,9 @@
 {{- $render := ternary (ne (toString $idpEnabled) "false") (eq (toString $idpEnabled) "true") $import -}}
 {{- if and $serviceValues.enabled $render }}
 {{- $runAsJob := dig "runAsJob" false (dig "migrations" dict $serviceValues) -}}
-{{- /* A migration runs against the schema the weight-5 db-migrate hook leaves, which exists only with
-       runAsJob=true; with runAsJob=false migrations run as a Deployment initContainer, after all hooks.
-       The import migrates the schema itself in an init container instead. */ -}}
-{{- if and (not $import) (not $runAsJob) }}{{ fail "switching identity providers with identity.idpMigration requires identity.migrations.runAsJob=true, so DB migrations run as a pre-upgrade hook (weight 5) before this weight-10 migrate-idp hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and migrate-idp would run against a missing schema" }}{{ end }}
-{{- $migrationsEnv := $serviceValues.migrations.env -}}
-{{- $migrationsResources := $serviceValues.migrations.resources -}}
+{{- /* migrate-idp runs against the schema the weight-5 db-migrate hook leaves, which exists only with
+       runAsJob=true; with runAsJob=false migrations run as a Deployment initContainer, after all hooks. */ -}}
+{{- if not $runAsJob }}{{ fail (printf "%s requires identity.migrations.runAsJob=true, so DB migrations run as a pre-install/pre-upgrade hook (weight 5) before this weight-10 migrate-idp hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and migrate-idp would run against a missing schema. Set identity.migrations.runAsJob=true%s" (ternary "identity.idpMigration (the Zitadel import, which runs by default while identity-service stays on Zitadel)" "switching identity providers with identity.idpMigration" $import) (ternary ", or identity.idpMigration.enabled=false to skip the import" "" $import)) }}{{ end }}
 {{- $idpBackoff := dig "backoffLimit" 3 $idp -}}
 {{- $idpCleanup := dig "autoCleanupSuccessfulJob" true $idp -}}
 {{- $idpPodAnnotations := dig "podAnnotations" dict $idp -}}
@@ -44,9 +41,6 @@
 {{- $fromIssuer = required "identity.idpMigration.fromIssuer is required when identity.idpMigration.enabled=true (the outgoing IdP issuer, still reachable at pre-upgrade time)" $fromIssuer -}}
 {{- $_ := required (printf "identity.idpMigration.to is required to switch identity providers (identity.oidc.provider is %q); set it to the incoming provider, e.g. keycloak" $incoming) $idp.to -}}
 {{- end }}
-{{- $fromIssuerApiUrl := $idp.fromIssuerApiUrl -}}
-{{- /* scheme, optional userinfo, a non-empty host (name, IPv4 or bracketed IPv6), optional port, optional path */ -}}
-{{- if and $fromIssuerApiUrl (not (regexMatch `^https?://([^/?#@[:space:]]+@)?([^/?#@:\[\][:space:]]+|\[[0-9A-Fa-f:.]+\])(:[0-9]+)?(/[^[:space:]]*)?$` $fromIssuerApiUrl)) }}{{ fail (printf "identity.idpMigration.fromIssuerApiUrl must be an absolute http(s) URL, got %q" $fromIssuerApiUrl) }}{{ end }}
 {{- $idpExtraEnvSecrets := $idp.extraEnvSecrets -}}
 {{- /* required guards an EXPLICIT empty override (dig still supplies the default when the key is
        absent): an empty -database-url-env / -credential-env would pass through to migrate-idp and
@@ -55,6 +49,23 @@
 {{- $credEnv := required "identity.idpMigration.credentialEnv must not be empty (the env var name holding the outgoing-IdP credential)" (dig "credentialEnv" "ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY" $idp) -}}
 {{- $slugPrefix := dig "slugPrefix" "" $idp -}}
 {{- $dryRun := dig "dryRun" false $idp -}}
+{{- if $import }}
+{{- /* migrate-idp reads the API base URL only from -issuer-api-url, and an unset $(VAR) would pass through
+       as literal text. This defines it as empty, which migrate-idp treats as unset; every later source overrides it. */}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "identity.fullname" . }}-idp-migrate-defaults
+  labels:
+    {{- include "identity.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-15"
+    helm.sh/hook-delete-policy: before-hook-creation
+data:
+  ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_API_BASE_URL: ""
+---
+{{- end }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -94,80 +105,6 @@ spec:
       imagePullSecrets:
       {{- toYaml . | nindent 6 }}
       {{- end }}
-      {{- if not $runAsJob }}
-      initContainers:
-      - name: db-migrate
-        {{- with $serviceValues.containerSecurityContext }}
-        securityContext:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
-        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
-        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
-        command:
-        - "/migrate"
-        {{- with $migrationsResources }}
-        resources:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
-        envFrom:
-        {{- /* With runAsJob=false the chart ConfigMap is an ordinary release resource, absent during the
-        upgrade that first enables identity-service; neither CLI reads its keys, so the hook may start without it. */}}
-        - configMapRef:
-            name: {{ include "identity.configmap.name" . | quote }}
-            {{- if not $runAsJob }}
-            optional: true
-            {{- end }}
-        {{- with $serviceValues.extraEnvConfigMaps }}
-        {{- range . }}
-        - configMapRef:
-            name: {{ . | quote }}
-        {{- end }}
-        {{- end }}
-        {{- if $serviceValues.secretName }}
-        - secretRef:
-            name: {{ $serviceValues.secretName | quote }}
-        {{- end }}
-        {{- with $serviceValues.extraEnvSecrets }}
-        {{- range . }}
-        - secretRef:
-            name: {{ . | quote }}
-        {{- end }}
-        {{- end }}
-        {{- range $s := $idpExtraEnvSecrets }}
-        - secretRef:
-            name: {{ $s | quote }}
-            optional: true
-        {{- end }}
-        {{- $initExtra := list }}
-        {{- with $serviceValues.env }}{{- $initExtra = append $initExtra . }}{{- end }}
-        {{- with $migrationsEnv }}{{- $initExtra = append $initExtra . }}{{- end }}
-        {{- with $idpEnv }}{{- $initExtra = append $initExtra . }}{{- end }}
-        {{- if .Values.trustedCertBundle }}{{- $initExtra = append $initExtra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
-        {{- /* /migrate reads only the default variable: set it from a custom databaseUrlEnv, last, so the $(VAR) it expands is defined first. */}}
-        {{- if ne $dbEnv "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" }}
-        {{- $lastByName := dict }}
-        {{- range $frag := $initExtra }}{{- range $e := $frag }}{{- $_ := set $lastByName (toString $e.name) $e }}{{- end }}{{- end }}
-        {{- range $n, $e := $lastByName }}
-        {{- if and (ne $n "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL") (contains "$(ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL)" (toString (default "" $e.value))) }}{{ fail (printf "%s references $(ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL), but with identity.migrations.runAsJob=false and identity.idpMigration.databaseUrlEnv=%s the /migrate init container redefines that variable from $(%s), so the reference cannot resolve. Leave databaseUrlEnv at its default, or give %s the connection string directly" $n $dbEnv $dbEnv $dbEnv) }}{{ end }}
-        {{- end }}
-        {{- $kept := list }}
-        {{- range $frag := $initExtra }}{{- $f := list }}{{- range $e := $frag }}{{- if ne (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" }}{{- $f = append $f $e }}{{- end }}{{- end }}{{- $kept = append $kept $f }}{{- end }}
-        {{- $initExtra = append $kept (list (dict "name" "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" "value" (printf "$(%s)" $dbEnv))) }}
-        {{- end }}
-        env:
-        {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "db-migrate" "containerName" "db-migrate" "otelDefaults" $jaegerEnabled "extra" $initExtra) | nindent 8 }}
-        {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
-        volumeMounts:
-        {{- with $serviceValues.volumeMounts }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- if .Values.trustedCertBundle }}
-        - name: trusted-certs
-          mountPath: /usr/lib/ssl/cert.pem
-          subPath: bundle.crt
-        {{- end }}
-        {{- end }}
-      {{- end }}
       containers:
       - name: idp-migrate
         {{- with $serviceValues.containerSecurityContext }}
@@ -182,11 +119,9 @@ spec:
         - {{ $from | quote }}
         - "-issuer"
         - {{ $fromIssuer | quote }}
-        {{- with $fromIssuerApiUrl }}
-        - "-issuer-api-url"
-        - {{ . | quote }}
-        {{- end }}
         {{- if $import }}
+        - "-issuer-api-url"
+        - "$(ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_API_BASE_URL)"
         - "-mode"
         - "import"
         {{- else }}
@@ -212,13 +147,12 @@ spec:
         {{- end }}
         {{- /* Inherit the app's config + secrets: the DB URL and outgoing-IdP credential the CLIs read via -*-env indirection come from these, so there are no new plaintext env vars. */}}
         envFrom:
-        {{- /* With runAsJob=false the chart ConfigMap is an ordinary release resource, absent during the
-        upgrade that first enables identity-service; neither CLI reads its keys, so the hook may start without it. */}}
+        {{- if $import }}
+        - configMapRef:
+            name: {{ printf "%s-idp-migrate-defaults" (include "identity.fullname" .) | quote }}
+        {{- end }}
         - configMapRef:
             name: {{ include "identity.configmap.name" . | quote }}
-            {{- if not $runAsJob }}
-            optional: true
-            {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
         - configMapRef:
