@@ -845,7 +845,7 @@ identity:
     podAnnotations: {}
     # -- Extra labels for the migration Job Pod template only.
     podLabels: {}
-    # -- Extra environment variables for the migration Job only (both its containers, when the schema init container runs), rendered after the service-level `env` and `identity.migrations.env` (on duplicate names, these win).
+    # -- Extra environment variables for the migration Job only (both its containers, when the schema init container runs), rendered after the service-level `env`, and in the schema init container after `identity.migrations.env`, which the import container does not get (on duplicate names, these win).
     env: []
     # -- Extra secrets mounted (via `envFrom`, each `optional`) into the migration Job only, after `identity.secretName` and `identity.extraEnvSecrets`, which the Job also mounts. On a Zitadel configurator install the import needs the configurator's `zitadel-identity-service-env` secret: it carries the Zitadel management key the import reads with (`ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY`), the issuer, and the Secure Connection Service's user and organization ids (`..._SCS_AGENT_USERNAME`, `..._SCS_AGENT_PROVIDER_TENANT_ID`), without which the import grants `secure_connector` to nobody. An install that already lists it in `identity.extraEnvSecrets` needs nothing here; one that mounts it only for agent registration lists it here.
     extraEnvSecrets: []
