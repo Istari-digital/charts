@@ -641,7 +641,7 @@ secureConnection:
 
 # Default values for Identity Service.
 identity:
-  # -- Enable / Disable the whole deployment. identity-service 2.0.0 and later need three startup variables that the chart sets only when `provisioner.enabled` or `provisioner.external` is true; otherwise supply them yourself, as `identity.tag` describes.
+  # -- Enable / Disable the whole deployment
   enabled: false
   # -- Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. Stage-style topologies run one release per service, so `enabled` is only ever true in the identity-service's own release — gating client behavior on it directly means the toggle never renders in any consuming release.
   # @default -- (see fields below)
@@ -652,7 +652,7 @@ identity:
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "identity-service"
-  # -- Image tag. The combination of registry, image, and tag will be used to pull the image. This chart's hooks need identity-service 2.0.1 or later: the Zitadel import (`idpMigration`) needs 2.0.0-pre.17, the `secure_connector` role grant at registration and import needs 2.0.0-pre.18, and an agent entry without `tenantSlug` needs 2.0.1. An older tag fails the hook that uses the missing command or flag, and with it the install or upgrade. From 2.0.0-pre.14, identity-service also refuses to start without `ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_PUBLIC_KEY_B64`, `ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS` and `ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_REDIRECT_URIS`, which this chart supplies only with `provisioner.enabled` or `provisioner.external`: an install on 2.0.x must enable the provisioner or supply those variables itself.
+  # -- Image tag. The combination of registry, image, and tag will be used to pull the image. This chart's hooks need identity-service 2.0.1 or later: the Zitadel import (`idpMigration`) needs 2.0.0-pre.17, the `secure_connector` role grant at registration and import needs 2.0.0-pre.18, and an agent entry without `tenantSlug` needs 2.0.1. An older tag fails the hook that uses the missing command or flag, and with it the install or upgrade.
   tag: "2.0.1"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"

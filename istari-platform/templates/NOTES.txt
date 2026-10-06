@@ -27,17 +27,4 @@ To expose the API Gateway to clients, point your external load balancer or exist
 controller at the {{ include "api-gateway.fullname" . }} Service on port 80, the same way the
 registry service is exposed. TLS terminates there — the API Gateway itself serves plain HTTP.
 The chart can also create these for you: see `apiGateway.ingress` and `apiGateway.virtualService`.
-{{- end }}
-{{- if and .Values.identity.enabled (not .Values.provisioner.enabled) (not .Values.provisioner.external) }}
-
-identity-service is enabled without the provisioner. From 2.0.0-pre.14 it exits at startup unless these
-variables are set, and the chart sets them only when `provisioner.enabled` or
-`provisioner.external` is true:
-
-  ISTARI_DIGITAL_IDENTITY_SERVICE_REGISTRY_PUBLIC_KEY_B64
-  ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS
-  ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_REDIRECT_URIS
-
-If you already supply them, no action is needed. Otherwise set them in the Secret named by
-`identity.secretName` or in a Secret listed in `identity.extraEnvSecrets`.
 {{- end -}}
