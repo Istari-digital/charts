@@ -353,7 +353,7 @@ The generated Secret names derive from `provisioner.fullname` — `<fullnameOver
 | identity.idpMigration.env | list | `[]` | Extra environment variables for the migration Job only, rendered after the service-level `env` (on duplicate names, these win). |
 | identity.idpMigration.from | string | `"zitadel"` | Outgoing IdP provider to enumerate (only `zitadel` is supported today; any other value fails rendering). |
 | identity.idpMigration.fromIssuer | string | `""` | Outgoing IdP issuer base URL. **Required when enabled** and must still be reachable at pre-upgrade time (the Job enumerates it before the login IdP flips). |
-| identity.idpMigration.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only. |
+| identity.idpMigration.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only — the chart defaults `sidecar.istio.io/inject: "false"` here so these one-shot Job pods do not get a (never-exiting) Istio sidecar; your entries merge over that default, so set it to `"true"` to re-enable injection. |
 | identity.idpMigration.podLabels | object | `{}` | Extra labels for the migration Job Pod template only. |
 | identity.idpMigration.resources | object | `{}` | Resource requests/limits for the migration Job. |
 | identity.idpMigration.slugPrefix | string | `""` | Optional slug prefix for derived tenants (recommended to avoid cross-provider collisions); forwarded to bootstrap-tenants. |

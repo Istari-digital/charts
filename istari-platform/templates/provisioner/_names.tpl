@@ -50,8 +50,9 @@ registry/frontend/mcp.
 {{- end }}
 
 {{/*
-Suffix for the Terraform kubernetes backend's state Secret / lock Lease. Defaults to a name
-derived from `provisioner.fullname` so separate releases keep separate state; override to pin it.
+Suffix for the Terraform kubernetes backend's state Secret / lock Lease, derived from
+`provisioner.fullname`; override to pin it. Because `fullnameOverride` defaults to `istari`,
+separate releases share this state unless given distinct `fullnameOverride` values.
 The backend reserves a trailing `-<number>` for its own state-chunking index, so an override ending
 in one would collide with those chunk names and yield unreadable state -- rejected at render time.
 */}}
