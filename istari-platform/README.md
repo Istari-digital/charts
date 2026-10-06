@@ -339,7 +339,7 @@ The generated Secret names derive from `provisioner.fullname` — `<fullnameOver
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | identity.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | identity.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
-| identity.enabled | bool | `false` | Enable / Disable the whole deployment |
+| identity.enabled | bool | `false` | Enable / Disable the whole deployment. identity-service 2.0.0 and later need three startup variables that the chart sets only when `provisioner.enabled` or `provisioner.external` is true; otherwise supply them yourself, as `identity.tag` describes. |
 | identity.env | list | `[]` |  |
 | identity.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | identity.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |

@@ -641,7 +641,7 @@ secureConnection:
 
 # Default values for Identity Service.
 identity:
-  # -- Enable / Disable the whole deployment
+  # -- Enable / Disable the whole deployment. identity-service 2.0.0 and later need three startup variables that the chart sets only when `provisioner.enabled` or `provisioner.external` is true; otherwise supply them yourself, as `identity.tag` describes.
   enabled: false
   # -- Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. Stage-style topologies run one release per service, so `enabled` is only ever true in the identity-service's own release — gating client behavior on it directly means the toggle never renders in any consuming release.
   # @default -- (see fields below)
