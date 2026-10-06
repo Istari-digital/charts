@@ -35,6 +35,12 @@
        DNS-1123 segment after conversion — so an invalid input fails at render
        time rather than at apply time. */ -}}
 {{- if not (regexMatch "^[A-Za-z0-9]([A-Za-z0-9_-]{0,61}[A-Za-z0-9])?$" $agent.name) }}{{ fail (printf "agentRegistration agent %q: name must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, and be at most 63 characters (it is used as the istari.digital/agent label)" $agent.name) }}{{ end }}
+{{- /* register-agent refuses a blank tenant, provider name or provider tenant id, so a whitespace-only
+       value fails here rather than in the Job. */ -}}
+{{- range $field := list "tenantSlug" "providerName" "providerTenantIdEnv" }}
+{{- $raw := get $agent $field }}
+{{- if and $raw (not (toString $raw | trim)) }}{{ fail (printf "agentRegistration agent %q sets %s to a blank value; leave it out or set it" $agent.name $field) }}{{ end }}
+{{- end }}
 {{- if not (or $agent.tenantSlug $agent.providerName) }}{{ fail (printf "agentRegistration agent %q must set tenantSlug, or providerName and providerTenantIdEnv to register in the tenant its upstream organization is mapped to" $agent.name) }}{{ end }}
 {{- if and $agent.tenantDisplayName (not $agent.tenantSlug) }}{{ fail (printf "agentRegistration agent %q sets tenantDisplayName without tenantSlug; without tenantSlug no tenant is created, so leave both out" $agent.name) }}{{ end }}
 {{- $_ := $agent.keyEnv | required (printf "agentRegistration agent %q must set keyEnv (the env var, from secretName or extraEnvSecrets, holding the base64 public-only agent credential blob)" $agent.name) -}}
@@ -42,7 +48,8 @@
        two are supplied together. The id is read from providerTenantIdEnv (an env
        var, typically published by the configurator) so environment-specific ids
        stay out of values; an empty/absent value makes create-tenant skip the
-       mapping rather than fail. */ -}}
+       mapping rather than fail — but with no tenantSlug, register-agent fails on
+       an empty value (it has no tenant to fall back to). */ -}}
 {{- if and $agent.providerName (not $agent.providerTenantIdEnv) }}{{ fail (printf "agentRegistration agent %q sets providerName but not providerTenantIdEnv (both are needed to map the tenant to an upstream org)" $agent.name) }}{{ end }}
 {{- if and $agent.providerTenantIdEnv (not $agent.providerName) }}{{ fail (printf "agentRegistration agent %q sets providerTenantIdEnv but not providerName" $agent.name) }}{{ end }}
 ---
