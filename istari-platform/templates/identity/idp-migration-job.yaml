@@ -44,7 +44,8 @@
 {{- $_ := required (printf "identity.idpMigration.to is required to switch identity providers (identity.oidc.provider is %q); set it to the incoming provider, e.g. keycloak" $incoming) (dig "to" "" $idp) -}}
 {{- end }}
 {{- $fromIssuerApiUrl := dig "fromIssuerApiUrl" "" $idp -}}
-{{- if and $fromIssuerApiUrl (not (regexMatch "^https?://[^/?#[:space:]]+(/[^[:space:]]*)?$" $fromIssuerApiUrl)) }}{{ fail (printf "identity.idpMigration.fromIssuerApiUrl must be an absolute http(s) URL, got %q" $fromIssuerApiUrl) }}{{ end }}
+{{- /* scheme, optional userinfo, a non-empty host (name, IPv4 or bracketed IPv6), optional port, optional path */ -}}
+{{- if and $fromIssuerApiUrl (not (regexMatch `^https?://([^/?#@[:space:]]+@)?([^/?#@:\[\][:space:]]+|\[[0-9A-Fa-f:.]+\])(:[0-9]+)?(/[^[:space:]]*)?$` $fromIssuerApiUrl)) }}{{ fail (printf "identity.idpMigration.fromIssuerApiUrl must be an absolute http(s) URL, got %q" $fromIssuerApiUrl) }}{{ end }}
 {{- $idpExtraEnvSecrets := dig "extraEnvSecrets" list $idp -}}
 {{- /* required guards an EXPLICIT empty override (dig still supplies the default when the key is
        absent): an empty -database-url-env / -credential-env would pass through to migrate-idp and
