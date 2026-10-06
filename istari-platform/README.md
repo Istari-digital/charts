@@ -355,7 +355,7 @@ The generated Secret names derive from `provisioner.fullname` — `<fullnameOver
 | identity.idpMigration.from | string | `"zitadel"` | Outgoing IdP provider to enumerate (only `zitadel` is supported today; any other value fails rendering). |
 | identity.idpMigration.fromIssuer | string | `""` | Outgoing (Zitadel) issuer URL, reachable at pre-upgrade time. **Required to switch providers.** For the import, empty passes `$(ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER)`, which Kubernetes expands from the Job's environment: `identity.oidc.issuer`, the Secrets the Job mounts and `identity.env`, with the same precedence as the identity Deployment. identity-service cannot start without that variable, so it is set on every working install. |
 | identity.idpMigration.fromIssuerApiUrl | string | `""` | Optional base URL the Job uses to call Zitadel when the cluster reaches it at a different address from the issuer (an in-cluster address, for example), passed as `-issuer-api-url`; the issuer stays the token audience. The counterpart of identity-service's `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_API_BASE_URL`. |
-| identity.idpMigration.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only. |
+| identity.idpMigration.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only — the chart defaults `sidecar.istio.io/inject: "false"` here so these one-shot Job pods do not get a (never-exiting) Istio sidecar; your entries merge over that default, so set it to `"true"` to re-enable injection. |
 | identity.idpMigration.podLabels | object | `{}` | Extra labels for the migration Job Pod template only. |
 | identity.idpMigration.resources | object | `{}` | Resource requests/limits for the migration Job. |
 | identity.idpMigration.slugPrefix | string | `""` | Optional slug prefix for derived tenants; forwarded to bootstrap-tenants. Leave it empty for the import, so tenant slugs follow the Zitadel organization names. |
@@ -509,7 +509,7 @@ The generated Secret names derive from `provisioner.fullname` — `<fullnameOver
 | provisioner.rerunToken | string | `""` | Change this to any new value to force the provisioning Job to rerun without changing any other input: `helm upgrade --reuse-values --set provisioner.rerunToken=<anything>`. The Job's name is a hash of its inputs, and this token is one of them. |
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
 | provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
-| provisioner.tag | string | `"0.2.0"` | Image tag. |
+| provisioner.tag | string | `"0.3.0"` | Image tag. |
 | provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | secureConnection.affinity | object | `{}` | Affinity |
 | secureConnection.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |

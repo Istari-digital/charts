@@ -841,7 +841,7 @@ identity:
     backoffLimit: 3
     # -- Automatically clean up the successful hook Job by adding `hook-succeeded` to `helm.sh/hook-delete-policy`.
     autoCleanupSuccessfulJob: true
-    # -- Annotations for the migration Job Pod template only.
+    # -- Annotations for the migration Job Pod template only — the chart defaults `sidecar.istio.io/inject: "false"` here so these one-shot Job pods do not get a (never-exiting) Istio sidecar; your entries merge over that default, so set it to `"true"` to re-enable injection.
     podAnnotations: {}
     # -- Extra labels for the migration Job Pod template only.
     podLabels: {}
@@ -902,7 +902,7 @@ provisioner:
   # -- Image name.
   image: "provisioner"
   # -- Image tag.
-  tag: "0.2.0"
+  tag: "0.3.0"
   # -- Image pull policy.
   imagePullPolicy: IfNotPresent
   # -- Image pull secrets for the provisioning Job pod. When empty, the chart-wide `imagePullSecrets` apply.
