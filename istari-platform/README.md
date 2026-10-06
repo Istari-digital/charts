@@ -81,6 +81,55 @@ The provisioner runs under its own ServiceAccount and Role. The mutating verbs o
 
 The generated Secret names derive from `provisioner.fullname` — `<fullnameOverride>-provisioner` when `fullnameOverride` is set, `<release>-provisioner` otherwise. Because `fullnameOverride` defaults to `istari`, a second release in the same namespace collides on these names — as it does on every other resource the chart names — unless you give it a distinct `fullnameOverride`. When the provisioner runs in a separate release from a consumer (`provisioner.external`), the two instead agree on the names by sharing the same `fullnameOverride` — two separate releases in one namespace can't share a release name, so the override is the only way to make their Secret names match.
 
+## Agent registration
+
+`identity.agentRegistration` registers service agents, for example the Secure Connection Service, with the identity service so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job on install and upgrade. On a Zitadel configurator install, these values register the Secure Connection Service:
+
+```yaml
+identity:
+  migrations:
+    runAsJob: true
+  agentRegistration:
+    enabled: true
+    extraEnvSecrets:
+    - zitadel-identity-service-env
+    agents:
+    - name: secure-connection
+      keyEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT
+      usernameEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT_USERNAME
+      providerName: zitadel
+      providerTenantIdEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT_PROVIDER_TENANT_ID
+      displayName: Secure Connection Service Agent
+      platformRoles:
+      - secure_connector
+```
+
+- `identity.migrations.runAsJob` must be `true`; the chart fails to render otherwise.
+- `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT` holds the agent's base64-encoded public-only credential blob. Add it to the secret `identity.secretName` names. The identity service never receives the private key.
+- `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT_USERNAME` and `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT_PROVIDER_TENANT_ID` come from the configurator's `zitadel-identity-service-env` secret, listed under `extraEnvSecrets`.
+- The entry leaves out `tenantSlug`, so the agent registers in the tenant the Zitadel import (the `identity.idpMigration` hook, on by default for Zitadel deployments) created for its organization, beside the deployment's people.
+
+| Field | Required | Value |
+| --- | --- | --- |
+| `name` | Yes | Agent name, used in the Job name and the `istari.digital/agent` label: letters, digits, `-` or `_`, beginning and ending with a letter or digit, at most 63 characters. |
+| `keyEnv` | Yes | Env var holding the agent's public-only credential blob. |
+| `tenantSlug` | Unless `providerName` and `providerTenantIdEnv` are set | Tenant to register in; the Job creates it if missing. Leave it out to use the tenant mapped to `providerName` and `providerTenantIdEnv`, which needs identity-service 2.0.1 or later. |
+| `tenantDisplayName` | No | Display name for a tenant the Job creates. Only with `tenantSlug`. |
+| `providerName` | With `providerTenantIdEnv` | Upstream identity provider, such as `zitadel`. |
+| `providerTenantIdEnv` | With `providerName` | Env var holding the agent's upstream organization id. Maps the tenant to that organization, so the agent's token carries it for Zitadel role lookups. |
+| `usernameEnv` | No | Env var holding the agent's upstream user id, binding the agent to that existing identity. |
+| `displayName` | No | Agent display name. |
+| `platformRoles` | No | Platform roles, such as `[secure_connector]`, to grant the agent (if active) and other active agents in its tenant with the same username. Needs identity-service 2.0.0-pre.18 or later; an earlier image fails the Job on the unknown flag. |
+
+When an env var an entry names is empty or unset, the Job skips that step instead of failing, so the release stays green before the secret exists; an entry with `tenantSlug` still creates its empty tenant. The exception: an entry without `tenantSlug` fails when its `providerTenantIdEnv` value is empty or unset.
+
+The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, security contexts and image pull secrets.
+
+### If registration fails
+
+- **"is already linked to tenant":** the entry sets `tenantSlug` and `providerName`, but the import already mapped that organization to a different tenant. Remove `tenantSlug` and `tenantDisplayName`, or set `tenantSlug` to that tenant's slug, and upgrade again. The failed run leaves an empty tenant under the requested slug, which you can deactivate.
+- **No tenant mapped to the organization:** an entry without `tenantSlug` needs one, which the import normally creates. When the import is turned off, set `tenantSlug`.
+
 ## Values
 
 | Key | Type | Default | Description |
@@ -319,11 +368,11 @@ The generated Secret names derive from `provisioner.fullname` — `<fullnameOver
 | frontend.volumes | list | `[]` | Pod Volumes |
 | fullnameOverride | string | `"istari"` | Override the prefix used for resource names, which defaults to the chart name (istari-platform). |
 | identity.affinity | object | `{}` | Affinity |
-| identity.agentRegistration | object | (see fields below) | Settings for the agent-registration one-shot hook Jobs (pre-install/pre-upgrade). For each entry in `agents`, one Job runs `create-tenant` (idempotent, as an init container; only for an entry that sets `tenantSlug`) and then `register-agent`, provisioning a service principal's tenant and public key in the Identity Service. Used to onboard autonomous service agents that authenticate to the Identity Service via `client_credentials` (e.g. the secure-connection-service). Rendered only when BOTH `identity.enabled` and `identity.agentRegistration.enabled` are `true` AND `agents` is non-empty. Each agent's inputs (its public-only credential blob, the DB URL, and — for upstream binding — its username / org id) are supplied as env vars via `envFrom` on `identity.secretName` plus `agentRegistration.extraEnvSecrets`, and the CLIs read them by name; the Identity Service never needs read access to another service's secret and is never handed private key material. The Job pods inherit the Identity Service's `nodeSelector`, `affinity`, `tolerations`, security contexts, and image-pull secrets; only `podAnnotations`, `podLabels`, and `resources` are configured separately here. |
-| identity.agentRegistration.agents | list | `[]` | Agents to provision, one Job each. Fields ending in `Env` name env vars supplied via `envFrom` (`identity.secretName` + `agentRegistration.extraEnvSecrets`), which the CLIs read at run time; the other fields are literal values. Fields per entry: `name` (required; used in the Job name and the `istari.digital/agent` label, so it must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, at most 63 characters); `tenantSlug` (the Identity Service tenant the agent belongs to; required unless the entry sets `providerName` and `providerTenantIdEnv`, in which case leaving it out registers the agent in whichever tenant that organization is mapped to, renders no `create-tenant` step, and needs identity-service 2.0.1 or later); `keyEnv` (required, the env var holding the base64-encoded public-only agent credential blob); `tenantDisplayName` (optional human-readable tenant name; only with `tenantSlug`); `providerName` + `providerTenantIdEnv` (optional, supplied together; `providerName` is the upstream IdP name e.g. `zitadel` and `providerTenantIdEnv` names the env var holding the upstream org id — maps the tenant to the upstream org so the agent's token carries the resourceowner for Zitadel-namespaced role lookups); `usernameEnv` (optional, names the env var holding the upstream user id — binds the agent to a pre-existing IdP identity, e.g. the secure-connection-service's `rss_service_user` grant); `displayName` (optional agent name claim); `platformRoles` (optional list of platform role ids, e.g. `[secure_connector]`, granted to this agent, if active, and to active agents in its tenant that share its username; requires identity-service 2.0.0-pre.18 or later, whose `register-agent` supports `-platform-role`; an earlier image fails the registration Job on the unknown flag). An env var that is absent/empty makes the CLI skip that piece (register-agent no-ops; create-tenant skips the mapping), except that for an entry without `tenantSlug` an empty `providerTenantIdEnv` value fails register-agent instead of skipping. On a deployment that stays on Zitadel, the IdP-migration hook's import runs first and creates a tenant, with its provider mapping, for each Zitadel organization, named after it. For the Secure Connection Service's entry, whose organization is the configurator's default one, where the deployment's people also are, leave out `tenantSlug` and `tenantDisplayName`: the agent then registers in that organization's tenant. An entry without `tenantSlug` fails registration if no tenant is mapped to its organization, as when the import is turned off and no earlier `create-tenant` mapped it; set `tenantSlug` then. An entry that sets `tenantSlug` must name the tenant the import created for its organization: a `create-tenant` failure saying the provider mapping "is already linked to tenant" means it does not, so remove `tenantSlug` or correct it and upgrade again. The failed run leaves an empty tenant under the requested slug, which you can deactivate. |
+| identity.agentRegistration | object | (see fields below) | Registers service agents, such as the Secure Connection Service, with the Identity Service on every install and upgrade, so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job, which reads the agent's inputs from env vars in `identity.secretName` and `extraEnvSecrets`. Renders only when `identity.enabled` and `enabled` are `true` and `agents` is not empty. See [Agent registration](#agent-registration) for an example. |
+| identity.agentRegistration.agents | list | `[]` | Agents to register, one Job each. Each entry names an agent and the env vars holding its inputs; fields ending in `Env` take an env var name, not a value. For the Secure Connection Service, copy the example under [Agent registration](#agent-registration), which also lists every field. |
 | identity.agentRegistration.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up successful registration hook `Job`s by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). |
 | identity.agentRegistration.backoffLimit | int | `6` | `spec.backoffLimit` for each registration Job (retries after a failed Pod). |
-| identity.agentRegistration.enabled | bool | `false` | Whether to render the agent-registration Jobs. Off by default. Safe to leave enabled across environments: the CLIs read their inputs from env vars (mounted via `envFrom`), so when an agent's key blob is absent (e.g. the registry client integration is disabled and its secrets are not provisioned) the release stays green rather than failing — `register-agent` skips registration and `create-tenant` skips the provider mapping. Not entirely side-effect-free, though: for an entry that sets `tenantSlug`, `create-tenant` still ensures the (empty) tenant row exists. So the secret's presence, not this flag, is the effective on/off switch for agent registration; enable it once and toggle the integration by provisioning (or not) the secret. Requires `identity.migrations.runAsJob=true` (so migrations run as a pre-upgrade hook before this one, guaranteeing the schema exists); rendering fails fast otherwise. |
+| identity.agentRegistration.enabled | bool | `false` | Whether to render the agent-registration Jobs. Requires `identity.migrations.runAsJob: true`; rendering fails otherwise. Safe to leave on: an entry whose secret is not provisioned yet skips registration and leaves the release green, so the secret, not this flag, switches an agent on. |
 | identity.agentRegistration.env | list | `[]` | Extra environment variables applied to BOTH containers of every agent Job (the `create-tenant` init container and the `register-agent` container), rendered after the service-level `env` — on duplicate names, these win. The chart injects the downward-API building blocks (each container gets its own `CONTAINER_NAME`) but no `OTEL_*` default, since these Jobs do not initialize the OTEL SDK. Set common Job variables here; if you wire tracing yourself, an `OTEL_RESOURCE_ATTRIBUTES` referencing `$(CONTAINER_NAME)` keeps each container's correct name from the one shared list. |
 | identity.agentRegistration.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into every agent Job, in addition to `identity.secretName`. Use this to supply the secret(s) holding the agents' credential blobs and (from the istari-zitadel-configurator) their username / org id — the same pattern services use with `secretName` + `extraEnvSecrets`. Each is mounted `optional`, so a not-yet-provisioned secret leaves the release green (the CLIs no-op on the resulting empty values). |
 | identity.agentRegistration.podAnnotations | object | `{}` | Annotations for the registration Job Pod templates only — the chart defaults `sidecar.istio.io/inject: "false"` here so these one-shot Job pods do not get a (never-exiting) Istio sidecar; your entries merge over that default, so set it to `"true"` to re-enable injection. |
