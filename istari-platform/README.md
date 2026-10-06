@@ -87,6 +87,9 @@ The generated Secret names derive from `provisioner.fullname` — `<fullnameOver
 
 ```yaml
 identity:
+  enabled: true
+  extraEnvSecrets:
+  - zitadel-identity-service-env
   migrations:
     runAsJob: true
   agentRegistration:
@@ -105,8 +108,9 @@ identity:
 ```
 
 - `identity.migrations.runAsJob` must be `true`; the chart fails to render otherwise.
+- The configurator's `zitadel-identity-service-env` secret is listed twice: under `identity.extraEnvSecrets` for identity-service and the Zitadel import, which reads the management key from it, and under `agentRegistration.extraEnvSecrets` for the registration Job, which mounts only `identity.secretName` and its own list.
 - `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT` holds the agent's base64-encoded public-only credential blob. Add it to the secret `identity.secretName` names. The identity service never receives the private key.
-- `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT_USERNAME` and `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT_PROVIDER_TENANT_ID` come from the configurator's `zitadel-identity-service-env` secret, listed under `extraEnvSecrets`.
+- `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT_USERNAME` and `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT_PROVIDER_TENANT_ID` come from that configurator secret.
 - The entry leaves out `tenantSlug`, so the agent registers in the tenant the Zitadel import (the `identity.idpMigration` hook, on by default for Zitadel deployments) created for its organization, beside the deployment's people.
 
 | Field | Required | Value |
