@@ -35,7 +35,8 @@
        DNS-1123 segment after conversion — so an invalid input fails at render
        time rather than at apply time. */ -}}
 {{- if not (regexMatch "^[A-Za-z0-9]([A-Za-z0-9_-]{0,61}[A-Za-z0-9])?$" $agent.name) }}{{ fail (printf "agentRegistration agent %q: name must be a valid Kubernetes label value — begin and end with a letter or digit, contain only letters, digits, hyphens, or underscores, and be at most 63 characters (it is used as the istari.digital/agent label)" $agent.name) }}{{ end }}
-{{- $_ := $agent.tenantSlug | required (printf "agentRegistration agent %q must set tenantSlug" $agent.name) -}}
+{{- if not (or $agent.tenantSlug $agent.providerName) }}{{ fail (printf "agentRegistration agent %q must set tenantSlug, or providerName and providerTenantIdEnv to register in the tenant its upstream organization is mapped to" $agent.name) }}{{ end }}
+{{- if and $agent.tenantDisplayName (not $agent.tenantSlug) }}{{ fail (printf "agentRegistration agent %q sets tenantDisplayName without tenantSlug; without tenantSlug no tenant is created, so leave both out" $agent.name) }}{{ end }}
 {{- $_ := $agent.keyEnv | required (printf "agentRegistration agent %q must set keyEnv (the env var, from secretName or extraEnvSecrets, holding the base64 public-only agent credential blob)" $agent.name) -}}
 {{- /* providerName maps the tenant to an upstream org and needs that org's id; the
        two are supplied together. The id is read from providerTenantIdEnv (an env
@@ -88,6 +89,7 @@ spec:
       imagePullSecrets:
       {{- toYaml . | nindent 6 }}
       {{- end }}
+      {{- if $agent.tenantSlug }}
       # The tenant must exist before the agent references it by slug, so
       # create-tenant runs (idempotently) as an init container and the agent is
       # registered only after it succeeds. Both talk only to the database.
@@ -154,6 +156,9 @@ spec:
           subPath: bundle.crt
         {{- end }}
         {{- end }}
+      {{- end }}
+      {{- /* Without tenantSlug, register-agent finds the tenant through the provider mapping
+             the Zitadel import created, so there is nothing to create first. */}}
       containers:
       - name: register-agent
         {{- with $serviceValues.containerSecurityContext }}
@@ -173,8 +178,15 @@ spec:
         - {{ $agent.keyEnv | quote }}
         - "-database-url-env"
         - {{ $dbURLEnv | quote }}
+        {{- if $agent.tenantSlug }}
         - "-tenant"
         - {{ $agent.tenantSlug | quote }}
+        {{- else }}
+        - "-tenant-provider-name"
+        - {{ $agent.providerName | quote }}
+        - "-tenant-provider-tenant-id-env"
+        - {{ $agent.providerTenantIdEnv | quote }}
+        {{- end }}
         {{- with $agent.usernameEnv }}
         - "-username-env"
         - {{ . | quote }}
