@@ -15,6 +15,8 @@
 
 Instructions for installing the istari-platform chart are available in the IT Admins section of the [official Istari Documentation](https://docs.istaridigital.com/).
 
+`common.mainFqdn` is **required** — set it to the platform's frontend FQDN. The chart derives every platform host and URL from it and fails to render without it.
+
 {{ template "chart.sourcesSection" . }}
 
 {{ template "chart.requirementsSection" . }}
@@ -28,7 +30,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 The API Gateway (`apiGateway.enabled`, default `false`) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
 
-Enabling the API Gateway is additive and optional: the existing per-service endpoints keep working unchanged, so you can adopt it at your own pace. Once DNS and TLS for the API host are in place, update each client's configured base URL (the `ISTARI_DIGITAL_API_URL` setting in Istari's client tools) to `https://<your-api-host>` with no path; clients append the `/registry`, `/identity`, … prefixes themselves. Set `apiGateway.apiUrl` to the same value, and the chart configures the deployed services to match: the registry service receives `ISTARI_DIGITAL_API_URL`, the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, and MCP (when `mcp.enabled`) receives the same bare `ISTARI_DIGITAL_API_URL` as of `mcp-service` `0.6.0`. The browser then reaches the registry service through `<your-api-host>/registry`. Before chart 3.31.0 the chart consumed neither variable, and the browser kept addressing the registry service directly no matter how the client tools were configured.
+`common.mainFqdn` is **required**, so the chart always configures the platform's API host — `api.<mainFqdn>`, or `common.apiFqdnOverride` for a host that isn't a subdomain of `mainFqdn` — and points the deployed services at it: the registry service and MCP (when `mcp.enabled`) receive `ISTARI_DIGITAL_API_URL`, and the frontend receives `VITE_ISTARI_DIGITAL_API_URL`. The browser then reaches the registry service through `<your-api-host>/registry`. That API host must be reachable; `apiGateway.enabled` controls only whether **this chart deploys** the bundled reverse proxy for it. With it off, route `api.<mainFqdn>` to the registry and identity services with your own ingress or gateway; with it on, the chart runs a proxy that does the path-prefix routing (`/registry`, `/identity`) for you. Point each client tool's base URL (the `ISTARI_DIGITAL_API_URL` setting) at `https://<your-api-host>` with no path; clients append the prefixes themselves.
 
 MCP consumes the gateway as a client; the gateway does not serve MCP requests. No `/mcp` route exists, so `https://<your-api-host>/mcp` returning 404 is expected, not a misconfiguration.
 
@@ -37,7 +39,7 @@ MCP consumes the gateway as a client; the gateway does not serve MCP requests. N
 >
 > Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, off by default and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients. Environments that run one Helm release per service — every internal environment does — must set `clientIntegration.enabled` explicitly in each consuming release, since `enabled` is only ever true in the identity-service's own release.
 >
-> When you set both `apiGateway.apiUrl` and `identity.clientIntegration.enabled`, the chart emits the identity toggle to the registry service, the frontend, and MCP together. It never emits the toggle from `apiGateway.apiUrl` alone, because all three treat identity-enabled-without-a-gateway-URL as a fatal startup or config-load error.
+> When you set both the API host (`common.mainFqdn`, or `common.apiFqdnOverride`) and `identity.clientIntegration.enabled`, the chart emits the identity toggle to the registry service, the frontend, and MCP together. It never emits the toggle from the API host alone, because all three treat identity-enabled-without-a-gateway-URL as a fatal startup or config-load error.
 >
 > The former `…_IDENTITY_ROUTER_ENABLED` names (and the frontend's `VITE_IDENTITY_ROUTER_*`) remain supported as deprecated aliases, and are ignored when the corresponding new names are set. Prefer the new names; the aliases will be removed in a future release.
 
@@ -53,6 +55,30 @@ apiGateway:
 Expose it the same way as the registry service: point your external load balancer or existing ingress controller at the API Gateway's `kind: Service` on port 80, terminating TLS there (the API Gateway itself serves plain HTTP and requires no Istio). The chart can also create a Kubernetes Ingress (`apiGateway.ingress`) or Istio VirtualService (`apiGateway.virtualService`) for you. Optional per-request tracing lights up automatically when the bundled Jaeger is enabled (`jaeger.enabled`); see `apiGateway.tracing.enabled`.
 
 The proxy software inside the API Gateway (currently Caddy) is an internal implementation detail and may change in a future release; such a change will never affect values other than `apiGateway.registry` / `apiGateway.image` / `apiGateway.tag`.
+
+## Provisioner
+
+The provisioner (`provisioner.enabled`, default `false`) is a one-shot Job that generates and publishes platform secrets. Today it registers the platform's services as OAuth/OIDC clients against the identity service and writes their credentials into Kubernetes Secrets that the consuming services mount; it may grow to other secret-generation uses in future.
+
+It is an ordinary release resource, not a Helm hook, so it needs no special install, upgrade, or uninstall steps: `helm uninstall` removes the Job and its ServiceAccount, Role, and RoleBinding along with the rest of the release, and because the generated credential Secrets are owned by that ServiceAccount, Kubernetes garbage-collects them with it. Only the Terraform state Secret and its lock Lease persist — the kubernetes backend owns them, outside Helm's release — so a later reinstall resumes from the existing state. The Job reruns automatically whenever its inputs change — the pod template (image, env, mounts), the `backoffLimit`, `activeDeadlineSeconds`, or `serviceAccountAnnotations` values, or `provisioner.rerunToken` — because its name embeds a hash of all of them, so each change produces a new Job that Helm applies while pruning the previous one. Domain changes such as `common.mainFqdn` flow through the services' ConfigMaps directly and don't require the provisioner to rerun. An input that does not change leaves the completed Job in place; a completed provisioner Job is expected and safe to leave, not a sign that anything is wrong.
+
+The services that consume the generated Secrets mount them directly, so their Pods stay in `ContainerCreating` until the provisioner Job has written the Secrets, then start normally. A plain `helm install` or `helm upgrade` returns before this settles, and the release converges on its own. If you install or upgrade with `--wait` (or deploy through a tool that gates on resource health, such as Argo CD), allow enough timeout for the provisioner Job to finish — pulling its image and running Terraform — before the consuming services can report Ready; the default timeout is usually sufficient, but a slow image pull (for example from an air-gapped mirror) may need more — raise `provisioner.activeDeadlineSeconds` (default 180) alongside Helm's `--timeout`, since the Job fails on its own wall-clock deadline no matter how long Helm waits.
+
+To rerun the provisioner without changing any input — for example to re-apply after an identity-service issue was fixed out of band — set `provisioner.rerunToken` to any new value:
+
+```bash
+helm upgrade --reuse-values --set provisioner.rerunToken=$(date +%s) <release> <chart>
+```
+
+A changed token is itself an input, so this renames the Job and reruns it. The value is arbitrary; only a change from the previous value matters.
+
+When enabled, the provisioner registers a fixed set of clients — registry, frontend, and MCP. The OIDC redirect URIs are derived from `common.mainFqdn`: the frontend at `https://<mainFqdn>` and MCP at `https://mcp.<mainFqdn>/auth/callback` (override the MCP host with `common.mcpFqdnOverride`). To use additional, or entirely different, redirect URIs, set them on the identity service directly via its environment — `ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS` / `..._MCP_REDIRECT_URIS` — which the identity service reads in preference to the provisioner-supplied defaults.
+
+Only the values the provisioner actually generates come from its Secrets — the registry's private key, the MCP client secret, and the registry public key the identity service reads. The remaining deployment-specific identity config (the API gateway URL each service reads and the redirect allowlists the identity service registers) is chart-derived and rendered into the services' own ConfigMaps, ahead of the provisioner Secret and any user-supplied source in `envFrom`, so user overrides still win. The frontend's and MCP's OIDC authority is not emitted as its own variable: both derive it from the API gateway URL the chart already provides, which is always present when identity is enabled. The fixed OIDC client ids are service-level defaults, not chart-injected. The frontend has nothing generated, so it does not mount a provisioner Secret at all.
+
+The provisioner runs under its own ServiceAccount and Role. The mutating verbs on Secrets (`get`/`update`/`patch`/`delete`) are scoped **by name** to only the Secrets the provisioner owns — the generated credential Secrets and its Terraform state Secret — so it can modify just those. `create` and `list` can't be restricted by `resourceNames`, so both are namespace-wide: `create` because the credential and state Secrets are created at runtime with names that don't yet exist when the verb is checked, and `list` because the Terraform kubernetes backend locates its state by label. Namespace-wide `list` returns full Secret objects, so the provisioner can **read** every Secret in the release's namespace, and `create` lets it add Secrets of any name — though it can still modify only its own. If that scope matters for your environment, install the release in a dedicated namespace.
+
+The generated Secret names derive from `provisioner.fullname` — `<fullnameOverride>-provisioner` when `fullnameOverride` is set, `<release>-provisioner` otherwise. Because `fullnameOverride` defaults to `istari`, a second release in the same namespace collides on these names — as it does on every other resource the chart names — unless you give it a distinct `fullnameOverride`. When the provisioner runs in a separate release from a consumer (`provisioner.external`), the two instead agree on the names by sharing the same `fullnameOverride` — two separate releases in one namespace can't share a release name, so the override is the only way to make their Secret names match.
 
 {{ template "chart.valuesSection" . }}
 

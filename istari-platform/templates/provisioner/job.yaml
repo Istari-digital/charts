@@ -1,0 +1,27 @@
+{{- if .Values.provisioner.enabled }}
+{{- $provisioner := .Values.provisioner }}
+{{- $podTemplate := include "provisioner.podTemplate" . }}
+{{/*
+The Job name embeds a hash of its inputs, so a changed input renames the Job -- Helm prunes the old
+one and runs the new one -- rather than patching a fixed-name Job: `spec.template` is immutable, and
+a completed Job won't re-execute on an in-place patch anyway, so renaming is the only way to rerun.
+The pod template is hashed trimmed (as the manifest renders it) and annotations via `toJson` (stable
+key order), so the hash tracks the deployed pod exactly and nothing spurious perturbs it.
+*/}}
+{{- $hash := printf "%s|%v|%v|%s|%s" (trim $podTemplate) $provisioner.backoffLimit $provisioner.activeDeadlineSeconds (toJson $provisioner.serviceAccountAnnotations) $provisioner.rerunToken | sha256sum | trunc 8 }}
+{{- $verb := ternary "plan" "apply" $provisioner.planOnly }}
+{{- $jobName := printf "%s-%s-%s" (include "provisioner.fullname" .) $verb $hash | trunc 63 | trimSuffix "-" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $jobName | quote }}
+  labels:
+    {{- include "provisioner.labels" . | nindent 4 }}
+spec:
+  backoffLimit: {{ $provisioner.backoffLimit }}
+  # A failing apply hits this ceiling and the Job goes Failed, surfacing the error, instead of
+  # leaving the consumers' pods stuck waiting on a Secret that never arrives.
+  activeDeadlineSeconds: {{ $provisioner.activeDeadlineSeconds }}
+  template:
+    {{- $podTemplate | trim | nindent 4 }}
+{{- end }}

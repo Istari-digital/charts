@@ -1,4 +1,5 @@
 {{- $serviceValues := .Values.mcp -}}
+{{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -19,10 +20,14 @@ spec:
       {{- include "mcp.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with $serviceValues.podAnnotations }}
       annotations:
+        # Rolls the Pods when the ConfigMap's data changes (e.g. a common.mainFqdn edit): envFrom
+        # alone leaves a running Pod on the old values. Hashes only .data, so a label- or
+        # chart-version-only change does not needlessly roll the Pods.
+        checksum/config: {{ include (print $.Template.BasePath "/mcp/configmap.yaml") . | fromYaml | dig "data" dict | toYaml | sha256sum }}
+        {{- with $serviceValues.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "mcp.labels" . | nindent 8 }}
         {{- with $serviceValues.podLabels }}
@@ -69,6 +74,11 @@ spec:
         */}}
         - configMapRef:
             name: {{ include "mcp.configmap.name" . | quote }}
+        {{- /* Right after the chart ConfigMap, so every user-supplied source below overrides it. */}}
+        {{- if $mountProvisionerSecret }}
+        - secretRef:
+            name: {{ include "provisioner.mcpSecretName" . | quote }}
+        {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
         - configMapRef:

@@ -1,0 +1,49 @@
+{{- if .Values.provisioner.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "provisioner.fullname" . | quote }}
+  labels:
+    {{- include "provisioner.labels" . | nindent 4 }}
+rules:
+  # create and list cannot be restricted by resourceNames: the Terraform kubernetes backend
+  # lists Secrets by label to find its state, and both the client credential Secrets and the
+  # state Secret are created at runtime with names that don't yet exist when the verb is checked.
+  # `list` returns full Secret objects, so this unavoidably grants read access to every Secret in
+  # the namespace -- an inherent cost of the backend requiring `list`; the resourceNames rule below
+  # still limits which Secrets the provisioner can modify.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "list"]
+  # The reading/mutating verbs are scoped to exactly the Secrets the image owns: the three client
+  # credential Secrets and the Terraform state Secret. If the state ever outgrows a single Secret
+  # the backend writes additional numbered state Secrets -- far larger than this provisioner's
+  # state will ever be, but broaden this rule if that assumption changes.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      - {{ include "provisioner.registrySecretName" . | quote }}
+      - {{ include "provisioner.mcpSecretName" . | quote }}
+      - {{ include "provisioner.identityPlatformClientsSecretName" . | quote }}
+      - {{ include "provisioner.stateSecretName" . | quote }}
+    verbs: ["get", "update", "patch", "delete"]
+  # Lease access mirrors the Secret scoping: create stays broad (the backend creates the lock Lease
+  # at runtime and resourceNames can't restrict create), while the read/mutate verbs are scoped to
+  # just the backend's own lock Lease, not every Lease in the namespace.
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["create"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    resourceNames:
+      - {{ include "provisioner.stateLockLeaseName" . | quote }}
+    verbs: ["get", "update", "delete"]
+  # Lets the image read its own ServiceAccount's uid and set it as the ownerReference on the
+  # Secrets it creates, so Kubernetes garbage-collects them when the SA is deleted on uninstall.
+  # The owner is the SA, not the Job -- the Job is replaced on every input change, which would
+  # collect a Job-owned Secret prematurely.
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    resourceNames: [{{ include "provisioner.fullname" . | quote }}]
+    verbs: ["get"]
+{{- end }}
