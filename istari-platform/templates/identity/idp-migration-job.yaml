@@ -12,8 +12,8 @@
 {{- if eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER" }}{{- $providerEntry = $e -}}{{- end }}
 {{- end }}
 {{- $envProvider := toString (default "" $providerEntry.value) -}}
-{{- if and $serviceValues.enabled (or $providerEntry.valueFrom (contains "$(" $envProvider)) (not (dig "to" "" $idp)) (ne (toString (index $idp "enabled")) "false") }}{{ fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER through valueFrom or a $(VAR) reference, which the chart cannot read: set identity.idpMigration.to to the provider identity-service runs (zitadel to import, or the incoming provider to switch), or identity.idpMigration.enabled=false" }}{{ end }}
-{{- $incoming := dig "to" "" $idp | default $envProvider | default $oidc.provider | default "zitadel" -}}
+{{- if and $serviceValues.enabled (or $providerEntry.valueFrom (contains "$(" $envProvider)) (not $idp.to) (ne (toString (index $idp "enabled")) "false") }}{{ fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER through valueFrom or a $(VAR) reference, which the chart cannot read: set identity.idpMigration.to to the provider identity-service runs (zitadel to import, or the incoming provider to switch), or identity.idpMigration.enabled=false" }}{{ end }}
+{{- $incoming := $idp.to | default $envProvider | default $oidc.provider | default "zitadel" -}}
 {{- $import := eq $incoming $from -}}
 {{- $idpEnabled := index $idp "enabled" -}}
 {{- $render := ternary (ne (toString $idpEnabled) "false") (eq (toString $idpEnabled) "true") $import -}}
@@ -42,7 +42,7 @@
 {{- $fromIssuer = $fromIssuer | default "$(ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER)" -}}
 {{- else }}
 {{- $fromIssuer = required "identity.idpMigration.fromIssuer is required when identity.idpMigration.enabled=true (the outgoing IdP issuer, still reachable at pre-upgrade time)" $fromIssuer -}}
-{{- $_ := required (printf "identity.idpMigration.to is required to switch identity providers (identity.oidc.provider is %q); set it to the incoming provider, e.g. keycloak" $incoming) (dig "to" "" $idp) -}}
+{{- $_ := required (printf "identity.idpMigration.to is required to switch identity providers (identity.oidc.provider is %q); set it to the incoming provider, e.g. keycloak" $incoming) $idp.to -}}
 {{- end }}
 {{- $fromIssuerApiUrl := $idp.fromIssuerApiUrl -}}
 {{- /* scheme, optional userinfo, a non-empty host (name, IPv4 or bracketed IPv6), optional port, optional path */ -}}
