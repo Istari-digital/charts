@@ -1,6 +1,6 @@
 {{- $serviceValues := .Values.identity -}}
 {{- $idp := dig "idpMigration" dict $serviceValues -}}
-{{- $oidc := dig "oidc" dict $serviceValues -}}
+{{- $oidc := $serviceValues.oidc -}}
 {{- $from := dig "from" "zitadel" $idp -}}
 {{- /* The incoming provider is the one identity-service runs after the upgrade: idpMigration.to, else
        identity.oidc.provider, else zitadel (identity-service's own default). A deployment that stays on
@@ -8,12 +8,12 @@
        providers still takes enabled=true. */ -}}
 {{- /* identity.env overrides identity.oidc.provider in the Deployment, last entry winning, so it does here too. */ -}}
 {{- $providerEntry := dict -}}
-{{- range $e := (default list $serviceValues.env) }}
+{{- range $e := $serviceValues.env }}
 {{- if eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER" }}{{- $providerEntry = $e -}}{{- end }}
 {{- end }}
 {{- $envProvider := toString (default "" $providerEntry.value) -}}
 {{- if and $serviceValues.enabled (or $providerEntry.valueFrom (contains "$(" $envProvider)) (not (dig "to" "" $idp)) (ne (toString (index $idp "enabled")) "false") }}{{ fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER through valueFrom or a $(VAR) reference, which the chart cannot read: set identity.idpMigration.to to the provider identity-service runs (zitadel to import, or the incoming provider to switch), or identity.idpMigration.enabled=false" }}{{ end }}
-{{- $incoming := dig "to" "" $idp | default $envProvider | default (dig "provider" "" $oidc) | default "zitadel" -}}
+{{- $incoming := dig "to" "" $idp | default $envProvider | default $oidc.provider | default "zitadel" -}}
 {{- $import := eq $incoming $from -}}
 {{- $idpEnabled := index $idp "enabled" -}}
 {{- $render := ternary (ne (toString $idpEnabled) "false") (eq (toString $idpEnabled) "true") $import -}}
@@ -23,14 +23,15 @@
        runAsJob=true; with runAsJob=false migrations run as a Deployment initContainer, after all hooks.
        The import migrates the schema itself in an init container instead. */ -}}
 {{- if and (not $import) (not $runAsJob) }}{{ fail "switching identity providers with identity.idpMigration requires identity.migrations.runAsJob=true, so DB migrations run as a pre-upgrade hook (weight 5) before this weight-10 migrate-idp hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and migrate-idp would run against a missing schema" }}{{ end }}
-{{- $migrationsEnv := dig "env" list (dig "migrations" dict $serviceValues) -}}
-{{- $migrationsResources := dig "resources" dict (dig "migrations" dict $serviceValues) -}}
+{{- $migrationsEnv := $serviceValues.migrations.env -}}
+{{- $migrationsResources := $serviceValues.migrations.resources -}}
 {{- $idpBackoff := dig "backoffLimit" 3 $idp -}}
 {{- $idpCleanup := dig "autoCleanupSuccessfulJob" true $idp -}}
 {{- $idpPodAnnotations := dig "podAnnotations" dict $idp -}}
 {{- $idpPodLabels := dig "podLabels" dict $idp -}}
 {{- $idpEnv := dig "env" list $idp -}}
 {{- $idpResources := dig "resources" dict $idp -}}
+{{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
 {{- /* Only zitadel enumeration is implemented; forwarding any other value would
        fail migrate-idp after the upgrade has already started. Reject it here. */ -}}
 {{- if ne $from "zitadel" }}{{ fail (printf "identity.idpMigration.from must be \"zitadel\" (the only supported outgoing IdP), got %q" $from) }}{{ end }}
@@ -43,10 +44,10 @@
 {{- $fromIssuer = required "identity.idpMigration.fromIssuer is required when identity.idpMigration.enabled=true (the outgoing IdP issuer, still reachable at pre-upgrade time)" $fromIssuer -}}
 {{- $_ := required (printf "identity.idpMigration.to is required to switch identity providers (identity.oidc.provider is %q); set it to the incoming provider, e.g. keycloak" $incoming) (dig "to" "" $idp) -}}
 {{- end }}
-{{- $fromIssuerApiUrl := dig "fromIssuerApiUrl" "" $idp -}}
+{{- $fromIssuerApiUrl := $idp.fromIssuerApiUrl -}}
 {{- /* scheme, optional userinfo, a non-empty host (name, IPv4 or bracketed IPv6), optional port, optional path */ -}}
 {{- if and $fromIssuerApiUrl (not (regexMatch `^https?://([^/?#@[:space:]]+@)?([^/?#@:\[\][:space:]]+|\[[0-9A-Fa-f:.]+\])(:[0-9]+)?(/[^[:space:]]*)?$` $fromIssuerApiUrl)) }}{{ fail (printf "identity.idpMigration.fromIssuerApiUrl must be an absolute http(s) URL, got %q" $fromIssuerApiUrl) }}{{ end }}
-{{- $idpExtraEnvSecrets := dig "extraEnvSecrets" list $idp -}}
+{{- $idpExtraEnvSecrets := $idp.extraEnvSecrets -}}
 {{- /* required guards an EXPLICIT empty override (dig still supplies the default when the key is
        absent): an empty -database-url-env / -credential-env would pass through to migrate-idp and
        fail only at runtime, after the upgrade has begun. Fail at render instead. */ -}}
@@ -149,7 +150,7 @@ spec:
         {{- $initExtra = append $kept (list (dict "name" "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" "value" (printf "$(%s)" $dbEnv))) }}
         {{- end }}
         env:
-        {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "db-migrate" "containerName" "db-migrate" "otelDefaults" (dig "enabled" false (default dict .Values.jaeger)) "extra" $initExtra) | nindent 8 }}
+        {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "db-migrate" "containerName" "db-migrate" "otelDefaults" $jaegerEnabled "extra" $initExtra) | nindent 8 }}
         {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
         volumeMounts:
         {{- with $serviceValues.volumeMounts }}
@@ -234,7 +235,6 @@ spec:
             name: {{ $s | quote }}
             optional: true
         {{- end }}
-        {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
         {{- /* Chart identity/OTEL defaults render first; the fragments below are appended in
         order (service env, then idpMigration.env, then cert) and deduped last-wins, so later
         fragments override earlier ones and a repeated name collapses to one patchable entry. */}}
