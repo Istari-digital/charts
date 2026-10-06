@@ -30,7 +30,7 @@ The chart can also create these for you: see `apiGateway.ingress` and `apiGatewa
 {{- end }}
 {{- if and .Values.identity.enabled (not .Values.provisioner.enabled) (not .Values.provisioner.external) }}
 
-identity-service is enabled without the provisioner. From 2.0.0 it exits at startup unless these
+identity-service is enabled without the provisioner. From 2.0.0-pre.14 it exits at startup unless these
 variables are set, and the chart sets them only when `provisioner.enabled` or
 `provisioner.external` is true:
 
