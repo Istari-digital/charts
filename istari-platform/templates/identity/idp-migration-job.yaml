@@ -145,9 +145,11 @@ spec:
         {{- if .Values.trustedCertBundle }}{{- $initExtra = append $initExtra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
         {{- /* /migrate reads only the default variable: set it from a custom databaseUrlEnv, last, so the $(VAR) it expands is defined first. */}}
         {{- if ne $dbEnv "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" }}
-        {{- $custom := dict }}
-        {{- range $frag := $initExtra }}{{- range $e := $frag }}{{- if eq (toString $e.name) $dbEnv }}{{- $custom = $e }}{{- end }}{{- end }}{{- end }}
-        {{- if contains "$(ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL)" (toString (default "" $custom.value)) }}{{ fail (printf "identity.idpMigration.databaseUrlEnv names %s, whose value references $(ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL); with identity.migrations.runAsJob=false the /migrate init container sets that variable from $(%s), so the reference cannot resolve. Leave databaseUrlEnv at its default, or give %s the connection string directly" $dbEnv $dbEnv $dbEnv) }}{{ end }}
+        {{- $lastByName := dict }}
+        {{- range $frag := $initExtra }}{{- range $e := $frag }}{{- $_ := set $lastByName (toString $e.name) $e }}{{- end }}{{- end }}
+        {{- range $n, $e := $lastByName }}
+        {{- if and (ne $n "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL") (contains "$(ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL)" (toString (default "" $e.value))) }}{{ fail (printf "%s references $(ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL), but with identity.migrations.runAsJob=false and identity.idpMigration.databaseUrlEnv=%s the /migrate init container redefines that variable from $(%s), so the reference cannot resolve. Leave databaseUrlEnv at its default, or give %s the connection string directly" $n $dbEnv $dbEnv $dbEnv) }}{{ end }}
+        {{- end }}
         {{- $kept := list }}
         {{- range $frag := $initExtra }}{{- $f := list }}{{- range $e := $frag }}{{- if ne (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" }}{{- $f = append $f $e }}{{- end }}{{- end }}{{- $kept = append $kept $f }}{{- end }}
         {{- $initExtra = append $kept (list (dict "name" "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" "value" (printf "$(%s)" $dbEnv))) }}
