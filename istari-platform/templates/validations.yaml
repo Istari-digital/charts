@@ -1,10 +1,16 @@
 {{- /*
-Chart-wide validations that must fire regardless of which services this release
-enables. Unlike a `_helpers.tpl` `define`, which only runs where something
-`include`s it, a template file without a leading underscore is evaluated on
-every render, so an unconditional `fail` here cannot be skipped by disabling a
-service. This file never emits a manifest.
-*/}}
-{{- if and (dig "clientIntegration" "enabled" false .Values.identity) (not (include "istari-platform.apiGatewayUrl" .)) }}
-{{- fail "identity.clientIntegration.enabled is true but no gateway URL resolves — set apiGateway.apiUrl so the registry service, the frontend, and MCP have a gateway to authenticate through" }}
+Chart-wide preconditions. This file deliberately has no leading underscore, so Helm evaluates it on
+every render and these fail calls cannot be skipped by disabling a service. It emits no manifest.
+*/ -}}
+{{- if not (trim .Values.common.mainFqdn) }}
+{{- fail "common.mainFqdn is required: set it to the platform's frontend FQDN (e.g. `common.mainFqdn: istari.example.com`). Every platform host and URL the chart emits derives from it, so an empty value renders a non-functional release." }}
+{{- end }}
+{{- /* The common.* hosts are scheme-less: the chart adds `https://` and paths where it emits a URL.
+A value carrying a scheme or path (a common migration mistake) would render e.g.
+`https://https://api.example.com` or corrupt a callback URI, so reject it here naming the key. */ -}}
+{{- range $key := list "mainFqdn" "apiFqdnOverride" "mcpFqdnOverride" }}
+{{- $val := trim (index $.Values.common $key) }}
+{{- if and $val (contains "/" $val) }}
+{{- fail (printf "common.%s must be a scheme-less host (e.g. `api.example.com`), not a URL or path — got %q. Drop the scheme and any trailing path; the chart adds `https://` where it emits a URL." $key $val) }}
+{{- end }}
 {{- end }}

@@ -212,6 +212,17 @@ Input: a list of env maps (each with a `name`). Output: YAML for the deduped lis
 {{- end }}
 
 {{/*
+Pod-template annotations for the chart's one-shot Jobs. Defaults `sidecar.istio.io/inject` to
+"false" -- an injected sidecar never exits, so a one-shot Job pod with one never completes -- then
+merges the caller's `podAnnotations` on top, so an operator can still override it (even back to
+"true") or add their own. Input: the service's podAnnotations map (may be empty); output: YAML for
+the annotations map, with the caller supplying the `annotations:` key.
+*/}}
+{{- define "istari-platform.jobPodAnnotations" -}}
+{{- toYaml (merge (deepCopy (default (dict) .)) (dict "sidecar.istio.io/inject" "false")) -}}
+{{- end }}
+
+{{/*
 Env that points common TLS/CA-bundle libraries at the mounted trusted-cert bundle. Injected
 into every service container when `.Values.trustedCertBundle` is set. Centralized so the paths
 stay in sync across web, init, and migration workloads.
@@ -228,13 +239,52 @@ stay in sync across web, init, and migration workloads.
 {{- end }}
 
 {{/*
-Resolved API Gateway base URL, or "" when the gateway contract is off.
-Only apiGateway.apiUrl activates the contract — this chart never derives one
-value's default from another, so a release that deploys the API Gateway with an
-Ingress still needs apiUrl set explicitly. Trailing slashes and surrounding
-whitespace are stripped, so <base>/registry never renders a double slash.
+Resolved API Gateway base URL (scheme + host). The host is `common.apiFqdnOverride` when set,
+otherwise derived as `api.<common.mainFqdn>`. `common.mainFqdn` is required (see validations.yaml),
+so this always resolves; the empty-host guard below is retained only as defence. This is the one place
+the chart deliberately derives one value from another — the whole domain surface flows from
+`common.mainFqdn` by design. Inputs are scheme-less; the `https://` scheme is added here. Trailing
+slashes and surrounding whitespace on the override are stripped, so <base>/registry never renders a
+double slash.
 */}}
 {{- define "istari-platform.apiGatewayUrl" -}}
-{{- $r := default dict .Values.apiGateway -}}
-{{- trimSuffix "/" (trim (default "" $r.apiUrl)) -}}
+{{- $common := .Values.common -}}
+{{- $override := trimSuffix "/" (trim $common.apiFqdnOverride) -}}
+{{- $mainFqdn := trim $common.mainFqdn -}}
+{{- $host := "" -}}
+{{- if $override -}}
+{{- $host = $override -}}
+{{- else if $mainFqdn -}}
+{{- $host = printf "api.%s" $mainFqdn -}}
+{{- end -}}
+{{- if $host -}}
+{{- printf "https://%s" $host -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+The frontend's OIDC redirect URI (`https://<common.mainFqdn>`). `common.mainFqdn` is required, so
+this always resolves; the guard below is retained only as defence.
+*/}}
+{{- define "istari-platform.frontendRedirectUri" -}}
+{{- $mainFqdn := trim .Values.common.mainFqdn -}}
+{{- if $mainFqdn -}}
+{{- printf "https://%s" $mainFqdn -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+The mcp OIDC redirect URI (`https://<mcp host>/auth/callback`), where the host is
+`common.mcpFqdnOverride` or `mcp.<common.mainFqdn>`. `common.mainFqdn` is required, so the host
+always resolves; the guard below is retained only as defence.
+*/}}
+{{- define "istari-platform.mcpRedirectUri" -}}
+{{- $mainFqdn := trim .Values.common.mainFqdn -}}
+{{- $mcpHost := trim .Values.common.mcpFqdnOverride -}}
+{{- if and (not $mcpHost) $mainFqdn -}}
+{{- $mcpHost = printf "mcp.%s" $mainFqdn -}}
+{{- end -}}
+{{- if $mcpHost -}}
+{{- printf "https://%s/auth/callback" $mcpHost -}}
+{{- end -}}
 {{- end }}

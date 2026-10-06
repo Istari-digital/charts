@@ -180,6 +180,30 @@ When a values combination cannot produce a working release, `fail` during render
 message naming the offending keys and what to set instead, rather than installing and
 misbehaving later.
 
+### What belongs in the chart vs. the service
+
+The chart supplies **deployment-specific** values — hostnames, URLs, service-discovery
+addresses, toggles — and derives them from a single source (`common.mainFqdn`) so a customer
+sets a domain **once** rather than in many env vars. Fixed protocol constants that are identical
+in every deployment — for example a service's own OIDC client id — belong as **defaults baked
+into the service image**, not injected by the chart; the chart is not the place to compensate
+for a service that fails to default its own constants. Prefer chart-native config (a service's
+own ConfigMap) over values routed through a generated Secret, and reserve Secrets for genuinely
+generated material (keys, passwords). When those sources overlap, keep the chart's ConfigMap
+first in `envFrom` so user-supplied sources and explicit `env` still override it.
+
+### Domain configuration
+
+Platform hostnames live under `common`: `mainFqdn` is the platform host (the frontend FQDN),
+and other hosts default to subdomains of it (`api.<mainFqdn>`, `mcp.<mainFqdn>`), each
+overridable with a scheme-less `*FqdnOverride`. Everything under `common` is scheme-less — add
+`https://` only where a URL is emitted. The `istari-platform.apiGatewayUrl` helper deliberately
+derives the gateway URL from `common.mainFqdn`: the one sanctioned exception to the
+never-derive-one-value's-default-from-another rule, because the whole domain surface is meant to
+flow from `mainFqdn`. Put new domain/host config here, not in individual service sections — the
+hosts feed multiple services (the API host becomes every service's `ISTARI_DIGITAL_API_URL`; the
+mcp host feeds identity's redirect allowlist), so a service section is the misleading home.
+
 ## Boundaries
 
 ### A chart version bump is a release, not an edit
