@@ -142,6 +142,8 @@ spec:
         {{- with $migrationsEnv }}{{- $initExtra = append $initExtra . }}{{- end }}
         {{- with $idpEnv }}{{- $initExtra = append $initExtra . }}{{- end }}
         {{- if .Values.trustedCertBundle }}{{- $initExtra = append $initExtra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
+        {{- /* /migrate reads only the default variable, so copy a custom databaseUrlEnv into it (kubelet $(VAR) expansion). */}}
+        {{- if ne $dbEnv "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" }}{{- $initExtra = append $initExtra (list (dict "name" "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" "value" (printf "$(%s)" $dbEnv))) }}{{- end }}
         env:
         {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "db-migrate" "containerName" "db-migrate" "otelDefaults" (dig "enabled" false (default dict .Values.jaeger)) "extra" $initExtra) | nindent 8 }}
         {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
