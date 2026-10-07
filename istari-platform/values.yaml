@@ -674,8 +674,6 @@ identity:
     provider: ""
     # -- Upstream IdP issuer URL, no trailing slash. OIDC discovery resolves at this issuer at startup.
     issuer: ""
-    # -- Optional base URL for calling the IdP when the cluster reaches it at a different address from `issuer`, such as an in-cluster address. Sets `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_API_BASE_URL` for identity-service and the Zitadel import Job; empty uses `issuer`, unless the variable is set in a mounted secret.
-    apiBaseUrl: ""
     # -- Client ID registered for identity at the upstream IdP.
     clientId: ""
     # -- Client auth method at the IdP token endpoint (validated): `private_key_jwt` (needs `..._OIDC_PRIVATE_KEY` in the Secret), `client_secret_basic`, or `client_secret_post` (both need `..._OIDC_CLIENT_SECRET` in the Secret).
