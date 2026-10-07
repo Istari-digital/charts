@@ -670,7 +670,7 @@ identity:
   # typo fails `helm template` rather than the running pod.
   # @default -- (see fields below)
   oidc:
-    # -- Upstream IdP provider implementation: `zitadel`, `keycloak` or `entra` (validated). Selects the `internal/idp` wiring (user lookup, token refresh). One IdP per deployment. `entra` also requires `clientAuthMethod` `client_secret_basic` or `client_secret_post`, `defaultTenantId`, and, when `issuer` is set here, a tenant-specific authority (`https://login.microsoftonline.com/<tenant-guid>/v2.0`); rendering fails otherwise.
+    # -- Upstream IdP provider implementation: `zitadel`, `keycloak` or `entra` (validated). Selects the `internal/idp` wiring (user lookup, token refresh). One IdP per deployment. `entra` also requires `clientAuthMethod` `client_secret_basic` or `client_secret_post` (with `..._OIDC_CLIENT_SECRET` in the Secret), `defaultTenantId`, and a tenant-specific `issuer` (`https://login.microsoftonline.com/<tenant-guid>/v2.0`); identity-service does not start otherwise.
     provider: ""
     # -- Upstream IdP issuer URL, no trailing slash. OIDC discovery resolves at this issuer at startup.
     issuer: ""
