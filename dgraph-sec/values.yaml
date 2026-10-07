@@ -684,6 +684,31 @@ alpha:
     # file:
     #   enc_key_file: MTIzNDU2Nzg5MDEyMzQ1Cg==
 
+  ## Zanzibar / SpiceDB-compatible authorization API (dgraph-sec fork feature).
+  ## When `enabled`, the alpha command gets `--zanzibar-acl "mode=...;..."`
+  ## (see templates/alpha/statefulset.yaml). The API is served over gRPC on
+  ## Alpha's EXISTING client port 9080 — no new port is opened. Auth is a single
+  ## static preshared bearer key (the "zanzibar" credential); it is NOT
+  ## integrated with Dgraph ACL users/groups and has no per-credential scoping.
+  # -- (object) Zanzibar / SpiceDB-compatible authorization API for alpha.
+  zanzibar:
+    enabled: false
+    # -- Auth mode: "preshared" (production; RFC 6750 bearer key) or "open" (dev only; NO auth). "jwt" is reserved/unimplemented in the binary and rejected by the chart.
+    mode: preshared
+    # -- Must be true to run mode=open (which disables all auth on the Zanzibar API). Guard against shipping an unauthenticated relationship store.
+    allowInsecureOpen: false
+    # -- Name of a pre-created (Terraform-managed) Secret holding the preshared key; empty means render one from `file` (dev only).
+    existingSecret: ""
+    # -- Secret data key AND mounted filename for the preshared key. The `preshared-key-file=` flag points at /dgraph/zanzibar/<keyName>.
+    keyName: zanzibar
+    ## The values in `file: {}` are filename-key to base64 data. Ignored when
+    ## `existingSecret` is set. The key must match `keyName`. Dev only — this puts
+    ## the key in values; prefer existingSecret. Mirrors alpha.acl.file.
+    # file:
+    #   zanzibar: <base64>
+    # -- Schema-cache staleness bound (schema-cache-ttl superflag sub-key); 0 disables the cache.
+    schemaCacheTTL: 30s
+
   ## dgraph data Persistent Volume Storage Class
   ## If defined, storageClassName: <storageClass>
   ## If set to "-", storageClassName: "", which disables dynamic provisioning
