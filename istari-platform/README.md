@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 6.2.0](https://img.shields.io/badge/Version-6.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
+![Version: 6.3.0](https://img.shields.io/badge/Version-6.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -19,7 +19,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 | Repository | Name | Version |
 |------------|------|---------|
 | https://istaridigital.jfrog.io/artifactory/main-helm-local | dgraph-sec | 0.6.1 |
-| https://jaegertracing.github.io/helm-charts | jaeger | 4.12.0 |
+| https://jaegertracing.github.io/helm-charts | jaeger | 4.14.1 |
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |
 
 > [!NOTE]
@@ -465,7 +465,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | jaeger.jaeger.image.pullSecrets | list | `["docker-pull-secret"]` | Image pull secret names applied to the Jaeger Pod. The umbrella chart's top-level `imagePullSecrets` does not propagate to subcharts, so this is set explicitly. Defaults to `docker-pull-secret` to match the rest of the istari-platform chart. |
 | jaeger.jaeger.image.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Jaeger image registry. Defaults to the Istari customer-docker JFrog repo. |
 | jaeger.jaeger.image.repository | string | `"istaridigital.com/jaeger-fips"` | Jaeger image repository. Defaults to the Chainguard FIPS Jaeger (v2) image. |
-| jaeger.jaeger.image.tag | string | `"2.20.0"` | Jaeger image tag. |
+| jaeger.jaeger.image.tag | string | `"2.21.0"` | Jaeger image tag. |
 | jaeger.jaeger.resources | object | `{"limits":{"memory":"4Gi"},"requests":{"cpu":"250m","memory":"2Gi"}}` | Resources for the Jaeger container. Badger's memory use scales with the stored dataset (table indexes and bloom filters live on the heap, and data files are memory-mapped), so a mature store needs real memory — and without a request the scheduler may place Jaeger on a node without room for it. Raise these together with `jaeger.persistence.size` / the `ttl.spans` retention. |
 | jaeger.jaeger.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"runAsNonRoot":true}` | Container `securityContext` for the Jaeger container, matching the hardening applied to the rest of the istari-platform chart. The subchart's default Pod-level securityContext (uid/gid/fsGroup 10001) is kept so the Badger PVC is writable by the non-root user. |
 | jaeger.persistence.annotations | object | `{}` | Additional annotations for the Badger PVC. |
