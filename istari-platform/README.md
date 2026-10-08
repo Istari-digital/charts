@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 6.3.0](https://img.shields.io/badge/Version-6.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
+![Version: 6.4.0](https://img.shields.io/badge/Version-6.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -73,17 +73,30 @@ helm upgrade --reuse-values --set provisioner.rerunToken=$(date +%s) <release> <
 
 A changed token is itself an input, so this renames the Job and reruns it. The value is arbitrary; only a change from the previous value matters.
 
-When enabled, the provisioner registers a fixed set of clients — registry, frontend, and MCP. The OIDC redirect URIs are derived from `common.mainFqdn`: the frontend at `https://<mainFqdn>` and MCP at `https://mcp.<mainFqdn>/auth/callback` (override the MCP host with `common.mcpFqdnOverride`). To use additional, or entirely different, redirect URIs, set them on the identity service directly via its environment — `ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS` / `..._MCP_REDIRECT_URIS` — which the identity service reads in preference to the provisioner-supplied defaults.
+When enabled, the provisioner registers a fixed set of clients — registry, frontend, and MCP — plus the Secure Connection Service when `secureConnection.enabled` is true. The OIDC redirect URIs are derived from `common.mainFqdn`: the frontend at `https://<mainFqdn>` and MCP at `https://mcp.<mainFqdn>/auth/callback` (override the MCP host with `common.mcpFqdnOverride`). To use additional, or entirely different, redirect URIs, set them on the identity service directly via its environment — `ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS` / `..._MCP_REDIRECT_URIS` — which the identity service reads in preference to the provisioner-supplied defaults.
 
-Only the values the provisioner actually generates come from its Secrets — the registry's private key, the MCP client secret, and the registry public key the identity service reads. The remaining deployment-specific identity config (the API gateway URL each service reads and the redirect allowlists the identity service registers) is chart-derived and rendered into the services' own ConfigMaps, ahead of the provisioner Secret and any user-supplied source in `envFrom`, so user overrides still win. The frontend's and MCP's OIDC authority is not emitted as its own variable: both derive it from the API gateway URL the chart already provides, which is always present when identity is enabled. The fixed OIDC client ids are service-level defaults, not chart-injected. The frontend has nothing generated, so it does not mount a provisioner Secret at all.
+Only the values the provisioner actually generates come from its Secrets — the registry's private key, the MCP client secret, the Secure Connection Service's private key when it is enabled, and the public keys the identity service reads. The remaining deployment-specific identity config (the API gateway URL each service reads and the redirect allowlists the identity service registers) is chart-derived and rendered into the services' own ConfigMaps, ahead of the provisioner Secret and any user-supplied source in `envFrom`, so user overrides still win. The frontend's and MCP's OIDC authority is not emitted as its own variable: both derive it from the API gateway URL the chart already provides, which is always present when identity is enabled. The fixed OIDC client ids are service-level defaults, not chart-injected. The frontend has nothing generated, so it does not mount a provisioner Secret at all.
 
 The provisioner runs under its own ServiceAccount and Role. The mutating verbs on Secrets (`get`/`update`/`patch`/`delete`) are scoped **by name** to only the Secrets the provisioner owns — the generated credential Secrets and its Terraform state Secret — so it can modify just those. `create` and `list` can't be restricted by `resourceNames`, so both are namespace-wide: `create` because the credential and state Secrets are created at runtime with names that don't yet exist when the verb is checked, and `list` because the Terraform kubernetes backend locates its state by label. Namespace-wide `list` returns full Secret objects, so the provisioner can **read** every Secret in the release's namespace, and `create` lets it add Secrets of any name — though it can still modify only its own. If that scope matters for your environment, install the release in a dedicated namespace.
 
 The generated Secret names derive from `provisioner.fullname` — `<fullnameOverride>-provisioner` when `fullnameOverride` is set, `<release>-provisioner` otherwise. Because `fullnameOverride` defaults to `istari`, a second release in the same namespace collides on these names — as it does on every other resource the chart names — unless you give it a distinct `fullnameOverride`. When the provisioner runs in a separate release from a consumer (`provisioner.external`), the two instead agree on the names by sharing the same `fullnameOverride` — two separate releases in one namespace can't share a release name, so the override is the only way to make their Secret names match.
 
+### Secure Connection Service
+
+With `secureConnection.enabled`, the provisioner generates the Secure Connection Service's credential (needs `provisioner.tag` 0.4.0 or later). The identity service registers it at startup as the platform client `secure_connection` with the `secure_connector` role, in place of an `identity.agentRegistration` entry and its `platformRoles: [secure_connector]` grant. The Secure Connection Service mounts the generated Secret, which carries `ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS`, and the chart sets `ISTARI_DIGITAL_IDENTITY_ROUTER_TOKEN_PATH` to `/api/v2/oauth2/token`, since a platform client's token carries its roles only from that endpoint; the service image must support that setting.
+
+- The Secret is mounted right after the chart's ConfigMap, so `secureConnection.secretName`, `extraEnvSecrets`, and `env` still override it. A secret that still carries an agent credential under `ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS` wins over the provisioner's; remove that key to switch to the platform client. Those sources override the chart's token path too.
+- The chart does not set `ISTARI_DIGITAL_IDENTITY_ROUTER_ENABLED` or `ISTARI_DIGITAL_IDENTITY_ROUTER_URL`; the service uses the credential only when those are set in its secret or `secureConnection.env`.
+- The identity service reads the client's public key only at startup. Enabling the Secure Connection Service on an existing install adds that key to the identity service's provisioner Secret without restarting it, so restart the identity service once the provisioner Job has finished.
+- With `provisioner.external`, the release that runs the provisioner decides from its own `secureConnection.enabled` whether to generate the credential. A release that mounts it while the provisioner's release has it disabled leaves the Secure Connection Service waiting for a Secret that never arrives.
+
 ## Agent registration
 
-`identity.agentRegistration` registers service agents, for example the Secure Connection Service, with the identity service so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job on install and upgrade. On a Zitadel configurator install, these values register the Secure Connection Service:
+`identity.agentRegistration` registers service agents with the identity service so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job on install and upgrade.
+
+The Secure Connection Service no longer needs an entry here when the provisioner runs: it provisions that service as the platform client `secure_connection` with the `secure_connector` role (see [Provisioner](#provisioner)). An existing `secure-connection` entry keeps working, and can be removed once the service authenticates with the provisioner's credential.
+
+On a Zitadel configurator install, these values register an agent whose user and organization ids come from the configurator's secret:
 
 ```yaml
 identity:
@@ -97,20 +110,18 @@ identity:
     extraEnvSecrets:
     - zitadel-identity-service-env
     agents:
-    - name: secure-connection
-      keyEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT
-      usernameEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT_USERNAME
+    - name: example-agent
+      keyEnv: EXAMPLE_AGENT_KEY
+      usernameEnv: EXAMPLE_AGENT_USERNAME
       providerName: zitadel
-      providerTenantIdEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT_PROVIDER_TENANT_ID
-      displayName: Secure Connection Service Agent
-      platformRoles:
-      - secure_connector
+      providerTenantIdEnv: EXAMPLE_AGENT_PROVIDER_TENANT_ID
+      displayName: Example Agent
 ```
 
 - `identity.migrations.runAsJob` must be `true`; the chart fails to render otherwise.
 - The configurator's `zitadel-identity-service-env` secret is listed twice: under `identity.extraEnvSecrets` for identity-service and the Zitadel import, which reads the management key from it, and under `agentRegistration.extraEnvSecrets` for the registration Job, which mounts only `identity.secretName` and its own list.
-- `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT` holds the agent's base64-encoded public-only credential blob. Add it to the secret `identity.secretName` names. The identity service never receives the private key.
-- `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT_USERNAME` and `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT_PROVIDER_TENANT_ID` come from that configurator secret.
+- `EXAMPLE_AGENT_KEY` holds the agent's base64-encoded public-only credential blob. Add it to the secret `identity.secretName` names. The identity service never receives the private key.
+- `EXAMPLE_AGENT_USERNAME` and `EXAMPLE_AGENT_PROVIDER_TENANT_ID` stand for the agent's user and organization id variables in that configurator secret.
 - The entry leaves out `tenantSlug`, so the agent registers in the tenant the Zitadel import (the `identity.idpMigration` hook, on by default for Zitadel deployments) created for its organization, beside the deployment's people.
 
 | Field | Required | Value |
@@ -123,7 +134,7 @@ identity:
 | `providerTenantIdEnv` | With `providerName` | Env var holding the agent's upstream organization id. Maps the tenant to that organization, so the agent's token carries it for Zitadel role lookups. |
 | `usernameEnv` | No | Env var holding the agent's upstream user id, binding the agent to that existing identity. |
 | `displayName` | No | Agent display name. |
-| `platformRoles` | No | Platform roles, such as `[secure_connector]`, to grant the agent (if active) and other active agents in its tenant with the same username. Needs identity-service 2.0.0-pre.18 or later; an earlier image fails the Job on the unknown flag. |
+| `platformRoles` | No | Platform roles to grant the agent (if active) and other active agents in its tenant with the same username. Needs identity-service 2.0.0-pre.18 or later; an earlier image fails the Job on the unknown flag. |
 
 When an env var an entry names is empty or unset, the Job skips that step instead of failing, so the release stays green before the secret exists; an entry with `tenantSlug` still creates its empty tenant. The exception: an entry without `tenantSlug` fails when its `providerTenantIdEnv` value is empty or unset.
 
@@ -372,8 +383,8 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | frontend.volumes | list | `[]` | Pod Volumes |
 | fullnameOverride | string | `"istari"` | Override the prefix used for resource names, which defaults to the chart name (istari-platform). |
 | identity.affinity | object | `{}` | Affinity |
-| identity.agentRegistration | object | (see fields below) | Registers service agents, such as the Secure Connection Service, with the Identity Service on every install and upgrade, so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job, which reads the agent's inputs from env vars in `identity.secretName` and `extraEnvSecrets`. Renders only when `identity.enabled` and `enabled` are `true` and `agents` is not empty. See [Agent registration](#agent-registration) for an example. |
-| identity.agentRegistration.agents | list | `[]` | Agents to register, one Job each. Each entry names an agent and the env vars holding its inputs; fields ending in `Env` take an env var name, not a value. For the Secure Connection Service, copy the example under [Agent registration](#agent-registration), which also lists every field. |
+| identity.agentRegistration | object | (see fields below) | Registers service agents with the Identity Service on every install and upgrade, so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job, which reads the agent's inputs from env vars in `identity.secretName` and `extraEnvSecrets`. Renders only when `identity.enabled` and `enabled` are `true` and `agents` is not empty. With `provisioner.enabled` (or `provisioner.external`), the provisioner provisions the Secure Connection Service as a platform client instead, so it needs no entry here. See [Agent registration](#agent-registration) for an example. |
+| identity.agentRegistration.agents | list | `[]` | Agents to register, one Job each. Each entry names an agent and the env vars holding its inputs; fields ending in `Env` take an env var name, not a value. See [Agent registration](#agent-registration) for an example and every field. |
 | identity.agentRegistration.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up successful registration hook `Job`s by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). |
 | identity.agentRegistration.backoffLimit | int | `6` | `spec.backoffLimit` for each registration Job (retries after a failed Pod). |
 | identity.agentRegistration.enabled | bool | `false` | Whether to render the agent-registration Jobs. Requires `identity.migrations.runAsJob: true`; rendering fails otherwise. Safe to leave on: an entry whose secret is not provisioned yet skips registration and leaves the release green, so the secret, not this flag, switches an agent on. |
@@ -538,7 +549,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | nats.reloader.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-server-config-reloader-fips"` | Config-reloader image repository. Defaults to the Chainguard FIPS variant. |
 | nats.reloader.image.tag | string | `"0.23.0"` | Config-reloader image tag. |
 | nats.statefulSet.merge.spec.persistentVolumeClaimRetentionPolicy | object | `{"whenDeleted":"Delete","whenScaled":"Delete"}` | Delete the JetStream PVCs when the StatefulSet is deleted or scaled down. Set to `Retain` if you need the data to outlive the StatefulSet. |
-| provisioner | object | (see fields below) | Settings for the provisioner: a one-shot Terraform-in-a-Job (an ordinary release resource, not a Helm hook) that generates and publishes platform secrets. Its current use is registering the registry/frontend/mcp services as OAuth/OIDC clients — generating their credentials for identity to read at startup — and it may grow to other secret-generation uses. Not for secure-connection-service (see `identity.agentRegistration`). |
+| provisioner | object | (see fields below) | Settings for the provisioner: a one-shot Terraform-in-a-Job (an ordinary release resource, not a Helm hook) that generates and publishes platform secrets. Its current use is registering the registry/frontend/mcp services as OAuth/OIDC clients — generating their credentials for identity to read at startup — and, when `secureConnection.enabled` is true, the Secure Connection Service as the platform client `secure_connection` with the `secure_connector` role, replacing its `identity.agentRegistration` entry. It may grow to other secret-generation uses. See [Provisioner](#provisioner). |
 | provisioner.activeDeadlineSeconds | int | `180` | `spec.activeDeadlineSeconds` for the provisioning Job — a wall-clock ceiling after which a stuck or failing Job goes `Failed`, surfacing the error instead of leaving consumer pods waiting on a Secret that never arrives. The Terraform run normally completes in seconds. |
 | provisioner.affinity | object | `{}` | Affinity for the provisioning Job pod. |
 | provisioner.backend | object | (see fields below) | Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no external cloud state infra. |
@@ -561,7 +572,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | provisioner.rerunToken | string | `""` | Change this to any new value to force the provisioning Job to rerun without changing any other input: `helm upgrade --reuse-values --set provisioner.rerunToken=<anything>`. The Job's name is a hash of its inputs, and this token is one of them. |
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
 | provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
-| provisioner.tag | string | `"0.3.0"` | Image tag. |
+| provisioner.tag | string | `"0.4.0"` | Image tag. 0.4.0 or later is needed to provision the Secure Connection Service; an earlier image ignores `secureConnection.enabled` and never writes the Secret that service mounts. |
 | provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | secureConnection.affinity | object | `{}` | Affinity |
 | secureConnection.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
@@ -599,7 +610,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | secureConnection.replicaCount | int | `1` | Replica count |
 | secureConnection.resources | object | `{"limits":{"memory":"8Gi"},"requests":{"cpu":"3","memory":"8Gi"}}` | Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request. |
 | secureConnection.restartPolicy | string | `"Always"` | Restart policy |
-| secureConnection.secretName | string | `"istari-secure-connection"` | Secret name. The secret should contain the environment variables required by the service. |
+| secureConnection.secretName | string | `"istari-secure-connection"` | Secret name. The secret should contain the environment variables required by the service. With `provisioner.enabled` or `provisioner.external`, the service also mounts the provisioner's generated credential Secret (`ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS`) and the chart sets `ISTARI_DIGITAL_IDENTITY_ROUTER_TOKEN_PATH` to `/api/v2/oauth2/token`; this secret, `extraEnvSecrets`, and `env` override both, so a secret that still carries an agent credential under that key wins over the provisioner's. The chart does not set `ISTARI_DIGITAL_IDENTITY_ROUTER_ENABLED` or `ISTARI_DIGITAL_IDENTITY_ROUTER_URL`; set them here to switch the service onto the Identity Service. |
 | secureConnection.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | secureConnection.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | secureConnection.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |

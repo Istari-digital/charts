@@ -1,6 +1,7 @@
 {{- $serviceValues := .Values.secureConnection -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
+{{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -83,6 +84,12 @@ spec:
         */}}
         - configMapRef:
             name: {{ include "secure-connection.configmap.name" . | quote }}
+        {{- /* Right after the chart ConfigMap, so every user-supplied source below overrides it: an
+        operator Secret still carrying an agent credential under the same key wins over this one. */}}
+        {{- if $mountProvisionerSecret }}
+        - secretRef:
+            name: {{ include "provisioner.secureConnectionSecretName" . | quote }}
+        {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
         - configMapRef:
@@ -138,6 +145,12 @@ spec:
         */}}
         - configMapRef:
             name: {{ include "secure-connection.configmap.name" . | quote }}
+        {{- /* Right after the chart ConfigMap, so every user-supplied source below overrides it: an
+        operator Secret still carrying an agent credential under the same key wins over this one. */}}
+        {{- if $mountProvisionerSecret }}
+        - secretRef:
+            name: {{ include "provisioner.secureConnectionSecretName" . | quote }}
+        {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
         - configMapRef:
