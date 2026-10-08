@@ -8,7 +8,8 @@ name hashes this block to rerun on change (mechanism and immutability rationale 
 {{- $provisioner := .Values.provisioner }}
 {{/*
 The image emits only generated credential material, so the chart passes just the Secret names,
-namespace, labels, and ServiceAccount name. The identity config the services need (redirect URIs,
+namespace, labels, ServiceAccount name, and whether to generate the optional Secure Connection
+Service credential (SCS is optional in the chart, so the image skips it unless told otherwise). The identity config the services need (redirect URIs,
 authority URL, enable flags) comes from their own ConfigMaps, not the provisioner.
 */}}
 {{- $tfVars := list
@@ -17,6 +18,8 @@ authority URL, enable flags) comes from their own ConfigMaps, not the provisione
   (dict "name" "TF_VAR_mcp_secret_name" "value" (include "provisioner.mcpSecretName" .))
   (dict "name" "TF_VAR_namespace" "value" .Release.Namespace)
   (dict "name" "TF_VAR_registry_secret_name" "value" (include "provisioner.registrySecretName" .))
+  (dict "name" "TF_VAR_secure_connection_enabled" "value" (ternary "true" "false" (not (not .Values.secureConnection.enabled))))
+  (dict "name" "TF_VAR_secure_connection_secret_name" "value" (include "provisioner.secureConnectionSecretName" .))
   (dict "name" "TF_VAR_service_account_name" "value" (include "provisioner.fullname" .))
 -}}
 {{- $env := include "istari-platform.dedupeEnv" (concat $tfVars $provisioner.env) }}

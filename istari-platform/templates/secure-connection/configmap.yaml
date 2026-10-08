@@ -17,6 +17,12 @@ metadata:
   {{- end }}
 data:
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+  {{- if or .Values.provisioner.enabled .Values.provisioner.external }}
+  {{- /* A platform-client token carries its roles only from identity-service's v2 token endpoint.
+  Set here rather than as explicit env so secureConnection.secretName/extraEnvSecrets/env can still
+  override it, e.g. for an operator credential that needs a different path. */}}
+  ISTARI_DIGITAL_IDENTITY_ROUTER_TOKEN_PATH: "/api/v2/oauth2/token"
+  {{- end }}
   {{- if dig "enabled" false (default dict .Values.jaeger) }}
   {{- /* Per-container OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES are set as explicit env by
   "istari-platform.workloadIdentityEnv": the resource attributes reference downward-API $(VAR)s,
