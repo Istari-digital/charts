@@ -652,7 +652,7 @@ identity:
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "identity-service"
-  # -- Image tag. The combination of registry, image, and tag will be used to pull the image. This chart's hooks need identity-service 2.0.1 or later: the Zitadel import (`idpMigration`) needs 2.0.0-pre.17, the `secure_connector` role grant at registration and import needs 2.0.0-pre.18, and an agent entry without `tenantSlug` needs 2.0.1. An older tag fails the hook that uses the missing command or flag, and with it the install or upgrade.
+  # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
   tag: "2.1.0"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"

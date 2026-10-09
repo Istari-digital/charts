@@ -447,7 +447,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | identity.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | identity.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | identity.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| identity.tag | string | `"2.1.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. This chart's hooks need identity-service 2.0.1 or later: the Zitadel import (`idpMigration`) needs 2.0.0-pre.17, the `secure_connector` role grant at registration and import needs 2.0.0-pre.18, and an agent entry without `tenantSlug` needs 2.0.1. An older tag fails the hook that uses the missing command or flag, and with it the install or upgrade. |
+| identity.tag | string | `"2.1.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | identity.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | identity.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | identity.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
