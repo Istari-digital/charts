@@ -12,12 +12,14 @@ Reads the identity.oidc.* fields directly — values.yaml is the source of truth
 for their defaults (per AGENTS.md), so the template adds no fallbacks of its own.
 Each field emits only when non-empty, so an empty block adds nothing. provider
 and clientAuthMethod are validated against the supported enums, so a typo fails
-`helm template` rather than the running pod.
+`helm template` rather than the running pod. What a provider requires of the
+other fields (Entra's, for one) is left to identity-service, which checks it at
+startup.
 */}}
 {{- define "identity.oidcEnv" -}}
 {{- $oidc := .oidc -}}
 {{- $provider := $oidc.provider -}}
-{{- if and $provider (not (has $provider (list "zitadel" "keycloak"))) }}{{- fail (printf "identity.oidc.provider must be \"zitadel\" or \"keycloak\", got %q" $provider) }}{{- end }}
+{{- if and $provider (not (has $provider (list "zitadel" "keycloak" "entra"))) }}{{- fail (printf "identity.oidc.provider must be \"zitadel\", \"keycloak\" or \"entra\", got %q" $provider) }}{{- end }}
 {{- $authMethod := $oidc.clientAuthMethod -}}
 {{- if and $authMethod (not (has $authMethod (list "private_key_jwt" "client_secret_basic" "client_secret_post"))) }}{{- fail (printf "identity.oidc.clientAuthMethod must be one of private_key_jwt, client_secret_basic, client_secret_post, got %q" $authMethod) }}{{- end }}
 {{- with $provider }}
