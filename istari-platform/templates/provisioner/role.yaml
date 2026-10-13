@@ -16,7 +16,7 @@ rules:
     resources: ["secrets"]
     verbs: ["create", "list"]
   # The reading/mutating verbs are scoped to exactly the Secrets the image owns: the three client
-  # credential Secrets and the Terraform state Secret. If the state ever outgrows a single Secret
+  # credential Secrets, identity's keys and the Terraform state Secret. If the state ever outgrows a single Secret
   # the backend writes additional numbered state Secrets -- far larger than this provisioner's
   # state will ever be, but broaden this rule if that assumption changes.
   - apiGroups: [""]
@@ -25,6 +25,7 @@ rules:
       - {{ include "provisioner.registrySecretName" . | quote }}
       - {{ include "provisioner.mcpSecretName" . | quote }}
       - {{ include "provisioner.identityPlatformClientsSecretName" . | quote }}
+      - {{ include "provisioner.identityKeysSecretName" . | quote }}
       - {{ include "provisioner.stateSecretName" . | quote }}
     verbs: ["get", "update", "patch", "delete"]
   # Lease access mirrors the Secret scoping: create stays broad (the backend creates the lock Lease

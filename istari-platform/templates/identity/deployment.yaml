@@ -92,6 +92,10 @@ spec:
         {{- if $mountProvisionerSecret }}
         - secretRef:
             name: {{ include "provisioner.identityPlatformClientsSecretName" . | quote }}
+        {{- /* identity's generated signing and token encryption keys. Before identity.secretName,
+        so a key set there wins and an installation that already has keys keeps them. */}}
+        - secretRef:
+            name: {{ include "provisioner.identityKeysSecretName" . | quote }}
         {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}

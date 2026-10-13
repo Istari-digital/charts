@@ -656,7 +656,7 @@ identity:
   tag: "2.1.0"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
-  # -- Secret name. The secret should contain the environment variables required by the service.
+  # -- Secret name. The secret should contain the environment variables required by the service. With the provisioner, it needs no `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGNING_KEY` or `ISTARI_DIGITAL_IDENTITY_SERVICE_TOKEN_ENCRYPTION_KEY`: the provisioner generates both. Either one set here overrides the generated one.
   secretName: "istari-identity"
   # -- Upstream OIDC / IdP configuration — the NON-secret half of pointing identity at an IdP.
   # Each field set here renders as an explicit `env` entry on the identity container as the matching
@@ -899,8 +899,8 @@ provisioner:
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name.
   image: "provisioner"
-  # -- Image tag.
-  tag: "0.3.0"
+  # -- Image tag. 0.4.0 and later also generate the identity service's token signing key and token encryption key.
+  tag: "0.4.0"
   # -- Image pull policy.
   imagePullPolicy: IfNotPresent
   # -- Image pull secrets for the provisioning Job pod. When empty, the chart-wide `imagePullSecrets` apply.
