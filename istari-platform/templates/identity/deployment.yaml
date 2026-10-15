@@ -92,9 +92,7 @@ spec:
         {{- if $mountProvisionerSecret }}
         - secretRef:
             name: {{ include "provisioner.identityPlatformClientsSecretName" . | quote }}
-        {{- /* identity's generated signing and token encryption keys (the _B64 names). Before
-        identity.secretName, so the same name set there wins; a legacy SIGNING_KEY /
-        TOKEN_ENCRYPTION_KEY set there wins inside identity-service, so existing keys are kept. */}}
+        {{- /* Generated identity keys; identity.secretName, mounted after, overrides them. */}}
         - secretRef:
             name: {{ include "provisioner.identityKeysSecretName" . | quote }}
         {{- end }}

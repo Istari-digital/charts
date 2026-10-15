@@ -656,7 +656,7 @@ identity:
   tag: "2.1.0"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
-  # -- Secret name. The secret should contain the environment variables required by the service. With the provisioner, it needs no signing or token encryption key: the provisioner generates both. A key set here overrides the generated one, under the legacy `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGNING_KEY` / `ISTARI_DIGITAL_IDENTITY_SERVICE_TOKEN_ENCRYPTION_KEY` or the new `..._SIGNING_KEY_ID` + `..._SIGNING_KEY_B64` / `..._TOKEN_ENCRYPTION_KEY_B64`.
+  # -- Secret name. The secret should contain the environment variables required by the service. With the provisioner, it needs no signing or token encryption key; one set here overrides the generated one (see Provisioner).
   secretName: "istari-identity"
   # -- Upstream OIDC / IdP configuration — the NON-secret half of pointing identity at an IdP.
   # Each field set here renders as an explicit `env` entry on the identity container as the matching
