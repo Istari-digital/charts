@@ -796,7 +796,7 @@ identity:
       limits:
         cpu: 500m
         memory: 1Gi
-  # -- Registers service agents, such as the Secure Connection Service, with the Identity Service on every install and upgrade, so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job, which reads the agent's inputs from env vars in `identity.secretName` and `extraEnvSecrets`. Renders only when `identity.enabled` and `enabled` are `true` and `agents` is not empty. See [Agent registration](#agent-registration) for an example.
+  # -- Registers service agents, such as the Secure Connection Service, with the Identity Service on every install and upgrade, so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job, which reads the agent's inputs from env vars in `identity.secretName` and `extraEnvSecrets`. Renders only when `identity.enabled` and `enabled` are `true` and `agents` is not empty. See [Agent registration](#agent-registration) for an example. The chart also registers the Secure Connection Service itself, whatever this flag says, when the identity provider is not `zitadel` and `secureConnection.identityCredentialsSecret` is set; see [Secure Connection Service without Zitadel](#secure-connection-service-without-zitadel).
   # @default -- (see fields below)
   agentRegistration:
     # -- Whether to render the agent-registration Jobs. Requires `identity.migrations.runAsJob: true`; rendering fails otherwise. Safe to leave on: an entry whose secret is not provisioned yet skips registration and leaves the release green, so the secret, not this flag, switches an agent on.
