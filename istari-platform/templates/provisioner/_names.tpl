@@ -53,7 +53,7 @@ registry/frontend/mcp.
 Secret carrying identity-service's own generated keys: its token signing key and token encryption
 key.
 */}}
-{{- define "provisioner.identityKeysSecretName" -}}
+{{- define "provisioner.identitySecretName" -}}
 {{- printf "%s-identity-keys" (include "provisioner.fullname" .) -}}
 {{- end }}
 

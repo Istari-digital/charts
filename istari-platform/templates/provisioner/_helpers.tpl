@@ -14,7 +14,7 @@ authority URL, enable flags) comes from their own ConfigMaps, not the provisione
 {{- $tfVars := list
   (dict "name" "TF_VAR_common_labels" "value" (include "provisioner.podLabels" . | fromYaml | toJson))
   (dict "name" "TF_VAR_identity_platform_clients_secret_name" "value" (include "provisioner.identityPlatformClientsSecretName" .))
-  (dict "name" "TF_VAR_identity_secret_name" "value" (include "provisioner.identityKeysSecretName" .))
+  (dict "name" "TF_VAR_identity_secret_name" "value" (include "provisioner.identitySecretName" .))
   (dict "name" "TF_VAR_mcp_secret_name" "value" (include "provisioner.mcpSecretName" .))
   (dict "name" "TF_VAR_namespace" "value" .Release.Namespace)
   (dict "name" "TF_VAR_registry_secret_name" "value" (include "provisioner.registrySecretName" .))

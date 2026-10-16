@@ -92,9 +92,8 @@ spec:
         {{- if $mountProvisionerSecret }}
         - secretRef:
             name: {{ include "provisioner.identityPlatformClientsSecretName" . | quote }}
-        {{- /* Generated identity keys; identity.secretName, mounted after, overrides them. */}}
         - secretRef:
-            name: {{ include "provisioner.identityKeysSecretName" . | quote }}
+            name: {{ include "provisioner.identitySecretName" . | quote }}
         {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
