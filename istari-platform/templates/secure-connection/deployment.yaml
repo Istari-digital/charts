@@ -4,7 +4,7 @@
 {{- if $serviceValues.enabled }}
 {{- $notZitadel := include "istari-platform.identityProviderIsNotZitadel" . }}
 {{- if and $notZitadel (not $serviceValues.identityCredentialsSecret) }}
-{{- fail "The identity provider is not zitadel, so the Secure Connection Service authenticates to identity-service: create a Secret holding its credential (base64 of the JSON identity-service's /gen-agent-credentials writes) under the key ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS, and set secureConnection.identityCredentialsSecret to its name. See the chart README, Secure Connection Service without Zitadel." }}
+{{- fail "The identity provider (identity.oidc.provider, or ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER in identity.env) is not zitadel, so the Secure Connection Service authenticates to identity-service: create a Secret holding its credential (base64 of the JSON identity-service's /gen-agent-credentials writes) under the key ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS, and set secureConnection.identityCredentialsSecret to its name. See the chart README, Secure Connection Service without Zitadel." }}
 {{- end }}
 apiVersion: apps/v1
 kind: Deployment
