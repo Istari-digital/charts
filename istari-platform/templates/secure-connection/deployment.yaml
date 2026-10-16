@@ -25,9 +25,15 @@ spec:
       {{- include "secure-connection.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with $serviceValues.podAnnotations }}
+      {{- if or $notZitadel $serviceValues.podAnnotations }}
       annotations:
+        {{- if $notZitadel }}
+        # Rolls the Pods when the ConfigMap's data changes, such as the identity-service URL after a domain edit.
+        checksum/config: {{ include (print $.Template.BasePath "/secure-connection/configmap.yaml") . | fromYaml | dig "data" dict | toYaml | sha256sum }}
+        {{- end }}
+        {{- with $serviceValues.podAnnotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- end }}
       labels:
         {{- include "secure-connection.labels" . | nindent 8 }}
