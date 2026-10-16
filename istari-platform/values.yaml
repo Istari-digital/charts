@@ -1360,7 +1360,7 @@ jaeger:
       # -- Jaeger image repository. Defaults to the Chainguard FIPS Jaeger (v2) image.
       repository: "istaridigital.com/jaeger-fips"
       # -- Jaeger image tag.
-      tag: "2.21.0"
+      tag: "2.22.0"
       # -- Image pull secret names applied to the Jaeger Pod. The umbrella chart's top-level `imagePullSecrets` does not propagate to subcharts, so this is set explicitly. Defaults to `docker-pull-secret` to match the rest of the istari-platform chart.
       pullSecrets:
       - docker-pull-secret
@@ -1380,6 +1380,39 @@ jaeger:
         memory: 2Gi
       limits:
         memory: 4Gi
+    # -- Startup probe for the Jaeger container. Badger opens every on-disk table at boot, which on a large store (tens of GiB / thousands of tables) can take minutes; without a startup probe the liveness probe SIGTERMs the container mid-open and crash-loops it forever. This holds liveness off until the Jaeger v2 healthcheckv2 endpoint (`/status` on 13133, enabled by `userconfig`) first reports healthy, allowing up to ~10 minutes (`failureThreshold` × `periodSeconds`). Scale `failureThreshold` up alongside `jaeger.persistence.size`.
+    startupProbe:
+      httpGet:
+        path: /status
+        port: 13133
+        scheme: HTTP
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      failureThreshold: 60
+      timeoutSeconds: 5
+      successThreshold: 1
+    # -- Liveness probe for the Jaeger container, hitting the healthcheckv2 `/status` endpoint. `timeoutSeconds` is 5 (not the subchart default 1): a Badger compaction pause can stall `/status` past a 1s deadline and, after five misses, kill an otherwise-healthy Pod. The startup probe above covers the boot window.
+    livenessProbe:
+      httpGet:
+        path: /status
+        port: 13133
+        scheme: HTTP
+      initialDelaySeconds: 5
+      periodSeconds: 15
+      failureThreshold: 5
+      timeoutSeconds: 5
+      successThreshold: 1
+    # -- Readiness probe for the Jaeger container, hitting the healthcheckv2 `/status` endpoint. `timeoutSeconds` raised to 5 to match the liveness probe.
+    readinessProbe:
+      httpGet:
+        path: /status
+        port: 13133
+        scheme: HTTP
+      initialDelaySeconds: 1
+      periodSeconds: 10
+      failureThreshold: 3
+      timeoutSeconds: 5
+      successThreshold: 1
     # -- Container `securityContext` for the Jaeger container, matching the hardening applied to the rest of the istari-platform chart. The subchart's default Pod-level securityContext (uid/gid/fsGroup 10001) is kept so the Badger PVC is writable by the non-root user.
     securityContext:
       allowPrivilegeEscalation: false
