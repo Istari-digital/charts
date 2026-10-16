@@ -505,6 +505,8 @@ secureConnection:
   extraEnvConfigMaps: []
   # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
   extraEnvSecrets: []
+  # -- Name of a Secret holding the Secure Connection Service's identity-service credential under the key `ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS`. Required, and used only, when the identity provider is set and is not `zitadel`; the chart then also registers the service with identity-service. See [Secure Connection Service without Zitadel](#secure-connection-service-without-zitadel).
+  identityCredentialsSecret: ""
   # -- Replica count
   replicaCount: 1
   # -- Restart policy
