@@ -445,7 +445,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | identity.replicaCount | int | `1` | Replica count |
 | identity.resources | object | `{"limits":{"memory":"2Gi"},"requests":{"cpu":"1","memory":"2Gi"}}` | Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request. |
 | identity.restartPolicy | string | `"Always"` | Restart policy |
-| identity.secretName | string | `"istari-identity"` | Secret name. The secret should contain the environment variables required by the service. With the provisioner, it needs no signing or token encryption key; one set here overrides the generated one (see Provisioner). |
+| identity.secretName | string | `"istari-identity"` | Secret name. The secret should contain the environment variables required by the service. |
 | identity.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | identity.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | identity.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
