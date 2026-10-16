@@ -135,7 +135,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 
 ## Secure Connection Service without Zitadel
 
-When the identity provider is set and is not `zitadel` (`identity.oidc.provider`, or `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER` in `identity.env`), the Secure Connection Service authenticates to identity-service instead of Zitadel. The chart then:
+When the identity provider is set and is not `zitadel` (`identity.oidc.provider`, or `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER` in `identity.env`), the Secure Connection Service authenticates to identity-service instead of Zitadel. In an install that uses one Helm release per service, set the provider in every release that deploys registry-service, MCP or the Secure Connection Service; a release that cannot see it is treated as Zitadel. The chart then:
 
 - sets `ISTARI_DIGITAL_IDENTITY_ROUTER_ENABLED` and points `ISTARI_DIGITAL_IDENTITY_ROUTER_URL` at `https://<api host>/identity`, where identity-service accepts the service's token request;
 - reads the service's credential from the Secret named in `secureConnection.identityCredentialsSecret`, and fails to render if none is named;
