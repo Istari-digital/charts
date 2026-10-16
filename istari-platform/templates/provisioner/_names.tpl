@@ -50,6 +50,14 @@ registry/frontend/mcp.
 {{- end }}
 
 {{/*
+Secret carrying identity-service's own generated keys: its token signing key and token encryption
+key.
+*/}}
+{{- define "provisioner.identitySecretName" -}}
+{{- printf "%s-identity-keys" (include "provisioner.fullname" .) -}}
+{{- end }}
+
+{{/*
 Suffix for the Terraform kubernetes backend's state Secret / lock Lease, derived from
 `provisioner.fullname`; override to pin it. Because `fullnameOverride` defaults to `istari`,
 separate releases share this state unless given distinct `fullnameOverride` values.

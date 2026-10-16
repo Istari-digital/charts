@@ -92,6 +92,8 @@ spec:
         {{- if $mountProvisionerSecret }}
         - secretRef:
             name: {{ include "provisioner.identityPlatformClientsSecretName" . | quote }}
+        - secretRef:
+            name: {{ include "provisioner.identitySecretName" . | quote }}
         {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
