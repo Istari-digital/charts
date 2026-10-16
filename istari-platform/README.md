@@ -576,6 +576,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | secureConnection.env | list | `[]` |  |
 | secureConnection.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | secureConnection.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
+| secureConnection.identityCredentialsSecret | string | `""` | Name of a Secret holding the Secure Connection Service's identity-service credential under the key `ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS`. Required, and used only, when the identity provider is set and is not `zitadel`; the chart then also registers the service with identity-service. See [Secure Connection Service without Zitadel](#secure-connection-service-without-zitadel). |
 | secureConnection.image | string | `"secure-connection-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | secureConnection.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
