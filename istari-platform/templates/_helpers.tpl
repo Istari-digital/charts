@@ -288,3 +288,19 @@ always resolves; the guard below is retained only as defence.
 {{- printf "https://%s/auth/callback" $mcpHost -}}
 {{- end -}}
 {{- end }}
+
+{{/*
+"true" when the values set an identity provider other than zitadel: the last ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER in identity.env, else identity.oidc.provider.
+An empty entry, or one the chart cannot read (valueFrom or a $(VAR) reference), counts as zitadel.
+*/}}
+{{- define "istari-platform.identityProviderIsNotZitadel" -}}
+{{- $identity := .Values.identity -}}
+{{- $provider := default "" $identity.oidc.provider | toString -}}
+{{- range $e := $identity.env }}
+{{- if eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER" }}
+{{- $value := toString (default "" $e.value) }}
+{{- $provider = ternary "" $value (or (not (empty $e.valueFrom)) (contains "$(" $value)) }}
+{{- end }}
+{{- end }}
+{{- if and $provider (ne $provider "zitadel") }}true{{ end }}
+{{- end }}
