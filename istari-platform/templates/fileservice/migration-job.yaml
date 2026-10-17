@@ -7,7 +7,8 @@
 {{- $migrationsBackoffLimit := dig "migrations" "backoffLimit" 0 $serviceValues -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
-{{- $noZitadelEnv := ternary (list (dict "name" "FILE_SERVICE_ZITADEL_DOMAIN" "value" "")) (list) (not (empty (include "istari-platform.identityProviderIsNotZitadel" .))) -}}
+{{- /* The pre-install hook cannot read the fileservice ConfigMap, so pass these explicitly. */ -}}
+{{- $noZitadelEnv := ternary (list (dict "name" "FILE_SERVICE_ZITADEL_DOMAIN" "value" "") (dict "name" "ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED" "value" (toString (dig "clientIntegration" "enabled" false .Values.identity))) (dict "name" "ISTARI_DIGITAL_API_URL" "value" $gatewayUrl)) (list) (not (empty (include "istari-platform.identityProviderIsNotZitadel" .))) -}}
 {{- if and $serviceValues.enabled $migrationsRunAsJob }}
 apiVersion: batch/v1
 kind: Job
