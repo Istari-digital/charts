@@ -2,6 +2,10 @@
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
 {{- if $serviceValues.enabled }}
+{{- $notZitadel := include "istari-platform.identityProviderIsNotZitadel" . }}
+{{- if and $notZitadel (not $serviceValues.identityCredentialsSecret) }}
+{{- fail "The identity provider (identity.oidc.provider, or ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER in identity.env) is not zitadel, so the Secure Connection Service authenticates to identity-service: create a Secret holding its credential (base64 of the JSON identity-service's /gen-agent-credentials writes) under the key ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS, and set secureConnection.identityCredentialsSecret to its name. See the chart README, Secure Connection Service without Zitadel." }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,9 +25,15 @@ spec:
       {{- include "secure-connection.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with $serviceValues.podAnnotations }}
+      {{- if or $notZitadel $serviceValues.podAnnotations }}
       annotations:
+        {{- if $notZitadel }}
+        # Rolls the Pods when the ConfigMap's data changes, such as the identity-service URL after a domain edit.
+        checksum/config: {{ include (print $.Template.BasePath "/secure-connection/configmap.yaml") . | fromYaml | dig "data" dict | toYaml | sha256sum }}
+        {{- end }}
+        {{- with $serviceValues.podAnnotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- end }}
       labels:
         {{- include "secure-connection.labels" . | nindent 8 }}
@@ -103,6 +113,7 @@ spec:
         order and deduped last-wins, so service env overrides a chart default and a repeated name
         collapses to one patchable entry. */}}
         {{- $extra := list }}
+        {{- if $notZitadel }}{{- $extra = append $extra (list (dict "name" "ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS" "valueFrom" (dict "secretKeyRef" (dict "name" $serviceValues.identityCredentialsSecret "key" "ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS")))) }}{{- end }}
         {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
         {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
         env:

@@ -33,6 +33,10 @@ data:
   # being later in the Deployment's envFrom chain.
   ISTARI_DIGITAL_IDENTITY_SERVICE_ENABLED: {{ dig "clientIntegration" "enabled" false .Values.identity | quote }}
   {{- end }}
+  {{- if include "istari-platform.identityProviderIsNotZitadel" . }}
+  # Refuse unrecognized tokens at once rather than introspecting them at Zitadel.
+  ISTARI_DIGITAL_IDENTITY_SERVICE_ACCEPT_ZITADEL_PATS: "false"
+  {{- end }}
   {{- if dig "enabled" false (default dict .Values.jaeger) }}
   {{- /* mcp-service runs under opentelemetry-instrument with the SDK disabled by default;
   OTEL_SDK_DISABLED=false opts in. OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES are set as
