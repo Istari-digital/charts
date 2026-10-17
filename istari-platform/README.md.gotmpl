@@ -147,8 +147,9 @@ Generate the credential with the identity-service image's `/gen-agent-credential
 docker run --rm --user "$(id -u)" --entrypoint /gen-agent-credentials \
   -v "$PWD:/out" istaridigital.jfrog.io/customer-docker/identity-service:<identity.tag> \
   -out /out/secure-connection-agent.json -agent-id secure-connection-agent
-kubectl create secret generic secure-connection-identity -n <namespace> \
-  --from-literal=ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS="$(base64 < secure-connection-agent.json | tr -d '\n')"
+base64 < secure-connection-agent.json | tr -d '\n' | \
+  kubectl create secret generic secure-connection-identity -n <namespace> \
+  --from-file=ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS=/dev/stdin
 ```
 
 ```yaml
