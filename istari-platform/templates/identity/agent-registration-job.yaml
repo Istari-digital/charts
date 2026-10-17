@@ -1,15 +1,23 @@
 {{- $serviceValues := .Values.identity -}}
 {{- $registration := dig "agentRegistration" dict $serviceValues -}}
 {{- $registrationEnabled := dig "enabled" false $registration -}}
-{{- $agents := dig "agents" list $registration -}}
-{{- if and $serviceValues.enabled $registrationEnabled $agents }}
-{{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty when identity.agentRegistration.enabled is true" -}}
+{{- $agents := list -}}{{- if $registrationEnabled }}{{- $agents = dig "agents" (list) $registration -}}{{- end }}
+{{- $scs := .Values.secureConnection -}}
+{{- /* On a non-Zitadel provider the chart registers the Secure Connection Service itself, keyed by its credential Secret. */ -}}
+{{- if and $serviceValues.enabled $scs.enabled $scs.identityCredentialsSecret (include "istari-platform.identityProviderIsNotZitadel" .) }}
+{{- range $a := $agents }}
+{{- if eq (toString $a.name) "secure-connection" }}{{ fail "identity.agentRegistration.agents lists an agent named secure-connection, but the chart registers the Secure Connection Service itself when the identity provider is not zitadel and secureConnection.identityCredentialsSecret is set: remove that entry." }}{{ end }}
+{{- end }}
+{{- $agents = append $agents (dict "name" "secure-connection" "keyEnv" "SECURE_CONNECTION_AGENT_CREDENTIALS" "chartKeySecret" $scs.identityCredentialsSecret "tenantSlug" "default" "displayName" "Secure Connection Service Agent" "platformRoles" (list "secure_connector")) }}
+{{- end }}
+{{- if and $serviceValues.enabled $agents }}
+{{- $_ := $serviceValues.secretName | required "identity.secretName must be non-empty for agent registration (identity.agentRegistration, or the Secure Connection Service agent the chart registers when secureConnection.identityCredentialsSecret is set)" -}}
 {{- /* The hook (weight 20) assumes the DB schema exists. That only holds when
        migrations run as a pre-upgrade hook (weight 5), i.e. migrations.runAsJob=true.
        With runAsJob=false migrations run as a Deployment initContainer — after all
        hooks — so create-tenant/register-agent would hit a missing schema on a fresh
        install or schema-changing upgrade. Require the safe mode up front. */ -}}
-{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "identity.agentRegistration.enabled requires identity.migrations.runAsJob=true, so DB migrations run as a pre-upgrade hook before the agent-registration hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and create-tenant/register-agent would run against a missing schema" }}{{ end }}
+{{- if not (dig "runAsJob" false (dig "migrations" dict $serviceValues)) }}{{ fail "agent registration (identity.agentRegistration, or the Secure Connection Service agent the chart registers when secureConnection.identityCredentialsSecret is set) requires identity.migrations.runAsJob=true, so DB migrations run as a pre-upgrade hook before the agent-registration hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and create-tenant/register-agent would run against a missing schema" }}{{ end }}
 {{- $registrationPodAnnotations := dig "podAnnotations" dict $registration -}}
 {{- $registrationPodLabels := dig "podLabels" dict $registration -}}
 {{- $registrationResources := dig "resources" dict $registration -}}
@@ -43,7 +51,7 @@
 {{- end }}
 {{- if not (or $agent.tenantSlug $agent.providerName) }}{{ fail (printf "agentRegistration agent %q must set tenantSlug, or providerName and providerTenantIdEnv to register in the tenant its upstream organization is mapped to" $agent.name) }}{{ end }}
 {{- if and $agent.tenantDisplayName (not $agent.tenantSlug) }}{{ fail (printf "agentRegistration agent %q sets tenantDisplayName without tenantSlug; without tenantSlug no tenant is created, so leave both out" $agent.name) }}{{ end }}
-{{- $_ := $agent.keyEnv | required (printf "agentRegistration agent %q must set keyEnv (the env var, from secretName or extraEnvSecrets, holding the base64 public-only agent credential blob)" $agent.name) -}}
+{{- $_ := $agent.keyEnv | required (printf "agentRegistration agent %q must set keyEnv (the env var, from secretName or extraEnvSecrets, holding the base64 agent credential blob)" $agent.name) -}}
 {{- /* providerName maps the tenant to an upstream org and needs that org's id; the
        two are supplied together. The id is read from providerTenantIdEnv (an env
        var, typically published by the configurator) so environment-specific ids
@@ -182,8 +190,8 @@ spec:
         - "/register-agent"
         # Inputs come from env vars (envFrom below); the CLI's -*-env flags read
         # them via os.Getenv. An empty/absent agent blob makes register-agent no-op,
-        # so a disabled integration leaves the release green. The blob is public-key
-        # material only — register-agent stores just the public half.
+        # so a disabled integration leaves the release green. The blob may hold a
+        # private or public key; register-agent stores only the public half.
         args:
         - "-secret-env"
         - {{ $agent.keyEnv | quote }}
@@ -226,6 +234,7 @@ spec:
         {{- $extra := list }}
         {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
         {{- with $registrationEnv }}{{- $extra = append $extra . }}{{- end }}
+        {{- with $agent.chartKeySecret }}{{- $extra = append $extra (list (dict "name" $agent.keyEnv "valueFrom" (dict "secretKeyRef" (dict "name" . "key" "ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS")))) }}{{- end }}
         {{- if $.Values.trustedCertBundle }}{{- $extra = append $extra (list (dict "name" "SSL_CERT_DIR" "value" "/usr/lib/ssl/certs") (dict "name" "SSL_CERT_FILE" "value" "/usr/lib/ssl/cert.pem")) }}{{- end }}
         env:
         {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "register-agent" "containerName" "register-agent" "otelDefaults" false "extra" $extra) | nindent 8 }}

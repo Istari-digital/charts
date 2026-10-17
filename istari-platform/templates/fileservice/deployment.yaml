@@ -2,6 +2,8 @@
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
+{{- /* Explicit env beats envFrom, so this overrides a Zitadel domain from the operator's Secret; registry-service reads empty as no Zitadel. */ -}}
+{{- $noZitadelEnv := ternary (list (dict "name" "FILE_SERVICE_ZITADEL_DOMAIN" "value" "")) (list) (not (empty (include "istari-platform.identityProviderIsNotZitadel" .))) -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -116,6 +118,7 @@ spec:
         order and the list is deduped last-wins, so service env overrides a chart default and a
         repeated name collapses to one patchable entry. */}}
         {{- $extra := list }}
+        {{- with $noZitadelEnv }}{{- $extra = append $extra . }}{{- end }}
         {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
         {{- if $natsEnabled }}{{- $extra = append $extra (include "istari-platform.fileservice.natsEnv" . | fromYamlArray) }}{{- end }}
         {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
@@ -179,6 +182,7 @@ spec:
         order (service env, then migrations.env, then nats/cert) and deduped last-wins, so later
         fragments override earlier ones and a repeated name collapses to one patchable entry. */}}
         {{- $extra := list }}
+        {{- with $noZitadelEnv }}{{- $extra = append $extra . }}{{- end }}
         {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
         {{- with $migrationsEnv }}{{- $extra = append $extra . }}{{- end }}
         {{- if $natsEnabled }}{{- $extra = append $extra (include "istari-platform.fileservice.natsEnv" . | fromYamlArray) }}{{- end }}
