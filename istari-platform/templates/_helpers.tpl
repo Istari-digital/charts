@@ -295,12 +295,12 @@ An empty entry, or one the chart cannot read (valueFrom or a $(VAR) reference), 
 */}}
 {{- define "istari-platform.identityProviderIsNotZitadel" -}}
 {{- $identity := .Values.identity -}}
-{{- $provider := default "" $identity.oidc.provider | toString -}}
+{{- $provider := $identity.oidc.provider -}}
 {{- range $e := $identity.env }}
 {{- if eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER" }}
 {{- $value := toString (default "" $e.value) }}
 {{- $provider = ternary "" $value (or (not (empty $e.valueFrom)) (contains "$(" $value)) }}
 {{- end }}
 {{- end }}
-{{- if and $provider (ne $provider "zitadel") }}true{{ end }}
+{{- if and $provider (ne (toString $provider) "zitadel") }}true{{ end }}
 {{- end }}
