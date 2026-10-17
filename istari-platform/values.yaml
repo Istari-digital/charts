@@ -505,6 +505,8 @@ secureConnection:
   extraEnvConfigMaps: []
   # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
   extraEnvSecrets: []
+  # -- Name of a Secret holding the Secure Connection Service's identity-service credential under the key `ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS`. Required, and used only, when the identity provider is set and is not `zitadel`; the chart then also registers the service with identity-service. See [Secure Connection Service without Zitadel](#secure-connection-service-without-zitadel).
+  identityCredentialsSecret: ""
   # -- Replica count
   replicaCount: 1
   # -- Restart policy
@@ -794,10 +796,10 @@ identity:
       limits:
         cpu: 500m
         memory: 1Gi
-  # -- Registers service agents, such as the Secure Connection Service, with the Identity Service on every install and upgrade, so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job, which reads the agent's inputs from env vars in `identity.secretName` and `extraEnvSecrets`. Renders only when `identity.enabled` and `enabled` are `true` and `agents` is not empty. See [Agent registration](#agent-registration) for an example.
+  # -- Registers service agents, such as the Secure Connection Service, with the Identity Service on every install and upgrade, so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job, which reads the agent's inputs from env vars in `identity.secretName` and `extraEnvSecrets`. Renders only when `identity.enabled` and `enabled` are `true` and `agents` is not empty. See [Agent registration](#agent-registration) for an example. The chart also registers the Secure Connection Service itself, whatever this flag says, when the identity provider is not `zitadel` and `secureConnection.identityCredentialsSecret` is set; see [Secure Connection Service without Zitadel](#secure-connection-service-without-zitadel).
   # @default -- (see fields below)
   agentRegistration:
-    # -- Whether to render the agent-registration Jobs. Requires `identity.migrations.runAsJob: true`; rendering fails otherwise. Safe to leave on: an entry whose secret is not provisioned yet skips registration and leaves the release green, so the secret, not this flag, switches an agent on.
+    # -- Whether to render the agent-registration Jobs. Requires `identity.migrations.runAsJob: true`; rendering fails otherwise. Safe to leave on: an entry whose secret is not provisioned yet skips registration and leaves the release green, so the secret, not this flag, switches an agent on. That does not apply to the Secure Connection Service agent the chart registers itself: its Secret is required, so create it before installing.
     enabled: false
     # -- `spec.backoffLimit` for each registration Job (retries after a failed Pod).
     backoffLimit: 6

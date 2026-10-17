@@ -14,3 +14,7 @@ A value carrying a scheme or path (a common migration mistake) would render e.g.
 {{- fail (printf "common.%s must be a scheme-less host (e.g. `api.example.com`), not a URL or path — got %q. Drop the scheme and any trailing path; the chart adds `https://` where it emits a URL." $key $val) }}
 {{- end }}
 {{- end }}
+{{- /* Without client integration the registry, frontend and MCP stay on Zitadel, so nobody can sign in. */ -}}
+{{- if and (include "istari-platform.identityProviderIsNotZitadel" .) (not .Values.identity.clientIntegration.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled) }}
+{{- fail "The identity provider (identity.oidc.provider, or ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER in identity.env) is not zitadel, but identity.clientIntegration.enabled is false: the registry, frontend and MCP in this release would stay on Zitadel and nobody could sign in. Set identity.clientIntegration.enabled: true." }}
+{{- end }}

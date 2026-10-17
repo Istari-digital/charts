@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 6.6.0](https://img.shields.io/badge/Version-6.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
+![Version: 6.8.0](https://img.shields.io/badge/Version-6.8.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -109,14 +109,14 @@ identity:
 
 - `identity.migrations.runAsJob` must be `true`; the chart fails to render otherwise.
 - The configurator's `zitadel-identity-service-env` secret is listed twice: under `identity.extraEnvSecrets` for identity-service and the Zitadel import, which reads the management key from it, and under `agentRegistration.extraEnvSecrets` for the registration Job, which mounts only `identity.secretName` and its own list.
-- `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT` holds the agent's base64-encoded public-only credential blob. Add it to the secret `identity.secretName` names. The identity service never receives the private key.
+- `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT` holds the agent's base64-encoded credential blob; a public-only copy keeps the private key away from identity-service, though `register-agent` stores only the public half of either. Add it to the secret `identity.secretName` names.
 - `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT_USERNAME` and `ISTARI_DIGITAL_IDENTITY_SERVICE_SCS_AGENT_PROVIDER_TENANT_ID` come from that configurator secret.
 - The entry leaves out `tenantSlug`, so the agent registers in the tenant the Zitadel import (the `identity.idpMigration` hook, on by default for Zitadel deployments) created for its organization, beside the deployment's people.
 
 | Field | Required | Value |
 | --- | --- | --- |
 | `name` | Yes | Agent name, used in the Job name and the `istari.digital/agent` label: letters, digits, `-` or `_`, beginning and ending with a letter or digit, at most 63 characters. |
-| `keyEnv` | Yes | Env var holding the agent's public-only credential blob. |
+| `keyEnv` | Yes | Env var holding the agent's credential blob (public-only, or the full credential). |
 | `tenantSlug` | Unless `providerName` and `providerTenantIdEnv` are set | Tenant to register in; the Job creates it if missing. Leave it out to use the tenant mapped to `providerName` and `providerTenantIdEnv`, which needs identity-service 2.0.1 or later. |
 | `tenantDisplayName` | No | Display name for a tenant the Job creates. Only with `tenantSlug`. |
 | `providerName` | With `providerTenantIdEnv` | Upstream identity provider, such as `zitadel`. |
@@ -133,6 +133,51 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 
 - **"is already linked to tenant":** the entry sets `tenantSlug` and `providerName`, but the import already mapped that organization to a different tenant. Remove `tenantSlug` and `tenantDisplayName`, or set `tenantSlug` to that tenant's slug, and upgrade again. The failed run leaves an empty tenant under the requested slug, which you can deactivate.
 - **No tenant mapped to the organization:** an entry without `tenantSlug` needs one, which the import normally creates. When the import is turned off, set `tenantSlug`.
+
+## Secure Connection Service without Zitadel
+
+When the identity provider is set and is not `zitadel` (`identity.oidc.provider`, or `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER` in `identity.env`), the Secure Connection Service authenticates to identity-service instead of Zitadel. In an install that uses one Helm release per service, set the provider in every release that deploys registry-service, MCP or the Secure Connection Service; a release that cannot see it is treated as Zitadel. The chart then:
+
+- sets `ISTARI_DIGITAL_IDENTITY_ROUTER_ENABLED` and points `ISTARI_DIGITAL_IDENTITY_ROUTER_URL` at `https://<api host>/identity`, where identity-service accepts the service's token request;
+- reads the service's credential from the Secret named in `secureConnection.identityCredentialsSecret`, and fails to render if none is named;
+- when identity-service is in the same release, registers the service as an agent in the `default` tenant with the `secure_connector` platform role. This needs `identity.migrations.runAsJob: true` and runs whether or not `identity.agentRegistration.enabled` is set; remove any `agents` entry named `secure-connection`.
+
+Generate the credential with the identity-service image's `/gen-agent-credentials` command, then store it base64-encoded in a Secret:
+
+```bash
+docker run --rm --user "$(id -u)" --entrypoint /gen-agent-credentials \
+  -v "$PWD:/out" istaridigital.jfrog.io/customer-docker/identity-service:<identity.tag> \
+  -out /out/secure-connection-agent.json -agent-id secure-connection-agent
+kubectl create secret generic secure-connection-identity -n <namespace> \
+  --from-literal=ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS="$(base64 < secure-connection-agent.json | tr -d '\n')"
+```
+
+```yaml
+secureConnection:
+  enabled: true
+  identityCredentialsSecret: secure-connection-identity
+```
+
+Create the Secret before `helm install` or `helm upgrade`: the registration hook reads it, and without it the hook pod cannot start and the release waits until Helm's timeout. The file holds a private key: keep it out of version control and delete it once the Secret exists. The registration Job reads the same value and stores only its public half; registration also needs `identity.secretName`, which supplies the database URL.
+
+If the service already has an agent registered with identity-service, put that agent's existing credential in the Secret instead of generating a new one, so it keeps its tenant and identity. A credential with a new client id registers a second agent.
+
+## Agent registration without Zitadel
+
+Without Zitadel there is no organization to map, so an agent registers in a tenant named by slug. `default` exists on every install:
+
+```yaml
+identity:
+  agentRegistration:
+    enabled: true
+    agents:
+    - name: my-agent
+      keyEnv: MY_AGENT_CREDENTIALS
+      tenantSlug: default
+      displayName: My Agent
+```
+
+Leave out `providerName`, `providerTenantIdEnv` and `usernameEnv`. Put `MY_AGENT_CREDENTIALS` (base64 of the agent's `/gen-agent-credentials` JSON, or of a public-only copy) in `identity.secretName` or a Secret listed in `agentRegistration.extraEnvSecrets`. When identity-service runs in a different release from the Secure Connection Service, register the Secure Connection Service this way in the identity-service release, with `platformRoles: [secure_connector]`.
 
 ## Values
 
@@ -372,11 +417,11 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | frontend.volumes | list | `[]` | Pod Volumes |
 | fullnameOverride | string | `"istari"` | Override the prefix used for resource names, which defaults to the chart name (istari-platform). |
 | identity.affinity | object | `{}` | Affinity |
-| identity.agentRegistration | object | (see fields below) | Registers service agents, such as the Secure Connection Service, with the Identity Service on every install and upgrade, so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job, which reads the agent's inputs from env vars in `identity.secretName` and `extraEnvSecrets`. Renders only when `identity.enabled` and `enabled` are `true` and `agents` is not empty. See [Agent registration](#agent-registration) for an example. |
+| identity.agentRegistration | object | (see fields below) | Registers service agents, such as the Secure Connection Service, with the Identity Service on every install and upgrade, so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job, which reads the agent's inputs from env vars in `identity.secretName` and `extraEnvSecrets`. Renders only when `identity.enabled` and `enabled` are `true` and `agents` is not empty. See [Agent registration](#agent-registration) for an example. The chart also registers the Secure Connection Service itself, whatever this flag says, when the identity provider is not `zitadel` and `secureConnection.identityCredentialsSecret` is set; see [Secure Connection Service without Zitadel](#secure-connection-service-without-zitadel). |
 | identity.agentRegistration.agents | list | `[]` | Agents to register, one Job each. Each entry names an agent and the env vars holding its inputs; fields ending in `Env` take an env var name, not a value. For the Secure Connection Service, copy the example under [Agent registration](#agent-registration), which also lists every field. |
 | identity.agentRegistration.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up successful registration hook `Job`s by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). |
 | identity.agentRegistration.backoffLimit | int | `6` | `spec.backoffLimit` for each registration Job (retries after a failed Pod). |
-| identity.agentRegistration.enabled | bool | `false` | Whether to render the agent-registration Jobs. Requires `identity.migrations.runAsJob: true`; rendering fails otherwise. Safe to leave on: an entry whose secret is not provisioned yet skips registration and leaves the release green, so the secret, not this flag, switches an agent on. |
+| identity.agentRegistration.enabled | bool | `false` | Whether to render the agent-registration Jobs. Requires `identity.migrations.runAsJob: true`; rendering fails otherwise. Safe to leave on: an entry whose secret is not provisioned yet skips registration and leaves the release green, so the secret, not this flag, switches an agent on. That does not apply to the Secure Connection Service agent the chart registers itself: its Secret is required, so create it before installing. |
 | identity.agentRegistration.env | list | `[]` | Extra environment variables applied to BOTH containers of every agent Job (the `create-tenant` init container and the `register-agent` container), rendered after the service-level `env` — on duplicate names, these win. The chart injects the downward-API building blocks (each container gets its own `CONTAINER_NAME`) but no `OTEL_*` default, since these Jobs do not initialize the OTEL SDK. Set common Job variables here; if you wire tracing yourself, an `OTEL_RESOURCE_ATTRIBUTES` referencing `$(CONTAINER_NAME)` keeps each container's correct name from the one shared list. |
 | identity.agentRegistration.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into every agent Job, in addition to `identity.secretName`. Use this to supply the secret(s) holding the agents' credential blobs and (from the istari-zitadel-configurator) their username / org id — the same pattern services use with `secretName` + `extraEnvSecrets`. Each is mounted `optional`, so a not-yet-provisioned secret leaves the release green (the CLIs no-op on the resulting empty values). |
 | identity.agentRegistration.podAnnotations | object | `{}` | Annotations for the registration Job Pod templates only — the chart defaults `sidecar.istio.io/inject: "false"` here so these one-shot Job pods do not get a (never-exiting) Istio sidecar; your entries merge over that default, so set it to `"true"` to re-enable injection. |
@@ -579,6 +624,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | secureConnection.env | list | `[]` |  |
 | secureConnection.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | secureConnection.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
+| secureConnection.identityCredentialsSecret | string | `""` | Name of a Secret holding the Secure Connection Service's identity-service credential under the key `ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS`. Required, and used only, when the identity provider is set and is not `zitadel`; the chart then also registers the service with identity-service. See [Secure Connection Service without Zitadel](#secure-connection-service-without-zitadel). |
 | secureConnection.image | string | `"secure-connection-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | secureConnection.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
