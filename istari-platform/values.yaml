@@ -670,7 +670,7 @@ identity:
   # typo fails `helm template` rather than the running pod.
   # @default -- (see fields below)
   oidc:
-    # -- Upstream IdP provider implementation: `zitadel`, `keycloak` or `entra` (validated). Selects the `internal/idp` wiring (user lookup, token refresh). One IdP per deployment. `entra` also requires `clientAuthMethod` `client_secret_basic` or `client_secret_post` (with `..._OIDC_CLIENT_SECRET` in the Secret) and a tenant-specific `issuer` (`https://login.microsoftonline.com/<tenant-guid>/v2.0`); identity-service does not start otherwise.
+    # -- Upstream IdP provider implementation: `zitadel`, `keycloak` or `entra`, or `none` for no identity provider, where people sign in with local accounts that identity-service stores (validated). Selects the `internal/idp` wiring (user lookup, token refresh). One IdP per deployment. `entra` also requires `clientAuthMethod` `client_secret_basic` or `client_secret_post` (with `..._OIDC_CLIENT_SECRET` in the Secret) and a tenant-specific `issuer` (`https://login.microsoftonline.com/<tenant-guid>/v2.0`); identity-service does not start otherwise.
     provider: ""
     # -- Upstream IdP issuer URL, no trailing slash. OIDC discovery resolves at this issuer at startup.
     issuer: ""
@@ -849,6 +849,12 @@ identity:
     extraEnvSecrets: []
     # -- Resource requests/limits for the migration Job.
     resources: {}
+  # -- The first platform admin, created as a local account. Required when `identity.oidc.provider` is `none`. See [Installing with no identity provider](#installing-with-no-identity-provider).
+  # @default -- (see fields below)
+  bootstrap:
+    localAdmin:
+      # -- Email of the first platform admin. When set, a pre-install and pre-upgrade hook runs identity-service's `ensure-platform-admins`, which creates this person as a local platform admin while no active platform admin exists. Keep it set for the life of the install.
+      email: ""
   # Ingress -- optional Kubernetes Ingress for this service.
   ingress:
     # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.

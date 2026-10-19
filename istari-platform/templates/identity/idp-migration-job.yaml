@@ -2,6 +2,7 @@
 {{- $idp := dig "idpMigration" dict $serviceValues -}}
 {{- $oidc := $serviceValues.oidc -}}
 {{- $from := dig "from" "zitadel" $idp -}}
+{{- if and $serviceValues.enabled (eq (toString $oidc.provider) "none") (or (eq (toString (index $idp "enabled")) "true") (and $idp.to (ne (toString (index $idp "enabled")) "false"))) }}{{ fail "identity.oidc.provider is \"none\", so identity.idpMigration.enabled must not be true and identity.idpMigration.to must be unset: there is no identity provider to import from or move to" }}{{ end }}
 {{- /* The incoming provider is the one identity-service runs after the upgrade: idpMigration.to, else
        identity.oidc.provider, else zitadel (identity-service's own default). A deployment that stays on
        the outgoing provider needs the import, so it runs unless enabled is explicitly false; switching
