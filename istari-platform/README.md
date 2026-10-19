@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 6.6.0](https://img.shields.io/badge/Version-6.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
+![Version: 6.7.0](https://img.shields.io/badge/Version-6.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -76,6 +76,8 @@ A changed token is itself an input, so this renames the Job and reruns it. The v
 When enabled, the provisioner registers a fixed set of clients — registry, frontend, and MCP. The OIDC redirect URIs are derived from `common.mainFqdn`: the frontend at `https://<mainFqdn>` and MCP at `https://mcp.<mainFqdn>/auth/callback` (override the MCP host with `common.mcpFqdnOverride`). To use additional, or entirely different, redirect URIs, set them on the identity service directly via its environment — `ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS` / `..._MCP_REDIRECT_URIS` — which the identity service reads in preference to the provisioner-supplied defaults.
 
 Only the values the provisioner actually generates come from its Secrets — the registry's private key, the MCP client secret, and the registry public key the identity service reads. The remaining deployment-specific identity config (the API gateway URL each service reads and the redirect allowlists the identity service registers) is chart-derived and rendered into the services' own ConfigMaps, ahead of the provisioner Secret and any user-supplied source in `envFrom`, so user overrides still win. The frontend's and MCP's OIDC authority is not emitted as its own variable: both derive it from the API gateway URL the chart already provides, which is always present when identity is enabled. The fixed OIDC client ids are service-level defaults, not chart-injected. The frontend has nothing generated, so it does not mount a provisioner Secret at all.
+
+Provisioner image 0.4.0 and later also write the identity service's token signing key and token encryption key to `<fullname>-identity-keys`. The chart does not mount that Secret: the identity service keeps reading its keys from `identity.secretName`.
 
 The provisioner runs under its own ServiceAccount and Role. The mutating verbs on Secrets (`get`/`update`/`patch`/`delete`) are scoped **by name** to only the Secrets the provisioner owns — the generated credential Secrets and its Terraform state Secret — so it can modify just those. `create` and `list` can't be restricted by `resourceNames`, so both are namespace-wide: `create` because the credential and state Secrets are created at runtime with names that don't yet exist when the verb is checked, and `list` because the Terraform kubernetes backend locates its state by label. Namespace-wide `list` returns full Secret objects, so the provisioner can **read** every Secret in the release's namespace, and `create` lets it add Secrets of any name — though it can still modify only its own. If that scope matters for your environment, install the release in a dedicated namespace.
 
@@ -564,7 +566,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | provisioner.rerunToken | string | `""` | Change this to any new value to force the provisioning Job to rerun without changing any other input: `helm upgrade --reuse-values --set provisioner.rerunToken=<anything>`. The Job's name is a hash of its inputs, and this token is one of them. |
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
 | provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
-| provisioner.tag | string | `"0.3.0"` | Image tag. |
+| provisioner.tag | string | `"0.4.0"` | Image tag. 0.4.0 and later also generate the identity service's token signing key and token encryption key, in `<fullname>-identity-keys`. |
 | provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | secureConnection.affinity | object | `{}` | Affinity |
 | secureConnection.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
