@@ -138,9 +138,9 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 
 ## Installing with no identity provider
 
-`identity.oidc.provider: none` installs the platform with no external identity provider such as Zitadel or Keycloak. People sign in with local accounts that identity-service holds, and the chart creates the first platform admin. It needs an identity-service image of 2.4.0 or later; the chart refuses an older `identity.tag`.
+`identity.oidc.provider: none` runs identity-service with no external identity provider such as Zitadel or Keycloak. People sign in with local accounts that identity-service holds, and the chart creates the first platform admin. Zitadel stays installed (see below). It needs an identity-service image of 2.4.0 or later; the chart refuses an older `identity.tag`.
 
-This single-release example sets everything an install needs:
+Add these values to a single-release install:
 
 ```yaml
 identity:
@@ -158,12 +158,12 @@ identity:
 ```
 
 - `clientIntegration.enabled` moves registry-service, the frontend and MCP onto identity-service. With `none` the chart refuses to render without it in any release that deploys one of them.
-- `migrations.runAsJob` runs identity-service's database migration as a Helm hook, so the schema exists before the admin is created.
+- `migrations.runAsJob` runs identity-service's database migration as a Helm hook, so the schema exists before the bootstrap hook creates the admin.
 - `bootstrap.localAdmin.email` is the first platform admin and is required with `none`.
 
-`helm install` runs the migration, then the bootstrap hook. The hook creates `admin@example.com` as a local platform admin in the `default` tenant and writes a temporary password to a Secret. Values that contradict `none`, such as `identity.oidc.issuer`, fail rendering with a message naming the key to change.
+On `helm install`, the bootstrap hook creates `admin@example.com` as a local platform admin in the `default` tenant and writes a temporary password to a Secret. Values that contradict `none`, such as `identity.oidc.issuer`, fail rendering with a message naming the key to change.
 
-Leave registry-service's Zitadel settings, its Zitadel domain included, as they are: registry-service still verifies legacy Zitadel personal access tokens through Zitadel, and with no Zitadel domain set it falls back to a default Zitadel that is not your install's. Do not mount the Secret that `istari-zitadel-configurator` writes for identity-service (`zitadel-identity-service-env`). With `none`, identity-service and the hook refuse to start when any of `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_ID`, `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_PRIVATE_KEY` or `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_SECRET` is set, and that Secret sets them. The configurator's Secrets for registry-service stay mounted.
+Keep Zitadel installed, and leave registry-service's Zitadel settings, its Zitadel domain included, as they are: registry-service still verifies, deletes and revokes legacy Zitadel personal access tokens through Zitadel, and with no Zitadel domain set it falls back to a built-in default Zitadel that is not your install's. Remove the Secret that `istari-zitadel-configurator` writes for identity-service (`zitadel-identity-service-env`) from `identity.extraEnvSecrets`, and from any other identity-service Secret list that names it. With `none`, identity-service and the hook refuse to start when any of `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_ID`, `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_PRIVATE_KEY` or `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_SECRET` is set, and that Secret sets two of the three. The configurator's Secrets for registry-service stay mounted.
 
 ### The first admin's password
 
@@ -178,13 +178,13 @@ The admin signs in with the email and this password, then must choose a new pass
 
 Read the password before the next sync if you deploy with Argo CD or a similar tool. Those tools run pre-install hooks on every sync, which recreates the Secret empty and loses a password nobody read. Helm alone writes the Secret on install only. If the password is lost, recover with [`reset-password`](#recovering-a-locked-out-admin) or choose a password yourself.
 
-To choose the password, store it in your own Secret and set `identity.bootstrap.localAdmin.passwordSecret.name` (and `key`, default `password`). It must meet identity-service's password rules, and the admin must still change it at first sign-in. The chart then creates no password Secret.
+To choose the password, store it in your own Secret and set `identity.bootstrap.localAdmin.passwordSecret.name` (and `key`, default `password`). The password must be at least 15 characters by default (`identity.localAccounts.passwordMinLength`), and the admin must still change it at first sign-in. Create the Secret before `helm install`: the hook reads it through a required `secretKeyRef`, so a missing Secret leaves the hook pod unable to start. The chart then creates no password Secret.
 
 With a generated password, the hook runs under its own ServiceAccount, which may `patch` that one Secret and nothing else. With `passwordSecret.name` set, the hook has no Kubernetes permissions.
 
 ### The Secure Connection Service
 
-registry-service accepts only tokens that identity-service issued, so the Secure Connection Service can no longer fetch its token from Zitadel. With `none` the chart points the service at identity-service. You supply its credential and register it as an agent, once. A single-release install with `secureConnection.enabled: true` refuses `none` until `identity.agentRegistration` declares the agent. An install without the Secure Connection Service skips this.
+Once its clients move to identity-service, registry-service refuses access tokens from Zitadel, legacy personal access tokens aside, so the chart points the Secure Connection Service at identity-service instead. You supply its credential and register it as an agent, once. A single-release install with `secureConnection.enabled: true` refuses `none` until `identity.agentRegistration` declares the agent. An install without the Secure Connection Service skips this.
 
 1. Generate the credential with the `/gen-agent-credentials` command in the identity-service image. The image has no shell, so run the command directly with a mounted directory for its output file:
 
@@ -214,7 +214,7 @@ registry-service accepts only tokens that identity-service issued, so the Secure
      --from-literal=ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS="$(base64 < creds/credentials-public.json | tr -d '\n')"
    ```
 
-4. List the first Secret for the service and the second for registration, and declare the agent in the release that deploys identity-service:
+4. List the first Secret for the service and the second for registration, and declare the agent:
 
    ```yaml
    secureConnection:
@@ -233,9 +233,9 @@ registry-service accepts only tokens that identity-service issued, so the Secure
          - secure_connector
    ```
 
-   The agent registers in the tenant `identity.bootstrap.localAdmin.tenant` names (`default`) unless the entry sets `tenantSlug`. See [Agent registration](#agent-registration) for the other fields.
+   The agent registers in the tenant `identity.bootstrap.localAdmin.tenant` names (`default`) unless the entry sets `tenantSlug`. See [Agent registration](#agent-registration) for the other fields, except `providerName` and `providerTenantIdEnv`, which `none` refuses. In a per-service install, create the first Secret and set `secureConnection.extraEnvSecrets` in the Secure Connection Service's release, and the second Secret and the agent entry in identity-service's.
 
-The chart cannot check that the Secrets exist. Without the service's credential, the Secure Connection Service fails at startup. Without the registration Secret, registration skips the agent and the service's token requests are refused. Delete `creds/` once both Secrets exist.
+The chart cannot check that the Secrets exist. Without the service's credential Secret, the Secure Connection Service's pods do not start. Without the registration Secret, registration skips the agent and the service's token requests are refused. Delete `creds/` once both Secrets exist.
 
 ### Installs that run one release per service
 
@@ -255,7 +255,7 @@ kubectl exec -n <namespace> deploy/istari-identity -- /reset-password \
 
 ### Client addresses and the sign-in limit
 
-identity-service limits sign-in attempts per client address, so it must see each person's real address. Set `apiGateway.trustedProxies` to the address ranges of the ingress controller and load balancer in front of the API gateway, and `identity.trustedProxies` to those ranges plus the gateway pods' range, usually the cluster's pod network. This describes the path through the chart's API gateway; exposing identity-service through `identity.ingress` or `identity.virtualService` has different hops.
+identity-service limits sign-in attempts per client address, so it must see each person's real address. Set `apiGateway.trustedProxies` to the address ranges of the ingress controller and load balancer in front of the API gateway, and `identity.trustedProxies` to those ranges plus the gateway pods' range, usually the cluster's pod network. Left unset, the gateway replaces the client's address with the ingress controller's, so everyone shares one sign-in limit, 30 attempts a minute by default. This describes the path through the chart's API gateway; an install that exposes identity-service through `identity.ingress` or `identity.virtualService`, or runs it with an Istio sidecar, has different hops.
 
 ## Values
 
