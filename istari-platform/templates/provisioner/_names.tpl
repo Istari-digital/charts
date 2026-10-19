@@ -35,6 +35,14 @@ Secret carrying registry's private credential blob.
 {{- end }}
 
 {{/*
+Secret carrying the Secure Connection Service's private platform-client credential. Written only
+when `secureConnection.enabled` is true in the release that runs the provisioner.
+*/}}
+{{- define "provisioner.secureConnectionSecretName" -}}
+{{- printf "%s-secure-connection-credentials" (include "provisioner.fullname" .) -}}
+{{- end }}
+
+{{/*
 Secret carrying mcp's placeholder client_secret.
 */}}
 {{- define "provisioner.mcpSecretName" -}}
@@ -43,7 +51,7 @@ Secret carrying mcp's placeholder client_secret.
 
 {{/*
 Secret carrying the env vars identity-service reads at startup to self-register
-registry/frontend/mcp.
+registry/frontend/mcp, and secure_connection when it is enabled.
 */}}
 {{- define "provisioner.identityPlatformClientsSecretName" -}}
 {{- printf "%s-identity-platform-clients" (include "provisioner.fullname" .) -}}
