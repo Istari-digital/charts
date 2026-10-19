@@ -14,3 +14,9 @@ A value carrying a scheme or path (a common migration mistake) would render e.g.
 {{- fail (printf "common.%s must be a scheme-less host (e.g. `api.example.com`), not a URL or path — got %q. Drop the scheme and any trailing path; the chart adds `https://` where it emits a URL." $key $val) }}
 {{- end }}
 {{- end }}
+{{- /* Provisioner images before 0.4.0 never write the identity-keys Secret identity mounts. Only a
+full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
+{{- $provisionerTag := toString .Values.provisioner.tag }}
+{{- if and .Values.provisioner.enabled .Values.identity.enabled (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $provisionerTag) (semverCompare "<0.4.0-0" $provisionerTag) }}
+{{- fail (printf "provisioner.tag %q is too old for identity: images before 0.4.0 do not generate the identity service's keys, so its pods cannot start. Set provisioner.tag to 0.4.0 or later." $provisionerTag) }}
+{{- end }}
