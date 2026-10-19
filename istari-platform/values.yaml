@@ -1158,6 +1158,8 @@ apiGateway:
   tag: "2.11.4"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
+  # -- Addresses (IPs or CIDR ranges) of the proxies in front of the API gateway, such as the ingress controller and load balancer. The gateway keeps the `X-Forwarded-For` they send and appends its own peer, so services behind it see the client's address; otherwise it replaces the header with the immediate peer's address.
+  trustedProxies: []
   # -- Extra ConfigMaps whose entries become environment variables in the proxy container (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
   extraEnvConfigMaps: []
   # -- Names of Kubernetes Secrets whose keys become environment variables in the proxy container. Not needed for a standard deployment. (Unlike the other services, the API Gateway has no separate `secretName` — this list is the only Secret mechanism.)

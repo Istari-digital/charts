@@ -29,6 +29,11 @@ data:
     	# The admin API is unused: config changes roll the Deployment (see the
     	# checksum annotation), never reconfigure a live process.
     	admin off
+    {{- with $serviceValues.trustedProxies }}
+    	servers {
+    		trusted_proxies static {{ join " " . }}
+    	}
+    {{- end }}
     }
 
     :{{ $serviceValues.listen }} {
