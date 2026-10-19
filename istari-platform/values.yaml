@@ -899,7 +899,7 @@ provisioner:
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name.
   image: "provisioner"
-  # -- Image tag. 0.4.0 and later also generate the identity service's token signing key and token encryption key, in `<fullname>-identity-keys`.
+  # -- Image tag.
   tag: "0.4.0"
   # -- Image pull policy.
   imagePullPolicy: IfNotPresent
