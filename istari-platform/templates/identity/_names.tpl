@@ -34,3 +34,14 @@ Call with a dict: {"root": $, "name": <agent name>}.
 {{- $hash := .name | sha256sum | trunc 8 -}}
 {{- printf "%s-register-agent-%s-%s" $prefix $slug $hash | trimSuffix "-" -}}
 {{- end }}
+
+{{/*
+Bootstrap hook resources, and the Secret it writes a generated password to.
+*/}}
+{{- define "identity.localAdmin.name" -}}
+{{ printf "%s-local-admin-bootstrap" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "identity.localAdmin.passwordSecretName" -}}
+{{ printf "%s-local-admin-password" (include "identity.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}

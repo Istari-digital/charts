@@ -1,0 +1,206 @@
+{{- $serviceValues := .Values.identity -}}
+{{- /* Guards, not defaults: values reused from an older chart lack these maps. */ -}}
+{{- $localAdmin := dict -}}
+{{- with $serviceValues.bootstrap }}{{- with .localAdmin }}{{- $localAdmin = . }}{{- end }}{{- end }}
+{{- $passwordSecret := dict -}}
+{{- with $localAdmin.passwordSecret }}{{- $passwordSecret = . }}{{- end }}
+{{- if and $serviceValues.enabled $localAdmin.email }}
+{{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.localAdmin.email requires identity.migrations.runAsJob=true: the hook that creates the first platform admin runs after the migration hook and needs its schema" }}{{ end }}
+{{- $name := include "identity.localAdmin.name" . -}}
+{{- $secretName := include "identity.localAdmin.passwordSecretName" . -}}
+{{- /* The hook writes a password only when there is no identity provider and the operator supplied none. */ -}}
+{{- $generated := and (eq (toString $serviceValues.oidc.provider) "none") (not $passwordSecret.name) -}}
+{{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
+{{- if $generated }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $secretName | quote }}
+  labels:
+    {{- include "identity.selectorLabels" . | nindent 4 }}
+    # ensure-platform-admins overwrites only a Secret carrying this label.
+    app.kubernetes.io/managed-by: "ensure-platform-admins"
+  annotations:
+    # Install only: an upgrade must not empty a password nobody has read yet.
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+type: Opaque
+data:
+  password: ""
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name | quote }}
+  labels:
+    {{- include "identity.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name | quote }}
+  labels:
+    {{- include "identity.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: [{{ $secretName | quote }}]
+  verbs: ["patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name | quote }}
+  labels:
+    {{- include "identity.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name | quote }}
+subjects:
+- kind: ServiceAccount
+  name: {{ $name | quote }}
+  namespace: {{ .Release.Namespace | quote }}
+---
+{{- end }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name | quote }}
+  labels:
+    {{- include "identity.labels" . | nindent 4 }}
+  annotations:
+    # After the migration (5) and the identity provider migration (10), before agent registration (20).
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "15"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        {{- include "identity.labels" . | nindent 8 }}
+      annotations:
+        {{- include "istari-platform.jobPodAnnotations" $serviceValues.migrations.podAnnotations | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ ternary $name (include "identity.fullname" .) $generated | quote }}
+      # Only a generated password needs the Kubernetes API.
+      automountServiceAccountToken: {{ $generated }}
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: local-admin-bootstrap
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        command:
+        - "/ensure-platform-admins"
+        - "-database-url-env"
+        - "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"
+        - "-local-admin-email"
+        - {{ $localAdmin.email | quote }}
+        - "-tenant"
+        - {{ $localAdmin.tenant | quote }}
+        {{- /* The command needs one password flag; with an issuer set it exits before using it. */}}
+        {{- if $passwordSecret.name }}
+        - "-password-env"
+        - "LOCAL_ADMIN_PASSWORD"
+        {{- else }}
+        - "-password-secret"
+        - {{ $secretName | quote }}
+        {{- end }}
+        {{- with $serviceValues.migrations.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        envFrom:
+        - configMapRef:
+            name: {{ include "identity.configmap.name" . | quote }}
+        {{- /* The provisioner Job runs after pre-install hooks, so its Secrets may not exist yet. */}}
+        {{- if $mountProvisionerSecret }}
+        - secretRef:
+            name: {{ include "provisioner.identityPlatformClientsSecretName" . | quote }}
+            optional: true
+        - secretRef:
+            name: {{ include "provisioner.identitySecretName" . | quote }}
+            optional: true
+        {{- end }}
+        {{- range $serviceValues.extraEnvConfigMaps }}
+        - configMapRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- if $serviceValues.secretName }}
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- end }}
+        {{- range $serviceValues.extraEnvSecrets }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- $extra := list }}
+        {{- $extra = append $extra (include "identity.oidcEnv" $serviceValues | fromYamlArray) }}
+        {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
+        {{- with $passwordSecret.name }}
+        {{- $extra = append $extra (list (dict "name" "LOCAL_ADMIN_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" . "key" $passwordSecret.key)))) }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
+        env:
+        {{- include "istari-platform.containerEnv" (dict "service" "identity" "subservice" "local-admin-bootstrap" "containerName" "local-admin-bootstrap" "otelDefaults" false "extra" $extra) | nindent 8 }}
+        {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
+        volumeMounts:
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+        {{- end }}
+      {{- if or $serviceValues.volumes .Values.trustedCertBundle }}
+      volumes:
+      {{- with $serviceValues.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if .Values.trustedCertBundle }}
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" . | quote }}
+      {{- end }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}

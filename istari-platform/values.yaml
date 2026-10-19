@@ -855,6 +855,15 @@ identity:
     localAdmin:
       # -- Email of the first platform admin. When set, a pre-install and pre-upgrade hook runs identity-service's `ensure-platform-admins`, which creates this person as a local platform admin while no active platform admin exists. Keep it set for the life of the install.
       email: ""
+      # -- Slug of the tenant the first platform admin joins. Checked only when the hook creates an admin. A fresh install must leave it at `default`, the only tenant that exists when the hook runs.
+      tenant: default
+      # -- An existing Secret holding a password you choose for the first admin, who must change it at first sign-in. Leave `name` empty to have the hook generate a temporary password and write it to the Secret `<fullnameOverride, or the release name when that is empty>-identity-local-admin-password` under the key `password`.
+      # @default -- (see fields below)
+      passwordSecret:
+        # -- Name of the Secret.
+        name: ""
+        # -- Key in the Secret.
+        key: password
   # -- Proxies whose `X-Forwarded-For` identity-service believes when it finds a client's address for its per-address sign-in limit: IP addresses or CIDR ranges. List the addresses in front of identity-service, such as the API gateway's pods and the ingress controller in front of it. With `identity.oidc.provider: none`, identity-service warns at startup when this is empty.
   trustedProxies: []
   # -- identity-service's password and sign-in settings, used only with `identity.oidc.provider: none`. Each renders only when set; unset keeps identity-service's own default. With an identity provider configured, identity-service logs that a set value is ignored.
