@@ -17,6 +17,11 @@ metadata:
   {{- end }}
 data:
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+  {{- if eq (toString .Values.identity.oidc.provider) "none" }}
+  {{- /* registry-service in identity-service mode refuses Zitadel-issued tokens; the gateway address is an audience identity-service accepts. */}}
+  ISTARI_DIGITAL_IDENTITY_ROUTER_ENABLED: "true"
+  ISTARI_DIGITAL_IDENTITY_ROUTER_URL: {{ printf "%s/identity" (include "istari-platform.apiGatewayUrl" .) | quote }}
+  {{- end }}
   {{- if dig "enabled" false (default dict .Values.jaeger) }}
   {{- /* Per-container OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES are set as explicit env by
   "istari-platform.workloadIdentityEnv": the resource attributes reference downward-API $(VAR)s,

@@ -27,6 +27,7 @@
 {{- /* Canonical Identity Service DB URL key; present in secretName, surfaced as an
        env var by envFrom and read via the CLIs' -database-url-env flag. */ -}}
 {{- $dbURLEnv := "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" -}}
+{{- $noIdp := eq (toString $serviceValues.oidc.provider) "none" }}
 {{- range $agent := $agents }}
 {{- $_ := $agent.name | required "each identity.agentRegistration.agents entry must set name" -}}
 {{- /* name is used as the istari.digital/agent label value and (lowercased,
@@ -41,7 +42,8 @@
 {{- $raw := get $agent $field }}
 {{- if and $raw (not (toString $raw | trim)) }}{{ fail (printf "agentRegistration agent %q sets %s to a blank value; leave it out or set it" $agent.name $field) }}{{ end }}
 {{- end }}
-{{- if not (or $agent.tenantSlug $agent.providerName) }}{{ fail (printf "agentRegistration agent %q must set tenantSlug, or providerName and providerTenantIdEnv to register in the tenant its upstream organization is mapped to" $agent.name) }}{{ end }}
+{{- if and $noIdp (or $agent.providerName $agent.providerTenantIdEnv) }}{{ fail (printf "agentRegistration agent %q sets providerName or providerTenantIdEnv, but identity.oidc.provider is \"none\", so there are no identity provider organizations to map: name the tenant with tenantSlug, or leave it out to use identity.bootstrap.localAdmin.tenant" $agent.name) }}{{ end }}
+{{- if not (or $agent.tenantSlug $agent.providerName $noIdp) }}{{ fail (printf "agentRegistration agent %q must set tenantSlug, or providerName and providerTenantIdEnv to register in the tenant its upstream organization is mapped to" $agent.name) }}{{ end }}
 {{- if and $agent.tenantDisplayName (not $agent.tenantSlug) }}{{ fail (printf "agentRegistration agent %q sets tenantDisplayName without tenantSlug; without tenantSlug no tenant is created, so leave both out" $agent.name) }}{{ end }}
 {{- $_ := $agent.keyEnv | required (printf "agentRegistration agent %q must set keyEnv (the env var, from secretName or extraEnvSecrets, holding the base64 public-only agent credential blob)" $agent.name) -}}
 {{- /* providerName maps the tenant to an upstream org and needs that org's id; the
@@ -189,9 +191,11 @@ spec:
         - {{ $agent.keyEnv | quote }}
         - "-database-url-env"
         - {{ $dbURLEnv | quote }}
-        {{- if $agent.tenantSlug }}
+        {{- $tenant := $agent.tenantSlug }}
+        {{- if and $noIdp (not $tenant) }}{{- with $serviceValues.bootstrap }}{{- with .localAdmin }}{{- $tenant = .tenant }}{{- end }}{{- end }}{{- end }}
+        {{- if $tenant }}
         - "-tenant"
-        - {{ $agent.tenantSlug | quote }}
+        - {{ $tenant | quote }}
         {{- else }}
         - "-tenant-provider-name"
         - {{ $agent.providerName | quote }}

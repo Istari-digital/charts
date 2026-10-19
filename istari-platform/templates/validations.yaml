@@ -28,6 +28,19 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- if and (eq (toString .Values.identity.oidc.provider) "none") (not (dig "clientIntegration" "enabled" false .Values.identity)) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled) }}
 {{- fail "identity.oidc.provider is \"none\", so identity.clientIntegration.enabled must be true: without it registry-service, the frontend and MCP still authenticate against Zitadel" }}
 {{- end }}
+{{- /* A single release can see whether the Secure Connection Service's agent is declared; its Secrets it cannot. */ -}}
+{{- if and (eq (toString .Values.identity.oidc.provider) "none") .Values.identity.enabled .Values.secureConnection.enabled }}
+{{- $registration := dig "agentRegistration" dict .Values.identity }}
+{{- $declared := false }}
+{{- if dig "enabled" false $registration }}
+{{- range $agent := dig "agents" list $registration }}
+{{- if has "secure_connector" (default list $agent.platformRoles) }}{{- $declared = true }}{{- end }}
+{{- end }}
+{{- end }}
+{{- if not $declared }}
+{{- fail "identity.oidc.provider is \"none\" and secureConnection.enabled is true, so identity.agentRegistration must register the Secure Connection Service's agent with platformRoles [secure_connector]: see the chart README's section on installing with no identity provider" }}
+{{- end }}
+{{- end }}
 {{- /* Only a full semver tag is checked; <X-0 also lets X's prereleases through. */ -}}
 {{- $identityTag := toString .Values.identity.tag }}
 {{- if and .Values.identity.enabled (eq (toString .Values.identity.oidc.provider) "none") (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $identityTag) (semverCompare "<2.4.0-0" $identityTag) }}
