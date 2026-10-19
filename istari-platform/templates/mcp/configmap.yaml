@@ -13,7 +13,7 @@ metadata:
     {{- include "mcp.labels" . | nindent 4 }}
 data:
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
-  {{- if $gatewayUrl }}
+  {{- if .Values.apiGateway.enabled }}
   # MCP reaches the registry through <base>/registry, resolved in the
   # istari-digital-client SDK where the gateway URL beats the direct registry URL.
   # ISTARI_DIGITAL_REGISTRY_SERVICE_URL above therefore becomes inert once this is

@@ -5,7 +5,7 @@ Chart-owned defaults for the frontend. Referenced FIRST in the consumer's `envFr
 so the user's Secret(s) and `frontend.env` override every value here, matching the
 precedence contract the fileservice ConfigMap documents.
 */}}
-{{- if and $serviceValues.enabled $gatewayUrl }}
+{{- if and $serviceValues.enabled .Values.apiGateway.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

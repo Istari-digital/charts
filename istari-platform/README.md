@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 6.9.0](https://img.shields.io/badge/Version-6.9.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
+![Version: 6.9.1](https://img.shields.io/badge/Version-6.9.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -31,16 +31,16 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 The API Gateway (`apiGateway.enabled`, default `false`) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
 
-`common.mainFqdn` is **required**, so the chart always configures the platform's API host — `api.<mainFqdn>`, or `common.apiFqdnOverride` for a host that isn't a subdomain of `mainFqdn` — and points the deployed services at it: the registry service and MCP (when `mcp.enabled`) receive `ISTARI_DIGITAL_API_URL`, and the frontend receives `VITE_ISTARI_DIGITAL_API_URL`. The browser then reaches the registry service through `<your-api-host>/registry`. That API host must be reachable; `apiGateway.enabled` controls only whether **this chart deploys** the bundled reverse proxy for it. With it off, route `api.<mainFqdn>` to the registry and identity services with your own ingress or gateway; with it on, the chart runs a proxy that does the path-prefix routing (`/registry`, `/identity`) for you. Point each client tool's base URL (the `ISTARI_DIGITAL_API_URL` setting) at `https://<your-api-host>` with no path; clients append the prefixes themselves.
+`common.mainFqdn` is **required**, so the chart always knows the platform's API host — `api.<mainFqdn>`, or `common.apiFqdnOverride` for a host that isn't a subdomain of `mainFqdn`. Enabling the API Gateway (`apiGateway.enabled`) deploys the bundled reverse proxy for that host **and** points the chart's services at it: the registry service and MCP (when `mcp.enabled`) receive `ISTARI_DIGITAL_API_URL`, the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, and the browser reaches the registry service through `<your-api-host>/registry`. With the gateway disabled (the default), the chart deploys no proxy and emits none of these variables; the services address each other directly in-cluster. Point each client tool's base URL (the `ISTARI_DIGITAL_API_URL` setting) at `https://<your-api-host>` with no path; clients append the prefixes (`/registry`, `/identity`) themselves.
 
 MCP consumes the gateway as a client; the gateway does not serve MCP requests. No `/mcp` route exists, so `https://<your-api-host>/mcp` returning 404 is expected, not a misconfiguration.
 
 > [!IMPORTANT]
 > Routing through the gateway and switching authentication to the identity service are **two independent settings**.
 >
-> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, off by default and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients. Environments that run one Helm release per service — every internal environment does — must set `clientIntegration.enabled` explicitly in each consuming release, since `enabled` is only ever true in the identity-service's own release.
+> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, off by default and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients.
 >
-> When you set both the API host (`common.mainFqdn`, or `common.apiFqdnOverride`) and `identity.clientIntegration.enabled`, the chart emits the identity toggle to the registry service, the frontend, and MCP together. It never emits the toggle from the API host alone, because all three treat identity-enabled-without-a-gateway-URL as a fatal startup or config-load error.
+> `identity.clientIntegration.enabled` takes effect only with the API Gateway enabled. The chart emits the identity toggle to the registry service, the frontend, and MCP only alongside `ISTARI_DIGITAL_API_URL`, which it sets only when `apiGateway.enabled` — so with the gateway off, `clientIntegration.enabled` is a no-op (the toggle is never emitted without the gateway URL the services need). Enable the API Gateway to move clients onto the identity service.
 >
 > The former `…_IDENTITY_ROUTER_ENABLED` names (and the frontend's `VITE_IDENTITY_ROUTER_*`) remain supported as deprecated aliases, and are ignored when the corresponding new names are set. Prefer the new names; the aliases will be removed in a future release.
 
@@ -320,7 +320,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | fileservice.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | fileservice.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | fileservice.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| fileservice.tag | string | `"11.6.8"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| fileservice.tag | string | `"11.5.2"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | fileservice.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | fileservice.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -363,7 +363,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | frontend.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | frontend.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | frontend.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| frontend.tag | string | `"8.42.4"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| frontend.tag | string | `"8.41.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | frontend.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | frontend.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | frontend.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -389,8 +389,8 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | identity.autoscaling.maxReplicas | int | `2` | Maximum number of replicas |
 | identity.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | identity.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
-| identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. Stage-style topologies run one release per service, so `enabled` is only ever true in the identity-service's own release — gating client behavior on it directly means the toggle never renders in any consuming release. |
-| identity.clientIntegration.enabled | bool | `false` | Whether clients in THIS release authenticate through the identity-service. Defaults to an explicit `false`, never derived from `identity.enabled`: a single-release install that wants identity now sets both values. Rendered in BOTH polarities whenever a gateway URL resolves, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set. |
+| identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. |
+| identity.clientIntegration.enabled | bool | `false` | Whether clients in THIS release authenticate through the identity-service. Defaults to an explicit `false`, never derived from `identity.enabled`: a single-release install that wants identity now sets both values. Rendered in BOTH polarities whenever the API Gateway is enabled (`apiGateway.enabled`), alongside the `ISTARI_DIGITAL_API_URL` it accompanies, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set. With the gateway disabled, neither is emitted and the deprecated flags stay authoritative. |
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | identity.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | identity.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
@@ -449,7 +449,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | identity.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | identity.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | identity.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| identity.tag | string | `"2.3.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| identity.tag | string | `"2.1.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | identity.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | identity.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | identity.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -512,7 +512,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | mcp.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | mcp.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | mcp.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| mcp.tag | string | `"0.9.8"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| mcp.tag | string | `"0.9.3"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | mcp.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | mcp.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -608,7 +608,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | secureConnection.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | secureConnection.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | secureConnection.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| secureConnection.tag | string | `"11.6.8"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| secureConnection.tag | string | `"11.5.2"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | secureConnection.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | secureConnection.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |

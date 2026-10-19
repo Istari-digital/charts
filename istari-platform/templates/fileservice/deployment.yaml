@@ -1,6 +1,5 @@
 {{- $serviceValues := .Values.fileservice -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
-{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
@@ -82,11 +81,11 @@ spec:
           {{- toYaml . | nindent 10 }}
         {{- end }}
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
-        {{- if or $mountProvisionerSecret $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
+        {{- if or $mountProvisionerSecret $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled .Values.apiGateway.enabled }}
         envFrom:
         {{- end }}
         {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
-        {{- if or $jaegerEnabled $gatewayUrl }}
+        {{- if or $jaegerEnabled .Values.apiGateway.enabled }}
         - configMapRef:
             name: {{ include "fileservice.configmap.name" . | quote }}
         {{- end }}
@@ -147,11 +146,11 @@ spec:
         - "alembic"
         - "upgrade"
         - "head"
-        {{- if or $mountProvisionerSecret $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled $gatewayUrl }}
+        {{- if or $mountProvisionerSecret $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled .Values.apiGateway.enabled }}
         envFrom:
         {{- end }}
         {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
-        {{- if or $jaegerEnabled $gatewayUrl }}
+        {{- if or $jaegerEnabled .Values.apiGateway.enabled }}
         - configMapRef:
             name: {{ include "fileservice.configmap.name" . | quote }}
         {{- end }}
