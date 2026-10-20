@@ -18,7 +18,7 @@ metadata:
 data:
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
   {{- if eq (toString .Values.identity.oidc.provider) "none" }}
-  {{- /* registry-service in identity-service mode refuses Zitadel-issued tokens; the gateway address is an audience identity-service accepts. */}}
+  {{- /* identity-service accepts only token requests whose audience is its gateway URL. */}}
   ISTARI_DIGITAL_IDENTITY_ROUTER_ENABLED: "true"
   ISTARI_DIGITAL_IDENTITY_ROUTER_URL: {{ printf "%s/identity" (include "istari-platform.apiGatewayUrl" .) | quote }}
   {{- end }}

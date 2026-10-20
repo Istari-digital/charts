@@ -36,9 +36,8 @@ Call with a dict: {"root": $, "name": <agent name>}.
 {{- end }}
 
 {{/*
-Bootstrap hook resources, and the Secret it writes a generated password to.
-A fullname too long for the suffix is cut and given a hash of the whole fullname, so
-names stay within 63 characters and differ between fullnames sharing a prefix.
+Names for the bootstrap hook and its password Secret. A fullname too long for the
+63-character limit with its suffix is cut and given a hash of the whole name.
 */}}
 {{- define "identity.localAdmin.hookName" -}}
 {{- $full := include "identity.fullname" .root -}}

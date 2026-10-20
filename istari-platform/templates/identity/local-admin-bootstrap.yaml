@@ -1,5 +1,5 @@
 {{- $serviceValues := .Values.identity -}}
-{{- /* Guards, not defaults: values reused from an older chart lack these maps. */ -}}
+{{- /* Values reused from an older chart (--reuse-values) may lack these maps. */ -}}
 {{- $localAdmin := dict -}}
 {{- with $serviceValues.bootstrap }}{{- with .localAdmin }}{{- $localAdmin = . }}{{- end }}{{- end }}
 {{- $passwordSecret := dict -}}
@@ -10,7 +10,6 @@
 {{- if and $passwordSecret.name (not $passwordSecret.key) }}{{ fail "identity.bootstrap.localAdmin.passwordSecret.key is required when passwordSecret.name is set: set it to `password`" }}{{ end }}
 {{- $name := include "identity.localAdmin.name" . -}}
 {{- $secretName := include "identity.localAdmin.passwordSecretName" . -}}
-{{- /* The hook writes a password only when there is no identity provider and the operator supplied none. */ -}}
 {{- $generated := and (eq (toString $serviceValues.oidc.provider) "none") (not $passwordSecret.name) -}}
 {{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
 {{- if $generated }}

@@ -24,18 +24,16 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- range $e := .Values.identity.env }}
 {{- if and (eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER") (eq (toString $e.value) "none") }}{{- fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER to none: set identity.oidc.provider: none instead, which the whole chart reads" }}{{- end }}
 {{- end }}
-{{- /* Guards, not defaults: values reused from an older chart lack these maps. */ -}}
+{{- /* Values reused from an older chart (--reuse-values) may lack these maps. */ -}}
 {{- $clientIntegration := false }}
 {{- with .Values.identity.clientIntegration }}{{- $clientIntegration = .enabled }}{{- end }}
-{{- /* Without client integration these clients authenticate against Zitadel, which signs nobody in here. */ -}}
 {{- if and (eq (toString .Values.identity.oidc.provider) "none") (not $clientIntegration) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled) }}
 {{- fail "identity.oidc.provider is \"none\", so identity.clientIntegration.enabled must be true: without it registry-service, the frontend and MCP still authenticate against Zitadel" }}
 {{- end }}
-{{- /* Without the gateway the chart sets no identity-service settings on the clients and no API URL on identity. */ -}}
 {{- if and (eq (toString .Values.identity.oidc.provider) "none") (not .Values.apiGateway.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.identity.enabled .Values.secureConnection.enabled) }}
 {{- fail "identity.oidc.provider is \"none\", so apiGateway.enabled must be true: without the API gateway the chart gives registry-service, the frontend and MCP no identity-service settings, and identity-service cannot accept the Secure Connection Service's token" }}
 {{- end }}
-{{- /* A single release can see whether the Secure Connection Service's agent is declared; its Secrets it cannot. */ -}}
+{{- /* The chart can check that the agent is declared, but not that its Secrets exist. */ -}}
 {{- if and (eq (toString .Values.identity.oidc.provider) "none") .Values.identity.enabled .Values.secureConnection.enabled }}
 {{- $declared := false }}
 {{- with .Values.identity.agentRegistration }}
@@ -53,5 +51,5 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- $identityTag := toString .Values.identity.tag }}
 {{- $bootstrapEmail := "" }}{{- with .Values.identity.bootstrap }}{{- with .localAdmin }}{{- $bootstrapEmail = .email }}{{- end }}{{- end }}
 {{- if and .Values.identity.enabled (or (eq (toString .Values.identity.oidc.provider) "none") $bootstrapEmail) (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $identityTag) (semverCompare "<2.4.0-0" $identityTag) }}
-{{- fail (printf "identity.tag %q is too old for the bootstrap hook or identity.oidc.provider: none: identity-service images before 2.4.0 cannot create the first platform admin or start without an identity provider. Set identity.tag to 2.4.0 or later." $identityTag) }}
+{{- fail (printf "identity.tag %q is older than 2.4.0, which the bootstrap hook and identity.oidc.provider none require. Set identity.tag to 2.4.0 or later." $identityTag) }}
 {{- end }}

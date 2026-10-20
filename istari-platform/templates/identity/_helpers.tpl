@@ -11,8 +11,9 @@ OIDC_PRIVATE_KEY).
 Reads the identity.oidc.* fields directly — values.yaml is the source of truth
 for their defaults (per AGENTS.md), so the template adds no fallbacks of its own.
 Each field emits only when non-empty, so an empty block adds nothing. provider
-(including `none`, for local accounts only) and clientAuthMethod are validated against the supported enums, so a typo fails
-`helm template` rather than the running pod. What a provider requires of the
+and clientAuthMethod are validated against the supported enums, so a typo fails
+`helm template` rather than the running pod. With provider `none` it emits empty
+provider and issuer entries instead. What a provider requires of the
 other fields (Entra's, for one) is left to identity-service, which checks it at
 startup.
 */}}
@@ -24,11 +25,11 @@ startup.
 {{- if and $provider (not (has $provider (list "zitadel" "keycloak" "entra" "none"))) }}{{- fail (printf "identity.oidc.provider must be \"zitadel\", \"keycloak\", \"entra\" or \"none\", got %q" $provider) }}{{- end }}
 {{- if eq $provider "none" }}
 {{- range $key := list "issuer" "clientId" "clientAuthMethod" "scopes" "defaultTenantId" }}
-{{- if get $oidc $key }}{{- fail (printf "identity.oidc.provider is \"none\", so identity.oidc.%s must be empty: an install with no identity provider signs people in with local accounts" $key) }}{{- end }}
+{{- if get $oidc $key }}{{- fail (printf "identity.oidc.provider is \"none\", so identity.oidc.%s must be empty: remove it, or choose a provider other than none" $key) }}{{- end }}
 {{- end }}
 {{- range $e := .env }}
 {{- if eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER" }}{{- fail "identity.oidc.provider is \"none\", so identity.env must not set ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER: remove that entry" }}{{- end }}
-{{- if and (eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER") (or $e.valueFrom (toString (default "" $e.value))) }}{{- fail "identity.oidc.provider is \"none\", so identity.env must not set ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER: an install with no identity provider has no issuer" }}{{- end }}
+{{- if and (eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER") (or $e.valueFrom (toString (default "" $e.value))) }}{{- fail "identity.oidc.provider is \"none\", so identity.env must not set ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER: remove that entry" }}{{- end }}
 {{- if and (has (toString $e.name) (list "ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_ID" "ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_PRIVATE_KEY" "ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_SECRET")) (or $e.valueFrom (toString (default "" $e.value))) }}{{- fail (printf "identity.oidc.provider is \"none\", so identity.env must not set %s: identity-service refuses to start with OIDC client credentials when there is no identity provider" $e.name) }}{{- end }}
 {{- end }}
 {{- if not .migrations.runAsJob }}{{- fail "identity.oidc.provider is \"none\", so identity.migrations.runAsJob must be true: the hook that creates the first platform admin needs the schema the migration hook creates" }}{{- end }}
