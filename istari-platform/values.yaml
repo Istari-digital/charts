@@ -857,7 +857,7 @@ identity:
       email: ""
       # -- Slug of the tenant the first platform admin joins. It must exist when the hook creates the admin; on a new install only `default` exists.
       tenant: default
-      # -- An existing Secret holding a password you choose for the first admin, who must change it at first sign-in. Create it before installing, and keep it while `name` is set: the hook reads it on every install and upgrade. Leave `name` empty to have the hook generate a temporary password and write it to the Secret `<fullnameOverride, or the release name when that is empty>-identity-local-admin-password` under the key `password`. The chart creates that Secret on `helm install` only.
+      # -- An existing Secret holding a password you choose for the first admin, who must change it at first sign-in. Create it before installing, and keep it while `name` is set: the hook reads it on every install and upgrade. Leave `name` empty to have the hook generate a temporary password and write it to the Secret `<fullnameOverride, or the release name when that is empty>-identity-local-admin-password`, shortened with a hash past 63 characters, under the key `password`. The chart creates that Secret on `helm install` only.
       # @default -- (see fields below)
       passwordSecret:
         # -- Name of the Secret.

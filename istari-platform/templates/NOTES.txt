@@ -29,7 +29,8 @@ registry service is exposed. TLS terminates there — the API Gateway itself ser
 The chart can also create these for you: see `apiGateway.ingress` and `apiGateway.virtualService`.
 {{- end -}}
 {{- $localAdmin := dict }}{{- with .Values.identity.bootstrap }}{{- with .localAdmin }}{{- $localAdmin = . }}{{- end }}{{- end }}
-{{- if and .Release.IsInstall .Values.identity.enabled (eq (toString .Values.identity.oidc.provider) "none") $localAdmin.email (not (dig "passwordSecret" "name" "" $localAdmin)) }}
+{{- $chosenPassword := "" }}{{- with $localAdmin.passwordSecret }}{{- $chosenPassword = .name }}{{- end }}
+{{- if and .Release.IsInstall .Values.identity.enabled (eq (toString .Values.identity.oidc.provider) "none") $localAdmin.email (not $chosenPassword) }}
 
 The first platform admin, {{ $localAdmin.email }}, has a temporary password. Read it with:
 

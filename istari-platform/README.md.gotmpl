@@ -139,7 +139,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 
 With `identity.oidc.provider: none`, people sign in with local accounts stored in identity-service instead of through an external identity provider. The chart creates the first platform admin during `helm install`. Use it for a new install. An install with local accounts cannot move to an identity provider; switching means reinstalling with one and adding people again.
 
-> The commands below use the default `fullnameOverride`, `istari`. If you set another, replace the `istari` prefix. If you set it empty, use the release name.
+> The commands below assume the default `fullnameOverride`, `istari`. If you set another value, replace `istari` with it; if you set it empty, use the release name. With a prefix longer than 32 characters, the chart shortens the names and adds a hash. Use the Secret name from the `helm install` notes, and find the Job with `kubectl get jobs -n <namespace>`; its name ends in `-local-admin-bootstrap`.
 
 ### Requirements
 

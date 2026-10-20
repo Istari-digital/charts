@@ -140,7 +140,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 
 With `identity.oidc.provider: none`, people sign in with local accounts stored in identity-service instead of through an external identity provider. The chart creates the first platform admin during `helm install`. Use it for a new install. An install with local accounts cannot move to an identity provider; switching means reinstalling with one and adding people again.
 
-> The commands below use the default `fullnameOverride`, `istari`. If you set another, replace the `istari` prefix. If you set it empty, use the release name.
+> The commands below assume the default `fullnameOverride`, `istari`. If you set another value, replace `istari` with it; if you set it empty, use the release name. With a prefix longer than 32 characters, the chart shortens the names and adds a hash. Use the Secret name from the `helm install` notes, and find the Job with `kubectl get jobs -n <namespace>`; its name ends in `-local-admin-bootstrap`.
 
 ### Requirements
 
@@ -563,7 +563,7 @@ The command prints the new password once. It also re-enables a disabled password
 | identity.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | identity.bootstrap | object | (see fields below) | The first platform admin, created as a local account. Required when `identity.oidc.provider` is `none`. See [Installing with no identity provider](#installing-with-no-identity-provider). |
 | identity.bootstrap.localAdmin.email | string | `""` | Email of the first platform admin. With `identity.oidc.provider: none`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody and only stops an upgrade that sets an issuer while local accounts exist. Requires `identity.tag` 2.4.0 or later. |
-| identity.bootstrap.localAdmin.passwordSecret | object | (see fields below) | An existing Secret holding a password you choose for the first admin, who must change it at first sign-in. Create it before installing, and keep it while `name` is set: the hook reads it on every install and upgrade. Leave `name` empty to have the hook generate a temporary password and write it to the Secret `<fullnameOverride, or the release name when that is empty>-identity-local-admin-password` under the key `password`. The chart creates that Secret on `helm install` only. |
+| identity.bootstrap.localAdmin.passwordSecret | object | (see fields below) | An existing Secret holding a password you choose for the first admin, who must change it at first sign-in. Create it before installing, and keep it while `name` is set: the hook reads it on every install and upgrade. Leave `name` empty to have the hook generate a temporary password and write it to the Secret `<fullnameOverride, or the release name when that is empty>-identity-local-admin-password`, shortened with a hash past 63 characters, under the key `password`. The chart creates that Secret on `helm install` only. |
 | identity.bootstrap.localAdmin.passwordSecret.key | string | `"password"` | Key in the Secret. |
 | identity.bootstrap.localAdmin.passwordSecret.name | string | `""` | Name of the Secret. |
 | identity.bootstrap.localAdmin.tenant | string | `"default"` | Slug of the tenant the first platform admin joins. It must exist when the hook creates the admin; on a new install only `default` exists. |
