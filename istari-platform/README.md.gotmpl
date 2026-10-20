@@ -158,8 +158,8 @@ apiGateway:
   enabled: true
 ```
 
-- `clientIntegration.enabled` moves registry-service, the frontend and MCP onto identity-service. With `none` the chart refuses to render without it in any release that deploys one of them, and the same release must set `apiGateway.enabled: true`.
-- `apiGateway.enabled` is required with `none` because the chart gives those clients identity-service settings only when the API gateway is enabled.
+- `clientIntegration.enabled` moves registry-service, the frontend and MCP onto identity-service. With `none` the chart refuses to render without it in any release that deploys one of them.
+- `apiGateway.enabled` is required with `none` in any release that deploys registry-service, the frontend, MCP, identity-service or the Secure Connection Service. The chart gives registry-service, the frontend and MCP their identity-service settings only with the gateway enabled, and identity-service accepts the Secure Connection Service's token only when it has the gateway's address.
 - `migrations.runAsJob` runs identity-service's database migration as a Helm hook, so the schema exists before the bootstrap hook creates the admin.
 - `bootstrap.localAdmin.email` is the first platform admin and is required with `none`.
 
@@ -241,7 +241,7 @@ The chart cannot check that the Secrets exist. Without the service's credential 
 
 ### Installs that run one release per service
 
-Every release that deploys registry-service, the frontend, MCP or the Secure Connection Service sets `identity.oidc.provider: none` and `identity.clientIntegration.enabled: true`. Only the release that deploys identity-service sets `identity.bootstrap.localAdmin` and the Secure Connection Service's agent entry. All releases share `common.mainFqdn` and `common.apiFqdnOverride`. A release that leaves the provider unset keeps its Zitadel behavior: the chart cannot see the other releases' values, so it does not refuse a missing `clientIntegration.enabled`, and its Secure Connection Service stays on Zitadel and fails.
+Every release that deploys registry-service, the frontend, MCP or the Secure Connection Service sets `identity.oidc.provider: none`, `identity.clientIntegration.enabled: true` and `apiGateway.enabled: true`. The release that deploys identity-service also sets `apiGateway.enabled: true`. Only the release that deploys identity-service sets `identity.bootstrap.localAdmin` and the Secure Connection Service's agent entry. All releases share `common.mainFqdn` and `common.apiFqdnOverride`. A release that leaves the provider unset keeps its Zitadel behavior: the chart cannot see the other releases' values, so it does not refuse a missing `clientIntegration.enabled`, and its Secure Connection Service stays on Zitadel and fails.
 
 ### Recovering a locked-out admin
 
