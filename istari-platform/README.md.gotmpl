@@ -154,9 +154,12 @@ identity:
   bootstrap:
     localAdmin:
       email: admin@example.com
+apiGateway:
+  enabled: true
 ```
 
-- `clientIntegration.enabled` moves registry-service, the frontend and MCP onto identity-service. With `none` the chart refuses to render without it in any release that deploys one of them.
+- `clientIntegration.enabled` moves registry-service, the frontend and MCP onto identity-service. With `none` the chart refuses to render without it in any release that deploys one of them, and the same release must set `apiGateway.enabled: true`.
+- `apiGateway.enabled` is required with `none` because the chart gives those clients identity-service settings only when the API gateway is enabled.
 - `migrations.runAsJob` runs identity-service's database migration as a Helm hook, so the schema exists before the bootstrap hook creates the admin.
 - `bootstrap.localAdmin.email` is the first platform admin and is required with `none`.
 

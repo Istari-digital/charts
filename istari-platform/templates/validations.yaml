@@ -28,6 +28,10 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- if and (eq (toString .Values.identity.oidc.provider) "none") (not (dig "clientIntegration" "enabled" false .Values.identity)) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled) }}
 {{- fail "identity.oidc.provider is \"none\", so identity.clientIntegration.enabled must be true: without it registry-service, the frontend and MCP still authenticate against Zitadel" }}
 {{- end }}
+{{- /* Without the gateway the chart sets no identity-service settings on the clients and no API URL on identity. */ -}}
+{{- if and (eq (toString .Values.identity.oidc.provider) "none") (not .Values.apiGateway.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.identity.enabled .Values.secureConnection.enabled) }}
+{{- fail "identity.oidc.provider is \"none\", so apiGateway.enabled must be true: without the API gateway the chart gives registry-service, the frontend and MCP no identity-service settings, and identity-service cannot accept the Secure Connection Service's token" }}
+{{- end }}
 {{- /* A single release can see whether the Secure Connection Service's agent is declared; its Secrets it cannot. */ -}}
 {{- if and (eq (toString .Values.identity.oidc.provider) "none") .Values.identity.enabled .Values.secureConnection.enabled }}
 {{- $registration := dig "agentRegistration" dict .Values.identity }}
