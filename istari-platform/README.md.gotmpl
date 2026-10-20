@@ -167,6 +167,7 @@ apiGateway:
 
 The chart refuses to render with `none` unless each of these is set:
 
+- `identity.enabled: true`, so identity-service runs in the same release.
 - `identity.clientIntegration.enabled: true`, so registry-service, the frontend and MCP sign people in through identity-service.
 - `apiGateway.enabled: true`, so the chart gives those services their identity-service settings.
 - `identity.migrations.runAsJob: true`, so the database schema exists before the hook creates the admin.
