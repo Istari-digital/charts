@@ -10,7 +10,8 @@
 {{- if and $passwordSecret.name (not $passwordSecret.key) }}{{ fail "identity.bootstrap.localAdmin.passwordSecret.key is required when passwordSecret.name is set: set it to `password`" }}{{ end }}
 {{- $name := include "identity.localAdmin.name" . -}}
 {{- $secretName := include "identity.localAdmin.passwordSecretName" . -}}
-{{- $generated := and (eq (toString $serviceValues.oidc.provider) "none") (not $passwordSecret.name) -}}
+{{- $provider := "" }}{{- with $serviceValues.oidc }}{{- $provider = toString .provider }}{{- end }}
+{{- $generated := and (eq $provider "none") (not $passwordSecret.name) -}}
 {{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
 {{- if $generated }}
 apiVersion: v1
