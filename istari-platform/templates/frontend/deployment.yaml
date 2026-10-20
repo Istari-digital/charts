@@ -1,5 +1,4 @@
 {{- $serviceValues := .Values.frontend -}}
-{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -67,11 +66,11 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{- if or $gatewayUrl $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps }}
+        {{- if or .Values.apiGateway.enabled $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps }}
         envFrom:
         {{- end }}
         {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
-        {{- if $gatewayUrl }}
+        {{- if .Values.apiGateway.enabled }}
         - configMapRef:
             name: {{ include "frontend.configmap.name" $ | quote }}
         {{- end }}
