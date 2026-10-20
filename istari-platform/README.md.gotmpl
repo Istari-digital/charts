@@ -137,9 +137,9 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 
 ## Installing with no identity provider
 
-`identity.oidc.provider: none` runs identity-service with no external identity provider such as Zitadel or Keycloak. People sign in with local accounts that identity-service holds, and the chart creates the first platform admin. Zitadel stays installed (see below). It needs an identity-service image of 2.4.0 or later, as does any install that sets `identity.bootstrap.localAdmin.email`; the chart refuses an older `identity.tag`.
+`identity.oidc.provider: none` runs identity-service with no external identity provider such as Zitadel or Keycloak. People sign in with local accounts that identity-service holds, and the chart creates the first platform admin. Zitadel stays installed (see below). It needs an identity-service image of 2.4.0 or later. Any install that sets `identity.bootstrap.localAdmin.email` needs the same, whatever the provider. The chart refuses an older `identity.tag`.
 
-In this release `identity.oidc.provider: none` needs a single-release install: the chart gives registry-service, the frontend and MCP their identity-service settings only in a release that also deploys the API gateway. Support for one release per service follows once the chart can emit those settings without deploying a gateway. Add these values:
+In this chart version, `identity.oidc.provider: none` works only when one Helm release deploys every service, including the API gateway; the chart refuses to render otherwise. Support for one release per service follows once the chart can emit the identity settings without deploying a gateway. Add these values:
 
 ```yaml
 identity:
