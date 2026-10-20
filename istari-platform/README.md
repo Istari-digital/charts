@@ -445,7 +445,7 @@ identity-service limits sign-in attempts per client address, so it must see each
 | fileservice.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | fileservice.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | fileservice.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| fileservice.tag | string | `"11.5.2"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| fileservice.tag | string | `"11.6.8"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | fileservice.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | fileservice.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -488,7 +488,7 @@ identity-service limits sign-in attempts per client address, so it must see each
 | frontend.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | frontend.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | frontend.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| frontend.tag | string | `"8.41.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| frontend.tag | string | `"8.42.4"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | frontend.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | frontend.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | frontend.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -589,7 +589,7 @@ identity-service limits sign-in attempts per client address, so it must see each
 | identity.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | identity.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | identity.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| identity.tag | string | `"2.1.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| identity.tag | string | `"2.3.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | identity.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | identity.trustedProxies | list | `[]` | Proxies whose `X-Forwarded-For` identity-service believes when it finds a client's address for its per-address sign-in limit: IP addresses or CIDR ranges. List the addresses in front of identity-service, such as the API gateway's pods and the ingress controller in front of it. With `identity.oidc.provider: none`, identity-service warns at startup when this is empty. |
 | identity.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
@@ -653,7 +653,7 @@ identity-service limits sign-in attempts per client address, so it must see each
 | mcp.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | mcp.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | mcp.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| mcp.tag | string | `"0.9.3"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| mcp.tag | string | `"0.9.8"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | mcp.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | mcp.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -749,7 +749,7 @@ identity-service limits sign-in attempts per client address, so it must see each
 | secureConnection.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | secureConnection.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | secureConnection.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| secureConnection.tag | string | `"11.5.2"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| secureConnection.tag | string | `"11.6.8"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | secureConnection.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | secureConnection.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
