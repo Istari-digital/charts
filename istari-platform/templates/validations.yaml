@@ -49,8 +49,9 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- fail "identity.oidc.provider is \"none\" and secureConnection.enabled is true, so identity.agentRegistration must register the Secure Connection Service's agent with platformRoles [secure_connector]: see the chart README's section on installing with no identity provider" }}
 {{- end }}
 {{- end }}
-{{- /* Only a full semver tag is checked; <X-0 also lets X's prereleases through. */ -}}
+{{- /* Only a full semver tag is checked; <X-0 also lets X's prereleases through. Applies whenever the hook renders. */ -}}
 {{- $identityTag := toString .Values.identity.tag }}
-{{- if and .Values.identity.enabled (eq (toString .Values.identity.oidc.provider) "none") (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $identityTag) (semverCompare "<2.4.0-0" $identityTag) }}
-{{- fail (printf "identity.tag %q is too old for identity.oidc.provider: none: identity-service images before 2.4.0 cannot start without an identity provider or create the first platform admin. Set identity.tag to 2.4.0 or later." $identityTag) }}
+{{- $bootstrapEmail := "" }}{{- with .Values.identity.bootstrap }}{{- with .localAdmin }}{{- $bootstrapEmail = .email }}{{- end }}{{- end }}
+{{- if and .Values.identity.enabled (or (eq (toString .Values.identity.oidc.provider) "none") $bootstrapEmail) (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $identityTag) (semverCompare "<2.4.0-0" $identityTag) }}
+{{- fail (printf "identity.tag %q is too old for the bootstrap hook or identity.oidc.provider: none: identity-service images before 2.4.0 cannot create the first platform admin or start without an identity provider. Set identity.tag to 2.4.0 or later." $identityTag) }}
 {{- end }}

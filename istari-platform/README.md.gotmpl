@@ -137,9 +137,9 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 
 ## Installing with no identity provider
 
-`identity.oidc.provider: none` runs identity-service with no external identity provider such as Zitadel or Keycloak. People sign in with local accounts that identity-service holds, and the chart creates the first platform admin. Zitadel stays installed (see below). It needs an identity-service image of 2.4.0 or later; the chart refuses an older `identity.tag`.
+`identity.oidc.provider: none` runs identity-service with no external identity provider such as Zitadel or Keycloak. People sign in with local accounts that identity-service holds, and the chart creates the first platform admin. Zitadel stays installed (see below). It needs an identity-service image of 2.4.0 or later, as does any install that sets `identity.bootstrap.localAdmin.email`; the chart refuses an older `identity.tag`.
 
-Add these values to a single-release install:
+In this release `identity.oidc.provider: none` needs a single-release install: the chart gives registry-service, the frontend and MCP their identity-service settings only in a release that also deploys the API gateway. Support for one release per service follows once the chart can emit those settings without deploying a gateway. Add these values:
 
 ```yaml
 identity:
@@ -158,8 +158,8 @@ apiGateway:
   enabled: true
 ```
 
-- `clientIntegration.enabled` moves registry-service, the frontend and MCP onto identity-service. With `none` the chart refuses to render without it in any release that deploys one of them.
-- `apiGateway.enabled` is required with `none` in any release that deploys registry-service, the frontend, MCP, identity-service or the Secure Connection Service. The chart gives registry-service, the frontend and MCP their identity-service settings only with the gateway enabled, and identity-service accepts the Secure Connection Service's token only when it has the gateway's address.
+- `clientIntegration.enabled` moves registry-service, the frontend and MCP onto identity-service. With `none` the chart refuses to render without it.
+- `apiGateway.enabled` is required with `none`. The chart gives registry-service, the frontend and MCP their identity-service settings only with the gateway enabled, and identity-service accepts the Secure Connection Service's token only when it has the gateway's address.
 - `migrations.runAsJob` runs identity-service's database migration as a Helm hook, so the schema exists before the bootstrap hook creates the admin.
 - `bootstrap.localAdmin.email` is the first platform admin and is required with `none`.
 
@@ -186,7 +186,7 @@ With a generated password, the hook runs under its own ServiceAccount, which may
 
 ### The Secure Connection Service
 
-Once its clients move to identity-service, registry-service refuses access tokens from Zitadel, legacy personal access tokens aside, so the chart points the Secure Connection Service at identity-service instead. You supply its credential and register it as an agent, once. A single-release install with `secureConnection.enabled: true` refuses `none` until `identity.agentRegistration` declares the agent. An install without the Secure Connection Service skips this.
+Once its clients move to identity-service, registry-service refuses access tokens from Zitadel, legacy personal access tokens aside, so the chart points the Secure Connection Service at identity-service instead. You supply its credential and register it as an agent, once. An install with `secureConnection.enabled: true` refuses `none` until `identity.agentRegistration` declares the agent. An install without the Secure Connection Service skips this.
 
 1. Generate the credential with the `/gen-agent-credentials` command in the identity-service image. The image has no shell, so run the command directly with a mounted directory for its output file:
 
@@ -235,13 +235,9 @@ Once its clients move to identity-service, registry-service refuses access token
          - secure_connector
    ```
 
-   The agent registers in the tenant `identity.bootstrap.localAdmin.tenant` names (`default`) unless the entry sets `tenantSlug`. See [Agent registration](#agent-registration) for the other fields, except `providerName` and `providerTenantIdEnv`, which `none` refuses. In a per-service install, create the first Secret and set `secureConnection.extraEnvSecrets` in the Secure Connection Service's release, and the second Secret and the agent entry in identity-service's.
+   The agent registers in the tenant `identity.bootstrap.localAdmin.tenant` names (`default`) unless the entry sets `tenantSlug`. See [Agent registration](#agent-registration) for the other fields, except `providerName` and `providerTenantIdEnv`, which `none` refuses.
 
 The chart cannot check that the Secrets exist. Without the service's credential Secret, the Secure Connection Service's pods do not start. Without the registration Secret, registration skips the agent and the service's token requests are refused. Delete `creds/` once both Secrets exist.
-
-### Installs that run one release per service
-
-Every release that deploys registry-service, the frontend, MCP or the Secure Connection Service sets `identity.oidc.provider: none`, `identity.clientIntegration.enabled: true` and `apiGateway.enabled: true`. The release that deploys identity-service also sets `apiGateway.enabled: true`. Only the release that deploys identity-service sets `identity.bootstrap.localAdmin` and the Secure Connection Service's agent entry. All releases share `common.mainFqdn` and `common.apiFqdnOverride`. A release that leaves the provider unset keeps its Zitadel behavior: the chart cannot see the other releases' values, so it does not refuse a missing `clientIntegration.enabled`, and its Secure Connection Service stays on Zitadel and fails.
 
 ### Recovering a locked-out admin
 
