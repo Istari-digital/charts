@@ -32,6 +32,7 @@ data:
     {{- with $serviceValues.trustedProxies }}
     	servers {
     		trusted_proxies static {{ join " " . }}
+    		trusted_proxies_strict
     	}
     {{- end }}
     }

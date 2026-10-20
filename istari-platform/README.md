@@ -258,7 +258,7 @@ kubectl exec -n <namespace> deploy/istari-identity -- /reset-password \
 
 ### Client addresses and the sign-in limit
 
-identity-service limits sign-in attempts per client address, so it must see each person's real address. Set `apiGateway.trustedProxies` to the address ranges of the ingress controller and load balancer in front of the API gateway, and `identity.trustedProxies` to those ranges plus the gateway pods' range, usually the cluster's pod network. Left unset, the gateway replaces the client's address with the ingress controller's, so everyone shares one sign-in limit, 30 attempts a minute by default. This describes the path through the chart's API gateway; an install that exposes identity-service through `identity.ingress` or `identity.virtualService`, or runs it with an Istio sidecar, has different hops.
+identity-service limits sign-in attempts per client address, so it must see each person's real address. Set `apiGateway.trustedProxies` to the address ranges of the ingress controller and load balancer in front of the API gateway, and `identity.trustedProxies` to those ranges plus the addresses of the API gateway pods. Pod addresses change, so that is usually the pod network's range; in that case restrict which pods can reach identity-service, for example with a NetworkPolicy that admits only the API gateway, so another pod cannot pose as a proxy. Left unset, the gateway replaces the client's address with the ingress controller's, so everyone shares one sign-in limit, 30 attempts a minute by default. This describes the path through the chart's API gateway; an install that exposes identity-service through `identity.ingress` or `identity.virtualService`, or runs it with an Istio sidecar, has different hops.
 
 ## Values
 
