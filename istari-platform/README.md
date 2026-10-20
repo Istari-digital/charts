@@ -179,7 +179,7 @@ kubectl get secret istari-identity-local-admin-password -n <namespace> \
 
 The admin signs in with the email and this password, then must choose a new password. The temporary password stops working at that change and expires unused after a week (`identity.localAccounts.tempPasswordTtl`). Delete the Secret after the first sign-in; the hook does not, and `helm uninstall` leaves it.
 
-Read the password before the next sync if you deploy with Argo CD or a similar tool. Those tools run pre-install hooks on every sync, which recreates the Secret empty and loses a password nobody read. Helm alone writes the Secret on install only. If the password is lost, recover with [`reset-password`](#recovering-a-locked-out-admin) or choose a password yourself.
+Read the password before the next sync if you deploy with Argo CD or a similar tool. Those tools run pre-install hooks on every sync, which recreates the Secret empty and loses a password nobody read. Helm alone writes the Secret on install only. If the password is lost after the admin exists, recover with [`reset-password`](#recovering-a-locked-out-admin); choosing a password through `passwordSecret` applies only before the admin is created.
 
 To choose the password, store it in your own Secret and set `identity.bootstrap.localAdmin.passwordSecret.name` (and `key`, default `password`). The password must be at least 15 characters by default (`identity.localAccounts.passwordMinLength`), and the admin must still change it at first sign-in. Create the Secret before `helm install`: the hook reads it through a required `secretKeyRef`, so a missing Secret leaves the hook pod unable to start. The chart then creates no password Secret.
 

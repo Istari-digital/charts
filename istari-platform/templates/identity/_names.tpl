@@ -37,12 +37,22 @@ Call with a dict: {"root": $, "name": <agent name>}.
 
 {{/*
 Bootstrap hook resources, and the Secret it writes a generated password to.
-The fullname is truncated first so the suffix always fits within 63 characters.
+A fullname too long for the suffix is cut and given a hash of the whole fullname, so
+names stay within 63 characters and differ between fullnames sharing a prefix.
 */}}
+{{- define "identity.localAdmin.hookName" -}}
+{{- $full := include "identity.fullname" .root -}}
+{{- if le (add (len $full) (len .suffix)) 63 -}}
+{{- printf "%s%s" $full .suffix -}}
+{{- else -}}
+{{- printf "%s-%s%s" ($full | trunc (int (sub 54 (len .suffix))) | trimSuffix "-") ($full | sha256sum | trunc 8) .suffix -}}
+{{- end -}}
+{{- end }}
+
 {{- define "identity.localAdmin.name" -}}
-{{ printf "%s-local-admin-bootstrap" (include "identity.fullname" . | trunc 41 | trimSuffix "-") }}
+{{ include "identity.localAdmin.hookName" (dict "root" . "suffix" "-local-admin-bootstrap") }}
 {{- end }}
 
 {{- define "identity.localAdmin.passwordSecretName" -}}
-{{ printf "%s-local-admin-password" (include "identity.fullname" . | trunc 42 | trimSuffix "-") }}
+{{ include "identity.localAdmin.hookName" (dict "root" . "suffix" "-local-admin-password") }}
 {{- end }}

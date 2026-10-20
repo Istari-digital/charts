@@ -6,6 +6,8 @@
 {{- with $localAdmin.passwordSecret }}{{- $passwordSecret = . }}{{- end }}
 {{- if and $serviceValues.enabled $localAdmin.email }}
 {{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.localAdmin.email requires identity.migrations.runAsJob=true: the hook that creates the first platform admin runs after the migration hook and needs its schema" }}{{ end }}
+{{- if not $localAdmin.tenant }}{{ fail "identity.bootstrap.localAdmin.tenant is required when identity.bootstrap.localAdmin.email is set: set it to `default`" }}{{ end }}
+{{- if and $passwordSecret.name (not $passwordSecret.key) }}{{ fail "identity.bootstrap.localAdmin.passwordSecret.key is required when passwordSecret.name is set: set it to `password`" }}{{ end }}
 {{- $name := include "identity.localAdmin.name" . -}}
 {{- $secretName := include "identity.localAdmin.passwordSecretName" . -}}
 {{- /* The hook writes a password only when there is no identity provider and the operator supplied none. */ -}}

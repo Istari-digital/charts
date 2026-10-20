@@ -193,6 +193,7 @@ spec:
         - {{ $dbURLEnv | quote }}
         {{- $tenant := $agent.tenantSlug }}
         {{- if and $noIdp (not $tenant) }}{{- with $serviceValues.bootstrap }}{{- with .localAdmin }}{{- $tenant = .tenant }}{{- end }}{{- end }}{{- end }}
+        {{- if and $noIdp (not $tenant) }}{{ fail (printf "agentRegistration agent %q sets no tenantSlug and identity.bootstrap.localAdmin.tenant is empty: set tenantSlug, or set identity.bootstrap.localAdmin.tenant to `default`" $agent.name) }}{{ end }}
         {{- if $tenant }}
         - "-tenant"
         - {{ $tenant | quote }}
