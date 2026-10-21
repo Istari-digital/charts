@@ -28,3 +28,15 @@ controller at the {{ include "api-gateway.fullname" . }} Service on port 80, the
 registry service is exposed. TLS terminates there — the API Gateway itself serves plain HTTP.
 The chart can also create these for you: see `apiGateway.ingress` and `apiGateway.virtualService`.
 {{- end -}}
+{{- $localAdmin := dict }}{{- with .Values.identity.bootstrap }}{{- with .localAdmin }}{{- $localAdmin = . }}{{- end }}{{- end }}
+{{- $provider := "" }}{{- with .Values.identity.oidc }}{{- $provider = toString .provider }}{{- end }}
+{{- $chosenPassword := "" }}{{- with $localAdmin.passwordSecret }}{{- $chosenPassword = .name }}{{- end }}
+{{- if and .Release.IsInstall .Values.identity.enabled (eq $provider "none") $localAdmin.email (not $chosenPassword) }}
+
+The first platform admin, {{ $localAdmin.email }}, has a temporary password. Read it with:
+
+  kubectl get secret {{ include "identity.localAdmin.passwordSecretName" . }} -n {{ .Release.Namespace }} -o jsonpath='{.data.password}' | base64 -d
+
+Sign in with it and choose a new password before it expires (identity.localAccounts.tempPasswordTtl,
+168 hours by default), then delete the Secret.
+{{- end -}}
