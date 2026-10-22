@@ -62,6 +62,8 @@ An upgrade without Helm's `--reuse-values` flag takes the 7.0.0 defaults: it tur
 
 A 6.x release that already runs the identity service starts mounting `zitadel-identity-service-env` when upgraded without `--reuse-values`, unless its values set `identity.extraEnvSecrets`, and that Secret's keys, including `ISTARI_DIGITAL_IDENTITY_SERVICE_BASE_URL`, override same-named keys in `identity.secretName`. On an install whose identity provider is not Zitadel, `zitadel-identity-service-env` does not exist: set `identity.extraEnvSecrets` to `[]` or to your own list before upgrading, or the identity service's pods and its migration Job cannot start.
 
+If a 6.x release that runs the identity service leaves `identity.migrations.runAsJob` unset, relying on the 6.x default of `false`, and upgrades without `--reuse-values`, set it to `false` explicitly for the upgrade. Switching it to `true` turns the identity service's ConfigMap into a pre-upgrade hook, and Helm then deletes that ConfigMap as a resource removed from the release, so new identity service pods cannot start. If this happens, run the upgrade again, which recreates the ConfigMap. Switching it to `true` in a later upgrade deletes the ConfigMap the same way, once.
+
 ## API Gateway
 
 The API Gateway (`apiGateway.enabled`, default `true` since chart 7.0.0) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
