@@ -56,13 +56,15 @@ The chart then deploys no identity service, and the registry service, the fronte
 
 The API Gateway and the provisioner stay on. The browser still reaches the registry service through the API host, which needs DNS and TLS, and the provisioner generates identity credentials that no service uses. To deploy the same components as a 6.x release, also set `apiGateway.enabled` and `provisioner.enabled` to `false`.
 
+On an install that sets `trustedCertBundle`, turning the identity service off after it has run turns the `<fullname>-shared-trusted-certs` ConfigMap from a Helm hook into an ordinary release resource, unless the registry service's or the Secure Connection Service's migrations run as Jobs. Helm refuses to adopt the existing ConfigMap (`invalid ownership metadata`), so delete it before the upgrade, or upgrade with `--take-ownership` (Helm 3.17 or later). The same applies to `<fullname>-identity-envvars` when `identity.migrations.runAsJob` changes from `true` to `false`.
+
 ### Upgrading from 6.x
 
 An upgrade without Helm's `--reuse-values` flag takes the 7.0.0 defaults: it turns on the identity service, the API Gateway and the provisioner unless your values turn them off as above, so the prerequisites must exist before the upgrade. An upgrade with `--reuse-values` keeps the previous chart's defaults, so none of the three turns on. To take the new defaults while keeping your previous overrides, use `--reset-then-reuse-values` (Helm 3.14 or later).
 
 A 6.x release that already runs the identity service starts mounting `zitadel-identity-service-env` when upgraded without `--reuse-values`, unless its values set `identity.extraEnvSecrets`, and that Secret's keys, including `ISTARI_DIGITAL_IDENTITY_SERVICE_BASE_URL`, override same-named keys in `identity.secretName`. On an install whose identity provider is not Zitadel, `zitadel-identity-service-env` does not exist: set `identity.extraEnvSecrets` to `[]` or to your own list before upgrading, or the identity service's pods and its migration Job cannot start.
 
-If a 6.x release that runs the identity service leaves `identity.migrations.runAsJob` unset, relying on the 6.x default of `false`, and upgrades without `--reuse-values`, set it to `false` explicitly for the upgrade. Switching it to `true` turns the identity service's ConfigMap into a pre-upgrade hook, and Helm then deletes that ConfigMap as a resource removed from the release, so new identity service pods cannot start. If this happens, run the upgrade again, which recreates the ConfigMap. Switching it to `true` in a later upgrade deletes the ConfigMap the same way, once.
+To roll a 7.0.0 release back to 6.x with Helm 3 or Helm 4.0, first delete whichever of the `<fullname>-identity-envvars` and `<fullname>-shared-trusted-certs` ConfigMaps `helm get manifest <release> --revision <6.x revision>` lists; that command omits hooks, and a ConfigMap the 6.x revision renders as a hook must stay. 7.0.0 renders both as Helm hooks, and the rollback, which recreates the listed ones as ordinary release resources, fails while they exist, with `no ConfigMap with the name "..." found`. Helm 4.3.1 adopts the ConfigMaps and succeeds.
 
 ## API Gateway
 
