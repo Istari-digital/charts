@@ -641,12 +641,12 @@ secureConnection:
 
 # Default values for Identity Service.
 identity:
-  # -- Enable / Disable the whole deployment. On by default since chart 7.0.0; to run without identity-service, set this and `clientIntegration.enabled` to `false` (see [Turning the identity service off](#turning-the-identity-service-off)).
+  # -- Enable / Disable the whole deployment. On by default since chart 7.0.0; to run without identity-service, set this, `clientIntegration.enabled` and `provisioner.enabled` to `false` (see [Turning the identity service off](#turning-the-identity-service-off)).
   enabled: true
   # -- Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it.
   # @default -- (see fields below)
   clientIntegration:
-    # -- Whether clients in THIS release authenticate through the identity-service. Defaults to an explicit `true`, never derived from `identity.enabled`: a release that turns identity-service off sets both values to `false`. Rendered in BOTH polarities whenever the API Gateway is enabled (`apiGateway.enabled`), alongside the `ISTARI_DIGITAL_API_URL` it accompanies, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set. With the gateway disabled, neither is emitted and the deprecated flags stay authoritative.
+    # -- Whether clients in THIS release authenticate through the identity-service. Defaults to an explicit `true`, never derived from `identity.enabled`: a release that turns identity-service off sets this, `identity.enabled` and `provisioner.enabled` to `false`. Rendered in BOTH polarities whenever the API Gateway is enabled (`apiGateway.enabled`), alongside the `ISTARI_DIGITAL_API_URL` it accompanies, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set.
     enabled: true
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"
@@ -1105,7 +1105,7 @@ docs:
 # change in a future release; such a change will never require values changes beyond
 # `registry`/`image`/`tag`.
 apiGateway:
-  # -- Enable / Disable the whole deployment. On by default since chart 7.0.0; it needs DNS and TLS for the API host (`api.<mainFqdn>`, or `common.apiFqdnOverride`).
+  # -- Enable / Disable the whole deployment. On by default since chart 7.0.0, and required for the web app, which reaches the registry service only through it. It needs DNS and TLS for the API host (`api.<mainFqdn>`, or `common.apiFqdnOverride`).
   enabled: true
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"

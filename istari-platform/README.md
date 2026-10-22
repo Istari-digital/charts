@@ -34,7 +34,7 @@ Since chart 7.0.0, a default install deploys the identity service, the API Gatew
 - A Secret named by `identity.secretName` (default `istari-identity`) holding the identity service's PostgreSQL connection string as `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL`.
 - On a Zitadel install, the Zitadel configurator's `zitadel-identity-service-env` Secret, which `identity.extraEnvSecrets` mounts by default. Run the configurator with `configurator.identity_service_base_url` set to `https://<your-api-host>/identity`, or sign-in through the identity service fails.
 - On an install whose identity provider is not Zitadel, set `identity.oidc.provider` (or `identity.idpMigration.enabled: false`) so the Zitadel import does not run, and set `identity.extraEnvSecrets` to `[]` or to your own Secrets, because every listed Secret must exist for the identity service's pods to start.
-- While the API Gateway is on, as it is by default, DNS and TLS for the API host, `api.<mainFqdn>` unless overridden (see [API Gateway](#api-gateway)).
+- DNS and TLS for the API Gateway's host, `api.<mainFqdn>` unless overridden (see [API Gateway](#api-gateway)).
 
 The chart supplies the rest of what a default install needs:
 
@@ -44,24 +44,24 @@ The chart supplies the rest of what a default install needs:
 
 ### Turning the identity service off
 
-Set both values to `false`:
+Set these three values to `false`, and keep the API Gateway on:
 
 ```yaml
 identity:
   enabled: false
   clientIntegration:
     enabled: false
+provisioner:
+  enabled: false
 ```
 
-The chart then deploys no identity service, and the registry service, the frontend and MCP authenticate directly against your identity provider, as before 7.0.0. Setting only `identity.enabled: false` leaves those services configured to use an identity service that is not deployed, so sign-in fails.
-
-The API Gateway and the provisioner stay on. The browser still reaches the registry service through the API host, which needs DNS and TLS, and the provisioner generates identity credentials that no service uses. To deploy the same components as a 6.x release, also set `apiGateway.enabled` and `provisioner.enabled` to `false`.
+The chart then deploys no identity service and no provisioner, whose generated keys serve only the identity service, and the registry service, the frontend and MCP authenticate directly against your identity provider, as before 7.0.0. Setting only `identity.enabled: false` leaves those services configured to use an identity service that is not deployed, so sign-in fails. Leave `apiGateway.enabled` at `true`: from chart 6.0 the web app reaches the registry service only through the API Gateway, so turning it off breaks the web app.
 
 On an install that sets `trustedCertBundle`, turning the identity service off after it has run turns the `<fullname>-shared-trusted-certs` ConfigMap from a Helm hook into an ordinary release resource, unless the registry service's or the Secure Connection Service's migrations run as Jobs. Helm refuses to adopt the existing ConfigMap (`invalid ownership metadata`), so delete it before the upgrade, or upgrade with `--take-ownership` (Helm 3.17 or later). The same applies to `<fullname>-identity-envvars` when `identity.migrations.runAsJob` changes from `true` to `false`.
 
 ### Upgrading from 6.x
 
-An upgrade without Helm's `--reuse-values` flag takes the 7.0.0 defaults: it turns on the identity service, the API Gateway and the provisioner unless your values turn them off as above, so the prerequisites must exist before the upgrade. An upgrade with `--reuse-values` keeps the previous chart's defaults, so none of the three turns on. To take the new defaults while keeping your previous overrides, use `--reset-then-reuse-values` (Helm 3.14 or later).
+An upgrade without Helm's `--reuse-values` flag takes the 7.0.0 defaults: it turns on the API Gateway and, unless your values turn them off as above, the identity service and the provisioner, so the prerequisites must exist before the upgrade. An upgrade with `--reuse-values` keeps the previous chart's defaults, so none of the three turns on. To take the new defaults while keeping your previous overrides, use `--reset-then-reuse-values` (Helm 3.14 or later).
 
 A 6.x release that already runs the identity service starts mounting `zitadel-identity-service-env` when upgraded without `--reuse-values`, unless its values set `identity.extraEnvSecrets`, and that Secret's keys, including `ISTARI_DIGITAL_IDENTITY_SERVICE_BASE_URL`, override same-named keys in `identity.secretName`. On an install whose identity provider is not Zitadel, `zitadel-identity-service-env` does not exist: set `identity.extraEnvSecrets` to `[]` or to your own list before upgrading, or the identity service's pods and its migration Job cannot start.
 
@@ -71,7 +71,7 @@ To roll a 7.0.0 release back to 6.x with Helm 3 or Helm 4.0, first delete whiche
 
 The API Gateway (`apiGateway.enabled`, default `true` since chart 7.0.0) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
 
-`common.mainFqdn` is **required**, so the chart always knows the platform's API host — `api.<mainFqdn>`, or `common.apiFqdnOverride` for a host that isn't a subdomain of `mainFqdn`. Enabling the API Gateway (`apiGateway.enabled`) deploys the bundled reverse proxy for that host **and** points the chart's services at it: the registry service and MCP (when `mcp.enabled`) receive `ISTARI_DIGITAL_API_URL`, the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, and the browser reaches the registry service through `<your-api-host>/registry`. With the gateway disabled, the chart deploys no proxy and emits none of these variables; the services address each other directly in-cluster. Point each client tool's base URL (the `ISTARI_DIGITAL_API_URL` setting) at `https://<your-api-host>` with no path; clients append the prefixes (`/registry`, `/identity`) themselves.
+`common.mainFqdn` is **required**, so the chart always knows the platform's API host — `api.<mainFqdn>`, or `common.apiFqdnOverride` for a host that isn't a subdomain of `mainFqdn`. The API Gateway (`apiGateway.enabled`) deploys the bundled reverse proxy for that host **and** points the chart's services at it: the registry service and MCP (when `mcp.enabled`) receive `ISTARI_DIGITAL_API_URL`, the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, and the browser reaches the registry service through `<your-api-host>/registry`. With the gateway disabled, the chart deploys no proxy and emits none of these variables, and the web app cannot reach the registry service: from chart 6.0 it does so only through the API Gateway. Point each client tool's base URL (the `ISTARI_DIGITAL_API_URL` setting) at `https://<your-api-host>` with no path; clients append the prefixes (`/registry`, `/identity`) themselves.
 
 MCP consumes the gateway as a client; the gateway does not serve MCP requests. No `/mcp` route exists, so `https://<your-api-host>/mcp` returning 404 is expected, not a misconfiguration.
 
@@ -80,18 +80,13 @@ MCP consumes the gateway as a client; the gateway does not serve MCP requests. N
 >
 > Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, on by default and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients.
 >
-> `identity.clientIntegration.enabled` takes effect only with the API Gateway enabled. The chart emits the identity toggle to the registry service, the frontend, and MCP only alongside `ISTARI_DIGITAL_API_URL`, which it sets only when `apiGateway.enabled` — so with the gateway off, `clientIntegration.enabled` is a no-op (the toggle is never emitted without the gateway URL the services need). Enable the API Gateway to move clients onto the identity service.
+> The chart emits the identity toggle to the registry service, the frontend, and MCP only alongside `ISTARI_DIGITAL_API_URL`, which it sets only when `apiGateway.enabled` is `true`.
 >
 > The former `…_IDENTITY_ROUTER_ENABLED` names (and the frontend's `VITE_IDENTITY_ROUTER_*`) remain supported as deprecated aliases, and are ignored when the corresponding new names are set. Prefer the new names; the aliases will be removed in a future release.
 
-Enabling the API Gateway pulls one additional image, `istaridigital.jfrog.io/customer-docker/istaridigital.com/caddy-fips` (the `istaridigital.com` path segment is part of the repository path, not a typo). Air-gapped installations must add it to their image mirror alongside the chart's other images; it uses the same pull credentials.
+The API Gateway pulls one additional image, `istaridigital.jfrog.io/customer-docker/istaridigital.com/caddy-fips` (the `istaridigital.com` path segment is part of the repository path, not a typo). Air-gapped installations must add it to their image mirror alongside the chart's other images; it uses the same pull credentials.
 
-Routes for the platform's services are managed by the chart and always present, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `apiGateway.extraRoutes`. The API Gateway is on by default. Turning it off is one line in your values file, and it also stops the chart from configuring the services to use the identity service (see above):
-
-```yaml
-apiGateway:
-  enabled: false
-```
+Routes for the platform's services are managed by the chart and always present, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `apiGateway.extraRoutes`. The API Gateway is on by default; keep it on, because the web app depends on it.
 
 Expose it the same way as the registry service: point your external load balancer or existing ingress controller at the API Gateway's `kind: Service` on port 80, terminating TLS there (the API Gateway itself serves plain HTTP and requires no Istio). The chart can also create a Kubernetes Ingress (`apiGateway.ingress`) or Istio VirtualService (`apiGateway.virtualService`) for you. Optional per-request tracing lights up automatically when the bundled Jaeger is enabled (`jaeger.enabled`); see `apiGateway.tracing.enabled`.
 
@@ -189,7 +184,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | apiGateway.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | apiGateway.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context. Unlike the other services, the root filesystem is read-only: Caddy only writes to the XDG state dirs, which the chart mounts as emptyDirs. |
 | apiGateway.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
-| apiGateway.enabled | bool | `true` | Enable / Disable the whole deployment. On by default since chart 7.0.0; it needs DNS and TLS for the API host (`api.<mainFqdn>`, or `common.apiFqdnOverride`). |
+| apiGateway.enabled | bool | `true` | Enable / Disable the whole deployment. On by default since chart 7.0.0, and required for the web app, which reaches the registry service only through it. It needs DNS and TLS for the API host (`api.<mainFqdn>`, or `common.apiFqdnOverride`). |
 | apiGateway.env | list | `[]` | Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `apiGateway.tracing.enabled`). |
 | apiGateway.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables in the proxy container (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | apiGateway.extraEnvSecrets | list | `[]` | Names of Kubernetes Secrets whose keys become environment variables in the proxy container. Not needed for a standard deployment. (Unlike the other services, the API Gateway has no separate `secretName` — this list is the only Secret mechanism.) |
@@ -430,11 +425,11 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | identity.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | identity.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. |
-| identity.clientIntegration.enabled | bool | `true` | Whether clients in THIS release authenticate through the identity-service. Defaults to an explicit `true`, never derived from `identity.enabled`: a release that turns identity-service off sets both values to `false`. Rendered in BOTH polarities whenever the API Gateway is enabled (`apiGateway.enabled`), alongside the `ISTARI_DIGITAL_API_URL` it accompanies, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set. With the gateway disabled, neither is emitted and the deprecated flags stay authoritative. |
+| identity.clientIntegration.enabled | bool | `true` | Whether clients in THIS release authenticate through the identity-service. Defaults to an explicit `true`, never derived from `identity.enabled`: a release that turns identity-service off sets this, `identity.enabled` and `provisioner.enabled` to `false`. Rendered in BOTH polarities whenever the API Gateway is enabled (`apiGateway.enabled`), alongside the `ISTARI_DIGITAL_API_URL` it accompanies, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set. |
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | identity.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | identity.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
-| identity.enabled | bool | `true` | Enable / Disable the whole deployment. On by default since chart 7.0.0; to run without identity-service, set this and `clientIntegration.enabled` to `false` (see [Turning the identity service off](#turning-the-identity-service-off)). |
+| identity.enabled | bool | `true` | Enable / Disable the whole deployment. On by default since chart 7.0.0; to run without identity-service, set this, `clientIntegration.enabled` and `provisioner.enabled` to `false` (see [Turning the identity service off](#turning-the-identity-service-off)). |
 | identity.env | list | `[]` |  |
 | identity.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | identity.extraEnvSecrets | list | `["zitadel-identity-service-env"]` | Extra secrets to mount in the pod and in the migration and Zitadel import Jobs. The secrets should contain the environment variables required by the service. The default is the Zitadel configurator's secret, which carries the upstream issuer and client key and the Zitadel management key the import reads. Each listed secret must exist or the pods do not start, so an install on another identity provider sets this to `[]`. |
