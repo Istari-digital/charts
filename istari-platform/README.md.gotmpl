@@ -26,31 +26,66 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 >
 > The `jaeger` and `dgraph-sec` dependencies are **optional** (`jaeger.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
 
+## Identity service
+
+Since chart 7.0.0, a default install deploys the identity service, the API Gateway and the provisioner, and configures the registry service, the frontend and, when `mcp.enabled` is set, MCP to authenticate through the identity service. The chart cannot create these prerequisites, so they must exist before the identity service starts:
+
+- A Secret named by `identity.secretName` (default `istari-identity`) holding the identity service's PostgreSQL connection string as `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL`.
+- On a Zitadel install, the Zitadel configurator's `zitadel-identity-service-env` Secret, which `identity.extraEnvSecrets` mounts by default. Run the configurator with `configurator.identity_service_base_url` set to `https://<your-api-host>/identity`, or sign-in through the identity service fails.
+- On an install whose identity provider is not Zitadel, set `identity.oidc.provider` (or `identity.idpMigration.enabled: false`) so the Zitadel import does not run, and set `identity.extraEnvSecrets` to `[]` or to your own Secrets, because every listed Secret must exist for the identity service's pods to start.
+- DNS and TLS for the API Gateway's host, `api.<mainFqdn>` unless overridden (see [API Gateway](#api-gateway)).
+
+The chart supplies the rest of what a default install needs:
+
+- The identity service's database migration and, on a Zitadel install, the import of Zitadel's organizations, people and tenant administrator grants into the identity service, each as a Helm hook Job. The import requires `identity.migrations.runAsJob: true`, the default.
+- The identity service's CORS allowlist, `https://<mainFqdn>`. To allow other origins, set `ISTARI_DIGITAL_IDENTITY_SERVICE_CORS_ALLOWED_ORIGINS`, a comma-separated list, in `identity.env` or in the Secret named by `identity.secretName`. It replaces the chart's value, so include `https://<mainFqdn>`.
+- Through the [provisioner](#provisioner), the registry service's and MCP's client credentials and the identity service's signing and encryption keys.
+
+### Turning the identity service off
+
+A future release will remove the option to deploy without the identity service. Until then, set these three values to `false`, and keep the API Gateway on:
+
+```yaml
+identity:
+  enabled: false
+  clientIntegration:
+    enabled: false
+provisioner:
+  enabled: false
+```
+
+The chart then deploys no identity service and no provisioner, whose generated keys serve only the identity service, and the registry service, the frontend and MCP authenticate directly against your identity provider, as before 7.0.0. Setting only `identity.enabled: false` leaves those services configured to use an identity service that is not deployed, so sign-in fails. Leave `apiGateway.enabled` at `true`: from chart 6.0 the web app reaches the registry service only through the API Gateway, so turning it off breaks the web app.
+
+On an install that sets `trustedCertBundle`, turning the identity service off after it has run turns the `<fullname>-shared-trusted-certs` ConfigMap from a Helm hook into an ordinary release resource, unless the registry service's or the Secure Connection Service's migrations run as Jobs. Helm refuses to adopt the existing ConfigMap (`invalid ownership metadata`), so delete it before the upgrade, or upgrade with `--take-ownership` (Helm 3.17 or later). The same applies to `<fullname>-identity-envvars` when `identity.migrations.runAsJob` changes from `true` to `false`.
+
+### Upgrading from 6.x
+
+An upgrade without Helm's `--reuse-values` flag takes the 7.0.0 defaults: it turns on the API Gateway and, unless your values turn them off as above, the identity service and the provisioner, so the prerequisites must exist before the upgrade. An upgrade with `--reuse-values` keeps the previous chart's defaults, so none of the three turns on. To take the new defaults while keeping your previous overrides, use `--reset-then-reuse-values` (Helm 3.14 or later).
+
+A 6.x release that already runs the identity service starts mounting `zitadel-identity-service-env` when upgraded without `--reuse-values`, unless its values set `identity.extraEnvSecrets`, and that Secret's keys, including `ISTARI_DIGITAL_IDENTITY_SERVICE_BASE_URL`, override same-named keys in `identity.secretName`. On an install whose identity provider is not Zitadel, `zitadel-identity-service-env` does not exist: set `identity.extraEnvSecrets` to `[]` or to your own list before upgrading, or the identity service's pods and its migration Job cannot start.
+
+To roll a 7.0.0 release back to 6.x with Helm 3 or Helm 4.0, first delete whichever of the `<fullname>-identity-envvars` and `<fullname>-shared-trusted-certs` ConfigMaps `helm get manifest <release> --revision <6.x revision>` lists; that command omits hooks, and a ConfigMap the 6.x revision renders as a hook must stay. 7.0.0 renders both as Helm hooks, and the rollback, which recreates the listed ones as ordinary release resources, fails while they exist, with `no ConfigMap with the name "..." found`. Helm 4.3.1 adopts the ConfigMaps and succeeds.
+
 ## API Gateway
 
-The API Gateway (`apiGateway.enabled`, default `false`) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
+The API Gateway (`apiGateway.enabled`, default `true` since chart 7.0.0) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
 
-`common.mainFqdn` is **required**, so the chart always knows the platform's API host — `api.<mainFqdn>`, or `common.apiFqdnOverride` for a host that isn't a subdomain of `mainFqdn`. Enabling the API Gateway (`apiGateway.enabled`) deploys the bundled reverse proxy for that host **and** points the chart's services at it: the registry service and MCP (when `mcp.enabled`) receive `ISTARI_DIGITAL_API_URL`, the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, and the browser reaches the registry service through `<your-api-host>/registry`. With the gateway disabled (the default), the chart deploys no proxy and emits none of these variables; the services address each other directly in-cluster. Point each client tool's base URL (the `ISTARI_DIGITAL_API_URL` setting) at `https://<your-api-host>` with no path; clients append the prefixes (`/registry`, `/identity`) themselves.
+`common.mainFqdn` is **required**, so the chart always knows the platform's API host — `api.<mainFqdn>`, or `common.apiFqdnOverride` for a host that isn't a subdomain of `mainFqdn`. The API Gateway (`apiGateway.enabled`) deploys the bundled reverse proxy for that host **and** points the chart's services at it: the registry service and MCP (when `mcp.enabled`) receive `ISTARI_DIGITAL_API_URL`, the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, and the browser reaches the registry service through `<your-api-host>/registry`. With the gateway disabled, the chart deploys no proxy and emits none of these variables, and the web app cannot reach the registry service: from chart 6.0 it does so only through the API Gateway. Point each client tool's base URL (the `ISTARI_DIGITAL_API_URL` setting) at `https://<your-api-host>` with no path; clients append the prefixes (`/registry`, `/identity`) themselves.
 
 MCP consumes the gateway as a client; the gateway does not serve MCP requests. No `/mcp` route exists, so `https://<your-api-host>/mcp` returning 404 is expected, not a misconfiguration.
 
 > [!IMPORTANT]
 > Routing through the gateway and switching authentication to the identity service are **two independent settings**.
 >
-> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, off by default and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients.
+> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, on by default and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients.
 >
-> `identity.clientIntegration.enabled` takes effect only with the API Gateway enabled. The chart emits the identity toggle to the registry service, the frontend, and MCP only alongside `ISTARI_DIGITAL_API_URL`, which it sets only when `apiGateway.enabled` — so with the gateway off, `clientIntegration.enabled` is a no-op (the toggle is never emitted without the gateway URL the services need). Enable the API Gateway to move clients onto the identity service.
+> The chart emits the identity toggle to the registry service, the frontend, and MCP only alongside `ISTARI_DIGITAL_API_URL`, which it sets only when `apiGateway.enabled` is `true`.
 >
 > The former `…_IDENTITY_ROUTER_ENABLED` names (and the frontend's `VITE_IDENTITY_ROUTER_*`) remain supported as deprecated aliases, and are ignored when the corresponding new names are set. Prefer the new names; the aliases will be removed in a future release.
 
-Enabling the API Gateway pulls one additional image, `istaridigital.jfrog.io/customer-docker/istaridigital.com/caddy-fips` (the `istaridigital.com` path segment is part of the repository path, not a typo). Air-gapped installations must add it to their image mirror alongside the chart's other images; it uses the same pull credentials.
+The API Gateway pulls one additional image, `istaridigital.jfrog.io/customer-docker/istaridigital.com/caddy-fips` (the `istaridigital.com` path segment is part of the repository path, not a typo). Air-gapped installations must add it to their image mirror alongside the chart's other images; it uses the same pull credentials.
 
-Routes for the platform's services are managed by the chart and always present, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `apiGateway.extraRoutes`. Enabling the API Gateway is one line in your values file:
-
-```yaml
-apiGateway:
-  enabled: true
-```
+Routes for the platform's services are managed by the chart and always present, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `apiGateway.extraRoutes`. The API Gateway is on by default; keep it on, because the web app depends on it.
 
 Expose it the same way as the registry service: point your external load balancer or existing ingress controller at the API Gateway's `kind: Service` on port 80, terminating TLS there (the API Gateway itself serves plain HTTP and requires no Istio). The chart can also create a Kubernetes Ingress (`apiGateway.ingress`) or Istio VirtualService (`apiGateway.virtualService`) for you. Optional per-request tracing lights up automatically when the bundled Jaeger is enabled (`jaeger.enabled`); see `apiGateway.tracing.enabled`.
 
@@ -58,7 +93,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 
 ## Provisioner
 
-The provisioner (`provisioner.enabled`, default `false`) is a one-shot Job that generates and publishes platform secrets. Today it registers the platform's services as OAuth/OIDC clients against the identity service and writes their credentials into Kubernetes Secrets that the consuming services mount; it may grow to other secret-generation uses in future.
+The provisioner (`provisioner.enabled`, default `true` since chart 7.0.0) is a one-shot Job that generates and publishes platform secrets. Today it registers the platform's services as OAuth/OIDC clients against the identity service and writes their credentials into Kubernetes Secrets that the consuming services mount; it may grow to other secret-generation uses in future.
 
 It is an ordinary release resource, not a Helm hook, so it needs no special install, upgrade, or uninstall steps: `helm uninstall` removes the Job and its ServiceAccount, Role, and RoleBinding along with the rest of the release, and because the generated credential Secrets are owned by that ServiceAccount, Kubernetes garbage-collects them with it. Only the Terraform state Secret and its lock Lease persist — the kubernetes backend owns them, outside Helm's release — so a later reinstall resumes from the existing state. The Job reruns automatically whenever its inputs change — the pod template (image, env, mounts), the `backoffLimit`, `activeDeadlineSeconds`, or `serviceAccountAnnotations` values, or `provisioner.rerunToken` — because its name embeds a hash of all of them, so each change produces a new Job that Helm applies while pruning the previous one. Domain changes such as `common.mainFqdn` flow through the services' ConfigMaps directly and don't require the provisioner to rerun. An input that does not change leaves the completed Job in place; a completed provisioner Job is expected and safe to leave, not a sign that anything is wrong.
 
