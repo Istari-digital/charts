@@ -44,7 +44,7 @@ The chart supplies the rest of what a default install needs:
 
 ### Turning the identity service off
 
-Set these three values to `false`, and keep the API Gateway on:
+A future release will remove the option to deploy without the identity service. Until then, set these three values to `false`, and keep the API Gateway on:
 
 ```yaml
 identity:
