@@ -21,10 +21,14 @@ spec:
       {{- include "secure-connection.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with $serviceValues.podAnnotations }}
       annotations:
+        # Rolls the Pods when the ConfigMap's data changes (e.g. toggling jaeger.enabled): envFrom
+        # alone leaves a running Pod on the old values. Hashes only .data, so a label- or
+        # chart-version-only change does not needlessly roll the Pods.
+        checksum/config: {{ include (print $.Template.BasePath "/secure-connection/configmap.yaml") . | fromYaml | dig "data" dict | toYaml | sha256sum }}
+        {{- with $serviceValues.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "secure-connection.labels" . | nindent 8 }}
         {{- with $serviceValues.podLabels }}

@@ -81,14 +81,12 @@ spec:
           {{- toYaml . | nindent 10 }}
         {{- end }}
         {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
-        {{- if or $mountProvisionerSecret $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled .Values.apiGateway.enabled }}
         envFrom:
-        {{- end }}
-        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
-        {{- if or $jaegerEnabled .Values.apiGateway.enabled }}
+        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override
+        them. The chart ConfigMap always exists (it carries the internal service URLs), so it is
+        always referenced. */}}
         - configMapRef:
             name: {{ include "fileservice.configmap.name" . | quote }}
-        {{- end }}
         {{- /* Right after the chart ConfigMap, so every user-supplied source below overrides it. */}}
         {{- if $mountProvisionerSecret }}
         - secretRef:
@@ -146,14 +144,12 @@ spec:
         - "alembic"
         - "upgrade"
         - "head"
-        {{- if or $mountProvisionerSecret $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps $jaegerEnabled .Values.apiGateway.enabled }}
         envFrom:
-        {{- end }}
-        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
-        {{- if or $jaegerEnabled .Values.apiGateway.enabled }}
+        {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override
+        them. The chart ConfigMap always exists (it carries the internal service URLs), so it is
+        always referenced. */}}
         - configMapRef:
             name: {{ include "fileservice.configmap.name" . | quote }}
-        {{- end }}
         {{- if $mountProvisionerSecret }}
         - secretRef:
             name: {{ include "provisioner.registrySecretName" . | quote }}
