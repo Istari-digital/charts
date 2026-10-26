@@ -12,6 +12,7 @@ metadata:
   labels:
     {{- include "mcp.labels" . | nindent 4 }}
 data:
+  {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
   {{- if .Values.apiGateway.enabled }}
   # MCP reaches the registry through <base>/registry, resolved in the

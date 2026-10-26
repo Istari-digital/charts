@@ -17,6 +17,7 @@ metadata:
     helm.sh/hook-weight: "-15"
   {{- end }}
 data:
+  {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
   {{- if dig "enabled" false (default dict .Values.jaeger) }}
   {{- /* the Identity Service uses the OTLP/HTTP exporter → target Jaeger's 4318, not the gRPC 4317
