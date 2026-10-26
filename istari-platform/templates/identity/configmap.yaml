@@ -20,6 +20,7 @@ metadata:
     helm.sh/resource-policy: keep
   {{- end }}
 data:
+  {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
   # identity-service exits at startup without an allowlist; the frontend's origin is the one browser caller.
   ISTARI_DIGITAL_IDENTITY_SERVICE_CORS_ALLOWED_ORIGINS: {{ include "istari-platform.frontendRedirectUri" . | quote }}

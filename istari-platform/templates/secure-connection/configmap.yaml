@@ -16,6 +16,7 @@ metadata:
     helm.sh/hook-weight: "-15"
   {{- end }}
 data:
+  {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
   {{- if dig "enabled" false (default dict .Values.jaeger) }}
   {{- /* Per-container OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES are set as explicit env by
