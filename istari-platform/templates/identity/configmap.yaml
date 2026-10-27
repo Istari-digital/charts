@@ -15,10 +15,15 @@ metadata:
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "-15"
+    {{- /* Stops Helm pruning this object as "removed from the release" when an upgrade turns it into a hook.
+    Without it, an upgrade that switches runAsJob to true deletes the ConfigMap and identity pods cannot start. */}}
+    helm.sh/resource-policy: keep
   {{- end }}
 data:
   {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+  # identity-service exits at startup without an allowlist; the frontend's origin is the one browser caller.
+  ISTARI_DIGITAL_IDENTITY_SERVICE_CORS_ALLOWED_ORIGINS: {{ include "istari-platform.frontendRedirectUri" . | quote }}
   {{- if dig "enabled" false (default dict .Values.jaeger) }}
   {{- /* the Identity Service uses the OTLP/HTTP exporter → target Jaeger's 4318, not the gRPC 4317
   fileservice uses. Per-container OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES are set as

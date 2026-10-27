@@ -642,18 +642,18 @@ secureConnection:
 # Default values for Identity Service.
 identity:
   # -- Enable / Disable the whole deployment
-  enabled: false
+  enabled: true
   # -- Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it.
   # @default -- (see fields below)
   clientIntegration:
-    # -- Whether clients in THIS release authenticate through the identity-service. Defaults to an explicit `false`, never derived from `identity.enabled`: a single-release install that wants identity now sets both values. Rendered in BOTH polarities whenever the API Gateway is enabled (`apiGateway.enabled`), alongside the `ISTARI_DIGITAL_API_URL` it accompanies, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set. With the gateway disabled, neither is emitted and the deprecated flags stay authoritative.
-    enabled: false
+    # -- Whether the registry, the frontend and MCP authenticate through identity-service; a release that turns identity-service off sets this to `false` too.
+    enabled: true
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "identity-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "2.3.1"
+  tag: "2.4.0"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -684,7 +684,7 @@ identity:
     defaultTenantId: ""
   # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
   extraEnvConfigMaps: []
-  # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
+  # -- Extra secrets to mount in the pod and in the migration and import Jobs; Zitadel-backed installs must add `zitadel-identity-service-env`.
   extraEnvSecrets: []
   # -- Replica count
   replicaCount: 1
@@ -773,7 +773,7 @@ identity:
     # -- Run database migrations as a Helm `pre-install` / `pre-upgrade` Job instead of a Deployment `initContainer`.
     # When `true`, a `Job` runs `/migrate` once per release before the Identity Service Deployment rolls out; the Identity Service `ServiceAccount` and env `ConfigMap` are annotated with the same hooks so they exist before the Job runs.
     # When `false`, migrations run in an `initContainer` on each Identity Service Pod before the main container starts (legacy behavior).
-    runAsJob: false
+    runAsJob: true
     # -- `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries.
     backoffLimit: 0
     # -- Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`).
@@ -845,7 +845,7 @@ identity:
     podLabels: {}
     # -- Extra environment variables for the migration Job only, rendered after the service-level `env` (on duplicate names, these win).
     env: []
-    # -- Extra secrets mounted (via `envFrom`, each `optional`) into the migration Job only, after `identity.secretName` and `identity.extraEnvSecrets`, which the Job also mounts. On a Zitadel configurator install the import needs the configurator's `zitadel-identity-service-env` secret: it carries the Zitadel management key the import reads with (`ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY`), the issuer, and the Secure Connection Service's user and organization ids (`..._SCS_AGENT_USERNAME`, `..._SCS_AGENT_PROVIDER_TENANT_ID`), without which the import grants `secure_connector` to nobody. An install that already lists it in `identity.extraEnvSecrets` needs nothing here; one that mounts it only for agent registration lists it here.
+    # -- Extra secrets mounted (via `envFrom`, each `optional`) into the migration Job only, after `identity.secretName` and `identity.extraEnvSecrets`, which the Job also mounts.
     extraEnvSecrets: []
     # -- Resource requests/limits for the migration Job.
     resources: {}
@@ -891,7 +891,7 @@ identity:
 # @default -- (see fields below)
 provisioner:
   # -- Enable / Disable the whole provisioner release.
-  enabled: false
+  enabled: true
   # -- Set when the provisioner runs in a separate release: this release then mounts the Secrets of
   # its enabled clients but does not run the provisioner. Not needed when `enabled` is true.
   external: false
@@ -900,7 +900,7 @@ provisioner:
   # -- Image name.
   image: "provisioner"
   # -- Image tag.
-  tag: "0.4.0"
+  tag: "0.4.1"
   # -- Image pull policy.
   imagePullPolicy: IfNotPresent
   # -- Image pull secrets for the provisioning Job pod. When empty, the chart-wide `imagePullSecrets` apply.
@@ -1105,7 +1105,7 @@ docs:
 # `registry`/`image`/`tag`.
 apiGateway:
   # -- Enable / Disable the whole deployment
-  enabled: false
+  enabled: true
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS Caddy variant in the Istari customer-docker JFrog repo, pulled with the same credentials as the rest of the chart. The `istaridigital.com/` path segment is part of the repository path — not a typo.

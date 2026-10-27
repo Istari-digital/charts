@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 6.11.0](https://img.shields.io/badge/Version-6.11.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
+![Version: 7.0.0](https://img.shields.io/badge/Version-7.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -27,31 +27,58 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 >
 > The `jaeger` and `dgraph-sec` dependencies are **optional** (`jaeger.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
 
+## Identity service
+
+A default install deploys the identity service, the API Gateway and the provisioner, and configures the registry service, the frontend and, when `mcp.enabled` is set, MCP to authenticate through the identity service. The chart cannot create these prerequisites, so they must exist before the identity service starts:
+
+- A Secret named by `identity.secretName` (default `istari-identity`) holding the identity service's PostgreSQL connection string as `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL`.
+- On a Zitadel-backed install, the Zitadel configurator's Secret. Zitadel-backed installs must add `zitadel-identity-service-env` to `identity.extraEnvSecrets` (the default is `[]`). Run the configurator with `configurator.identity_service_base_url` set to `https://<your-api-host>/identity`, or sign-in through the identity service fails.
+- On an install whose identity provider is not Zitadel, set `identity.oidc.provider` (or `identity.idpMigration.enabled: false`) so the Zitadel import does not run, and leave `identity.extraEnvSecrets` at its default `[]` or list your own Secrets, because every listed Secret must exist for the identity service's pods to start.
+- DNS and TLS for the API Gateway's host, `api.<mainFqdn>` unless overridden (see [API Gateway](#api-gateway)).
+
+The chart supplies the rest of what a default install needs:
+
+- The identity service's database migration and, on a Zitadel install, the import of Zitadel's organizations, people and tenant administrator grants into the identity service, each as a Helm hook Job. The import requires `identity.migrations.runAsJob: true`, the default.
+- The identity service's CORS allowlist, `https://<mainFqdn>`. To allow other origins, set `ISTARI_DIGITAL_IDENTITY_SERVICE_CORS_ALLOWED_ORIGINS`, a comma-separated list, in `identity.env` or in the Secret named by `identity.secretName`. It replaces the chart's value, so include `https://<mainFqdn>`.
+- Through the [provisioner](#provisioner), the registry service's and MCP's client credentials and the identity service's signing and encryption keys.
+
+### Turning the identity service off
+
+A future release will remove the option to deploy without the identity service. Until then, set these three values to `false`, and keep the API Gateway on:
+
+```yaml
+identity:
+  enabled: false
+  clientIntegration:
+    enabled: false
+provisioner:
+  enabled: false
+```
+
+The chart then deploys no identity service and no provisioner, whose generated keys serve only the identity service, and the registry service, the frontend and MCP authenticate directly against your identity provider. Setting only `identity.enabled: false` leaves those services configured to use an identity service that is not deployed, so sign-in fails. Leave `apiGateway.enabled` at `true`: from chart 6.0 the web app reaches the registry service only through the API Gateway, so turning it off breaks the web app.
+
+These values keep identity-service off on an install that never enabled it; turning it off after it has been on hasn't been tested.
+
+On an install that sets `trustedCertBundle`, turning the identity service off after it has run turns the `<fullname>-shared-trusted-certs` ConfigMap from a Helm hook into an ordinary release resource, unless the registry service's or the Secure Connection Service's migrations run as Jobs. Helm refuses to adopt the existing ConfigMap (`invalid ownership metadata`), so delete it before the upgrade, or upgrade with `--take-ownership` (Helm 3.17 or later). The same applies to `<fullname>-identity-envvars` when `identity.migrations.runAsJob` changes from `true` to `false`.
+
 ## API Gateway
 
-The API Gateway (`apiGateway.enabled`, default `false`) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
+The API Gateway (`apiGateway.enabled`, default `true`) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
 
-`common.mainFqdn` is **required**, so the chart always knows the platform's API host — `api.<mainFqdn>`, or `common.apiFqdnOverride` for a host that isn't a subdomain of `mainFqdn`. Enabling the API Gateway (`apiGateway.enabled`) deploys the bundled reverse proxy for that host **and** points the chart's services at it: the registry service and MCP (when `mcp.enabled`) receive `ISTARI_DIGITAL_API_URL`, the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, and the browser reaches the registry service through `<your-api-host>/registry`. With the gateway disabled (the default), the chart deploys no proxy and emits none of these variables; the services address each other directly in-cluster. Point each client tool's base URL (the `ISTARI_DIGITAL_API_URL` setting) at `https://<your-api-host>` with no path; clients append the prefixes (`/registry`, `/identity`) themselves.
+`common.mainFqdn` is **required**, so the chart always knows the platform's API host — `api.<mainFqdn>`, or `common.apiFqdnOverride` for a host that isn't a subdomain of `mainFqdn`. The API Gateway (`apiGateway.enabled`) deploys the bundled reverse proxy for that host **and** points the chart's services at it: the registry service and MCP (when `mcp.enabled`) receive `ISTARI_DIGITAL_API_URL`, the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, and the browser reaches the registry service through `<your-api-host>/registry`. With the gateway disabled, the chart deploys no proxy and emits none of these variables, and the web app cannot reach the registry service: from chart 6.0 it does so only through the API Gateway. Point each client tool's base URL (the `ISTARI_DIGITAL_API_URL` setting) at `https://<your-api-host>` with no path; clients append the prefixes (`/registry`, `/identity`) themselves.
 
 MCP consumes the gateway as a client; the gateway does not serve MCP requests. No `/mcp` route exists, so `https://<your-api-host>/mcp` returning 404 is expected, not a misconfiguration.
 
 > [!IMPORTANT]
 > Routing through the gateway and switching authentication to the identity service are **two independent settings**.
 >
-> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, off by default and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients.
+> Setting `ISTARI_DIGITAL_API_URL` routes a client's registry traffic through `<your-api-host>/registry`. It does **not** switch authentication to the identity service. That is governed by a second value, `identity.clientIntegration.enabled`, on by default and independent of `identity.enabled`: `enabled` deploys the identity-service; `clientIntegration.enabled` moves the registry service, the frontend, and MCP onto it as OIDC clients.
 >
-> `identity.clientIntegration.enabled` takes effect only with the API Gateway enabled. The chart emits the identity toggle to the registry service, the frontend, and MCP only alongside `ISTARI_DIGITAL_API_URL`, which it sets only when `apiGateway.enabled` — so with the gateway off, `clientIntegration.enabled` is a no-op (the toggle is never emitted without the gateway URL the services need). Enable the API Gateway to move clients onto the identity service.
+> The chart emits the identity toggle to the registry service, the frontend, and MCP only alongside `ISTARI_DIGITAL_API_URL`, which it sets only when `apiGateway.enabled` is `true`.
 >
 > The former `…_IDENTITY_ROUTER_ENABLED` names (and the frontend's `VITE_IDENTITY_ROUTER_*`) remain supported as deprecated aliases, and are ignored when the corresponding new names are set. Prefer the new names; the aliases will be removed in a future release.
 
-Enabling the API Gateway pulls one additional image, `istaridigital.jfrog.io/customer-docker/istaridigital.com/caddy-fips` (the `istaridigital.com` path segment is part of the repository path, not a typo). Air-gapped installations must add it to their image mirror alongside the chart's other images; it uses the same pull credentials.
-
-Routes for the platform's services are managed by the chart and always present, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `apiGateway.extraRoutes`. Enabling the API Gateway is one line in your values file:
-
-```yaml
-apiGateway:
-  enabled: true
-```
+Routes for the platform's services are managed by the chart and always present, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `apiGateway.extraRoutes`. The API Gateway is on by default; keep it on, because the web app depends on it.
 
 Expose it the same way as the registry service: point your external load balancer or existing ingress controller at the API Gateway's `kind: Service` on port 80, terminating TLS there (the API Gateway itself serves plain HTTP and requires no Istio). The chart can also create a Kubernetes Ingress (`apiGateway.ingress`) or Istio VirtualService (`apiGateway.virtualService`) for you. Optional per-request tracing lights up automatically when the bundled Jaeger is enabled (`jaeger.enabled`); see `apiGateway.tracing.enabled`.
 
@@ -59,7 +86,7 @@ The proxy software inside the API Gateway (currently Caddy) is an internal imple
 
 ## Provisioner
 
-The provisioner (`provisioner.enabled`, default `false`) is a one-shot Job that generates and publishes platform secrets. Today it registers the platform's services as OAuth/OIDC clients against the identity service and writes their credentials into Kubernetes Secrets that the consuming services mount; it may grow to other secret-generation uses in future.
+The provisioner (`provisioner.enabled`, default `true`) is a one-shot Job that generates and publishes platform secrets. Today it registers the platform's services as OAuth/OIDC clients against the identity service and writes their credentials into Kubernetes Secrets that the consuming services mount; it may grow to other secret-generation uses in future.
 
 It is an ordinary release resource, not a Helm hook, so it needs no special install, upgrade, or uninstall steps: `helm uninstall` removes the Job and its ServiceAccount, Role, and RoleBinding along with the rest of the release, and because the generated credential Secrets are owned by that ServiceAccount, Kubernetes garbage-collects them with it. Only the Terraform state Secret and its lock Lease persist — the kubernetes backend owns them, outside Helm's release — so a later reinstall resumes from the existing state. The Job reruns automatically whenever its inputs change — the pod template (image, env, mounts), the `backoffLimit`, `activeDeadlineSeconds`, or `serviceAccountAnnotations` values, or `provisioner.rerunToken` — because its name embeds a hash of all of them, so each change produces a new Job that Helm applies while pruning the previous one. Domain changes such as `common.mainFqdn` flow through the services' ConfigMaps directly and don't require the provisioner to rerun. An input that does not change leaves the completed Job in place; a completed provisioner Job is expected and safe to leave, not a sign that anything is wrong.
 
@@ -149,7 +176,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | apiGateway.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | apiGateway.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context. Unlike the other services, the root filesystem is read-only: Caddy only writes to the XDG state dirs, which the chart mounts as emptyDirs. |
 | apiGateway.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
-| apiGateway.enabled | bool | `false` | Enable / Disable the whole deployment |
+| apiGateway.enabled | bool | `true` | Enable / Disable the whole deployment |
 | apiGateway.env | list | `[]` | Environment variables for the proxy container, with the same schema as a pod container's `env:` block (e.g. `- name: FOO` / `  value: bar`). Not needed for a standard deployment; used for advanced setups such as exporting traces to your own collector (see `apiGateway.tracing.enabled`). |
 | apiGateway.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables in the proxy container (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
 | apiGateway.extraEnvSecrets | list | `[]` | Names of Kubernetes Secrets whose keys become environment variables in the proxy container. Not needed for a standard deployment. (Unlike the other services, the API Gateway has no separate `secretName` — this list is the only Secret mechanism.) |
@@ -390,14 +417,14 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | identity.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | identity.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. |
-| identity.clientIntegration.enabled | bool | `false` | Whether clients in THIS release authenticate through the identity-service. Defaults to an explicit `false`, never derived from `identity.enabled`: a single-release install that wants identity now sets both values. Rendered in BOTH polarities whenever the API Gateway is enabled (`apiGateway.enabled`), alongside the `ISTARI_DIGITAL_API_URL` it accompanies, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set. With the gateway disabled, neither is emitted and the deprecated flags stay authoritative. |
+| identity.clientIntegration.enabled | bool | `true` | Whether the registry, the frontend and MCP authenticate through identity-service; a release that turns identity-service off sets this to `false` too. |
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | identity.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | identity.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
-| identity.enabled | bool | `false` | Enable / Disable the whole deployment |
+| identity.enabled | bool | `true` | Enable / Disable the whole deployment |
 | identity.env | list | `[]` |  |
 | identity.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
-| identity.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
+| identity.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod and in the migration and import Jobs; Zitadel-backed installs must add `zitadel-identity-service-env`. |
 | identity.idpMigration | object | (see fields below) | Helm hook (weight 10) that runs identity-service's `migrate-idp`. The run depends on the incoming identity provider: `to` if set, else an `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER` entry in `identity.env`, else `identity.oidc.provider`, else `zitadel`; the chart cannot read a provider set only in a Secret, so an install on another provider that does this is treated as Zitadel and must set `to` or `enabled: false`. **Staying on Zitadel**, it runs `migrate-idp -mode import` on every install and upgrade unless `enabled` is `false`: the import creates a tenant for each Zitadel organization the management credential belongs to, pre-registers its people, imports tenant administrator grants, and grants `secure_connector` to the Secure Connection Service's agent if that agent is already registered. It only adds what identity-service lacks, and once an import is recorded for the provider and issuer, later runs stop at once (`already completed on <date>; nothing changed`); an import that skipped role grants for people with no principal is not recorded and runs again. Without it, people in organizations with no tenant cannot sign in through identity-service's default `/api/v2` flow, and Zitadel tenant administrators hold no rights in identity-service. **Switching to another provider** (e.g. Keycloak) runs `migrate-idp -mode migrate -to <provider>` only when `enabled` is `true`, and requires `to` and `fromIssuer`. The import and the switch both require `identity.migrations.runAsJob: true`, so the schema exists first; rendering fails otherwise, and an install that keeps `runAsJob: false` must set `enabled: false`. The import runs on `helm install` as well as `helm upgrade`: on a configurator install identity-service cannot start without the configurator's `zitadel-identity-service-env` secret, so the configurator, and its default organization, exist by then; an operator still creates tenants for organizations added to Zitadel later, with `create-tenant`. A provider switch runs on upgrade only. The hook runs before agent registration (weight 20), so on the install or upgrade that first enables identity-service the Secure Connection Service's agent does not exist yet when the import runs; its `secure_connector` role must then come from `register-agent -platform-role` or `grant-platform-role`. An upgrade with Helm's reuse-values flag keeps the previous chart's `enabled: false` default, so no import runs; set `enabled`, or use the reset-then-reuse-values flag instead. Needs identity-service 2.0.0-pre.17 or later: an earlier image has no `/migrate-idp` or no `-mode import` and fails the hook, and 2.0.0-pre.16 imports every organization the management key can see, not only those it is a member of. |
 | identity.idpMigration.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful hook Job by adding `hook-succeeded` to `helm.sh/hook-delete-policy`. |
 | identity.idpMigration.backoffLimit | int | `3` | `spec.backoffLimit` for the Job (retries after a failed Pod). A few retries ride out transient IdP-API hiccups. |
@@ -406,7 +433,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | identity.idpMigration.dryRun | bool | `false` | Print what would be migrated without writing, forwarded to every phase (tenants → roles → users). |
 | identity.idpMigration.enabled | bool | unset | Unset (the default): import when the deployment stays on Zitadel, and do nothing otherwise. `true`: also required to switch to another identity provider; once the release that switches has succeeded, unset it or set `false`, because nothing records a finished switch, so the hook would rerun it on every upgrade and fail once `fromIssuer` stops resolving. `false`: never render the hook, skipping the import deliberately. |
 | identity.idpMigration.env | list | `[]` | Extra environment variables for the migration Job only, rendered after the service-level `env` (on duplicate names, these win). |
-| identity.idpMigration.extraEnvSecrets | list | `[]` | Extra secrets mounted (via `envFrom`, each `optional`) into the migration Job only, after `identity.secretName` and `identity.extraEnvSecrets`, which the Job also mounts. On a Zitadel configurator install the import needs the configurator's `zitadel-identity-service-env` secret: it carries the Zitadel management key the import reads with (`ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY`), the issuer, and the Secure Connection Service's user and organization ids (`..._SCS_AGENT_USERNAME`, `..._SCS_AGENT_PROVIDER_TENANT_ID`), without which the import grants `secure_connector` to nobody. An install that already lists it in `identity.extraEnvSecrets` needs nothing here; one that mounts it only for agent registration lists it here. |
+| identity.idpMigration.extraEnvSecrets | list | `[]` | Extra secrets mounted (via `envFrom`, each `optional`) into the migration Job only, after `identity.secretName` and `identity.extraEnvSecrets`, which the Job also mounts. |
 | identity.idpMigration.from | string | `"zitadel"` | Outgoing IdP provider to enumerate (only `zitadel` is supported today; any other value fails rendering). |
 | identity.idpMigration.fromIssuer | string | `""` | Outgoing (Zitadel) issuer URL, reachable at pre-upgrade time. **Required to switch providers.** For the import, empty passes `$(ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER)`, which Kubernetes expands from the Job's environment: `identity.oidc.issuer`, the Secrets the Job mounts and `identity.env`, with the same precedence as the identity Deployment. identity-service cannot start without that variable, so it is set on every working install. |
 | identity.idpMigration.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only — the chart defaults `sidecar.istio.io/inject: "false"` here so these one-shot Job pods do not get a (never-exiting) Istio sidecar; your entries merge over that default, so set it to `"true"` to re-enable injection. |
@@ -429,7 +456,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | identity.migrations.podAnnotations | object | `{}` | Annotations for the migration Job Pod template only — the chart defaults `sidecar.istio.io/inject: "false"` here so these one-shot Job pods do not get a (never-exiting) Istio sidecar; your entries merge over that default, so set it to `"true"` to re-enable injection. |
 | identity.migrations.podLabels | object | `{}` | Extra labels for the migration Job Pod template only (in addition to the standard Identity Service labels). |
 | identity.migrations.resources | object | `{"limits":{"cpu":"500m","memory":"1Gi"},"requests":{"cpu":"500m","memory":"1Gi"}}` | Resources for migration containers, used by both the Deployment `initContainer` and the Helm hook `Job`. |
-| identity.migrations.runAsJob | bool | `false` | Run database migrations as a Helm `pre-install` / `pre-upgrade` Job instead of a Deployment `initContainer`. When `true`, a `Job` runs `/migrate` once per release before the Identity Service Deployment rolls out; the Identity Service `ServiceAccount` and env `ConfigMap` are annotated with the same hooks so they exist before the Job runs. When `false`, migrations run in an `initContainer` on each Identity Service Pod before the main container starts (legacy behavior). |
+| identity.migrations.runAsJob | bool | `true` | Run database migrations as a Helm `pre-install` / `pre-upgrade` Job instead of a Deployment `initContainer`. When `true`, a `Job` runs `/migrate` once per release before the Identity Service Deployment rolls out; the Identity Service `ServiceAccount` and env `ConfigMap` are annotated with the same hooks so they exist before the Job runs. When `false`, migrations run in an `initContainer` on each Identity Service Pod before the main container starts (legacy behavior). |
 | identity.nodeSelector | object | `{}` | Node selector |
 | identity.oidc | object | (see fields below) | Upstream OIDC / IdP configuration — the NON-secret half of pointing identity at an IdP. Each field set here renders as an explicit `env` entry on the identity container as the matching `ISTARI_DIGITAL_IDENTITY_SERVICE_*` var, so switching the upstream IdP (e.g. Zitadel → Keycloak) is a values change applied via `helm upgrade`. Explicit `env` beats `envFrom`, so these values win over any same-named key in `secretName` — no need to scrub old OIDC keys from the Secret. The client SECRET is NOT here — it stays in `secretName` (`ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_SECRET`, or `..._OIDC_PRIVATE_KEY` for private_key_jwt). Each field renders only when non-empty; an empty block preserves today's fully Secret-driven configuration. `provider` and `clientAuthMethod` are validated at render time, so a typo fails `helm template` rather than the running pod. |
 | identity.oidc.clientAuthMethod | string | `""` | Client auth method at the IdP token endpoint (validated): `private_key_jwt` (needs `..._OIDC_PRIVATE_KEY` in the Secret), `client_secret_basic`, or `client_secret_post` (both need `..._OIDC_CLIENT_SECRET` in the Secret). |
@@ -449,7 +476,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | identity.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | identity.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | identity.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| identity.tag | string | `"2.3.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| identity.tag | string | `"2.4.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | identity.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | identity.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | identity.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -551,7 +578,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | provisioner.backoffLimit | int | `6` | `spec.backoffLimit` for the provisioning Job. |
 | provisioner.commonLabels | object | `{}` | Additional labels to add to all of this component's resources |
 | provisioner.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Provisioner container's security context. |
-| provisioner.enabled | bool | `false` | Enable / Disable the whole provisioner release. |
+| provisioner.enabled | bool | `true` | Enable / Disable the whole provisioner release. |
 | provisioner.env | list | `[]` | Extra environment variables for the provisioner container. |
 | provisioner.external | bool | `false` | Set when the provisioner runs in a separate release: this release then mounts the Secrets of its enabled clients but does not run the provisioner. Not needed when `enabled` is true. |
 | provisioner.extraEnvSecrets | list | `[]` | Extra secrets to mount (via `envFrom`) into the provisioner container. |
@@ -566,7 +593,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | provisioner.rerunToken | string | `""` | Change this to any new value to force the provisioning Job to rerun without changing any other input: `helm upgrade --reuse-values --set provisioner.rerunToken=<anything>`. The Job's name is a hash of its inputs, and this token is one of them. |
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
 | provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
-| provisioner.tag | string | `"0.4.0"` | Image tag. |
+| provisioner.tag | string | `"0.4.1"` | Image tag. |
 | provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | secureConnection.affinity | object | `{}` | Affinity |
 | secureConnection.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
