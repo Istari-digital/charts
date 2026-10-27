@@ -12,9 +12,8 @@ Reads the identity.oidc.* fields directly — values.yaml is the source of truth
 for their defaults (per AGENTS.md), so the template adds no fallbacks of its own.
 Each field emits only when non-empty, so an empty block adds nothing. provider
 and clientAuthMethod are validated against the supported enums, so a typo fails
-`helm template` rather than the running pod. What a provider requires of the
-other fields (Entra's, for one) is left to identity-service, which checks it at
-startup.
+`helm template` rather than the running pod. Known incompatible provider/authentication-method pairs are rejected after
+identity.env overrides; issuer and Secret-provided settings remain startup checks.
 */}}
 {{- define "identity.oidcEnv" -}}
 {{- $oidc := .oidc -}}
@@ -22,6 +21,27 @@ startup.
 {{- if and $provider (not (has $provider (list "zitadel" "keycloak" "entra" "okta" "pingfederate" "lastwall" "google"))) }}{{- fail (printf "identity.oidc.provider must be one of zitadel, keycloak, entra, okta, pingfederate, lastwall, google, got %q" $provider) }}{{- end }}
 {{- $authMethod := $oidc.clientAuthMethod -}}
 {{- if and $authMethod (not (has $authMethod (list "private_key_jwt" "client_secret_basic" "client_secret_post"))) }}{{- fail (printf "identity.oidc.clientAuthMethod must be one of private_key_jwt, client_secret_basic, client_secret_post, got %q" $authMethod) }}{{- end }}
+{{- /* Validate only known effective values: service env overrides oidc values, while
+     Secret/valueFrom inputs must be checked by identity-service at startup. */ -}}
+{{- $effective := dict "provider" $provider "auth" $authMethod -}}
+{{- range $entry := .env -}}
+{{- $field := "" -}}
+{{- if eq $entry.name "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER" -}}{{- $field = "provider" -}}{{- end -}}
+{{- if eq $entry.name "ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_AUTH_METHOD" -}}{{- $field = "auth" -}}{{- end -}}
+{{- if $field -}}
+{{- $value := toString (default "" $entry.value) -}}
+{{- if or $entry.valueFrom (contains "$(" $value) -}}{{- $value = "" -}}{{- end -}}
+{{- $_ := set $effective $field $value -}}
+{{- end -}}
+{{- end -}}
+{{- if and $effective.provider $effective.auth -}}
+{{- if and (eq $effective.provider "pingfederate") (ne $effective.auth "client_secret_basic") -}}
+{{- fail "identity.oidc.clientAuthMethod must be client_secret_basic for pingfederate (including identity.env overrides)" -}}
+{{- end -}}
+{{- if and (has $effective.provider (list "entra" "okta" "lastwall" "google")) (not (has $effective.auth (list "client_secret_basic" "client_secret_post"))) -}}
+{{- fail (printf "identity.oidc.clientAuthMethod must be client_secret_basic or client_secret_post for %s (including identity.env overrides)" $effective.provider) -}}
+{{- end -}}
+{{- end -}}
 {{- with $provider }}
 - name: ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER
   value: {{ . | quote }}

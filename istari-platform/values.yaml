@@ -667,7 +667,7 @@ identity:
   # (`ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_SECRET`, or `..._OIDC_PRIVATE_KEY` for
   # private_key_jwt). Each field renders only when non-empty; an empty block preserves today's fully
   # Secret-driven configuration. `provider` and `clientAuthMethod` are validated at render time, so a
-  # typo fails `helm template` rather than the running pod.
+  # typo fails `helm template` rather than the running pod. Known incompatible provider/authentication-method pairs also fail after `identity.env` overrides; Secret-only settings remain startup checks.
   # @default -- (see fields below)
   oidc:
     # -- Upstream IdP provider implementation: `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall`, or `google` (validated). Okta/PingFederate require identity-service 2.3.1 or later; LastWall/Google require 2.4.0 or later. Selects the `internal/idp` wiring (user lookup, token refresh). One IdP per deployment. `entra` also requires `clientAuthMethod` `client_secret_basic` or `client_secret_post` (with `..._OIDC_CLIENT_SECRET` in the Secret) and a tenant-specific `issuer` (`https://login.microsoftonline.com/<tenant-guid>/v2.0`); identity-service does not start otherwise.

@@ -53,7 +53,7 @@ Zitadel imports reconcile on every invocation with identity-service 2.4.0. Inspe
 
 ### Turning the identity service off
 
-A future release will remove the option to deploy without the identity service. Until then, set these three values to `false`, and keep the API Gateway on:
+A future release will remove the option to deploy without the identity service. Until then, set these three values to `false`:
 
 ```yaml
 identity:
@@ -64,7 +64,7 @@ provisioner:
   enabled: false
 ```
 
-The chart then deploys no identity service and no provisioner, whose generated keys serve only the identity service, and the registry service, the frontend and MCP authenticate directly against your identity provider. Setting only `identity.enabled: false` leaves those services configured to use an identity service that is not deployed, so sign-in fails. Leave `apiGateway.enabled` at `true`: from chart 6.0 the web app reaches the registry service only through the API Gateway, so turning it off breaks the web app.
+The chart then deploys no identity service and no provisioner, whose generated keys serve only the identity service, and the registry service, the frontend and MCP authenticate directly against your identity provider. Setting only `identity.enabled: false` leaves those services configured to use an identity service that is not deployed, so sign-in fails. The API Gateway remains the default route. To disable it too, explicitly configure direct Registry access and upstream authentication for each client, including the frontend's `VITE_FILE_AUTH_ENDPOINT`.
 
 These values keep identity-service off on an install that never enabled it; turning it off after it has been on hasn't been tested.
 
@@ -74,7 +74,7 @@ On an install that sets `trustedCertBundle`, turning the identity service off af
 
 The API Gateway (`apiGateway.enabled`, default `true`) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
 
-`common.mainFqdn` is **required**, so the chart always knows the platform's API host — `api.<mainFqdn>`, or `common.apiFqdnOverride` for a host that isn't a subdomain of `mainFqdn`. The API Gateway (`apiGateway.enabled`) deploys the bundled reverse proxy for that host **and** points the chart's services at it: the registry service and MCP (when `mcp.enabled`) receive `ISTARI_DIGITAL_API_URL`, the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, and the browser reaches the registry service through `<your-api-host>/registry`. With the gateway disabled, the chart deploys no proxy and emits none of these variables, and the web app cannot reach the registry service: from chart 6.0 it does so only through the API Gateway. Point each client tool's base URL (the `ISTARI_DIGITAL_API_URL` setting) at `https://<your-api-host>` with no path; clients append the prefixes (`/registry`, `/identity`) themselves.
+`common.mainFqdn` is **required**, so the chart always knows the platform's API host — `api.<mainFqdn>`, or `common.apiFqdnOverride` for a host that isn't a subdomain of `mainFqdn`. The API Gateway (`apiGateway.enabled`) deploys the bundled reverse proxy for that host **and** points the chart's services at it: the registry service and MCP (when `mcp.enabled`) receive `ISTARI_DIGITAL_API_URL`, the frontend receives `VITE_ISTARI_DIGITAL_API_URL`, and the browser reaches the registry service through `<your-api-host>/registry`. With the gateway disabled, the chart deploys no proxy and emits none of these variables, so direct Registry access requires explicit client configuration when identity and its client integration are both off. Point each client tool's base URL (the `ISTARI_DIGITAL_API_URL` setting) at `https://<your-api-host>` with no path; clients append the prefixes (`/registry`, `/identity`) themselves.
 
 MCP consumes the gateway as a client; the gateway does not serve MCP requests. No `/mcp` route exists, so `https://<your-api-host>/mcp` returning 404 is expected, not a misconfiguration.
 
@@ -87,7 +87,7 @@ MCP consumes the gateway as a client; the gateway does not serve MCP requests. N
 >
 > The former `…_IDENTITY_ROUTER_ENABLED` names (and the frontend's `VITE_IDENTITY_ROUTER_*`) remain supported as deprecated aliases, and are ignored when the corresponding new names are set. Prefer the new names; the aliases will be removed in a future release.
 
-Routes for the platform's services are managed by the chart and always present, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `apiGateway.extraRoutes`. The API Gateway is on by default; keep it on, because the web app depends on it.
+Routes for the platform's services are managed by the chart and always present, with no configuration needed. Additional prefixes for in-cluster services the chart does not deploy can be attached via `apiGateway.extraRoutes`. The API Gateway is on by default and required when the identity service is enabled.
 
 Expose it the same way as the registry service: point your external load balancer or existing ingress controller at the API Gateway's `kind: Service` on port 80, terminating TLS there (the API Gateway itself serves plain HTTP and requires no Istio). The chart can also create a Kubernetes Ingress (`apiGateway.ingress`) or Istio VirtualService (`apiGateway.virtualService`) for you. Optional per-request tracing lights up automatically when the bundled Jaeger is enabled (`jaeger.enabled`); see `apiGateway.tracing.enabled`.
 
