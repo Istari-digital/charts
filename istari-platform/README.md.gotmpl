@@ -43,11 +43,13 @@ The chart supplies the rest of what a default install needs:
 
 ### Customer identity providers
 
-Chart 7.1.0 accepts `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall`, and `google` in `identity.oidc.provider`. One upstream provider is selected per deployment. The pinned identity-service 2.4.0 supports all seven; Okta/PingFederate first shipped in 2.3.1 and LastWall/Google in 2.4.0. Keep client secrets in `identity.secretName` or `identity.extraEnvSecrets`.
+Okta, Google, and Lastwall integrations are **Preview**, not generally available.
 
-Set the issuer, client ID, and authentication method required by the provider. PingFederate requires `client_secret_basic`; Entra, Okta, LastWall, and Google accept `client_secret_basic` or `client_secret_post`. Google and LastWall default to `openid profile email`; Google requests offline access with `access_type=offline`, not the `offline_access` scope.
+Chart 7.1.0 accepts `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall`, and `google` in `identity.oidc.provider`. One upstream provider is selected per deployment. The pinned identity-service 2.4.0 supports all seven; Okta/PingFederate first shipped in 2.3.1 and Lastwall/Google in 2.4.0. Keep client secrets in `identity.secretName` or `identity.extraEnvSecrets`.
 
-The migration hook supports outgoing Zitadel only, targeting `keycloak`, `entra`, `okta`, or `pingfederate`. It preserves stable principals and seeds pending registrations; it does not discover incoming subject IDs. Entra requires authoritative `oid` mappings. Okta/PingFederate email claiming requires pending registration and trusted verified-email assertions. For Google and LastWall, prepare authoritative subject mappings with `import-principal-mappings` before cutover and set `identity.idpMigration.enabled: false`. Google Workspace's restricted email linking is not a general migration mechanism; LastWall never enrolls by email. Verify principal IDs, tenant memberships, roles, ownership, and resource access after every switch.
+Set the issuer, client ID, and authentication method required by the provider. PingFederate requires `client_secret_basic`; Entra, Okta, Lastwall, and Google accept `client_secret_basic` or `client_secret_post`. Google and Lastwall default to `openid profile email`; Google requests offline access with `access_type=offline`, not the `offline_access` scope.
+
+The migration hook supports outgoing Zitadel only, targeting `keycloak`, `entra`, `okta`, or `pingfederate`. It preserves stable principals and seeds pending registrations; it does not discover incoming subject IDs. Entra requires authoritative `oid` mappings. Okta/PingFederate email claiming requires pending registration and trusted verified-email assertions. For Google and Lastwall, prepare authoritative subject mappings with `import-principal-mappings` before cutover and set `identity.idpMigration.enabled: false`. Google Workspace's restricted email linking is not a general migration mechanism; Lastwall never enrolls by email. Verify principal IDs, tenant memberships, roles, ownership, and resource access after every switch.
 
 Zitadel imports reconcile on every invocation with identity-service 2.4.0. Inspect import logs and verify the resulting accounts: missing management credentials or partial API reads can finish without a failing exit status.
 
