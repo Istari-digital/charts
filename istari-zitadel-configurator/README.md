@@ -1,6 +1,6 @@
 # istari-zitadel-configurator
 
-![Version: 1.11.1](https://img.shields.io/badge/Version-1.11.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 8.13.4](https://img.shields.io/badge/AppVersion-8.13.4-informational?style=flat-square)
+![Version: 1.11.2](https://img.shields.io/badge/Version-1.11.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 8.13.4](https://img.shields.io/badge/AppVersion-8.13.4-informational?style=flat-square)
 
 A Helm chart for configuring Zitadel instance to work with Istari.
 
@@ -86,7 +86,7 @@ helm uninstall istari-zitadel-configurator
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy (e.g., Always, IfNotPresent, Never) |
 | image.registry | string | `"istaridigital.jfrog.io"` | Docker registry where the image is hosted |
 | image.repository | string | `"main-docker-local/zitadel-configurator"` | Docker repository for the image |
-| image.tag | string | `"1.0.0"` | Image tag to use |
+| image.tag | string | `"2.0.0"` | Image tag to use |
 | imagePullSecrets[0].name | string | `"docker-pull-secret"` |  |
 | nameOverride | string | `"istari-zitadel-configurator"` | Override the name of the chart. |
 | nodeSelector | object | `{}` | Node selector for pod assignment. For more information, see: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/ |
