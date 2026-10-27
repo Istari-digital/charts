@@ -24,6 +24,8 @@
 {{- $idpEnabled := index $idp "enabled" -}}
 {{- $render := ternary (ne (toString $idpEnabled) "false") (eq (toString $idpEnabled) "true") $import -}}
 {{- if and $serviceValues.enabled $render }}
+{{- /* The hook must prepare the provider the Deployment will actually use. */ -}}
+{{- if and $idp.to (hasKey $providerEntry "name") (not $providerEntry.valueFrom) (not (contains "$(" $envProvider)) (ne ($baseProvider | default "zitadel") $idp.to) }}{{ fail (printf "identity.idpMigration.to must match the literal identity.env ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER value %q; set both to the incoming provider or set identity.idpMigration.enabled=false" ($baseProvider | default "zitadel")) }}{{ end }}
 {{- $runAsJob := dig "runAsJob" false (dig "migrations" dict $serviceValues) -}}
 {{- /* migrate-idp runs against the schema the weight-5 db-migrate hook leaves, which exists only with
        runAsJob=true; with runAsJob=false migrations run as a Deployment initContainer, after all hooks. */ -}}
