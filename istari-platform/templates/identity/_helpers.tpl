@@ -19,7 +19,7 @@ startup.
 {{- define "identity.oidcEnv" -}}
 {{- $oidc := .oidc -}}
 {{- $provider := $oidc.provider -}}
-{{- if and $provider (not (has $provider (list "zitadel" "keycloak" "entra"))) }}{{- fail (printf "identity.oidc.provider must be \"zitadel\", \"keycloak\" or \"entra\", got %q" $provider) }}{{- end }}
+{{- if and $provider (not (has $provider (list "zitadel" "keycloak" "entra" "okta" "pingfederate" "lastwall" "google"))) }}{{- fail (printf "identity.oidc.provider must be one of zitadel, keycloak, entra, okta, pingfederate, lastwall, google, got %q" $provider) }}{{- end }}
 {{- $authMethod := $oidc.clientAuthMethod -}}
 {{- if and $authMethod (not (has $authMethod (list "private_key_jwt" "client_secret_basic" "client_secret_post"))) }}{{- fail (printf "identity.oidc.clientAuthMethod must be one of private_key_jwt, client_secret_basic, client_secret_post, got %q" $authMethod) }}{{- end }}
 {{- with $provider }}
