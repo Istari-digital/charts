@@ -20,6 +20,30 @@
 {{- fail (printf "alpha.tls.clientAuthType=%s forces every client to present a certificate, which the built-in httpGet probes cannot do (the kubelet has no client cert). Relax alpha.tls.clientAuthType (e.g. VERIFYIFGIVEN) on the external ports, or supply alpha.customStartupProbe / customLivenessProbe / customReadinessProbe (exec probes that present the client cert)." .Values.alpha.tls.clientAuthType) }}
 {{- end }}
 {{- end }}
+{{- /* Zanzibar (SpiceDB-compatible authz API): validate mode and key config
+       up front so a misconfiguration fails `helm template`/`helm install`
+       with an actionable message instead of shipping a broken or
+       unauthenticated Alpha. */}}
+{{- if .Values.alpha.zanzibar.enabled }}
+{{- if eq .Values.alpha.zanzibar.mode "jwt" }}
+{{- fail "alpha.zanzibar.mode=jwt is reserved and unimplemented in dgraph-sec (the binary calls glog.Fatalf at boot). Use mode=preshared." }}
+{{- end }}
+{{- if and (eq .Values.alpha.zanzibar.mode "open") (not .Values.alpha.zanzibar.allowInsecureOpen) }}
+{{- fail "alpha.zanzibar.mode=open disables ALL authentication on the Zanzibar API (shared on Alpha's 9080). Set alpha.zanzibar.allowInsecureOpen=true to confirm (dev only)." }}
+{{- end }}
+{{- if and (ne .Values.alpha.zanzibar.mode "preshared") (ne .Values.alpha.zanzibar.mode "open") }}
+{{- fail (printf "alpha.zanzibar.mode=%s is invalid; use preshared or open." .Values.alpha.zanzibar.mode) }}
+{{- end }}
+{{- if and (eq .Values.alpha.zanzibar.mode "preshared") (not .Values.alpha.zanzibar.existingSecret) (not .Values.alpha.zanzibar.file) }}
+{{- fail "alpha.zanzibar.mode=preshared requires a key: set alpha.zanzibar.existingSecret (production) or alpha.zanzibar.file (dev)." }}
+{{- end }}
+{{- if and .Values.alpha.zanzibar.existingSecret .Values.alpha.zanzibar.file }}
+{{- fail "Set only one of alpha.zanzibar.existingSecret or alpha.zanzibar.file, not both." }}
+{{- end }}
+{{- if and (eq .Values.alpha.zanzibar.mode "preshared") (not .Values.alpha.zanzibar.existingSecret) .Values.alpha.zanzibar.file (not (hasKey .Values.alpha.zanzibar.file .Values.alpha.zanzibar.keyName)) }}
+{{- fail (printf "alpha.zanzibar.file must contain a key matching alpha.zanzibar.keyName (%q) — it is mounted at /dgraph/zanzibar/%s and read via preshared-key-file. Rename the key in alpha.zanzibar.file or set alpha.zanzibar.keyName to match." .Values.alpha.zanzibar.keyName .Values.alpha.zanzibar.keyName) }}
+{{- end }}
+{{- end }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -238,6 +262,8 @@ spec:
               {{- if .Values.alpha.acl.enabled }} --acl "secret-file=/dgraph/acl/{{ .Values.alpha.acl.secretFile }};"{{- end }}
               {{- /* encryption-at-rest: point Dgraph at the mounted encryption key */}}
               {{- if .Values.alpha.encryption.enabled }} --encryption "key-file=/dgraph/enc/{{ .Values.alpha.encryption.keyFile }};"{{- end }}
+              {{- /* Zanzibar: SpiceDB-compatible authz API on the shared 9080 gRPC port */}}
+              {{- if .Values.alpha.zanzibar.enabled }} --zanzibar-acl "mode={{ .Values.alpha.zanzibar.mode }};{{- if eq .Values.alpha.zanzibar.mode "preshared" }}preshared-key-file=/dgraph/zanzibar/{{ .Values.alpha.zanzibar.keyName }};{{- end }}schema-cache-ttl={{ .Values.alpha.zanzibar.schemaCacheTTL }};"{{- end }}
               {{- /* tracing: export OTEL/Jaeger traces */}}
               {{- if .Values.tracing.enabled }} --trace "jaeger={{ .Values.tracing.endpoint }}; ratio={{ .Values.tracing.ratio }}; service={{ .Values.tracing.alpha.service }};"{{- end }}
         resources:
@@ -308,6 +334,11 @@ spec:
         - name: acl-volume
           mountPath: /dgraph/acl
         {{- end }}
+        {{- if and .Values.alpha.zanzibar.enabled (eq .Values.alpha.zanzibar.mode "preshared") }}
+        - name: zanzibar-volume
+          mountPath: /dgraph/zanzibar
+          readOnly: true
+        {{- end }}
         {{- if and $backupsEnabled .Values.backups.nfs.enabled }}
         - name: backups-nfs-volume
           mountPath: {{ .Values.backups.nfs.mountPath }}
@@ -357,6 +388,13 @@ spec:
           # existingSecret lets a pre-created Secret (e.g. a Terraform-managed one)
           # supply the HMAC key, so it never has to be rendered through Helm values.
           secretName: {{ .Values.alpha.acl.existingSecret | default (printf "%s-acl-secret" (include "dgraph-sec.alpha.fullname" .)) }}
+      {{- end }}
+      {{- if and .Values.alpha.zanzibar.enabled (eq .Values.alpha.zanzibar.mode "preshared") }}
+      - name: zanzibar-volume
+        secret:
+          # existingSecret lets a pre-created Secret (e.g. a Terraform-managed one)
+          # supply the preshared key, so it never has to be rendered through Helm values.
+          secretName: {{ .Values.alpha.zanzibar.existingSecret | default (printf "%s-zanzibar-secret" (include "dgraph-sec.alpha.fullname" .)) }}
       {{- end }}
 
 {{- if .Values.alpha.persistence.enabled }}
