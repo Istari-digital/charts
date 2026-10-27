@@ -653,7 +653,7 @@ identity:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "identity-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "2.3.1"
+  tag: "2.4.0"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -684,9 +684,8 @@ identity:
     defaultTenantId: ""
   # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
   extraEnvConfigMaps: []
-  # -- Extra secrets to mount in the pod and in the migration and import Jobs; each must exist.
-  extraEnvSecrets:
-  - zitadel-identity-service-env
+  # -- Extra secrets to mount in the pod and in the migration and import Jobs; Zitadel-backed installs must add `zitadel-identity-service-env`.
+  extraEnvSecrets: []
   # -- Replica count
   replicaCount: 1
   # -- Restart policy

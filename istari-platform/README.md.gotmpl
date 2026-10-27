@@ -31,8 +31,8 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 A default install deploys the identity service, the API Gateway and the provisioner, and configures the registry service, the frontend and, when `mcp.enabled` is set, MCP to authenticate through the identity service. The chart cannot create these prerequisites, so they must exist before the identity service starts:
 
 - A Secret named by `identity.secretName` (default `istari-identity`) holding the identity service's PostgreSQL connection string as `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL`.
-- On a Zitadel install, the Zitadel configurator's `zitadel-identity-service-env` Secret, which `identity.extraEnvSecrets` mounts by default. Run the configurator with `configurator.identity_service_base_url` set to `https://<your-api-host>/identity`, or sign-in through the identity service fails.
-- On an install whose identity provider is not Zitadel, set `identity.oidc.provider` (or `identity.idpMigration.enabled: false`) so the Zitadel import does not run, and set `identity.extraEnvSecrets` to `[]` or to your own Secrets, because every listed Secret must exist for the identity service's pods to start.
+- On a Zitadel-backed install, the Zitadel configurator's Secret. Zitadel-backed installs must add `zitadel-identity-service-env` to `identity.extraEnvSecrets` (the default is `[]`). Run the configurator with `configurator.identity_service_base_url` set to `https://<your-api-host>/identity`, or sign-in through the identity service fails.
+- On an install whose identity provider is not Zitadel, set `identity.oidc.provider` (or `identity.idpMigration.enabled: false`) so the Zitadel import does not run, and leave `identity.extraEnvSecrets` at its default `[]` or list your own Secrets, because every listed Secret must exist for the identity service's pods to start.
 - DNS and TLS for the API Gateway's host, `api.<mainFqdn>` unless overridden (see [API Gateway](#api-gateway)).
 
 The chart supplies the rest of what a default install needs:
@@ -55,6 +55,8 @@ provisioner:
 ```
 
 The chart then deploys no identity service and no provisioner, whose generated keys serve only the identity service, and the registry service, the frontend and MCP authenticate directly against your identity provider. Setting only `identity.enabled: false` leaves those services configured to use an identity service that is not deployed, so sign-in fails. Leave `apiGateway.enabled` at `true`: from chart 6.0 the web app reaches the registry service only through the API Gateway, so turning it off breaks the web app.
+
+These values keep identity-service off on an install that never enabled it; turning it off after it has been on hasn't been tested.
 
 On an install that sets `trustedCertBundle`, turning the identity service off after it has run turns the `<fullname>-shared-trusted-certs` ConfigMap from a Helm hook into an ordinary release resource, unless the registry service's or the Secure Connection Service's migrations run as Jobs. Helm refuses to adopt the existing ConfigMap (`invalid ownership metadata`), so delete it before the upgrade, or upgrade with `--take-ownership` (Helm 3.17 or later). The same applies to `<fullname>-identity-envvars` when `identity.migrations.runAsJob` changes from `true` to `false`.
 
