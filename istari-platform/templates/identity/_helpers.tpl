@@ -12,8 +12,9 @@ Reads the identity.oidc.* fields directly — values.yaml is the source of truth
 for their defaults (per AGENTS.md), so the template adds no fallbacks of its own.
 Each field emits only when non-empty, so an empty block adds nothing. provider
 and clientAuthMethod are validated against the supported enums, so a typo fails
-`helm template` rather than the running pod. Provider-specific configuration is
-validated by identity-service at startup, including values supplied through Secrets.
+`helm template` rather than the running pod. What a provider requires of the
+other fields (Entra's, for one) is left to identity-service, which checks it at
+startup.
 */}}
 {{- define "identity.oidcEnv" -}}
 {{- $oidc := .oidc -}}

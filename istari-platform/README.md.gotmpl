@@ -47,21 +47,9 @@ Okta, Google, and Lastwall integrations are **Preview**, not generally available
 
 Select one upstream provider with `identity.oidc.provider`: `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall`, or `google`. Configure its issuer, client ID, authentication method, and scopes through `identity.oidc` or your existing environment configuration. Empty OIDC values add no chart override, preserving configuration supplied through Secrets and the service's own defaults. Keep client secrets and private keys in `identity.secretName` or `identity.extraEnvSecrets`. Identity Service validates provider-specific requirements at startup.
 
-### IdP migration
+The migration hook supports switches from Zitadel to `keycloak`, `entra`, `okta`, or `pingfederate`. Set `identity.idpMigration.to` to the provider configured for Identity Service, and explicitly enable the hook for the switch. For Google and Lastwall, prepare authoritative subject mappings with `import-principal-mappings` and set `identity.idpMigration.enabled: false`.
 
-The hook imports accounts from Zitadel or prepares a switch away from it. Set `identity.idpMigration.enabled` according to the operation:
-
-| Value | Hook behavior |
-| --- | --- |
-| Unset | Import when the selected target is Zitadel; otherwise skip. |
-| `true` | Import for a Zitadel target, or prepare a provider switch on upgrade. |
-| `false` | Skip both import and migration. |
-
-A switch requires `identity.idpMigration.to` and `identity.idpMigration.fromIssuer`. Supported destinations are `keycloak`, `entra`, `okta`, and `pingfederate`. For Google and Lastwall, prepare authoritative subject mappings with `import-principal-mappings` and set `identity.idpMigration.enabled: false`. Follow the customer setup documentation for account preparation and verify that existing users retain their principal IDs, tenant memberships, roles, and resource access.
-
-The target is `identity.idpMigration.to` when set. Otherwise, it is the last provider entry in `identity.env`, then `identity.oidc.provider` if no environment override exists. With neither set, the hook defaults to importing from `identity.idpMigration.from`. Helm cannot inspect provider values held in Secrets; for a non-Zitadel provider, set the target explicitly or disable the hook. A provider supplied through `valueFrom` or a `$(VAR)` reference always requires an explicit target or a disabled hook. A running hook's target must match any known deployment provider. Both import and migration require `identity.migrations.runAsJob: true` so the database schema exists first.
-
-Zitadel imports reconcile on every install and upgrade. Inspect import logs and verify the resulting accounts: missing management credentials or partial API reads can finish without a failing exit status.
+Zitadel imports reconcile on every install and upgrade unless disabled. Inspect import logs and verify the resulting accounts: missing management credentials or partial API reads can finish without a failing exit status.
 
 ### Turning the identity service off
 
