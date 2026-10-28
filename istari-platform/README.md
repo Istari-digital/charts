@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 7.1.0](https://img.shields.io/badge/Version-7.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
+![Version: 7.1.1](https://img.shields.io/badge/Version-7.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -48,9 +48,21 @@ Okta, Google, and Lastwall integrations are **Preview**, not generally available
 
 Select one upstream provider with `identity.oidc.provider`: `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall`, or `google`. Configure its issuer, client ID, authentication method, and scopes through `identity.oidc` or your existing environment configuration. Empty OIDC values add no chart override, preserving configuration supplied through Secrets and the service's own defaults. Keep client secrets and private keys in `identity.secretName` or `identity.extraEnvSecrets`. Identity Service validates provider-specific requirements at startup.
 
-The migration hook supports switches from Zitadel to `keycloak`, `entra`, `okta`, or `pingfederate`. Set `identity.idpMigration.to` to the provider configured for Identity Service, and explicitly enable the hook for the switch. For Google and Lastwall, prepare authoritative subject mappings with `import-principal-mappings` and set `identity.idpMigration.enabled: false`.
+### IdP migration
 
-Zitadel imports reconcile on every install and upgrade unless disabled. Inspect import logs and verify the resulting accounts: missing management credentials or partial API reads can finish without a failing exit status.
+The hook imports accounts from Zitadel or prepares a switch away from it. Set `identity.idpMigration.enabled` according to the operation:
+
+| Value | Hook behavior |
+| --- | --- |
+| Unset | Import when the selected target is Zitadel; otherwise skip. |
+| `true` | Import for a Zitadel target, or prepare a provider switch on upgrade. |
+| `false` | Skip both import and migration. |
+
+A switch requires `identity.idpMigration.to` and `identity.idpMigration.fromIssuer`. Supported destinations are `keycloak`, `entra`, `okta`, and `pingfederate`. For Google and Lastwall, prepare authoritative subject mappings with `import-principal-mappings` and set `identity.idpMigration.enabled: false`. Follow the customer setup documentation for account preparation and verify that existing users retain their principal IDs, tenant memberships, roles, and resource access.
+
+The target is `identity.idpMigration.to` when set. Otherwise, it is the last provider entry in `identity.env`, then `identity.oidc.provider` if no environment override exists. With neither set, the hook defaults to importing from `identity.idpMigration.from`. Helm cannot inspect provider values held in Secrets; for a non-Zitadel provider, set the target explicitly or disable the hook. A provider supplied through `valueFrom` or a `$(VAR)` reference always requires an explicit target or a disabled hook. A running hook's target must match any known deployment provider. Both import and migration require `identity.migrations.runAsJob: true` so the database schema exists first.
+
+Zitadel imports reconcile on every install and upgrade. Inspect import logs and verify the resulting accounts: missing management credentials or partial API reads can finish without a failing exit status.
 
 ### Turning the identity service off
 
@@ -446,7 +458,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | identity.idpMigration.podLabels | object | `{}` | Extra labels for the migration Job Pod template only. |
 | identity.idpMigration.resources | object | `{}` | Resource requests/limits for the migration Job. |
 | identity.idpMigration.slugPrefix | string | `""` | Optional slug prefix for derived tenants; forwarded to bootstrap-tenants. Leave it empty for the import, so tenant slugs follow the Zitadel organization names. |
-| identity.idpMigration.to | string | `""` | Target provider: `zitadel` to import, or `keycloak`, `entra`, `okta`, or `pingfederate` to switch. Required for a switch. When empty, use the last provider entry in `identity.env`, then `identity.oidc.provider` when no environment override exists, then `zitadel` for the automatic import. Set the target to the provider configured for Identity Service. Helm cannot inspect Secret values or unresolved `valueFrom`/`$(VAR)` references: set `to` explicitly or disable the hook. Google and Lastwall require explicit subject mapping with the hook disabled. Prepare the destination's subject mappings or pending registrations before cutover; the hook does not discover incoming subject IDs. |
+| identity.idpMigration.to | string | `""` | Target provider: `zitadel` to import, or `keycloak`, `entra`, `okta`, or `pingfederate` to switch. Required for a switch. When empty, use the last provider entry in `identity.env`, then `identity.oidc.provider` when no environment override exists, then `from` for the automatic import. A running hook rejects a target that conflicts with a known deployment provider. Helm cannot inspect Secret values or unresolved `valueFrom`/`$(VAR)` references: set `to` explicitly or disable the hook. Google and Lastwall require explicit subject mapping with the hook disabled. Prepare the destination's subject mappings or pending registrations before cutover; the hook does not discover incoming subject IDs. |
 | identity.image | string | `"identity-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | identity.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | identity.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
