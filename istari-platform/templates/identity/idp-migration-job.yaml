@@ -1,62 +1,97 @@
 {{- $serviceValues := .Values.identity -}}
-{{- $idp := dig "idpMigration" dict $serviceValues -}}
+{{- $idp := $serviceValues.idpMigration -}}
 {{- $oidc := $serviceValues.oidc -}}
-{{- $from := dig "from" "zitadel" $idp -}}
-{{- /* The hook targets idpMigration.to when set, else the provider known from the Deployment,
-       else zitadel. Staying on the outgoing provider needs the import, so it runs unless enabled
-       is explicitly false; switching providers still takes enabled=true. */ -}}
-{{- /* identity.env overrides identity.oidc.provider in the Deployment, last entry winning, so it does here too. */ -}}
+{{- $from := $idp.from -}}
+
+{{- /* Match the Deployment's last-entry-wins environment overrides. */ -}}
 {{- $providerEntry := dict -}}
-{{- range $e := $serviceValues.env }}
-{{- if eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER" }}{{- $providerEntry = $e -}}{{- end }}
-{{- end }}
+{{- range $entry := $serviceValues.env -}}
+  {{- if eq (toString $entry.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER" -}}
+    {{- $providerEntry = $entry -}}
+  {{- end -}}
+{{- end -}}
+{{- $hasProviderOverride := hasKey $providerEntry "name" -}}
 {{- $envProvider := toString (default "" $providerEntry.value) -}}
-{{- if and $serviceValues.enabled (or $providerEntry.valueFrom (contains "$(" $envProvider)) (not $idp.to) (ne (toString (index $idp "enabled")) "false") }}{{ fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER through valueFrom or a $(VAR) reference, which the chart cannot read: set identity.idpMigration.to to the provider identity-service runs (zitadel to import, or the incoming provider to switch), or identity.idpMigration.enabled=false" }}{{ end }}
-{{- /* An entry present but empty still replaces identity.oidc.provider; identity-service reads empty as zitadel. */ -}}
-{{- $baseProvider := ternary $envProvider $oidc.provider (hasKey $providerEntry "name") -}}
-{{- /* Checked before deciding whether to render: a typo would otherwise either fail migrate-idp
-       (-to is forwarded unchecked) after the upgrade has started, or, with enabled unset, read as a
-       provider switch and silently skip the import. zitadel runs the import. */ -}}
-{{- if and $serviceValues.enabled $idp.to (ne (toString (index $idp "enabled")) "false") (not (has $idp.to (list "zitadel" "keycloak" "entra" "okta" "pingfederate"))) }}{{ fail (printf "identity.idpMigration.to must be one of zitadel (the import), keycloak, entra, okta, pingfederate; google and lastwall require explicit subject mapping with identity.idpMigration.enabled=false, got %q" $idp.to) }}{{ end }}
-{{- $incoming := $idp.to | default $baseProvider | default "zitadel" -}}
+{{- $providerUnresolved := or (not (empty $providerEntry.valueFrom)) (contains "$(" $envProvider) -}}
+{{- $providerKnown := not (empty $oidc.provider) -}}
+{{- $effectiveProvider := $oidc.provider -}}
+{{- if $hasProviderOverride -}}
+  {{- $providerKnown = not $providerUnresolved -}}
+  {{- $effectiveProvider = $envProvider -}}
+  {{- /* An empty explicit override replaces oidc.provider and selects the default import path. */ -}}
+  {{- if not $effectiveProvider -}}
+    {{- $effectiveProvider = $from -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* A Secret-only provider is unknown to Helm; without an explicit target, preserve the automatic import. */ -}}
+{{- $incoming := $idp.to -}}
+{{- if and (not $incoming) $providerKnown -}}
+  {{- $incoming = $effectiveProvider -}}
+{{- end -}}
+{{- if not $incoming -}}
+  {{- $incoming = $from -}}
+{{- end -}}
 {{- $import := eq $incoming $from -}}
-{{- $idpEnabled := index $idp "enabled" -}}
-{{- $render := ternary (ne (toString $idpEnabled) "false") (eq (toString $idpEnabled) "true") $import -}}
-{{- if and $serviceValues.enabled $render }}
-{{- /* The hook must prepare the provider the Deployment will actually use. An empty OIDC block
-       may be Secret-driven, so compare only providers known at render time. */ -}}
-{{- if and $idp.to (or (hasKey $providerEntry "name") (not (empty $oidc.provider))) (not $providerEntry.valueFrom) (not (contains "$(" $envProvider)) (ne ($baseProvider | default "zitadel") $idp.to) }}{{ fail (printf "identity.idpMigration.to must match the effective literal provider %q from identity.env or identity.oidc.provider; align the provider settings or set identity.idpMigration.enabled=false" ($baseProvider | default "zitadel")) }}{{ end }}
-{{- $runAsJob := dig "runAsJob" false (dig "migrations" dict $serviceValues) -}}
-{{- /* migrate-idp runs against the schema the weight-5 db-migrate hook leaves, which exists only with
-       runAsJob=true; with runAsJob=false migrations run as a Deployment initContainer, after all hooks. */ -}}
-{{- if not $runAsJob }}{{ fail (printf "%s requires identity.migrations.runAsJob=true, so DB migrations run as a pre-install/pre-upgrade hook (weight 5) before this weight-10 migrate-idp hook; with runAsJob=false migrations run as a Deployment initContainer (after the hooks) and migrate-idp would run against a missing schema. Set identity.migrations.runAsJob=true%s" (ternary "identity.idpMigration (the Zitadel import, which runs by default while identity-service stays on Zitadel)" "switching identity providers with identity.idpMigration" $import) (ternary ", or identity.idpMigration.enabled=false to skip the import" "" $import)) }}{{ end }}
-{{- $idpBackoff := dig "backoffLimit" 3 $idp -}}
-{{- $idpCleanup := dig "autoCleanupSuccessfulJob" true $idp -}}
-{{- $idpPodAnnotations := dig "podAnnotations" dict $idp -}}
-{{- $idpPodLabels := dig "podLabels" dict $idp -}}
-{{- $idpEnv := dig "env" list $idp -}}
-{{- $idpResources := dig "resources" dict $idp -}}
-{{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
-{{- /* Only zitadel enumeration is implemented; forwarding any other value would
-       fail migrate-idp after the upgrade has already started. Reject it here. */ -}}
-{{- if ne $from "zitadel" }}{{ fail (printf "identity.idpMigration.from must be \"zitadel\" (the only supported outgoing IdP), got %q" $from) }}{{ end }}
-{{- $fromIssuer := dig "fromIssuer" "" $idp -}}
-{{- if $import }}
-{{- /* Staying on Zitadel, the outgoing issuer is identity-service's own, from identity.oidc.issuer, a
-       mounted Secret or identity.env. The kubelet's $(VAR) expansion reads the same sources, envFrom included. */ -}}
-{{- $fromIssuer = $fromIssuer | default "$(ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER)" -}}
-{{- else }}
-{{- $fromIssuer = required "identity.idpMigration.fromIssuer is required when identity.idpMigration.enabled=true (the outgoing IdP issuer, still reachable at pre-upgrade time)" $fromIssuer -}}
-{{- $_ := required (printf "identity.idpMigration.to is required to switch identity providers (identity.oidc.provider is %q); set it to the incoming provider, e.g. keycloak" $incoming) $idp.to -}}
-{{- end }}
+{{- $hookDisabled := eq (toString $idp.enabled) "false" -}}
+{{- $hookRequested := eq (toString $idp.enabled) "true" -}}
+{{- $render := $import -}}
+{{- if $hookRequested -}}
+  {{- $render = true -}}
+{{- end -}}
+{{- if or (not $serviceValues.enabled) $hookDisabled -}}
+  {{- $render = false -}}
+{{- end -}}
+
+{{- if and $serviceValues.enabled (not $hookDisabled) -}}
+  {{- if and $providerUnresolved (not $idp.to) -}}
+    {{- fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER through valueFrom or a $(VAR) reference, which the chart cannot read: set identity.idpMigration.to to the provider identity-service runs (zitadel to import, or the incoming provider to switch), or identity.idpMigration.enabled=false" -}}
+  {{- end -}}
+  {{- if $idp.to -}}
+    {{- if not (has $idp.to (list "zitadel" "keycloak" "entra" "okta" "pingfederate")) -}}
+      {{- fail (printf "identity.idpMigration.to must be one of zitadel (the import), keycloak, entra, okta, pingfederate; google and lastwall require explicit subject mapping with identity.idpMigration.enabled=false, got %q" $idp.to) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- if $render -}}
+{{- /* A hook must prepare the provider the Deployment will use; Secret-only inputs cannot be compared here. */ -}}
+{{- if and $idp.to $providerKnown -}}
+  {{- if ne $effectiveProvider $idp.to -}}
+    {{- fail (printf "identity.idpMigration.to must match the effective literal provider %q from identity.env or identity.oidc.provider; align the provider settings or set identity.idpMigration.enabled=false" $effectiveProvider) -}}
+  {{- end -}}
+{{- end -}}
+{{- /* Deployment init containers run after Helm hooks, so this hook needs the schema migration Job first. */ -}}
+{{- if not $serviceValues.migrations.runAsJob -}}
+  {{- fail "identity.idpMigration requires identity.migrations.runAsJob=true so the database schema exists before the IdP hook; set identity.migrations.runAsJob=true or identity.idpMigration.enabled=false" -}}
+{{- end -}}
+{{- /* Only Zitadel enumeration is implemented in migrate-idp. */ -}}
+{{- if ne $from "zitadel" -}}
+  {{- fail (printf "identity.idpMigration.from must be \"zitadel\" (the only supported outgoing IdP), got %q" $from) -}}
+{{- end -}}
+{{- $fromIssuer := $idp.fromIssuer -}}
+{{- if $import -}}
+  {{- /* Kubelet expands this from the same OIDC configuration and Secrets mounted by the Deployment. */ -}}
+  {{- if not $fromIssuer -}}
+    {{- $fromIssuer = "$(ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER)" -}}
+  {{- end -}}
+{{- else -}}
+  {{- $fromIssuer = required "identity.idpMigration.fromIssuer is required when identity.idpMigration.enabled=true (the outgoing IdP issuer, still reachable at pre-upgrade time)" $fromIssuer -}}
+  {{- $_ := required (printf "identity.idpMigration.to is required to switch identity providers (identity.oidc.provider is %q); set it to the incoming provider, e.g. keycloak" $incoming) $idp.to -}}
+{{- end -}}
+{{- $idpBackoff := $idp.backoffLimit -}}
+{{- $idpCleanup := $idp.autoCleanupSuccessfulJob -}}
+{{- $idpPodAnnotations := $idp.podAnnotations -}}
+{{- $idpPodLabels := $idp.podLabels -}}
+{{- $idpEnv := $idp.env -}}
+{{- $idpResources := $idp.resources -}}
+{{- $jaegerEnabled := .Values.jaeger.enabled -}}
 {{- $idpExtraEnvSecrets := $idp.extraEnvSecrets -}}
-{{- /* required guards an EXPLICIT empty override (dig still supplies the default when the key is
-       absent): an empty -database-url-env / -credential-env would pass through to migrate-idp and
-       fail only at runtime, after the upgrade has begun. Fail at render instead. */ -}}
-{{- $dbEnv := required "identity.idpMigration.databaseUrlEnv must not be empty (the env var name holding the PostgreSQL connection string)" (dig "databaseUrlEnv" "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" $idp) -}}
-{{- $credEnv := required "identity.idpMigration.credentialEnv must not be empty (the env var name holding the outgoing-IdP credential)" (dig "credentialEnv" "ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY" $idp) -}}
-{{- $slugPrefix := dig "slugPrefix" "" $idp -}}
-{{- $dryRun := dig "dryRun" false $idp -}}
+{{- /* Empty env-var names would fail migrate-idp only after the upgrade has begun. */ -}}
+{{- $dbEnv := required "identity.idpMigration.databaseUrlEnv must not be empty (the env var name holding the PostgreSQL connection string)" $idp.databaseUrlEnv -}}
+{{- $credEnv := required "identity.idpMigration.credentialEnv must not be empty (the env var name holding the outgoing-IdP credential)" $idp.credentialEnv -}}
+{{- $slugPrefix := $idp.slugPrefix -}}
+{{- $dryRun := $idp.dryRun -}}
 {{- if $import }}
 {{- /* migrate-idp reads the API base URL only from -issuer-api-url, and an unset $(VAR) would pass through
        as literal text. This defines it as empty, which migrate-idp treats as unset; every later source overrides it. */}}
