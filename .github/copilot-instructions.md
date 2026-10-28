@@ -29,8 +29,7 @@ instructions (`AGENTS.md`) within repository instructions, so anything here that
   `values.yaml` comments.
 - A **newly added** file under a path `.gitignore` swallows — anything inside a `charts/`
   directory, or under the root `/manual/` or `/scripts/` — since it will be silently left
-  out of the commit. Already-tracked files in those paths (`dgraph-sec/scripts/`) stay
-  tracked and are fine; so are the `charts/` paths `istari-platform/Chart.yaml` depends on.
+  out of the commit. The `charts/` paths `istari-platform/Chart.yaml` depends on are fine.
 - Changes under `istari-zitadel-configurator/terraform/`. They alter live
   identity-provider state on the next upgrade and need a human reviewer.
 
