@@ -6,7 +6,7 @@ image:
   # -- Image pull policy (e.g., Always, IfNotPresent, Never)
   pullPolicy: IfNotPresent
   # -- Image tag to use
-  tag: "1.11.2"
+  tag: "1.11.3"
 
 # -- Override the name of the chart.
 nameOverride: istari-zitadel-configurator
