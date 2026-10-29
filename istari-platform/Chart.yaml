@@ -9,10 +9,6 @@ maintainers:
 - name: Istari Digital Infrastructure Team
   email: infra@istaridigital.com
 dependencies:
-- name: dgraph-sec
-  version: "0.6.1"
-  repository: "https://istaridigital.jfrog.io/artifactory/main-helm-local"
-  condition: dgraph-sec.enabled
 - name: nats
   version: "2.14.0"
   repository: "https://nats-io.github.io/k8s/helm/charts/"

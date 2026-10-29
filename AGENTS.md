@@ -8,12 +8,12 @@ here must be changed there too.
 
 ## Project
 
-Three independently versioned Helm charts, published to a chart registry (classic and OCI)
+Two independently versioned Helm charts, published to a chart registry (classic and OCI)
 and installed by external customers: `istari-platform` (umbrella chart for the Istari Digital
-Platform control plane, with three pinned subchart dependencies),
-`istari-zitadel-configurator` (configures a Zitadel instance), and `dgraph-sec` (hardened
-Dgraph). Each carries its own version, publish workflow under `.github/workflows/`, and
-release tag series, so commands and version rules are per chart, never repo-global.
+Platform control plane, with two pinned subchart dependencies), and
+`istari-zitadel-configurator` (configures a Zitadel instance). Each carries its own version,
+publish workflow under `.github/workflows/`, and release tag series, so commands and version
+rules are per chart, never repo-global.
 **This repo is public.**
 
 ## Setup
@@ -28,8 +28,8 @@ other hook tool is provisioned by `pre-commit` itself.
 
 ## Commands
 
-The full gate — exactly what CI runs (`.github/workflows/pre-commit.yaml`), covering all
-three charts at once, plus the docs-only and per-chart forms:
+The full gate — exactly what CI runs (`.github/workflows/pre-commit.yaml`), covering both
+charts at once, plus the docs-only and per-chart forms:
 
 ```bash
 pre-commit run --all-files
@@ -69,9 +69,6 @@ Only the parts that are easy to get wrong:
   in that service's template.
 - `istari-zitadel-configurator/terraform/` — real Terraform, executed in-cluster by the
   chart's hook Job. Not a workspace you plan or apply locally.
-- `dgraph-sec/templates/validation/` — a hook Job, a `helm test` Pod, and a CronJob that
-  run `validate.sh` against a live release. Runtime guards on a deployed cluster, not
-  tests of this repository.
 
 ## Conventions
 
@@ -264,7 +261,5 @@ There is no unit or integration test suite. A change is verified when:
    touched. If you cannot stage the umbrella chart's subcharts, do not claim it verified —
    say which chart went unrendered and why.
 
-Two things these steps do not cover, so do not describe a change to either as verified:
-`istari-zitadel-configurator/terraform/` (no Terraform hook exists), and the `dgraph-sec`
-validation Job and `helm test` Pod, which run against a deployed cluster rather than this
-repository.
+One thing these steps do not cover, so do not describe a change to it as verified:
+`istari-zitadel-configurator/terraform/` (no Terraform hook exists).
