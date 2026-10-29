@@ -18,7 +18,7 @@
 {{- /* Checked before deciding whether to render: a typo would otherwise either fail migrate-idp
        (-to is forwarded unchecked) after the upgrade has started, or, with enabled unset, read as a
        provider switch and silently skip the import. zitadel runs the import. */ -}}
-{{- if and $serviceValues.enabled $idp.to (ne (toString (index $idp "enabled")) "false") (not (has $idp.to (list "zitadel" "keycloak" "entra"))) }}{{ fail (printf "identity.idpMigration.to must be \"zitadel\" (the import), \"keycloak\" or \"entra\", got %q" $idp.to) }}{{ end }}
+{{- if and $serviceValues.enabled $idp.to (ne (toString (index $idp "enabled")) "false") (not (has $idp.to (list "zitadel" "keycloak" "entra" "okta" "pingfederate"))) }}{{ fail (printf "identity.idpMigration.to must be one of zitadel (the import), keycloak, entra, okta, pingfederate; google and lastwall require explicit subject mapping with identity.idpMigration.enabled=false, got %q" $idp.to) }}{{ end }}
 {{- $incoming := $idp.to | default $baseProvider | default "zitadel" -}}
 {{- $import := eq $incoming $from -}}
 {{- $idpEnabled := index $idp "enabled" -}}
