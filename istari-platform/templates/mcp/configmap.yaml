@@ -13,13 +13,7 @@ metadata:
     {{- include "mcp.labels" . | nindent 4 }}
 data:
   {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
-  ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
   {{- if .Values.apiGateway.enabled }}
-  # MCP reaches the registry through <base>/registry, resolved in the
-  # istari-digital-client SDK where the gateway URL beats the direct registry URL.
-  # ISTARI_DIGITAL_REGISTRY_SERVICE_URL above therefore becomes inert once this is
-  # set, and MCP logs a startup warning saying so. It is left in place because this
-  # chart's defaults are additive; removing it is tracked separately.
   ISTARI_DIGITAL_API_URL: {{ $gatewayUrl | quote }}
   # Emitted for BOTH values, and only alongside the gateway URL: MCP raises at startup
   # when identity is enabled without one, and as of mcp-service 0.6.0 it derives its
