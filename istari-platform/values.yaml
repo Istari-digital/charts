@@ -354,7 +354,6 @@ mcp:
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
-  # Note that a ConfigMap is also automatically created & used with the correct value for ISTARI_DIGITAL_REGISTRY_SERVICE_URL
   secretName: istari-mcp
   # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
   extraEnvConfigMaps: []

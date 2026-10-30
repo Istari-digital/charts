@@ -541,7 +541,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | mcp.replicaCount | int | `1` | Replica count |
 | mcp.resources | object | `{"limits":{"memory":"1Gi"},"requests":{"cpu":"250m","memory":"1Gi"}}` | Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request. |
 | mcp.restartPolicy | string | `"Always"` | Restart policy |
-| mcp.secretName | string | `"istari-mcp"` | Secret name. The secret should contain the environment variables required by the service. Note that a ConfigMap is also automatically created & used with the correct value for ISTARI_DIGITAL_REGISTRY_SERVICE_URL |
+| mcp.secretName | string | `"istari-mcp"` | Secret name. The secret should contain the environment variables required by the service. |
 | mcp.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | mcp.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | mcp.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
