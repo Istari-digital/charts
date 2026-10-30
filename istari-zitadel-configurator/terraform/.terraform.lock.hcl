@@ -5,6 +5,7 @@ provider "registry.terraform.io/zitadel/zitadel" {
   version     = "3.8.7"
   constraints = "3.8.7"
   hashes = [
+    "h1:RaDoQJAjGQKRPsywTNwW4ECMFqwBK00DTPfz29Binww=",
     "h1:ZWYOlZYfjUpo3J3OhaVhdNqhHGDeSwW7HTrLeJawc8c=",
     "zh:059bd4b2458b6175c87daf8c41db39106115a5d832afd50e1f3dfcaa19d622cf",
     "zh:17644c3bdadda6589fc01d598bbb38ca41c61a9df43f97435f13be85e095f6ce",
