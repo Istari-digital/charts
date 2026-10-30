@@ -178,14 +178,14 @@ With `identity.oidc.provider: none`, people sign in with local accounts stored i
 ### Requirements
 
 - One Helm release must deploy every platform service you run, including the API gateway. A release that deploys a service without the gateway fails to render, and releases that each enable the gateway conflict over its resources.
-- `identity.tag` must be 2.4.0 or later. The chart refuses to render with an older tag.
+- `identity.tag` must be 2.5.0 or later. The chart refuses to render with an older tag.
 
 ### Values
 
 ```yaml
 identity:
   enabled: true
-  tag: "2.4.0"
+  tag: "2.5.0"
   clientIntegration:
     enabled: true
   migrations:
@@ -245,7 +245,7 @@ The Secure Connection Service needs a credential that identity-service accepts, 
    mkdir creds
    docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/creds:/out" \
      --entrypoint /gen-agent-credentials \
-     istaridigital.jfrog.io/customer-docker/identity-service:2.4.0 \
+     istaridigital.jfrog.io/customer-docker/identity-service:2.5.0 \
      -out /out/credentials.json -agent-id secure-connection-agent
    ```
 
@@ -595,7 +595,7 @@ The command prints the new password once. It also re-enables a disabled password
 | identity.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | identity.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | identity.bootstrap | object | (see fields below) | The first platform admin, created as a local account. Required when `identity.oidc.provider` is `none`. See [Installing with no identity provider](#installing-with-no-identity-provider). |
-| identity.bootstrap.localAdmin.email | string | `""` | Email of the first platform admin. With `identity.oidc.provider: none`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody and only stops an upgrade that sets an issuer while local accounts exist. Requires `identity.tag` 2.4.0 or later. |
+| identity.bootstrap.localAdmin.email | string | `""` | Email of the first platform admin. With `identity.oidc.provider: none`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody and only stops an upgrade that sets an issuer while local accounts exist. Requires `identity.tag` 2.5.0 or later. |
 | identity.bootstrap.localAdmin.passwordSecret | object | (see fields below) | An existing Secret holding a password you choose for the first admin, who must change it at first sign-in. Create it before installing, and keep it while `name` is set: the hook reads it on every install and upgrade. Leave `name` empty to have the hook generate a temporary password and write it to the Secret `<fullnameOverride, or the release name when that is empty>-identity-local-admin-password`, shortened with a hash past 63 characters, under the key `password`. The chart creates that Secret on `helm install` only. |
 | identity.bootstrap.localAdmin.passwordSecret.key | string | `"password"` | Key in the Secret. |
 | identity.bootstrap.localAdmin.passwordSecret.name | string | `""` | Name of the Secret. |

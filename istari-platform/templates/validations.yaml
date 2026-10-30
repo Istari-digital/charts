@@ -54,6 +54,6 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- /* Only a full semver tag is checked; <X-0 also lets X's prereleases through. Applies whenever the hook renders. */ -}}
 {{- $identityTag := toString .Values.identity.tag }}
 {{- $bootstrapEmail := "" }}{{- with .Values.identity.bootstrap }}{{- with .localAdmin }}{{- $bootstrapEmail = .email }}{{- end }}{{- end }}
-{{- if and .Values.identity.enabled (or (eq $provider "none") $bootstrapEmail) (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $identityTag) (semverCompare "<2.4.0-0" $identityTag) }}
-{{- fail (printf "identity.tag %q is older than 2.4.0, which the bootstrap hook and identity.oidc.provider none require. Set identity.tag to 2.4.0 or later." $identityTag) }}
+{{- if and .Values.identity.enabled (or (eq $provider "none") $bootstrapEmail) (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $identityTag) (semverCompare "<2.5.0-0" $identityTag) }}
+{{- fail (printf "identity.tag %q is older than 2.5.0, which the bootstrap hook and identity.oidc.provider none require. Set identity.tag to 2.5.0 or later." $identityTag) }}
 {{- end }}

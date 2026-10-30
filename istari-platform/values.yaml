@@ -849,7 +849,7 @@ identity:
   # @default -- (see fields below)
   bootstrap:
     localAdmin:
-      # -- Email of the first platform admin. With `identity.oidc.provider: none`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody and only stops an upgrade that sets an issuer while local accounts exist. Requires `identity.tag` 2.4.0 or later.
+      # -- Email of the first platform admin. With `identity.oidc.provider: none`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody and only stops an upgrade that sets an issuer while local accounts exist. Requires `identity.tag` 2.5.0 or later.
       email: ""
       # -- Slug of the tenant the first platform admin joins. It must exist when the hook creates the admin; on a new install only `default` exists.
       tenant: default

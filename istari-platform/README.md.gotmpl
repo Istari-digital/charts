@@ -177,14 +177,14 @@ With `identity.oidc.provider: none`, people sign in with local accounts stored i
 ### Requirements
 
 - One Helm release must deploy every platform service you run, including the API gateway. A release that deploys a service without the gateway fails to render, and releases that each enable the gateway conflict over its resources.
-- `identity.tag` must be 2.4.0 or later. The chart refuses to render with an older tag.
+- `identity.tag` must be 2.5.0 or later. The chart refuses to render with an older tag.
 
 ### Values
 
 ```yaml
 identity:
   enabled: true
-  tag: "2.4.0"
+  tag: "2.5.0"
   clientIntegration:
     enabled: true
   migrations:
@@ -244,7 +244,7 @@ The Secure Connection Service needs a credential that identity-service accepts, 
    mkdir creds
    docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/creds:/out" \
      --entrypoint /gen-agent-credentials \
-     istaridigital.jfrog.io/customer-docker/identity-service:2.4.0 \
+     istaridigital.jfrog.io/customer-docker/identity-service:2.5.0 \
      -out /out/credentials.json -agent-id secure-connection-agent
    ```
 
