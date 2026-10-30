@@ -168,6 +168,177 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 - **"is already linked to tenant":** the entry sets `tenantSlug` and `providerName`, but the import already mapped that organization to a different tenant. Remove `tenantSlug` and `tenantDisplayName`, or set `tenantSlug` to that tenant's slug, and upgrade again. The failed run leaves an empty tenant under the requested slug, which you can deactivate.
 - **No tenant mapped to the organization:** an entry without `tenantSlug` needs one, which the import normally creates. When the import is turned off, set `tenantSlug`.
 
+## Installing with no identity provider
+
+With `identity.oidc.provider: none`, people sign in with local accounts stored in identity-service instead of through an external identity provider. The chart creates the first platform admin during `helm install`. Use it for a new install. An install with local accounts cannot move to an identity provider; switching means reinstalling with one and adding people again.
+
+> The commands below assume the default `fullnameOverride`, `istari`. If you set another value, replace `istari` with it; if you set it empty, use the release name. With a prefix longer than 32 characters, the chart shortens the names and adds a hash. Use the Secret name from the `helm install` notes, and find the Job with `kubectl get jobs -n <namespace>`; its name ends in `-local-admin-bootstrap`.
+
+### Requirements
+
+- One Helm release must deploy every platform service you run, including the API gateway. A release that deploys a service without the gateway fails to render, and releases that each enable the gateway conflict over its resources.
+- `identity.tag` must be 2.5.0 or later. The chart refuses to render with an older tag.
+
+### Values
+
+```yaml
+identity:
+  enabled: true
+  tag: "2.5.0"
+  clientIntegration:
+    enabled: true
+  migrations:
+    runAsJob: true
+  oidc:
+    provider: none
+  bootstrap:
+    localAdmin:
+      email: admin@example.com
+apiGateway:
+  enabled: true
+```
+
+The chart refuses to render with `none` unless each of these is set:
+
+- `identity.enabled: true`, so identity-service runs in the same release.
+- `identity.clientIntegration.enabled: true`, so registry-service, the frontend and MCP sign people in through identity-service.
+- `apiGateway.enabled: true`, so the chart gives those services their identity-service settings.
+- `identity.migrations.runAsJob: true`, so the database schema exists before the hook creates the admin.
+- `identity.bootstrap.localAdmin.email`, the first platform admin's email.
+
+The admin joins the tenant in `identity.bootstrap.localAdmin.tenant`, default `default`. Leave it at `default`: it must name an existing tenant, and on a new install only `default` exists.
+
+The chart also refuses to render with `none` if any of these is set:
+
+- `identity.oidc.issuer`, `clientId`, `clientAuthMethod`, `scopes` or `defaultTenantId`.
+- An `identity.env` entry that sets `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER`, `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER`, `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_ID`, `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_PRIVATE_KEY` or `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_SECRET`.
+- `identity.idpMigration.enabled: true`, or `identity.idpMigration.to` unless `identity.idpMigration.enabled` is false.
+
+Each error names the key to change.
+
+If the cluster also runs Zitadel and `istari-zitadel-configurator`:
+
+- Leave registry-service's Zitadel settings and Secrets as they are, including its Zitadel domain.
+- Remove `zitadel-identity-service-env` from `identity.extraEnvSecrets`, and from `identity.secretName` if it names it. That Secret sets OIDC client credentials, and identity-service and the bootstrap hook do not start while those are set.
+
+### Choosing the first admin's password
+
+Skip this to have the hook generate a temporary password.
+
+1. Create a Secret holding the password in the release's namespace, before `helm install`.
+2. Set `identity.bootstrap.localAdmin.passwordSecret.name` to the Secret's name, and `passwordSecret.key` if the key is not `password`.
+
+The password must have at least 15 characters by default (`identity.localAccounts.passwordMinLength`). The admin still changes it at first sign-in. A password Secret set after the admin exists has no effect.
+
+Keep the Secret while `passwordSecret.name` is set. The hook reads it on every install and upgrade, and does not start without it.
+
+### The Secure Connection Service
+
+Skip this if `secureConnection.enabled` is false.
+
+The Secure Connection Service needs a credential that identity-service accepts, registered as an agent. The chart refuses to render with `none` and `secureConnection.enabled: true` until `identity.agentRegistration` declares an agent with the platform role `secure_connector`. Do these steps once, before the `helm install` or `helm upgrade` that enables the service. You need docker, jq, openssl and kubectl.
+
+1. Generate the credential with the identity-service image. Use the same tag as `identity.tag`.
+
+   ```bash
+   mkdir creds
+   docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/creds:/out" \
+     --entrypoint /gen-agent-credentials \
+     istaridigital.jfrog.io/customer-docker/identity-service:2.5.0 \
+     -out /out/credentials.json -agent-id secure-connection-agent
+   ```
+
+2. Store the file in a Secret for the service:
+
+   ```bash
+   kubectl create secret generic secure-connection-credentials -n <namespace> \
+     --from-literal=ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS="$(base64 < creds/credentials.json | tr -d '\n')"
+   ```
+
+3. Make a copy with the same `clientId` and `keyId` but only the public key, and store it in a second Secret for registration. Registration then never holds the service's private key.
+
+   ```bash
+   jq --arg key "$(jq -r .key creds/credentials.json | openssl pkey -pubout)" '.key = $key' \
+     creds/credentials.json > creds/credentials-public.json
+   kubectl create secret generic secure-connection-registration -n <namespace> \
+     --from-literal=ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS="$(base64 < creds/credentials-public.json | tr -d '\n')"
+   ```
+
+4. Add these values:
+
+   ```yaml
+   secureConnection:
+     enabled: true
+     extraEnvSecrets:
+     - secure-connection-credentials
+   identity:
+     agentRegistration:
+       enabled: true
+       extraEnvSecrets:
+       - secure-connection-registration
+       agents:
+       - name: secure-connection
+         keyEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS
+         platformRoles:
+         - secure_connector
+   ```
+
+   `name` only labels the registration Job; the agent's identity comes from the credential. The agent joins the tenant in `identity.bootstrap.localAdmin.tenant` unless the entry sets `tenantSlug`. [Agent registration](#agent-registration) describes the other fields, except `providerName` and `providerTenantIdEnv`, which the chart refuses with `none`.
+
+5. Delete `creds/`, which holds the private key.
+
+If the service's Secret is missing, its pods do not start. If the registration Secret is missing, the agent is not registered and identity-service refuses the service's token requests.
+
+### Client addresses and the sign-in limit
+
+identity-service limits sign-in attempts per client address, 30 a minute per replica by default (`identity.localAccounts.loginRateLimit`). Unless it can see each person's address, everyone shares that one limit. Set these before installing:
+
+- `apiGateway.trustedProxies` to the CIDR ranges of the ingress controller and load balancer in front of the API gateway.
+- `identity.trustedProxies` to the same ranges plus the API gateway pods' addresses. Pod addresses change, so this is usually the pod network's range.
+
+If `identity.trustedProxies` includes the pod network, allow only the API gateway to reach identity-service, for example with a NetworkPolicy. Otherwise any pod can claim to be a proxy and send a false client address.
+
+This applies to traffic that reaches identity-service through the chart's API gateway. If you expose identity-service through `identity.ingress` or `identity.virtualService`, or run it with an Istio sidecar, set `identity.trustedProxies` to the proxies on that path.
+
+### Installing and signing in as the first admin
+
+If you chose the password, skip steps 2 and 4.
+
+1. Run `helm install`. A hook creates the admin as a local platform admin. Unless you chose the password, it writes a temporary password to the Secret `istari-identity-local-admin-password`. If `helm install` fails at the hook, read its log:
+
+   ```bash
+   kubectl logs -n <namespace> job/istari-identity-local-admin-bootstrap
+   ```
+
+2. Read the password:
+
+   ```bash
+   kubectl get secret istari-identity-local-admin-password -n <namespace> \
+     -o jsonpath='{.data.password}' | base64 -d
+   ```
+
+3. Sign in with the admin's email and this password, and choose a new password when asked. If not used, the temporary password expires after 168 hours (`identity.localAccounts.tempPasswordTtl`).
+
+4. Delete the Secret:
+
+   ```bash
+   kubectl delete secret istari-identity-local-admin-password -n <namespace>
+   ```
+
+If you deploy with Argo CD or a similar tool, read the password before the next sync. These tools run install hooks on every sync. Each sync recreates the Secret empty and leaves the admin unchanged, so a password nobody read is lost. Issue a new one with `reset-password`, below.
+
+### Recovering a locked-out admin
+
+identity-service disables a password after 100 consecutive failed sign-ins by default (`identity.localAccounts.loginDisableAfter`). If the only admin's password is disabled, lost, or expired before first use, issue a new temporary password:
+
+```bash
+kubectl exec -n <namespace> deploy/istari-identity -- /reset-password \
+  -email <admin email> \
+  -database-url-env ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
+```
+
+The command prints the new password once. It also re-enables a disabled password and ends the admin's sessions. Access tokens already issued stay valid until they expire, 15 minutes by default.
+
 {{ template "chart.valuesSection" . }}
 
 {{ template "chart.maintainersSection" . }}

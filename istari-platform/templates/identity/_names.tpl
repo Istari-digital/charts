@@ -34,3 +34,24 @@ Call with a dict: {"root": $, "name": <agent name>}.
 {{- $hash := .name | sha256sum | trunc 8 -}}
 {{- printf "%s-register-agent-%s-%s" $prefix $slug $hash | trimSuffix "-" -}}
 {{- end }}
+
+{{/*
+Names for the bootstrap hook and its password Secret. A fullname too long for the
+63-character limit with its suffix is cut and given a hash of the whole name.
+*/}}
+{{- define "identity.localAdmin.hookName" -}}
+{{- $full := include "identity.fullname" .root -}}
+{{- if le (add (len $full) (len .suffix)) 63 -}}
+{{- printf "%s%s" $full .suffix -}}
+{{- else -}}
+{{- printf "%s-%s%s" ($full | trunc (int (sub 54 (len .suffix))) | trimSuffix "-") ($full | sha256sum | trunc 8) .suffix -}}
+{{- end -}}
+{{- end }}
+
+{{- define "identity.localAdmin.name" -}}
+{{ include "identity.localAdmin.hookName" (dict "root" . "suffix" "-local-admin-bootstrap") }}
+{{- end }}
+
+{{- define "identity.localAdmin.passwordSecretName" -}}
+{{ include "identity.localAdmin.hookName" (dict "root" . "suffix" "-local-admin-password") }}
+{{- end }}

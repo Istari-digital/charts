@@ -666,7 +666,7 @@ identity:
   # provider-specific configuration at startup, including configuration supplied through Secrets.
   # @default -- (see fields below)
   oidc:
-    # -- Upstream IdP provider: `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall`, or `google`. Select one provider per deployment. Okta, Google, and Lastwall are Preview integrations. Empty adds no chart override.
+    # -- Upstream IdP provider: `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall`, `google` or `none`. Select one provider per deployment. Okta, Google, and Lastwall are Preview integrations. With `none` there is no identity provider and people sign in with local accounts that identity-service stores; see [Installing with no identity provider](#installing-with-no-identity-provider) for the other keys it requires. Empty adds no chart override.
     provider: ""
     # -- Upstream IdP issuer URL, no trailing slash. OIDC discovery resolves at this issuer at startup.
     issuer: ""
@@ -845,6 +845,50 @@ identity:
     extraEnvSecrets: []
     # -- Resource requests/limits for the migration Job.
     resources: {}
+  # -- The first platform admin, created as a local account. Required when `identity.oidc.provider` is `none`. See [Installing with no identity provider](#installing-with-no-identity-provider).
+  # @default -- (see fields below)
+  bootstrap:
+    localAdmin:
+      # -- Email of the first platform admin. With `identity.oidc.provider: none`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody and only stops an upgrade that sets an issuer while local accounts exist. Requires `identity.tag` 2.5.0 or later.
+      email: ""
+      # -- Slug of the tenant the first platform admin joins. It must exist when the hook creates the admin; on a new install only `default` exists.
+      tenant: default
+      # -- An existing Secret holding a password you choose for the first admin, who must change it at first sign-in. Create it before installing, and keep it while `name` is set: the hook reads it on every install and upgrade. Leave `name` empty to have the hook generate a temporary password and write it to the Secret `<fullnameOverride, or the release name when that is empty>-identity-local-admin-password`, shortened with a hash past 63 characters, under the key `password`. The chart creates that Secret on `helm install` only.
+      # @default -- (see fields below)
+      passwordSecret:
+        # -- Name of the Secret.
+        name: ""
+        # -- Key in the Secret.
+        key: password
+  # -- IP addresses or CIDR ranges of the proxies in front of identity-service, such as the API gateway's pods and the ingress controller in front of it. identity-service trusts their `X-Forwarded-For` to find each client's address for its per-address sign-in limit. Left empty, every client behind them shares one limit. See [Client addresses and the sign-in limit](#client-addresses-and-the-sign-in-limit).
+  trustedProxies: []
+  # -- identity-service's password and sign-in settings, used only with `identity.oidc.provider: none`. Each renders only when set; unset keeps identity-service's own default. With an identity provider configured, identity-service logs that a set value is ignored.
+  # @default -- (see fields below)
+  localAccounts:
+    # -- (int) Fewest characters a password may have, 8 to 128. identity-service warns below 15.
+    # @default -- 15, set by identity-service
+    passwordMinLength: null
+    # -- (string) Path to a UTF-8 file of extra forbidden passwords, one per line, added to the built-in list. Mount the file with `identity.volumes` and `identity.volumeMounts`.
+    # @default -- no extra list
+    passwordBlocklistFile: null
+    # -- (string) How long a temporary password stays usable, as a Go duration.
+    # @default -- `168h`, set by identity-service
+    tempPasswordTtl: null
+    # -- (int) Consecutive failed sign-ins before each further attempt is delayed, 1 to 100.
+    # @default -- 5, set by identity-service
+    loginThrottleAfter: null
+    # -- (int) Consecutive failed sign-ins that disable the password until an administrator resets it, 3 to 100.
+    # @default -- 100, set by identity-service
+    loginDisableAfter: null
+    # -- (string) System-use notice shown on every sign-in page, which a person must acknowledge. An empty string shows none and requires no acknowledgement.
+    # @default -- a notice set by identity-service
+    loginBanner: null
+    # -- (int) POSTs one client address may make to the sign-in and change-password pages per minute, per replica, 1 to 10000.
+    # @default -- 30, set by identity-service
+    loginRateLimit: null
+    # -- (int) Password hashes one replica computes at once, 1 to 1024.
+    # @default -- the container's CPU limit, set by identity-service
+    passwordHashConcurrency: null
   # Ingress -- optional Kubernetes Ingress for this service.
   ingress:
     # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
@@ -1110,6 +1154,8 @@ apiGateway:
   tag: "2.11.4"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
+  # -- IP addresses or CIDR ranges of the proxies in front of the API gateway, such as the ingress controller and load balancer. For requests from these addresses, the gateway keeps their `X-Forwarded-For` and appends the connecting proxy's address, so services behind it see the client's address. For any other request, or when the list is empty, it replaces the header with the connecting address.
+  trustedProxies: []
   # -- Extra ConfigMaps whose entries become environment variables in the proxy container (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
   extraEnvConfigMaps: []
   # -- Names of Kubernetes Secrets whose keys become environment variables in the proxy container. Not needed for a standard deployment. (Unlike the other services, the API Gateway has no separate `secretName` — this list is the only Secret mechanism.)

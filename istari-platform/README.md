@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 7.1.1](https://img.shields.io/badge/Version-7.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
+![Version: 7.2.0](https://img.shields.io/badge/Version-7.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -169,6 +169,177 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 - **"is already linked to tenant":** the entry sets `tenantSlug` and `providerName`, but the import already mapped that organization to a different tenant. Remove `tenantSlug` and `tenantDisplayName`, or set `tenantSlug` to that tenant's slug, and upgrade again. The failed run leaves an empty tenant under the requested slug, which you can deactivate.
 - **No tenant mapped to the organization:** an entry without `tenantSlug` needs one, which the import normally creates. When the import is turned off, set `tenantSlug`.
 
+## Installing with no identity provider
+
+With `identity.oidc.provider: none`, people sign in with local accounts stored in identity-service instead of through an external identity provider. The chart creates the first platform admin during `helm install`. Use it for a new install. An install with local accounts cannot move to an identity provider; switching means reinstalling with one and adding people again.
+
+> The commands below assume the default `fullnameOverride`, `istari`. If you set another value, replace `istari` with it; if you set it empty, use the release name. With a prefix longer than 32 characters, the chart shortens the names and adds a hash. Use the Secret name from the `helm install` notes, and find the Job with `kubectl get jobs -n <namespace>`; its name ends in `-local-admin-bootstrap`.
+
+### Requirements
+
+- One Helm release must deploy every platform service you run, including the API gateway. A release that deploys a service without the gateway fails to render, and releases that each enable the gateway conflict over its resources.
+- `identity.tag` must be 2.5.0 or later. The chart refuses to render with an older tag.
+
+### Values
+
+```yaml
+identity:
+  enabled: true
+  tag: "2.5.0"
+  clientIntegration:
+    enabled: true
+  migrations:
+    runAsJob: true
+  oidc:
+    provider: none
+  bootstrap:
+    localAdmin:
+      email: admin@example.com
+apiGateway:
+  enabled: true
+```
+
+The chart refuses to render with `none` unless each of these is set:
+
+- `identity.enabled: true`, so identity-service runs in the same release.
+- `identity.clientIntegration.enabled: true`, so registry-service, the frontend and MCP sign people in through identity-service.
+- `apiGateway.enabled: true`, so the chart gives those services their identity-service settings.
+- `identity.migrations.runAsJob: true`, so the database schema exists before the hook creates the admin.
+- `identity.bootstrap.localAdmin.email`, the first platform admin's email.
+
+The admin joins the tenant in `identity.bootstrap.localAdmin.tenant`, default `default`. Leave it at `default`: it must name an existing tenant, and on a new install only `default` exists.
+
+The chart also refuses to render with `none` if any of these is set:
+
+- `identity.oidc.issuer`, `clientId`, `clientAuthMethod`, `scopes` or `defaultTenantId`.
+- An `identity.env` entry that sets `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER`, `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER`, `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_ID`, `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_PRIVATE_KEY` or `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_SECRET`.
+- `identity.idpMigration.enabled: true`, or `identity.idpMigration.to` unless `identity.idpMigration.enabled` is false.
+
+Each error names the key to change.
+
+If the cluster also runs Zitadel and `istari-zitadel-configurator`:
+
+- Leave registry-service's Zitadel settings and Secrets as they are, including its Zitadel domain.
+- Remove `zitadel-identity-service-env` from `identity.extraEnvSecrets`, and from `identity.secretName` if it names it. That Secret sets OIDC client credentials, and identity-service and the bootstrap hook do not start while those are set.
+
+### Choosing the first admin's password
+
+Skip this to have the hook generate a temporary password.
+
+1. Create a Secret holding the password in the release's namespace, before `helm install`.
+2. Set `identity.bootstrap.localAdmin.passwordSecret.name` to the Secret's name, and `passwordSecret.key` if the key is not `password`.
+
+The password must have at least 15 characters by default (`identity.localAccounts.passwordMinLength`). The admin still changes it at first sign-in. A password Secret set after the admin exists has no effect.
+
+Keep the Secret while `passwordSecret.name` is set. The hook reads it on every install and upgrade, and does not start without it.
+
+### The Secure Connection Service
+
+Skip this if `secureConnection.enabled` is false.
+
+The Secure Connection Service needs a credential that identity-service accepts, registered as an agent. The chart refuses to render with `none` and `secureConnection.enabled: true` until `identity.agentRegistration` declares an agent with the platform role `secure_connector`. Do these steps once, before the `helm install` or `helm upgrade` that enables the service. You need docker, jq, openssl and kubectl.
+
+1. Generate the credential with the identity-service image. Use the same tag as `identity.tag`.
+
+   ```bash
+   mkdir creds
+   docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/creds:/out" \
+     --entrypoint /gen-agent-credentials \
+     istaridigital.jfrog.io/customer-docker/identity-service:2.5.0 \
+     -out /out/credentials.json -agent-id secure-connection-agent
+   ```
+
+2. Store the file in a Secret for the service:
+
+   ```bash
+   kubectl create secret generic secure-connection-credentials -n <namespace> \
+     --from-literal=ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS="$(base64 < creds/credentials.json | tr -d '\n')"
+   ```
+
+3. Make a copy with the same `clientId` and `keyId` but only the public key, and store it in a second Secret for registration. Registration then never holds the service's private key.
+
+   ```bash
+   jq --arg key "$(jq -r .key creds/credentials.json | openssl pkey -pubout)" '.key = $key' \
+     creds/credentials.json > creds/credentials-public.json
+   kubectl create secret generic secure-connection-registration -n <namespace> \
+     --from-literal=ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS="$(base64 < creds/credentials-public.json | tr -d '\n')"
+   ```
+
+4. Add these values:
+
+   ```yaml
+   secureConnection:
+     enabled: true
+     extraEnvSecrets:
+     - secure-connection-credentials
+   identity:
+     agentRegistration:
+       enabled: true
+       extraEnvSecrets:
+       - secure-connection-registration
+       agents:
+       - name: secure-connection
+         keyEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS
+         platformRoles:
+         - secure_connector
+   ```
+
+   `name` only labels the registration Job; the agent's identity comes from the credential. The agent joins the tenant in `identity.bootstrap.localAdmin.tenant` unless the entry sets `tenantSlug`. [Agent registration](#agent-registration) describes the other fields, except `providerName` and `providerTenantIdEnv`, which the chart refuses with `none`.
+
+5. Delete `creds/`, which holds the private key.
+
+If the service's Secret is missing, its pods do not start. If the registration Secret is missing, the agent is not registered and identity-service refuses the service's token requests.
+
+### Client addresses and the sign-in limit
+
+identity-service limits sign-in attempts per client address, 30 a minute per replica by default (`identity.localAccounts.loginRateLimit`). Unless it can see each person's address, everyone shares that one limit. Set these before installing:
+
+- `apiGateway.trustedProxies` to the CIDR ranges of the ingress controller and load balancer in front of the API gateway.
+- `identity.trustedProxies` to the same ranges plus the API gateway pods' addresses. Pod addresses change, so this is usually the pod network's range.
+
+If `identity.trustedProxies` includes the pod network, allow only the API gateway to reach identity-service, for example with a NetworkPolicy. Otherwise any pod can claim to be a proxy and send a false client address.
+
+This applies to traffic that reaches identity-service through the chart's API gateway. If you expose identity-service through `identity.ingress` or `identity.virtualService`, or run it with an Istio sidecar, set `identity.trustedProxies` to the proxies on that path.
+
+### Installing and signing in as the first admin
+
+If you chose the password, skip steps 2 and 4.
+
+1. Run `helm install`. A hook creates the admin as a local platform admin. Unless you chose the password, it writes a temporary password to the Secret `istari-identity-local-admin-password`. If `helm install` fails at the hook, read its log:
+
+   ```bash
+   kubectl logs -n <namespace> job/istari-identity-local-admin-bootstrap
+   ```
+
+2. Read the password:
+
+   ```bash
+   kubectl get secret istari-identity-local-admin-password -n <namespace> \
+     -o jsonpath='{.data.password}' | base64 -d
+   ```
+
+3. Sign in with the admin's email and this password, and choose a new password when asked. If not used, the temporary password expires after 168 hours (`identity.localAccounts.tempPasswordTtl`).
+
+4. Delete the Secret:
+
+   ```bash
+   kubectl delete secret istari-identity-local-admin-password -n <namespace>
+   ```
+
+If you deploy with Argo CD or a similar tool, read the password before the next sync. These tools run install hooks on every sync. Each sync recreates the Secret empty and leaves the admin unchanged, so a password nobody read is lost. Issue a new one with `reset-password`, below.
+
+### Recovering a locked-out admin
+
+identity-service disables a password after 100 consecutive failed sign-ins by default (`identity.localAccounts.loginDisableAfter`). If the only admin's password is disabled, lost, or expired before first use, issue a new temporary password:
+
+```bash
+kubectl exec -n <namespace> deploy/istari-identity -- /reset-password \
+  -email <admin email> \
+  -database-url-env ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
+```
+
+The command prints the new password once. It also re-enables a disabled password and ends the admin's sessions. Access tokens already issued stay valid until they expire, 15 minutes by default.
+
 ## Values
 
 | Key | Type | Default | Description |
@@ -214,6 +385,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | apiGateway.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | apiGateway.topologySpreadConstraints | list/null | `null` (chart-managed soft spread across nodes) | Topology spread constraints for API Gateway pods. Leave unset (`null`) for the chart default: a soft preference (`whenUnsatisfiable: ScheduleAnyway`) to spread replicas across nodes, so one node failure doesn't take every API Gateway pod down while clusters with a single node still schedule normally. Set `[]` to disable, or supply your own list — entries must include their own `labelSelector`. |
 | apiGateway.tracing.enabled | bool/null | `null` (automatic: follows `jaeger.enabled`) | Whether the API Gateway records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `apiGateway.env`, a ConfigMap in `apiGateway.extraEnvConfigMaps`, or a Secret in `apiGateway.extraEnvSecrets`. If you rely on a ConfigMap or Secret, make sure it actually contains `OTEL_EXPORTER_OTLP_ENDPOINT`: the chart cannot inspect their contents, and without the variable traces are silently dropped. The chart exports over gRPC by default; a collector that only accepts OTLP/HTTP additionally needs `OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf` in `apiGateway.env`. |
+| apiGateway.trustedProxies | list | `[]` | IP addresses or CIDR ranges of the proxies in front of the API gateway, such as the ingress controller and load balancer. For requests from these addresses, the gateway keeps their `X-Forwarded-For` and appends the connecting proxy's address, so services behind it see the client's address. For any other request, or when the list is empty, it replaces the header with the connecting address. |
 | apiGateway.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | apiGateway.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
 | apiGateway.virtualService.gateways | list | `[]` | `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only. |
@@ -422,6 +594,12 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | identity.autoscaling.maxReplicas | int | `2` | Maximum number of replicas |
 | identity.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | identity.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
+| identity.bootstrap | object | (see fields below) | The first platform admin, created as a local account. Required when `identity.oidc.provider` is `none`. See [Installing with no identity provider](#installing-with-no-identity-provider). |
+| identity.bootstrap.localAdmin.email | string | `""` | Email of the first platform admin. With `identity.oidc.provider: none`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody and only stops an upgrade that sets an issuer while local accounts exist. Requires `identity.tag` 2.5.0 or later. |
+| identity.bootstrap.localAdmin.passwordSecret | object | (see fields below) | An existing Secret holding a password you choose for the first admin, who must change it at first sign-in. Create it before installing, and keep it while `name` is set: the hook reads it on every install and upgrade. Leave `name` empty to have the hook generate a temporary password and write it to the Secret `<fullnameOverride, or the release name when that is empty>-identity-local-admin-password`, shortened with a hash past 63 characters, under the key `password`. The chart creates that Secret on `helm install` only. |
+| identity.bootstrap.localAdmin.passwordSecret.key | string | `"password"` | Key in the Secret. |
+| identity.bootstrap.localAdmin.passwordSecret.name | string | `""` | Name of the Secret. |
+| identity.bootstrap.localAdmin.tenant | string | `"default"` | Slug of the tenant the first platform admin joins. It must exist when the hook creates the admin; on a new install only `default` exists. |
 | identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. |
 | identity.clientIntegration.enabled | bool | `true` | Whether the registry, the frontend and MCP authenticate through identity-service; a release that turns identity-service off sets this to `false` too. |
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
@@ -456,6 +634,15 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | identity.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard Identity Service labels). |
 | identity.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
 | identity.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
+| identity.localAccounts | object | (see fields below) | identity-service's password and sign-in settings, used only with `identity.oidc.provider: none`. Each renders only when set; unset keeps identity-service's own default. With an identity provider configured, identity-service logs that a set value is ignored. |
+| identity.localAccounts.loginBanner | string | a notice set by identity-service | System-use notice shown on every sign-in page, which a person must acknowledge. An empty string shows none and requires no acknowledgement. |
+| identity.localAccounts.loginDisableAfter | int | 100, set by identity-service | Consecutive failed sign-ins that disable the password until an administrator resets it, 3 to 100. |
+| identity.localAccounts.loginRateLimit | int | 30, set by identity-service | POSTs one client address may make to the sign-in and change-password pages per minute, per replica, 1 to 10000. |
+| identity.localAccounts.loginThrottleAfter | int | 5, set by identity-service | Consecutive failed sign-ins before each further attempt is delayed, 1 to 100. |
+| identity.localAccounts.passwordBlocklistFile | string | no extra list | Path to a UTF-8 file of extra forbidden passwords, one per line, added to the built-in list. Mount the file with `identity.volumes` and `identity.volumeMounts`. |
+| identity.localAccounts.passwordHashConcurrency | int | the container's CPU limit, set by identity-service | Password hashes one replica computes at once, 1 to 1024. |
+| identity.localAccounts.passwordMinLength | int | 15, set by identity-service | Fewest characters a password may have, 8 to 128. identity-service warns below 15. |
+| identity.localAccounts.tempPasswordTtl | string | `168h`, set by identity-service | How long a temporary password stays usable, as a Go duration. |
 | identity.migrations.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). When `true`, Helm may remove the Job after the migration succeeds (less clutter; logs are shorter-lived on the cluster). When `false`, only `before-hook-creation` is set, so the completed Job (and its Pods) remain until the next install or upgrade replaces the hook—useful for auditing or inspecting migration logs. |
 | identity.migrations.backoffLimit | int | `0` | `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries. |
 | identity.migrations.env | list | `[]` | Extra environment variables for the migration workloads only (the `db-migrate` Job, or the `init-db` init container when `runAsJob` is `false`), rendered after the service-level `env` — on duplicate names, these win. |
@@ -469,7 +656,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | identity.oidc.clientId | string | `""` | Client ID registered for identity at the upstream IdP. |
 | identity.oidc.defaultTenantId | string | `""` | For `entra`, `okta`, `pingfederate`, `lastwall`, and `google`: not used; each person takes their tenant from their own membership. Otherwise OPTIONAL, and NOT needed for a migration: migrated users carry their tenant on their imported principal, so tenancy resolves without this. It only stamps a fallback grouping for NET-NEW users at a grouping-less IdP (a Keycloak realm) with no principal yet, and only makes sense for a single-tenant deployment (one realm cannot default to the right one of several imported tenants). Set it to the provider tenant id the deployment's tenant mapping is keyed on. |
 | identity.oidc.issuer | string | `""` | Upstream IdP issuer URL, no trailing slash. OIDC discovery resolves at this issuer at startup. |
-| identity.oidc.provider | string | `""` | Upstream IdP provider: `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall`, or `google`. Select one provider per deployment. Okta, Google, and Lastwall are Preview integrations. Empty adds no chart override. |
+| identity.oidc.provider | string | `""` | Upstream IdP provider: `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall`, `google` or `none`. Select one provider per deployment. Okta, Google, and Lastwall are Preview integrations. With `none` there is no identity provider and people sign in with local accounts that identity-service stores; see [Installing with no identity provider](#installing-with-no-identity-provider) for the other keys it requires. Empty adds no chart override. |
 | identity.oidc.scopes | string | `""` | Space-separated OIDC scopes to request. Empty adds no chart override; Secrets or Identity Service determine the scopes. Use the scopes required by your provider configuration. |
 | identity.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | identity.podLabels | object | `{}` | Additional labels to add to pods |
@@ -484,6 +671,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | identity.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
 | identity.tag | string | `"2.4.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | identity.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
+| identity.trustedProxies | list | `[]` | IP addresses or CIDR ranges of the proxies in front of identity-service, such as the API gateway's pods and the ingress controller in front of it. identity-service trusts their `X-Forwarded-For` to find each client's address for its per-address sign-in limit. Left empty, every client behind them shares one limit. See [Client addresses and the sign-in limit](#client-addresses-and-the-sign-in-limit). |
 | identity.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | identity.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
 | identity.virtualService.gateways | list | `[]` | `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only. |
