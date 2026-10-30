@@ -3,6 +3,7 @@ We put the generated default env vars in this config map so that user-defined va
 'secureConnection.secretName', 'secureConnection.extraEnvSecrets', and 'secureConnection.env' will always override them.
 */}}
 {{- $serviceValues := .Values.secureConnection -}}
+{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{- if $serviceValues.enabled }}
 apiVersion: v1
 kind: ConfigMap
@@ -17,7 +18,9 @@ metadata:
   {{- end }}
 data:
   {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
-  ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+  {{- if .Values.apiGateway.enabled }}
+  ISTARI_DIGITAL_API_URL: {{ $gatewayUrl | quote }}
+  {{- end }}
   {{- if dig "enabled" false (default dict .Values.jaeger) }}
   {{- /* Per-container OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES are set as explicit env by
   "istari-platform.workloadIdentityEnv": the resource attributes reference downward-API $(VAR)s,
