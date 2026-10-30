@@ -22,7 +22,7 @@ startup.
 {{- $provider := $oidc.provider -}}
 {{- $authMethod := $oidc.clientAuthMethod -}}
 {{- if and $authMethod (not (has $authMethod (list "private_key_jwt" "client_secret_basic" "client_secret_post"))) }}{{- fail (printf "identity.oidc.clientAuthMethod must be one of private_key_jwt, client_secret_basic, client_secret_post, got %q" $authMethod) }}{{- end }}
-{{- if and $provider (not (has $provider (list "zitadel" "keycloak" "entra" "none"))) }}{{- fail (printf "identity.oidc.provider must be \"zitadel\", \"keycloak\", \"entra\" or \"none\", got %q" $provider) }}{{- end }}
+{{- if and $provider (not (has $provider (list "zitadel" "keycloak" "entra" "okta" "pingfederate" "lastwall" "google" "none"))) }}{{- fail (printf "identity.oidc.provider must be one of zitadel, keycloak, entra, okta, pingfederate, lastwall, google, none, got %q" $provider) }}{{- end }}
 {{- if eq $provider "none" }}
 {{- range $key := list "issuer" "clientId" "clientAuthMethod" "scopes" "defaultTenantId" }}
 {{- if get $oidc $key }}{{- fail (printf "identity.oidc.provider is \"none\", so identity.oidc.%s must be empty: remove it, or choose a provider other than none" $key) }}{{- end }}

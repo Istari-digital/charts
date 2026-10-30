@@ -2,11 +2,11 @@ image:
   # -- Docker registry where the image is hosted
   registry: istaridigital.jfrog.io
   # -- Docker repository for the image
-  repository: main-docker-local/zitadel-configurator
+  repository: main-docker-local/istari-zitadel-configurator
   # -- Image pull policy (e.g., Always, IfNotPresent, Never)
   pullPolicy: IfNotPresent
   # -- Image tag to use
-  tag: "1.0.0"
+  tag: "1.11.3"
 
 # -- Override the name of the chart.
 nameOverride: istari-zitadel-configurator

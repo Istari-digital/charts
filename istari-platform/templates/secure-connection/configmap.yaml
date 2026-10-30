@@ -16,6 +16,7 @@ metadata:
     helm.sh/hook-weight: "-15"
   {{- end }}
 data:
+  {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
   {{- $provider := "" }}{{- with .Values.identity.oidc }}{{- $provider = toString .provider }}{{- end }}
   {{- if eq $provider "none" }}

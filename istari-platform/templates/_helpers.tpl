@@ -288,3 +288,15 @@ always resolves; the guard below is retained only as defence.
 {{- printf "https://%s/auth/callback" $mcpHost -}}
 {{- end -}}
 {{- end }}
+
+{{/*
+In-cluster base URLs for the platform's backend services, emitted into each backend's ConfigMap.
+Always rendered in full, independent of which services a release enables.
+*/}}
+{{- define "istari-platform.internalServiceUrls" -}}
+ISTARI_DIGITAL_REGISTRY_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+ISTARI_DIGITAL_IDENTITY_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "identity.fullname" .) | quote }}
+ISTARI_DIGITAL_MCP_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "mcp.fullname" .) | quote }}
+ISTARI_DIGITAL_SECURE_CONNECTION_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "secure-connection.fullname" .) | quote }}
+ISTARI_DIGITAL_API_GATEWAY_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "api-gateway.fullname" .) | quote }}
+{{- end }}

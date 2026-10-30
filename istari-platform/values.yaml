@@ -642,35 +642,31 @@ secureConnection:
 # Default values for Identity Service.
 identity:
   # -- Enable / Disable the whole deployment
-  enabled: false
+  enabled: true
   # -- Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it.
   # @default -- (see fields below)
   clientIntegration:
-    # -- Whether clients in THIS release authenticate through the identity-service. Defaults to an explicit `false`, never derived from `identity.enabled`: a single-release install that wants identity now sets both values. Rendered in BOTH polarities whenever the API Gateway is enabled (`apiGateway.enabled`), alongside the `ISTARI_DIGITAL_API_URL` it accompanies, because the consuming services read the variable as a tri-state and fall back to their deprecated flags only when it is unset — so emitting nothing would make setting this to `false` a silent no-op wherever those flags are already set. With the gateway disabled, neither is emitted and the deprecated flags stay authoritative.
-    enabled: false
+    # -- Whether the registry, the frontend and MCP authenticate through identity-service; a release that turns identity-service off sets this to `false` too.
+    enabled: true
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "identity-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "2.3.1"
+  tag: "2.4.0"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
   secretName: "istari-identity"
-  # -- Upstream OIDC / IdP configuration — the NON-secret half of pointing identity at an IdP.
-  # Each field set here renders as an explicit `env` entry on the identity container as the matching
-  # `ISTARI_DIGITAL_IDENTITY_SERVICE_*` var, so switching the upstream IdP (e.g. Zitadel → Keycloak)
-  # is a values change applied via `helm upgrade`. Explicit `env` beats
-  # `envFrom`, so these values win over any same-named key in `secretName` — no need to scrub old
-  # OIDC keys from the Secret. The client SECRET is NOT here — it stays in `secretName`
-  # (`ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_SECRET`, or `..._OIDC_PRIVATE_KEY` for
-  # private_key_jwt). Each field renders only when non-empty; an empty block preserves today's fully
-  # Secret-driven configuration. `provider` and `clientAuthMethod` are validated at render time, so a
-  # typo fails `helm template` rather than the running pod.
+  # -- Optional upstream OIDC configuration. Empty fields add no chart override, preserving
+  # configuration supplied through Secrets and application defaults. Nonempty fields emit explicit
+  # environment variables and override same-named Secret entries; identity.env takes precedence.
+  # Keep client secrets and private keys in identity.secretName or identity.extraEnvSecrets.
+  # The chart validates provider and authentication-method names; Identity Service validates
+  # provider-specific configuration at startup, including configuration supplied through Secrets.
   # @default -- (see fields below)
   oidc:
-    # -- Identity provider: `zitadel`, `keycloak`, `entra` or `none` (validated). With `none` there is no identity provider and people sign in with local accounts that identity-service stores; see [Installing with no identity provider](#installing-with-no-identity-provider) for the other keys it requires. Selects the `internal/idp` wiring (user lookup, token refresh). One IdP per deployment. `entra` also requires `clientAuthMethod` `client_secret_basic` or `client_secret_post` (with `..._OIDC_CLIENT_SECRET` in the Secret) and a tenant-specific `issuer` (`https://login.microsoftonline.com/<tenant-guid>/v2.0`); identity-service does not start otherwise.
+    # -- Upstream IdP provider: `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall`, `google` or `none`. Select one provider per deployment. Okta, Google, and Lastwall are Preview integrations. With `none` there is no identity provider and people sign in with local accounts that identity-service stores; see [Installing with no identity provider](#installing-with-no-identity-provider) for the other keys it requires. Empty adds no chart override.
     provider: ""
     # -- Upstream IdP issuer URL, no trailing slash. OIDC discovery resolves at this issuer at startup.
     issuer: ""
@@ -678,13 +674,13 @@ identity:
     clientId: ""
     # -- Client auth method at the IdP token endpoint (validated): `private_key_jwt` (needs `..._OIDC_PRIVATE_KEY` in the Secret), `client_secret_basic`, or `client_secret_post` (both need `..._OIDC_CLIENT_SECRET` in the Secret).
     clientAuthMethod: ""
-    # -- Space-separated OIDC scopes (default in-app: `openid profile email offline_access`). Keycloak/standard OIDC needs no Zitadel URN scopes.
+    # -- Space-separated OIDC scopes to request. Empty adds no chart override; Secrets or Identity Service determine the scopes. Use the scopes required by your provider configuration.
     scopes: ""
-    # -- For `entra`: not used; each person takes their tenant from their own membership. Otherwise OPTIONAL, and NOT needed for a migration: migrated users carry their tenant on their imported principal, so tenancy resolves without this. It only stamps a fallback grouping for NET-NEW users at a grouping-less IdP (a Keycloak realm) with no principal yet, and only makes sense for a single-tenant deployment (one realm cannot default to the right one of several imported tenants). Set it to the provider tenant id the deployment's tenant mapping is keyed on.
+    # -- For `entra`, `okta`, `pingfederate`, `lastwall`, and `google`: not used; each person takes their tenant from their own membership. Otherwise OPTIONAL, and NOT needed for a migration: migrated users carry their tenant on their imported principal, so tenancy resolves without this. It only stamps a fallback grouping for NET-NEW users at a grouping-less IdP (a Keycloak realm) with no principal yet, and only makes sense for a single-tenant deployment (one realm cannot default to the right one of several imported tenants). Set it to the provider tenant id the deployment's tenant mapping is keyed on.
     defaultTenantId: ""
   # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
   extraEnvConfigMaps: []
-  # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
+  # -- Extra secrets to mount in the pod and in the migration and import Jobs; Zitadel-backed installs must add `zitadel-identity-service-env`.
   extraEnvSecrets: []
   # -- Replica count
   replicaCount: 1
@@ -773,7 +769,7 @@ identity:
     # -- Run database migrations as a Helm `pre-install` / `pre-upgrade` Job instead of a Deployment `initContainer`.
     # When `true`, a `Job` runs `/migrate` once per release before the Identity Service Deployment rolls out; the Identity Service `ServiceAccount` and env `ConfigMap` are annotated with the same hooks so they exist before the Job runs.
     # When `false`, migrations run in an `initContainer` on each Identity Service Pod before the main container starts (legacy behavior).
-    runAsJob: false
+    runAsJob: true
     # -- `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries.
     backoffLimit: 0
     # -- Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`).
@@ -815,7 +811,7 @@ identity:
     env: []
     # -- Agents to register, one Job each. Each entry names an agent and the env vars holding its inputs; fields ending in `Env` take an env var name, not a value. For the Secure Connection Service, copy the example under [Agent registration](#agent-registration), which also lists every field.
     agents: []
-  # -- Helm hook (weight 10) that runs identity-service's `migrate-idp`. The run depends on the incoming identity provider: `to` if set, else an `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER` entry in `identity.env`, else `identity.oidc.provider`, else `zitadel`; the chart cannot read a provider set only in a Secret, so an install on another provider that does this is treated as Zitadel and must set `to` or `enabled: false`. **Staying on Zitadel**, it runs `migrate-idp -mode import` on every install and upgrade unless `enabled` is `false`: the import creates a tenant for each Zitadel organization the management credential belongs to, pre-registers its people, imports tenant administrator grants, and grants `secure_connector` to the Secure Connection Service's agent if that agent is already registered. It only adds what identity-service lacks, and once an import is recorded for the provider and issuer, later runs stop at once (`already completed on <date>; nothing changed`); an import that skipped role grants for people with no principal is not recorded and runs again. Without it, people in organizations with no tenant cannot sign in through identity-service's default `/api/v2` flow, and Zitadel tenant administrators hold no rights in identity-service. **Switching to another provider** (e.g. Keycloak) runs `migrate-idp -mode migrate -to <provider>` only when `enabled` is `true`, and requires `to` and `fromIssuer`. The import and the switch both require `identity.migrations.runAsJob: true`, so the schema exists first; rendering fails otherwise, and an install that keeps `runAsJob: false` must set `enabled: false`. The import runs on `helm install` as well as `helm upgrade`: on a configurator install identity-service cannot start without the configurator's `zitadel-identity-service-env` secret, so the configurator, and its default organization, exist by then; an operator still creates tenants for organizations added to Zitadel later, with `create-tenant`. A provider switch runs on upgrade only. The hook runs before agent registration (weight 20), so on the install or upgrade that first enables identity-service the Secure Connection Service's agent does not exist yet when the import runs; its `secure_connector` role must then come from `register-agent -platform-role` or `grant-platform-role`. An upgrade with Helm's reuse-values flag keeps the previous chart's `enabled: false` default, so no import runs; set `enabled`, or use the reset-then-reuse-values flag instead. Needs identity-service 2.0.0-pre.17 or later: an earlier image has no `/migrate-idp` or no `-mode import` and fails the hook, and 2.0.0-pre.16 imports every organization the management key can see, not only those it is a member of.
+  # -- Hook (weight 10) that imports Zitadel organizations, people, and tenant-administrator grants, or prepares a switch from Zitadel. Imports reconcile on every install and upgrade within the management credential's organization membership scope. Missing management credentials or partial API reads can finish without a failing status; inspect logs and verify expected accounts and grants. Both operations require `identity.migrations.runAsJob: true` so the database schema exists first. The import precedes agent registration: a newly registered Secure Connection Service agent needs its `secure_connector` role from `register-agent -platform-role` or `grant-platform-role`. Use `create-tenant` if a tenant is needed before the next import.
   # @default -- (see fields below)
   idpMigration:
     # -- (bool) Unset (the default): import when the deployment stays on Zitadel, and do nothing otherwise. `true`: also required to switch to another identity provider; once the release that switches has succeeded, unset it or set `false`, because nothing records a finished switch, so the hook would rerun it on every upgrade and fail once `fromIssuer` stops resolving. `false`: never render the hook, skipping the import deliberately.
@@ -825,7 +821,7 @@ identity:
     from: zitadel
     # -- Outgoing (Zitadel) issuer URL, reachable at pre-upgrade time. **Required to switch providers.** For the import, empty passes `$(ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER)`, which Kubernetes expands from the Job's environment: `identity.oidc.issuer`, the Secrets the Job mounts and `identity.env`, with the same precedence as the identity Deployment. identity-service cannot start without that variable, so it is set on every working install.
     fromIssuer: ""
-    # -- Incoming identity provider: `keycloak` or `entra`, or `zitadel` for the import (validated: any other value fails rendering unless `enabled` is `false`). **Required to switch providers.** Empty uses an `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER` entry in `identity.env` (the last one, as in the Deployment; one set through `valueFrom` or a `$(VAR)` reference fails rendering, since the chart cannot read it), else `identity.oidc.provider`, else `zitadel`; a provider equal to `from` runs the import. An install that sets its provider only in a Secret (`ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER`) must set `to` when switching: the chart cannot read the Secret, so an install on another provider that does this is treated as Zitadel and runs the import unless `to` is set or `enabled` is `false`. People keep their accounts at Keycloak by verified email. Entra's email is unverified and never claims a pre-registration, so before switching to `entra` run identity-service's `import-principal-mappings` to link each person's Zitadel user id to their Entra object id (`oid`).
+    # -- Target provider: `zitadel` to import, or `keycloak`, `entra`, `okta`, or `pingfederate` to switch. Required for a switch. When empty, use the last provider entry in `identity.env`, then `identity.oidc.provider` when no environment override exists, then `zitadel` for the automatic import. Set the target to the provider configured for Identity Service. Helm cannot inspect Secret values or unresolved `valueFrom`/`$(VAR)` references: set `to` explicitly or disable the hook. Google and Lastwall require explicit subject mapping with the hook disabled. Prepare the destination's subject mappings or pending registrations before cutover; the hook does not discover incoming subject IDs.
     to: ""
     # -- Env var (in the mounted secret/config) holding the PostgreSQL connection string. Inherited, never re-declared — no new plaintext env vars.
     databaseUrlEnv: ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
@@ -845,7 +841,7 @@ identity:
     podLabels: {}
     # -- Extra environment variables for the migration Job only, rendered after the service-level `env` (on duplicate names, these win).
     env: []
-    # -- Extra secrets mounted (via `envFrom`, each `optional`) into the migration Job only, after `identity.secretName` and `identity.extraEnvSecrets`, which the Job also mounts. On a Zitadel configurator install the import needs the configurator's `zitadel-identity-service-env` secret: it carries the Zitadel management key the import reads with (`ISTARI_DIGITAL_IDENTITY_SERVICE_ZITADEL_MANAGER_KEY`), the issuer, and the Secure Connection Service's user and organization ids (`..._SCS_AGENT_USERNAME`, `..._SCS_AGENT_PROVIDER_TENANT_ID`), without which the import grants `secure_connector` to nobody. An install that already lists it in `identity.extraEnvSecrets` needs nothing here; one that mounts it only for agent registration lists it here.
+    # -- Extra secrets mounted (via `envFrom`, each `optional`) into the migration Job only, after `identity.secretName` and `identity.extraEnvSecrets`, which the Job also mounts.
     extraEnvSecrets: []
     # -- Resource requests/limits for the migration Job.
     resources: {}
@@ -935,7 +931,7 @@ identity:
 # @default -- (see fields below)
 provisioner:
   # -- Enable / Disable the whole provisioner release.
-  enabled: false
+  enabled: true
   # -- Set when the provisioner runs in a separate release: this release then mounts the Secrets of
   # its enabled clients but does not run the provisioner. Not needed when `enabled` is true.
   external: false
@@ -944,7 +940,7 @@ provisioner:
   # -- Image name.
   image: "provisioner"
   # -- Image tag.
-  tag: "0.4.0"
+  tag: "0.4.1"
   # -- Image pull policy.
   imagePullPolicy: IfNotPresent
   # -- Image pull secrets for the provisioning Job pod. When empty, the chart-wide `imagePullSecrets` apply.
@@ -1149,7 +1145,7 @@ docs:
 # `registry`/`image`/`tag`.
 apiGateway:
   # -- Enable / Disable the whole deployment
-  enabled: false
+  enabled: true
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS Caddy variant in the Istari customer-docker JFrog repo, pulled with the same credentials as the rest of the chart. The `istaridigital.com/` path segment is part of the repository path — not a typo.
