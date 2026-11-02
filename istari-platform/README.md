@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 7.1.1](https://img.shields.io/badge/Version-7.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
+![Version: 7.2.0](https://img.shields.io/badge/Version-7.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.x.x](https://img.shields.io/badge/AppVersion-11.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -210,7 +210,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | apiGateway.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | apiGateway.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | apiGateway.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| apiGateway.tag | string | `"2.11.4"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| apiGateway.tag | string | `"2.11.7"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | apiGateway.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | apiGateway.topologySpreadConstraints | list/null | `null` (chart-managed soft spread across nodes) | Topology spread constraints for API Gateway pods. Leave unset (`null`) for the chart default: a soft preference (`whenUnsatisfiable: ScheduleAnyway`) to spread replicas across nodes, so one node failure doesn't take every API Gateway pod down while clusters with a single node still schedule normally. Set `[]` to disable, or supply your own list — entries must include their own `labelSelector`. |
 | apiGateway.tracing.enabled | bool/null | `null` (automatic: follows `jaeger.enabled`) | Whether the API Gateway records a trace for each request it proxies. Leave unset (`null`) for automatic behavior: tracing turns on when `jaeger.enabled` is true and stays off otherwise — no other configuration is needed. Set `false` to keep tracing off even with Jaeger deployed, or `true` (advanced) to export traces to your own OpenTelemetry collector, which also requires providing `OTEL_EXPORTER_OTLP_ENDPOINT` — via `apiGateway.env`, a ConfigMap in `apiGateway.extraEnvConfigMaps`, or a Secret in `apiGateway.extraEnvSecrets`. If you rely on a ConfigMap or Secret, make sure it actually contains `OTEL_EXPORTER_OTLP_ENDPOINT`: the chart cannot inspect their contents, and without the variable traces are silently dropped. The chart exports over gRPC by default; a collector that only accepts OTLP/HTTP additionally needs `OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf` in `apiGateway.env`. |
@@ -353,7 +353,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | fileservice.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | fileservice.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | fileservice.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| fileservice.tag | string | `"11.6.9"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| fileservice.tag | string | `"12.0.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | fileservice.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | fileservice.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | fileservice.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -396,7 +396,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | frontend.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | frontend.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | frontend.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| frontend.tag | string | `"8.42.4"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| frontend.tag | string | `"9.0.2"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | frontend.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | frontend.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | frontend.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -545,7 +545,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | mcp.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | mcp.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | mcp.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| mcp.tag | string | `"0.9.8"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| mcp.tag | string | `"0.10.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | mcp.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | mcp.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
@@ -561,20 +561,20 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | nats.config.merge.authorization.token | string | `"<< $NATS_AUTH_TOKEN >>"` | NATS auth token. The `<< $NATS_AUTH_TOKEN >>` placeholder is substituted at startup with the value of the `NATS_AUTH_TOKEN` env var (set below from your Kubernetes Secret). |
 | nats.container.env | object | `{"NATS_AUTH_TOKEN":{"valueFrom":{"secretKeyRef":{"key":"NATS_AUTH_TOKEN","name":"istari-nats"}}}}` | Container env. The `NATS_AUTH_TOKEN` value is wired to the user-managed Secret (default: `istari-nats` / key `NATS_AUTH_TOKEN`). Override `secretKeyRef.name` and `secretKeyRef.key` if your Secret uses a different name or key. |
 | nats.container.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-fips"` | NATS server image repository. Defaults to the Chainguard FIPS variant in the Istari customer-docker JFrog repo. |
-| nats.container.image.tag | string | `"2.14.1"` | NATS server image tag. |
+| nats.container.image.tag | string | `"2.15.1"` | NATS server image tag. |
 | nats.enabled | bool | `true` | Enable / Disable the bundled NATS subchart. Enabled by default, since the fileservice (registry-service) requires NATS. Set to `false` only if you run your own NATS: the subchart is then not rendered at all and no NATS env vars are injected into fileservice, leaving you to point the registry service at your own instance via `fileservice.env` (or one of its ConfigMaps / Secrets). |
 | nats.fullnameOverride | string | `"nats"` | Override the NATS resource name prefix. With the default `nats`, the in-cluster Service is reachable at `nats://nats:4222` (the URL this chart injects as `FILE_SERVICE_NATS_URL`). Change this only if you also override `fileservice.env` with a matching URL. |
 | nats.global.image.pullSecretNames | list | `["docker-pull-secret"]` | Image pull secret names applied to every Pod created by the NATS subchart. The umbrella chart's top-level `imagePullSecrets` does not propagate to subcharts, so this is set explicitly. Defaults to `docker-pull-secret` to match the rest of the istari-platform chart. |
 | nats.natsBox.container.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-box-fips"` | nats-box image repository. Defaults to the Chainguard FIPS variant. |
-| nats.natsBox.container.image.tag | string | `"0.19.5"` | nats-box image tag. |
+| nats.natsBox.container.image.tag | string | `"0.20.0"` | nats-box image tag. |
 | nats.natsBox.enabled | bool | `true` | Deploy the `nats-box` utility container (lightweight client for debugging from inside the cluster). |
 | nats.podTemplate.merge.spec.securityContext | object | `{"fsGroup":65532}` | `securityContext` applied to NATS Pods. `fsGroup: 65532` matches the rest of the chart so JetStream PVCs are writable by the non-root NATS user. |
 | nats.promExporter.enabled | bool | `false` | Deploy the NATS Prometheus exporter sidecar. Enable when scraping NATS metrics via a PodMonitor/ServiceMonitor. |
 | nats.promExporter.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/prometheus-nats-exporter-fips"` | Prometheus exporter image repository. Defaults to the Chainguard FIPS variant. |
-| nats.promExporter.image.tag | string | `"0.19.2"` | Prometheus exporter image tag. |
+| nats.promExporter.image.tag | string | `"0.20.2"` | Prometheus exporter image tag. |
 | nats.reloader.enabled | bool | `true` | Deploy the NATS config-reloader sidecar (recommended). Reloads NATS config on ConfigMap changes without restarting the StatefulSet. |
 | nats.reloader.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-server-config-reloader-fips"` | Config-reloader image repository. Defaults to the Chainguard FIPS variant. |
-| nats.reloader.image.tag | string | `"0.23.0"` | Config-reloader image tag. |
+| nats.reloader.image.tag | string | `"0.24.0"` | Config-reloader image tag. |
 | nats.statefulSet.merge.spec.persistentVolumeClaimRetentionPolicy | object | `{"whenDeleted":"Delete","whenScaled":"Delete"}` | Delete the JetStream PVCs when the StatefulSet is deleted or scaled down. Set to `Retain` if you need the data to outlive the StatefulSet. |
 | provisioner | object | (see fields below) | Settings for the provisioner: a one-shot Terraform-in-a-Job (an ordinary release resource, not a Helm hook) that generates and publishes platform secrets. Its current use is registering the registry/frontend/mcp services as OAuth/OIDC clients — generating their credentials for identity to read at startup — and it may grow to other secret-generation uses. Not for secure-connection-service (see `identity.agentRegistration`). |
 | provisioner.activeDeadlineSeconds | int | `180` | `spec.activeDeadlineSeconds` for the provisioning Job — a wall-clock ceiling after which a stuck or failing Job goes `Failed`, surfacing the error instead of leaving consumer pods waiting on a Secret that never arrives. The Terraform run normally completes in seconds. |
@@ -641,7 +641,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | secureConnection.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | secureConnection.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | secureConnection.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
-| secureConnection.tag | string | `"11.6.9"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| secureConnection.tag | string | `"12.0.1"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | secureConnection.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
 | secureConnection.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | secureConnection.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |

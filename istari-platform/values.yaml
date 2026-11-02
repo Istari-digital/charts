@@ -50,7 +50,7 @@ fileservice:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "fileservice2"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "11.6.9"
+  tag: "12.0.1"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -202,7 +202,7 @@ frontend:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "frontend-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "8.42.4"
+  tag: "9.0.2"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -350,7 +350,7 @@ mcp:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "mcp-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "0.9.8"
+  tag: "0.10.0"
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -496,7 +496,7 @@ secureConnection:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image.
   image: "secure-connection-service"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "11.6.9"
+  tag: "12.0.1"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Secret name. The secret should contain the environment variables required by the service.
@@ -1107,7 +1107,7 @@ apiGateway:
   # -- Image name. The combination of registry, image, and tag will be used to pull the image. Defaults to the Chainguard FIPS Caddy variant in the Istari customer-docker JFrog repo, pulled with the same credentials as the rest of the chart. The `istaridigital.com/` path segment is part of the repository path — not a typo.
   image: "istaridigital.com/caddy-fips"
   # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
-  tag: "2.11.4"
+  tag: "2.11.7"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
   # -- Extra ConfigMaps whose entries become environment variables in the proxy container (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
@@ -1285,7 +1285,7 @@ nats:
       # -- NATS server image repository. Defaults to the Chainguard FIPS variant in the Istari customer-docker JFrog repo.
       repository: "istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-fips"
       # -- NATS server image tag.
-      tag: "2.14.1"
+      tag: "2.15.1"
     # -- Container env. The `NATS_AUTH_TOKEN` value is wired to the user-managed Secret (default: `istari-nats` / key `NATS_AUTH_TOKEN`). Override `secretKeyRef.name` and `secretKeyRef.key` if your Secret uses a different name or key.
     env:
       NATS_AUTH_TOKEN:
@@ -1300,7 +1300,7 @@ nats:
       # -- Config-reloader image repository. Defaults to the Chainguard FIPS variant.
       repository: "istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-server-config-reloader-fips"
       # -- Config-reloader image tag.
-      tag: "0.23.0"
+      tag: "0.24.0"
   promExporter:
     # -- Deploy the NATS Prometheus exporter sidecar. Enable when scraping NATS metrics via a PodMonitor/ServiceMonitor.
     enabled: false
@@ -1308,7 +1308,7 @@ nats:
       # -- Prometheus exporter image repository. Defaults to the Chainguard FIPS variant.
       repository: "istaridigital.jfrog.io/customer-docker/istaridigital.com/prometheus-nats-exporter-fips"
       # -- Prometheus exporter image tag.
-      tag: "0.19.2"
+      tag: "0.20.2"
   natsBox:
     # -- Deploy the `nats-box` utility container (lightweight client for debugging from inside the cluster).
     enabled: true
@@ -1317,7 +1317,7 @@ nats:
         # -- nats-box image repository. Defaults to the Chainguard FIPS variant.
         repository: "istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-box-fips"
         # -- nats-box image tag.
-        tag: "0.19.5"
+        tag: "0.20.0"
   statefulSet:
     merge:
       spec:
