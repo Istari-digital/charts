@@ -851,6 +851,10 @@ identity:
     localAdmin:
       # -- Email of the first platform admin. With `identity.oidc.provider: none`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody and only stops an upgrade that sets an issuer while local accounts exist. Requires `identity.tag` 2.5.0 or later.
       email: ""
+      # -- Given name of the first platform admin, shown with the family name instead of the email. At most 200 characters. Requires `identity.tag` 2.5.0-pre.6 or later.
+      givenName: ""
+      # -- Family name of the first platform admin. At most 200 characters. Requires `identity.tag` 2.5.0-pre.6 or later.
+      familyName: ""
       # -- Slug of the tenant the first platform admin joins. It must exist when the hook creates the admin; on a new install only `default` exists.
       tenant: default
       # -- An existing Secret holding a password you choose for the first admin, who must change it at first sign-in. Create it before installing, and keep it while `name` is set: the hook reads it on every install and upgrade. Leave `name` empty to have the hook generate a temporary password and write it to the Secret `<fullnameOverride, or the release name when that is empty>-identity-local-admin-password`, shortened with a hash past 63 characters, under the key `password`. The chart creates that Secret on `helm install` only.

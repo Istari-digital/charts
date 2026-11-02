@@ -124,6 +124,14 @@ spec:
         - "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"
         - "-local-admin-email"
         - {{ $localAdmin.email | quote }}
+        {{- with $localAdmin.givenName }}
+        - "-local-admin-given-name"
+        - {{ . | quote }}
+        {{- end }}
+        {{- with $localAdmin.familyName }}
+        - "-local-admin-family-name"
+        - {{ . | quote }}
+        {{- end }}
         - "-tenant"
         - {{ $localAdmin.tenant | quote }}
         {{- /* The command needs one password flag; with an issuer set it exits before using it. */}}
