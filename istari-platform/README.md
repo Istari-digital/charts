@@ -637,7 +637,6 @@ The command prints the new password once. It also re-enables a disabled password
 | identity.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
 | identity.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
 | identity.localAccounts | object | (see fields below) | identity-service's password and sign-in settings, used only with `identity.oidc.provider: none`. Each renders only when set; unset keeps identity-service's own default. With an identity provider configured, identity-service logs that a set value is ignored. |
-| identity.localAccounts.loginBanner | string | a notice set by identity-service | System-use notice shown on every sign-in page, which a person must acknowledge. An empty string shows none and requires no acknowledgement. |
 | identity.localAccounts.loginDisableAfter | int | 100, set by identity-service | Consecutive failed sign-ins that disable the password until an administrator resets it, 3 to 100. |
 | identity.localAccounts.loginRateLimit | int | 30, set by identity-service | POSTs one client address may make to the sign-in and change-password pages per minute, per replica, 1 to 10000. |
 | identity.localAccounts.loginThrottleAfter | int | 5, set by identity-service | Consecutive failed sign-ins before each further attempt is delayed, 1 to 100. |

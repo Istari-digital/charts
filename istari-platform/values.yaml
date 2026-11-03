@@ -884,9 +884,6 @@ identity:
     # -- (int) Consecutive failed sign-ins that disable the password until an administrator resets it, 3 to 100.
     # @default -- 100, set by identity-service
     loginDisableAfter: null
-    # -- (string) System-use notice shown on every sign-in page, which a person must acknowledge. An empty string shows none and requires no acknowledgement.
-    # @default -- a notice set by identity-service
-    loginBanner: null
     # -- (int) POSTs one client address may make to the sign-in and change-password pages per minute, per replica, 1 to 10000.
     # @default -- 30, set by identity-service
     loginRateLimit: null
