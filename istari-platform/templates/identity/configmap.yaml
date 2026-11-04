@@ -43,14 +43,13 @@ data:
   {{- with $serviceValues.trustedProxies }}
   ISTARI_DIGITAL_IDENTITY_SERVICE_TRUSTED_PROXIES: {{ join "," . | quote }}
   {{- end }}
-  {{- /* null keeps identity-service's default. */}}
+  {{- /* Unset or empty keeps identity-service's default. */}}
   {{- $settings := dict "passwordMinLength" "PASSWORD_MIN_LENGTH" "passwordBlocklistFile" "PASSWORD_BLOCKLIST_FILE" "tempPasswordTtl" "TEMP_PASSWORD_TTL" "loginThrottleAfter" "LOGIN_THROTTLE_AFTER" "loginDisableAfter" "LOGIN_DISABLE_AFTER" "loginRateLimit" "LOGIN_RATE_LIMIT" "passwordHashConcurrency" "PASSWORD_HASH_CONCURRENCY" }}
   {{- with $serviceValues.localAccounts }}
   {{- $localAccounts := . }}
   {{- range $key, $var := $settings }}
-  {{- $value := index $localAccounts $key }}
-  {{- if not (kindIs "invalid" $value) }}
-  {{ printf "ISTARI_DIGITAL_IDENTITY_SERVICE_%s" $var }}: {{ toString $value | quote }}
+  {{- with index $localAccounts $key }}
+  {{ printf "ISTARI_DIGITAL_IDENTITY_SERVICE_%s" $var }}: {{ toString . | quote }}
   {{- end }}
   {{- end }}
   {{- end }}
