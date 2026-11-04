@@ -20,6 +20,7 @@ output "secret_file" {
     scs_zitadel_user_manager_secret      = base64encode(zitadel_machine_key.secure-connection-service-machine-key.key_details)
     zitadel_domain                       = "https://${trimsuffix(var.zitadel_domain, "/")}"
     zitadel_internal_url                 = trimsuffix(var.zitadel_internal_url, "/")
+    zitadel_issuer                       = var.zitadel_insecure ? (var.zitadel_port == 80 ? "http://${var.zitadel_domain}" : "http://${var.zitadel_domain}:${var.zitadel_port}") : "https://${var.zitadel_domain}"
     zitadel_org_id                       = zitadel_org.default.id
   })
   sensitive = true
