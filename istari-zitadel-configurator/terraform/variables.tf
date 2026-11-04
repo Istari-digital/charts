@@ -163,6 +163,12 @@ variable "zitadel_insecure" {
   default     = false
 }
 
+variable "zitadel_internal_url" {
+  type        = string
+  description = "In-cluster URL of the ZITADEL instance, including scheme and port. Written to the backends as ISTARI_DIGITAL_ZITADEL_INTERNAL_URL when set"
+  default     = ""
+}
+
 variable "zitadel_port" {
   type        = number
   description = "Port for the ZITADEL instance"

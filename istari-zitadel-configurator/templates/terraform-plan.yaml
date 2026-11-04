@@ -1,4 +1,9 @@
 {{- if not .Values.override.enabled }}
+{{- with .Values.configurator.zitadel_internal_url }}
+{{- if not (or (hasPrefix "http://" .) (hasPrefix "https://" .)) }}
+{{- fail "configurator.zitadel_internal_url must start with http:// or https://, e.g. http://zitadel.<namespace>.svc.cluster.local" }}
+{{- end }}
+{{- end }}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -53,6 +58,7 @@ stringData:
     {{- end }}
     tos_link                            = {{ .Values.configurator.tos_link | quote }}
     zitadel_domain                      = {{ .Values.configurator.zitadel_domain | quote }}
+    zitadel_internal_url                = {{ .Values.configurator.zitadel_internal_url | quote }}
     zitadel_port                        = {{ .Values.configurator.zitadel_port | quote }}
     zitadel_insecure                    = {{ .Values.configurator.zitadel_insecure | quote }}
 

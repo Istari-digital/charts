@@ -127,6 +127,8 @@ configurator:
 
   # -- Ziatdel domain
   zitadel_domain: "zitadel.domain.com"
+  # -- In-cluster Zitadel URL including scheme and port, e.g. `http://zitadel.<namespace>.svc.cluster.local`. Written to the backends as ISTARI_DIGITAL_ZITADEL_INTERNAL_URL; empty leaves it unset
+  zitadel_internal_url: ""
   # -- Ziatdel port
   zitadel_port: 443
   # -- Whether to connect to Ziatdel over insecure channel
