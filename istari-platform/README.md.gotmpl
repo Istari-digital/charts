@@ -291,7 +291,7 @@ If the service's Secret is missing, its pods do not start. If the registration S
 
 ### Client addresses and the sign-in limit
 
-identity-service limits sign-in attempts per client address (`identity.localAccounts.loginRateLimit`). Unless it can see each person's address, everyone shares that one limit. Set these before installing:
+identity-service limits sign-in attempts per client address (`identity.localAccounts.signInRateLimit`). Unless it can see each person's address, everyone shares that one limit. Set these before installing:
 
 - `apiGateway.trustedProxies` to the CIDR ranges of the ingress controller and load balancer in front of the API gateway.
 - `identity.trustedProxies` to the same ranges plus the API gateway pods' addresses. Pod addresses change, so this is usually the pod network's range.
@@ -329,7 +329,7 @@ If you deploy with Argo CD or a similar tool, read the password before the next 
 
 ### Recovering a locked-out admin
 
-identity-service disables a password after the number of consecutive failed sign-ins in `identity.localAccounts.loginDisableAfter`. If the only admin's password is disabled, lost, or expired before first use, issue a new temporary password:
+identity-service disables a password after the number of consecutive failed sign-ins in `identity.localAccounts.signInDisableAfter`. If the only admin's password is disabled, lost, or expired before first use, issue a new temporary password:
 
 ```bash
 kubectl exec -n <namespace> deploy/istari-identity -- /reset-password \

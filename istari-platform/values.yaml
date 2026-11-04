@@ -850,7 +850,7 @@ identity:
   # -- identity-service's password and sign-in settings, used only with `identity.oidc.provider: none`, and the first platform admin (`firstAdmin`). Each renders only when set; unset keeps identity-service's own default. With an identity provider configured, identity-service logs that a set value is ignored.
   # @default -- (see fields below)
   localAccounts:
-    # -- (int) Fewest characters a password may have, 8 to 128. identity-service warns below 15.
+    # -- (int) Fewest characters a password may have, 8 to 128.
     # @default -- 15, set by identity-service
     passwordMinLength: null
     # -- (string) Path to a UTF-8 file of extra forbidden passwords, one per line, added to the built-in list. Mount the file with `identity.volumes` and `identity.volumeMounts`.
@@ -861,13 +861,13 @@ identity:
     tempPasswordTtl: null
     # -- (int) Consecutive failed sign-ins before each further attempt is delayed, 1 to 100.
     # @default -- 5, set by identity-service
-    loginThrottleAfter: null
+    signInThrottleAfter: null
     # -- (int) Consecutive failed sign-ins that disable the password until an administrator resets it, 3 to 100.
     # @default -- 100, set by identity-service
-    loginDisableAfter: null
+    signInDisableAfter: null
     # -- (int) POSTs one client address may make to the sign-in and change-password pages per minute, per replica, 1 to 10000.
     # @default -- 30, set by identity-service
-    loginRateLimit: null
+    signInRateLimit: null
     # -- (int) Password hashes one replica computes at once, 1 to 1024.
     # @default -- the container's CPU limit, set by identity-service
     passwordHashConcurrency: null

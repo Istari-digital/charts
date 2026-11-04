@@ -292,7 +292,7 @@ If the service's Secret is missing, its pods do not start. If the registration S
 
 ### Client addresses and the sign-in limit
 
-identity-service limits sign-in attempts per client address (`identity.localAccounts.loginRateLimit`). Unless it can see each person's address, everyone shares that one limit. Set these before installing:
+identity-service limits sign-in attempts per client address (`identity.localAccounts.signInRateLimit`). Unless it can see each person's address, everyone shares that one limit. Set these before installing:
 
 - `apiGateway.trustedProxies` to the CIDR ranges of the ingress controller and load balancer in front of the API gateway.
 - `identity.trustedProxies` to the same ranges plus the API gateway pods' addresses. Pod addresses change, so this is usually the pod network's range.
@@ -330,7 +330,7 @@ If you deploy with Argo CD or a similar tool, read the password before the next 
 
 ### Recovering a locked-out admin
 
-identity-service disables a password after the number of consecutive failed sign-ins in `identity.localAccounts.loginDisableAfter`. If the only admin's password is disabled, lost, or expired before first use, issue a new temporary password:
+identity-service disables a password after the number of consecutive failed sign-ins in `identity.localAccounts.signInDisableAfter`. If the only admin's password is disabled, lost, or expired before first use, issue a new temporary password:
 
 ```bash
 kubectl exec -n <namespace> deploy/istari-identity -- /reset-password \
@@ -639,12 +639,12 @@ The command prints the new password once. It also re-enables a disabled password
 | identity.localAccounts.firstAdmin.podAnnotations | object | `{}` | Annotations for the first-admin hook Job's Pod template only. The chart defaults `sidecar.istio.io/inject: "false"` here so the one-shot Pod gets no Istio sidecar; your entries merge over that default. |
 | identity.localAccounts.firstAdmin.resources | object | `{}` | Resource requests/limits for the first-admin hook Job. |
 | identity.localAccounts.firstAdmin.tenant | string | `"default"` | Slug of the tenant the first platform admin joins. It must exist when the hook creates the admin; on a new install only `default` exists. |
-| identity.localAccounts.loginDisableAfter | int | 100, set by identity-service | Consecutive failed sign-ins that disable the password until an administrator resets it, 3 to 100. |
-| identity.localAccounts.loginRateLimit | int | 30, set by identity-service | POSTs one client address may make to the sign-in and change-password pages per minute, per replica, 1 to 10000. |
-| identity.localAccounts.loginThrottleAfter | int | 5, set by identity-service | Consecutive failed sign-ins before each further attempt is delayed, 1 to 100. |
 | identity.localAccounts.passwordBlocklistFile | string | no extra list | Path to a UTF-8 file of extra forbidden passwords, one per line, added to the built-in list. Mount the file with `identity.volumes` and `identity.volumeMounts`. |
 | identity.localAccounts.passwordHashConcurrency | int | the container's CPU limit, set by identity-service | Password hashes one replica computes at once, 1 to 1024. |
-| identity.localAccounts.passwordMinLength | int | 15, set by identity-service | Fewest characters a password may have, 8 to 128. identity-service warns below 15. |
+| identity.localAccounts.passwordMinLength | int | 15, set by identity-service | Fewest characters a password may have, 8 to 128. |
+| identity.localAccounts.signInDisableAfter | int | 100, set by identity-service | Consecutive failed sign-ins that disable the password until an administrator resets it, 3 to 100. |
+| identity.localAccounts.signInRateLimit | int | 30, set by identity-service | POSTs one client address may make to the sign-in and change-password pages per minute, per replica, 1 to 10000. |
+| identity.localAccounts.signInThrottleAfter | int | 5, set by identity-service | Consecutive failed sign-ins before each further attempt is delayed, 1 to 100. |
 | identity.localAccounts.tempPasswordTtl | string | `168h`, set by identity-service | How long a temporary password stays usable, as a Go duration. |
 | identity.migrations.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). When `true`, Helm may remove the Job after the migration succeeds (less clutter; logs are shorter-lived on the cluster). When `false`, only `before-hook-creation` is set, so the completed Job (and its Pods) remain until the next install or upgrade replaces the hook—useful for auditing or inspecting migration logs. |
 | identity.migrations.backoffLimit | int | `0` | `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries. |
