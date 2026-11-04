@@ -330,3 +330,11 @@ passwordSecret.name. Empty otherwise.
 {{- with $localAdmin.passwordSecret }}{{ $secretName = .name }}{{ end -}}
 {{- if and (eq (include "istari-platform.identityProvider" .) "none") (not $secretName) }}true{{ end -}}
 {{- end }}
+
+{{/*
+True for a full semver tag, the only kind the version gates compare; the gates use <X-0 so
+X's own prereleases pass.
+*/}}
+{{- define "istari-platform.isFullSemver" -}}
+{{- if regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" (toString .) }}true{{ end -}}
+{{- end }}

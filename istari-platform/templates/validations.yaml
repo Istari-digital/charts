@@ -17,7 +17,7 @@ A value carrying a scheme or path (a common migration mistake) would render e.g.
 {{- /* Provisioner images before 0.4.0 never write the identity-keys Secret identity mounts. Only a
 full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- $provisionerTag := toString .Values.provisioner.tag }}
-{{- if and .Values.provisioner.enabled .Values.identity.enabled (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $provisionerTag) (semverCompare "<0.4.0-0" $provisionerTag) }}
+{{- if and .Values.provisioner.enabled .Values.identity.enabled (include "istari-platform.isFullSemver" $provisionerTag) (semverCompare "<0.4.0-0" $provisionerTag) }}
 {{- fail (printf "provisioner.tag %q is too old for identity: images before 0.4.0 do not generate the identity service's keys, so its pods cannot start. Set provisioner.tag to 0.4.0 or later." $provisionerTag) }}
 {{- end }}
 {{- /* none is read only from identity.oidc.provider; the idp-migration hook reads identity.env first. */ -}}
@@ -56,9 +56,9 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- end }}
 {{- /* Only a full semver tag is checked; <X-0 also lets X's prereleases through. Applies whenever the hook renders. */ -}}
 {{- $identityTag := toString .Values.identity.tag }}
-{{- if and .Values.identity.enabled (or (eq $provider "none") $localAdmin.email) (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $identityTag) (semverCompare "<2.5.0-0" $identityTag) }}
+{{- if and .Values.identity.enabled (or (eq $provider "none") $localAdmin.email) (include "istari-platform.isFullSemver" $identityTag) (semverCompare "<2.5.0-0" $identityTag) }}
 {{- fail (printf "identity.tag %q is older than 2.5.0, which the bootstrap hook and identity.oidc.provider none require. Set identity.tag to 2.5.0 or later." $identityTag) }}
 {{- end }}
-{{- if and .Values.identity.enabled $localAdmin.email (or $localAdmin.givenName $localAdmin.familyName) (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $identityTag) (semverCompare "<2.5.0-pre.6" $identityTag) }}
+{{- if and .Values.identity.enabled $localAdmin.email (or $localAdmin.givenName $localAdmin.familyName) (include "istari-platform.isFullSemver" $identityTag) (semverCompare "<2.5.0-pre.6" $identityTag) }}
 {{- fail (printf "identity.tag %q is older than 2.5.0-pre.6, which identity.bootstrap.localAdmin.givenName and familyName require. Set identity.tag to 2.5.0-pre.6 or later, or leave the names unset." $identityTag) }}
 {{- end }}
