@@ -27,8 +27,7 @@
 {{- /* Canonical Identity Service DB URL key; present in secretName, surfaced as an
        env var by envFrom and read via the CLIs' -database-url-env flag. */ -}}
 {{- $dbURLEnv := "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL" -}}
-{{- $provider := "" }}{{- with $serviceValues.oidc }}{{- $provider = toString .provider }}{{- end }}
-{{- $noIdp := eq $provider "none" }}
+{{- $noIdp := eq (include "istari-platform.identityProvider" .) "none" }}
 {{- range $agent := $agents }}
 {{- $_ := $agent.name | required "each identity.agentRegistration.agents entry must set name" -}}
 {{- /* name is used as the istari.digital/agent label value and (lowercased,
@@ -193,8 +192,7 @@ spec:
         - "-database-url-env"
         - {{ $dbURLEnv | quote }}
         {{- $tenant := $agent.tenantSlug }}
-        {{- if and $noIdp (not $tenant) }}{{- with $serviceValues.bootstrap }}{{- with .localAdmin }}{{- $tenant = .tenant }}{{- end }}{{- end }}{{- end }}
-        {{- if and $noIdp (not $tenant) }}{{ fail (printf "agentRegistration agent %q sets no tenantSlug and identity.bootstrap.localAdmin.tenant is empty: set tenantSlug, or set identity.bootstrap.localAdmin.tenant to `default`" $agent.name) }}{{ end }}
+        {{- if and $noIdp (not $tenant) }}{{- $tenant = (include "istari-platform.localAdmin" $ | fromJson).tenant }}{{- end }}
         {{- if $tenant }}
         - "-tenant"
         - {{ $tenant | quote }}

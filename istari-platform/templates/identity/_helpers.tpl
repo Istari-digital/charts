@@ -32,9 +32,6 @@ startup.
 {{- if and (eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER") (or $e.valueFrom (toString (default "" $e.value))) }}{{- fail "identity.oidc.provider is \"none\", so identity.env must not set ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER: remove that entry" }}{{- end }}
 {{- if and (has (toString $e.name) (list "ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_ID" "ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_PRIVATE_KEY" "ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_SECRET")) (or $e.valueFrom (toString (default "" $e.value))) }}{{- fail (printf "identity.oidc.provider is \"none\", so identity.env must not set %s: identity-service refuses to start with OIDC client credentials when there is no identity provider" $e.name) }}{{- end }}
 {{- end }}
-{{- if not .migrations.runAsJob }}{{- fail "identity.oidc.provider is \"none\", so identity.migrations.runAsJob must be true: the hook that creates the first platform admin needs the schema the migration hook creates" }}{{- end }}
-{{- $email := "" }}{{- with .bootstrap }}{{- with .localAdmin }}{{- $email = .email }}{{- end }}{{- end }}
-{{- if not $email }}{{- fail "identity.oidc.provider is \"none\", so identity.bootstrap.localAdmin.email must be set: it names the first platform admin, whom the chart creates as a local account" }}{{- end }}
 {{- /* Explicit env beats envFrom, so an issuer left in a mounted Secret cannot select an identity provider. */}}
 - name: ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER
   value: ""

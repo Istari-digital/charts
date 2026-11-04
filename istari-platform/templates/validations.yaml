@@ -24,8 +24,8 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- range $e := .Values.identity.env }}
 {{- if and (eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER") (eq (toString $e.value) "none") }}{{- fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER to none: set identity.oidc.provider: none instead, which the whole chart reads" }}{{- end }}
 {{- end }}
-{{- /* Values reused from an older chart (--reuse-values) may lack these maps. */ -}}
-{{- $provider := "" }}{{- with .Values.identity.oidc }}{{- $provider = toString .provider }}{{- end }}
+{{- $provider := include "istari-platform.identityProvider" . }}
+{{- $localAdmin := include "istari-platform.localAdmin" . | fromJson }}
 {{- $clientIntegration := false }}
 {{- with .Values.identity.clientIntegration }}{{- $clientIntegration = .enabled }}{{- end }}
 {{- if and (eq $provider "none") (not $clientIntegration) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled) }}
@@ -36,6 +36,9 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- end }}
 {{- if and (eq $provider "none") (not .Values.apiGateway.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.identity.enabled .Values.secureConnection.enabled) }}
 {{- fail "identity.oidc.provider is \"none\", so apiGateway.enabled must be true: without the API gateway the chart gives registry-service, the frontend and MCP no identity-service settings, and identity-service cannot accept the Secure Connection Service's token" }}
+{{- end }}
+{{- if and (eq $provider "none") .Values.identity.enabled (not $localAdmin.email) }}
+{{- fail "identity.oidc.provider is \"none\", so identity.bootstrap.localAdmin.email must be set: it names the first platform admin, whom the chart creates as a local account" }}
 {{- end }}
 {{- /* The chart can check that the agent is declared, but not that its Secrets exist. */ -}}
 {{- if and (eq $provider "none") .Values.identity.enabled .Values.secureConnection.enabled }}
@@ -53,11 +56,9 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- end }}
 {{- /* Only a full semver tag is checked; <X-0 also lets X's prereleases through. Applies whenever the hook renders. */ -}}
 {{- $identityTag := toString .Values.identity.tag }}
-{{- $bootstrapEmail := "" }}{{- with .Values.identity.bootstrap }}{{- with .localAdmin }}{{- $bootstrapEmail = .email }}{{- end }}{{- end }}
-{{- if and .Values.identity.enabled (or (eq $provider "none") $bootstrapEmail) (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $identityTag) (semverCompare "<2.5.0-0" $identityTag) }}
+{{- if and .Values.identity.enabled (or (eq $provider "none") $localAdmin.email) (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $identityTag) (semverCompare "<2.5.0-0" $identityTag) }}
 {{- fail (printf "identity.tag %q is older than 2.5.0, which the bootstrap hook and identity.oidc.provider none require. Set identity.tag to 2.5.0 or later." $identityTag) }}
 {{- end }}
-{{- $bootstrapNamed := "" }}{{- with .Values.identity.bootstrap }}{{- with .localAdmin }}{{- $bootstrapNamed = or .givenName .familyName }}{{- end }}{{- end }}
-{{- if and .Values.identity.enabled $bootstrapEmail $bootstrapNamed (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $identityTag) (semverCompare "<2.5.0-pre.6" $identityTag) }}
+{{- if and .Values.identity.enabled $localAdmin.email (or $localAdmin.givenName $localAdmin.familyName) (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $identityTag) (semverCompare "<2.5.0-pre.6" $identityTag) }}
 {{- fail (printf "identity.tag %q is older than 2.5.0-pre.6, which identity.bootstrap.localAdmin.givenName and familyName require. Set identity.tag to 2.5.0-pre.6 or later, or leave the names unset." $identityTag) }}
 {{- end }}

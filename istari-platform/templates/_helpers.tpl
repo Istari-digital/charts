@@ -300,3 +300,33 @@ ISTARI_DIGITAL_MCP_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "mcp.ful
 ISTARI_DIGITAL_SECURE_CONNECTION_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "secure-connection.fullname" .) | quote }}
 ISTARI_DIGITAL_API_GATEWAY_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "api-gateway.fullname" .) | quote }}
 {{- end }}
+
+{{/*
+identity.oidc.provider as a string, empty when unset. Values reused from an older chart
+(--reuse-values) may lack the identity.oidc map.
+*/}}
+{{- define "istari-platform.identityProvider" -}}
+{{- with .Values.identity.oidc }}{{ toString .provider }}{{ end -}}
+{{- end }}
+
+{{/*
+identity.bootstrap.localAdmin as JSON, an empty object when unset. Read it with
+`include "istari-platform.localAdmin" . | fromJson`. Values reused from an older chart
+(--reuse-values) may lack the map.
+*/}}
+{{- define "istari-platform.localAdmin" -}}
+{{- $localAdmin := dict -}}
+{{- with .Values.identity.bootstrap }}{{- with .localAdmin }}{{- $localAdmin = . }}{{- end }}{{- end -}}
+{{- toJson $localAdmin -}}
+{{- end }}
+
+{{/*
+"true" when the chart generates the first platform admin's password: provider none and no
+passwordSecret.name. Empty otherwise.
+*/}}
+{{- define "istari-platform.localAdminPasswordGenerated" -}}
+{{- $localAdmin := include "istari-platform.localAdmin" . | fromJson -}}
+{{- $secretName := "" -}}
+{{- with $localAdmin.passwordSecret }}{{ $secretName = .name }}{{ end -}}
+{{- if and (eq (include "istari-platform.identityProvider" .) "none") (not $secretName) }}true{{ end -}}
+{{- end }}
