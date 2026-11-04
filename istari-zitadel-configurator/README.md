@@ -77,7 +77,7 @@ helm uninstall istari-zitadel-configurator
 | configurator.tos_link | string | `"https://domain.com/terms-of-service"` | Terms of service link |
 | configurator.zitadel_domain | string | `"zitadel.domain.com"` | Ziatdel domain |
 | configurator.zitadel_insecure | bool | `false` | Whether to connect to Ziatdel over insecure channel |
-| configurator.zitadel_internal_url | string | `""` | In-cluster Zitadel URL including scheme and port, e.g. `http://zitadel.<namespace>.svc.cluster.local`. Written to the backends as ISTARI_DIGITAL_ZITADEL_INTERNAL_URL; empty leaves it unset |
+| configurator.zitadel_internal_url | string | `""` | In-cluster Zitadel URL, including scheme and any non-default port, e.g. `http://zitadel.<namespace>.svc.cluster.local:8080`. Written to the backends as ISTARI_DIGITAL_ZITADEL_INTERNAL_URL; leave empty to omit it |
 | configurator.zitadel_port | int | `443` | Ziatdel port |
 | configurator.zitadel_sa_secret_name | string | `"zitadel-sa-user"` | The secret name the is created by Ziatdel helm chart |
 | extraEnv | list | `[]` | Additional environment variables to add to the container. |
