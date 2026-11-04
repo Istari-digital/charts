@@ -8,9 +8,8 @@ name hashes this block to rerun on change (mechanism and immutability rationale 
 {{- $provisioner := .Values.provisioner }}
 {{/*
 The image emits only generated credential material, so the chart passes just the Secret names,
-namespace, labels, ServiceAccount name, and whether to generate the Secure Connection Service's
-platform-client credential. The identity config the services need (redirect URIs, authority URL,
-enable flags) comes from their own ConfigMaps, not the provisioner.
+namespace, labels, and ServiceAccount name. The identity config the services need (redirect URIs,
+authority URL, enable flags) comes from their own ConfigMaps, not the provisioner.
 */}}
 {{- $tfVars := list
   (dict "name" "TF_VAR_common_labels" "value" (include "provisioner.podLabels" . | fromYaml | toJson))
