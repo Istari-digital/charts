@@ -35,5 +35,5 @@ The first platform admin, {{ $firstAdmin.email }}, has a temporary password. Rea
 
   kubectl get secret {{ include "identity.localAdmin.passwordSecretName" . }} -n {{ .Release.Namespace }} -o jsonpath='{.data.password}' | base64 -d
 
-Sign in with it and choose a new password before it expires ({{ $ttl := "" }}{{ with .Values.identity.localAccounts }}{{ $ttl = .tempPasswordTtl }}{{ end }}{{ if $ttl }}{{ $ttl }}, set by identity.localAccounts.tempPasswordTtl{{ else }}identity.localAccounts.tempPasswordTtl, 168 hours by default{{ end }}), then delete the Secret.
+Sign in with it and choose a new password before it expires ({{ $ttl := "" }}{{ with .Values.identity.localAccounts }}{{ $ttl = .tempPasswordTtl }}{{ end }}{{ if $ttl }}{{ $ttl }}, set by identity.localAccounts.tempPasswordTtl{{ else }}see identity.localAccounts.tempPasswordTtl{{ end }}), then delete the Secret.
 {{- end -}}
