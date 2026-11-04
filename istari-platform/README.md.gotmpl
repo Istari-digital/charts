@@ -45,7 +45,7 @@ The chart supplies the rest of what a default install needs:
 
 Okta, Google, and Lastwall integrations are **Preview**, not generally available.
 
-Select one upstream provider with `identity.oidc.provider`: `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall`, or `google`. Configure its issuer, client ID, authentication method, and scopes through `identity.oidc` or your existing environment configuration. Empty OIDC values add no chart override, preserving configuration supplied through Secrets and the service's own defaults. Keep client secrets and private keys in `identity.secretName` or `identity.extraEnvSecrets`. Identity Service validates provider-specific requirements at startup.
+Select one upstream provider with `identity.oidc.provider`: `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall`, or `google`, or `none` to use local accounts instead (see [Installing with no identity provider](#installing-with-no-identity-provider)). Configure its issuer, client ID, authentication method, and scopes through `identity.oidc` or your existing environment configuration. Empty OIDC values add no chart override, preserving configuration supplied through Secrets and the service's own defaults. Keep client secrets and private keys in `identity.secretName` or `identity.extraEnvSecrets`. Identity Service validates provider-specific requirements at startup.
 
 The migration hook supports switches from Zitadel to `keycloak`, `entra`, `okta`, or `pingfederate`. Set `identity.idpMigration.to` to the provider configured for Identity Service, and explicitly enable the hook for the switch. For Google and Lastwall, prepare authoritative subject mappings with `import-principal-mappings` and set `identity.idpMigration.enabled: false`.
 
@@ -179,7 +179,7 @@ With `identity.oidc.provider: none`, people sign in with local accounts stored i
 - One Helm release must deploy every platform service you run, including the API gateway. A release that deploys a service without the gateway fails to render, and releases that each enable the gateway conflict over its resources.
 - `identity.tag` must be 2.5.0 or later. The chart refuses to render with an older tag.
 
-### Values
+### Required values
 
 ```yaml
 identity:
