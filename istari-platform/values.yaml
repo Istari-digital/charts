@@ -889,6 +889,10 @@ identity:
         name: ""
         # -- Key in the Secret.
         key: password
+      # -- Annotations for the first-admin hook Job's Pod template only. The chart defaults `sidecar.istio.io/inject: "false"` here so the one-shot Pod gets no Istio sidecar; your entries merge over that default.
+      podAnnotations: {}
+      # -- Resource requests/limits for the first-admin hook Job.
+      resources: {}
   # Ingress -- optional Kubernetes Ingress for this service.
   ingress:
     # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.

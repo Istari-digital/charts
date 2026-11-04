@@ -93,7 +93,7 @@ spec:
       labels:
         {{- include "identity.labels" . | nindent 8 }}
       annotations:
-        {{- include "istari-platform.jobPodAnnotations" $serviceValues.migrations.podAnnotations | nindent 8 }}
+        {{- include "istari-platform.jobPodAnnotations" $firstAdmin.podAnnotations | nindent 8 }}
     spec:
       restartPolicy: Never
       serviceAccountName: {{ ternary $name (include "identity.fullname" .) $generated | quote }}
@@ -139,7 +139,7 @@ spec:
         - "-password-secret"
         - {{ $secretName | quote }}
         {{- end }}
-        {{- with $serviceValues.migrations.resources }}
+        {{- with $firstAdmin.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
