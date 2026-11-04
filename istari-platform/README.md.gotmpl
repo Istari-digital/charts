@@ -64,7 +64,7 @@ provisioner:
   enabled: false
 ```
 
-The chart then deploys no identity service and no provisioner, whose generated keys serve only the identity service, and the registry service, the frontend and MCP authenticate directly against your identity provider. Setting only `identity.enabled: false` leaves those services configured to use an identity service that is not deployed, so sign-in fails. The API Gateway remains the default route. To disable it too, explicitly configure direct Registry access and upstream authentication for each client, including the frontend's `VITE_FILE_AUTH_ENDPOINT`.
+The chart then deploys no identity service and no provisioner, whose generated keys serve only the identity service, and the registry service, the frontend and MCP authenticate directly against your identity provider. Setting only `identity.enabled: false` leaves those services configured to use an identity service that is not deployed, so sign-in fails. The API Gateway remains the default route. To disable it too, explicitly configure direct Registry access and upstream authentication for each client, including the frontend's `VITE_FILE_AUTH_ENDPOINT`, which `common.registryFqdn` sets (along with `ISTARI_DIGITAL_REGISTRY_SERVICE_URL` in the backends).
 
 These values keep identity-service off on an install that never enabled it; turning it off after it has been on hasn't been tested.
 
@@ -74,7 +74,7 @@ On an install that sets `trustedCertBundle`, turning the identity service off af
 
 The API Gateway (`apiGateway.enabled`, default `true`) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
 
-Set `common.mainFqdn` to the platform's frontend FQDN. The API host is `api.<mainFqdn>`, or `common.apiFqdnOverride` when configured. With `apiGateway.enabled: true`, the chart configures the registry service, frontend, and enabled MCP service to use the gateway automatically.
+Set `common.mainFqdn` to the platform's frontend FQDN. The API host is `api.<mainFqdn>`, or `common.apiFqdnOverride` when configured. With `apiGateway.enabled: true`, the chart configures the registry service, identity service, Secure Connection Service, frontend, and enabled MCP service to use the gateway automatically.
 
 For external client tools using the gateway, set the base URL (`ISTARI_DIGITAL_API_URL`) to `https://<your-api-host>` with no path; clients append `/registry` and `/identity` themselves.
 

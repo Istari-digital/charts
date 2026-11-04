@@ -1,6 +1,5 @@
 {{- $serviceValues := .Values.fileservice -}}
 {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
-{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{/*
 Chart-owned env for the registry service. The internal service URLs make this ConfigMap render
 whenever the registry is enabled; the Jaeger and gateway/identity blocks below stay feature-gated.
@@ -19,6 +18,7 @@ metadata:
   reference to this ConfigMap `optional` (see migration-job.yaml). */}}
 data:
   {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
+  {{- with include "istari-platform.publicServiceUrls" . | trim }}{{ . | nindent 2 }}{{- end }}
   {{- if $jaegerEnabled }}
   FILE_SERVICE_OPENTELEMETRY_ENABLED: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ include "istari-platform.jaeger.otlpUrl" . | quote }}
@@ -30,10 +30,6 @@ data:
   OTEL_METRICS_EXPORTER: "none"
   {{- end }}
   {{- if .Values.apiGateway.enabled }}
-  # The registry uses this only to derive the identity URL when
-  # FILE_SERVICE_IDENTITY_ROUTER_URL is unset (settings.py); an explicit
-  # identity URL still wins.
-  ISTARI_DIGITAL_API_URL: {{ $gatewayUrl | quote }}
   # The platform-wide identity toggle, rendered in BOTH polarities. The registry reads
   # it as a tri-state (settings.py): unset leaves the deprecated
   # FILE_SERVICE_FEATURE_FLAGS__IDENTITY_ROUTER_ENABLED authoritative, so an explicit

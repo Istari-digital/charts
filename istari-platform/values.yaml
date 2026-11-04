@@ -18,15 +18,26 @@ nameOverride: ""
 # @default -- (see fields below)
 common:
   # -- **Required** platform host — the frontend FQDN, e.g. `istari.customer-domain.com`. The API
-  # gateway and mcp hosts default to subdomains of it. Drives the `ISTARI_DIGITAL_API_URL` the
-  # services receive and the OIDC redirect URIs the provisioner registers. The chart fails to render
-  # with an empty value, since every platform host and URL derives from it.
+  # gateway and mcp hosts default to subdomains of it. Becomes the frontend's `VITE_UI_URL` and the
+  # OIDC redirect URIs the provisioner registers. The chart fails to render with an empty value,
+  # since every platform host and URL derives from it.
   mainFqdn: ""
   # -- Override the API gateway host outright, e.g. `api.istari.customer-domain.com`. Empty uses the
-  # default, `api.<mainFqdn>`.
+  # default, `api.<mainFqdn>`. The host becomes `ISTARI_DIGITAL_API_URL` (and the frontend's
+  # `VITE_ISTARI_DIGITAL_API_URL`), set only when `apiGateway.enabled`.
   apiFqdnOverride: ""
-  # -- Override the mcp host outright. Empty uses the default, `mcp.<mainFqdn>`.
+  # -- Override the mcp host outright. Empty uses the default, `mcp.<mainFqdn>`. The host also becomes
+  # `ISTARI_DIGITAL_MCP_SERVICE_URL` when `mcp.enabled`.
   mcpFqdnOverride: ""
+  # -- Public host of the registry, without a scheme, e.g. `registry.istari.customer-domain.com`.
+  # Empty by default; leave it empty when the registry is reached through the API gateway. When set,
+  # it becomes `ISTARI_DIGITAL_REGISTRY_SERVICE_URL` in the backend ConfigMaps and the frontend's
+  # registry endpoint.
+  registryFqdn: ""
+  # -- Public host of the identity service, without a scheme, e.g. `identity.istari.customer-domain.com`.
+  # Empty by default; leave it empty when identity is reached through the API gateway. When set, it
+  # becomes `ISTARI_DIGITAL_IDENTITY_SERVICE_URL` in the backend ConfigMaps.
+  identityFqdn: ""
 
 # -- Optional: Trusted certificate bundle for when using a self-signed certificate. This is a PEM-encoded certificate bundle. AWS, Azure, and GCP root certs will also automatically be trusted.
 trustedCertBundle: ""
@@ -354,7 +365,6 @@ mcp:
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
   # -- Secret name. The secret should contain the environment variables required by the service.
-  # Note that a ConfigMap is also automatically created & used with the correct value for ISTARI_DIGITAL_REGISTRY_SERVICE_URL
   secretName: istari-mcp
   # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
   extraEnvConfigMaps: []
