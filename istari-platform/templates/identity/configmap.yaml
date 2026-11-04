@@ -40,6 +40,19 @@ data:
   # when the API Gateway is enabled, since that is the host clients reach this URL through.
   ISTARI_DIGITAL_API_URL: {{ $gatewayUrl | quote }}
   {{- end }}
+  {{- with $serviceValues.trustedProxies }}
+  ISTARI_DIGITAL_IDENTITY_SERVICE_TRUSTED_PROXIES: {{ join "," . | quote }}
+  {{- end }}
+  {{- /* Unset or empty keeps identity-service's default. */}}
+  {{- $settings := dict "passwordMinLength" "PASSWORD_MIN_LENGTH" "passwordBlocklistFile" "PASSWORD_BLOCKLIST_FILE" "tempPasswordTtl" "TEMP_PASSWORD_TTL" "signInThrottleAfter" "SIGN_IN_THROTTLE_AFTER" "signInDisableAfter" "SIGN_IN_DISABLE_AFTER" "signInRateLimit" "SIGN_IN_RATE_LIMIT" "passwordHashConcurrency" "PASSWORD_HASH_CONCURRENCY" "tosLink" "TOS_LINK" "privacyLink" "PRIVACY_LINK" }}
+  {{- with $serviceValues.localAccounts }}
+  {{- $localAccounts := . }}
+  {{- range $key, $var := $settings }}
+  {{- with index $localAccounts $key }}
+  {{ printf "ISTARI_DIGITAL_IDENTITY_SERVICE_%s" $var }}: {{ toString . | quote }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
   {{- if or .Values.provisioner.enabled .Values.provisioner.external }}
   {{- /* The frontend/mcp OIDC redirect allowlists are chart-derivable (from common.*), so they come
   from this ConfigMap rather than only the provisioner Secret. The registry public key the identity

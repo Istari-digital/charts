@@ -34,3 +34,27 @@ Call with a dict: {"root": $, "name": <agent name>}.
 {{- $hash := .name | sha256sum | trunc 8 -}}
 {{- printf "%s-register-agent-%s-%s" $prefix $slug $hash | trimSuffix "-" -}}
 {{- end }}
+
+{{/*
+The identity fullname plus a suffix. A fullname too long for the 63-character limit with
+its suffix is cut and given a hash of the whole name. Call with {"root": $, "suffix": "-x"}.
+*/}}
+{{- define "identity.suffixedName" -}}
+{{- $full := include "identity.fullname" .root -}}
+{{- if le (add (len $full) (len .suffix)) 63 -}}
+{{- printf "%s%s" $full .suffix -}}
+{{- else -}}
+{{- printf "%s-%s%s" ($full | trunc (int (sub 54 (len .suffix))) | trimSuffix "-") ($full | sha256sum | trunc 8) .suffix -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Name of the first-admin bootstrap Job, ServiceAccount, Role and RoleBinding.
+*/}}
+{{- define "identity.firstAdmin.bootstrapName" -}}
+{{ include "identity.suffixedName" (dict "root" . "suffix" "-local-admin-bootstrap") }}
+{{- end }}
+
+{{- define "identity.firstAdmin.passwordSecretName" -}}
+{{ include "identity.suffixedName" (dict "root" . "suffix" "-local-admin-password") }}
+{{- end }}

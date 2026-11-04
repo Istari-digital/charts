@@ -300,3 +300,40 @@ ISTARI_DIGITAL_MCP_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "mcp.ful
 ISTARI_DIGITAL_SECURE_CONNECTION_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "secure-connection.fullname" .) | quote }}
 ISTARI_DIGITAL_API_GATEWAY_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "api-gateway.fullname" .) | quote }}
 {{- end }}
+
+{{/*
+identity.oidc.provider as a string, empty when unset. Values reused from an older chart
+(--reuse-values) may lack the identity.oidc map.
+*/}}
+{{- define "istari-platform.identityProvider" -}}
+{{- with .Values.identity.oidc }}{{ toString .provider }}{{ end -}}
+{{- end }}
+
+{{/*
+identity.localAccounts.firstAdmin as JSON; read it with `include ... | fromJson`. Empty
+when unset, since values reused from an older chart (--reuse-values) may lack the map.
+*/}}
+{{- define "istari-platform.firstAdmin" -}}
+{{- $firstAdmin := dict -}}
+{{- with .Values.identity.localAccounts }}{{- with .firstAdmin }}{{- $firstAdmin = . }}{{- end }}{{- end -}}
+{{- toJson $firstAdmin -}}
+{{- end }}
+
+{{/*
+"true" when the chart generates the first platform admin's password: provider none and no
+passwordSecret.name. Empty otherwise.
+*/}}
+{{- define "istari-platform.firstAdminPasswordGenerated" -}}
+{{- $firstAdmin := include "istari-platform.firstAdmin" . | fromJson -}}
+{{- $secretName := "" -}}
+{{- with $firstAdmin.passwordSecret }}{{ $secretName = .name }}{{ end -}}
+{{- if and (eq (include "istari-platform.identityProvider" .) "none") (not $secretName) }}true{{ end -}}
+{{- end }}
+
+{{/*
+True for a full semver tag, the only kind the version gates compare; the gates use <X-0 so
+X's own prereleases pass.
+*/}}
+{{- define "istari-platform.isFullSemver" -}}
+{{- if regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" (toString .) }}true{{ end -}}
+{{- end }}
