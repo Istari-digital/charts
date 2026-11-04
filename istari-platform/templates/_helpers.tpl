@@ -310,9 +310,8 @@ identity.oidc.provider as a string, empty when unset. Values reused from an olde
 {{- end }}
 
 {{/*
-identity.localAccounts.firstAdmin as JSON, an empty object when unset. Read it with
-`include "istari-platform.firstAdmin" . | fromJson`. Values reused from an older chart
-(--reuse-values) may lack the map.
+identity.localAccounts.firstAdmin as JSON; read it with `include ... | fromJson`. Empty
+when unset, since values reused from an older chart (--reuse-values) may lack the map.
 */}}
 {{- define "istari-platform.firstAdmin" -}}
 {{- $firstAdmin := dict -}}

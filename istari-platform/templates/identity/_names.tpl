@@ -51,10 +51,10 @@ its suffix is cut and given a hash of the whole name. Call with {"root": $, "suf
 {{/*
 Name of the first-admin bootstrap Job, ServiceAccount, Role and RoleBinding.
 */}}
-{{- define "identity.localAdmin.bootstrapName" -}}
+{{- define "identity.firstAdmin.bootstrapName" -}}
 {{ include "identity.suffixedName" (dict "root" . "suffix" "-local-admin-bootstrap") }}
 {{- end }}
 
-{{- define "identity.localAdmin.passwordSecretName" -}}
+{{- define "identity.firstAdmin.passwordSecretName" -}}
 {{ include "identity.suffixedName" (dict "root" . "suffix" "-local-admin-password") }}
 {{- end }}
