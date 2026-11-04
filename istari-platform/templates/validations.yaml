@@ -59,6 +59,3 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- if and .Values.identity.enabled (or (eq $provider "none") $localAdmin.email) (include "istari-platform.isFullSemver" $identityTag) (semverCompare "<2.5.0-0" $identityTag) }}
 {{- fail (printf "identity.tag %q is older than 2.5.0, which the bootstrap hook and identity.oidc.provider none require. Set identity.tag to 2.5.0 or later." $identityTag) }}
 {{- end }}
-{{- if and .Values.identity.enabled $localAdmin.email (or $localAdmin.givenName $localAdmin.familyName) (include "istari-platform.isFullSemver" $identityTag) (semverCompare "<2.5.0-pre.6" $identityTag) }}
-{{- fail (printf "identity.tag %q is older than 2.5.0-pre.6, which identity.bootstrap.localAdmin.givenName and familyName require. Set identity.tag to 2.5.0-pre.6 or later, or leave the names unset." $identityTag) }}
-{{- end }}
