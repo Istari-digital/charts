@@ -18,7 +18,7 @@ metadata:
   reference to this ConfigMap `optional` (see migration-job.yaml). */}}
 data:
   {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
-  {{- include "istari-platform.publicServiceUrls" . | nindent 2 }}
+  {{- with include "istari-platform.publicServiceUrls" . | trim }}{{ . | nindent 2 }}{{- end }}
   {{- if $jaegerEnabled }}
   FILE_SERVICE_OPENTELEMETRY_ENABLED: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ include "istari-platform.jaeger.otlpUrl" . | quote }}

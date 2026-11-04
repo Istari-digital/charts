@@ -17,7 +17,7 @@ metadata:
   {{- end }}
 data:
   {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
-  {{- include "istari-platform.publicServiceUrls" . | nindent 2 }}
+  {{- with include "istari-platform.publicServiceUrls" . | trim }}{{ . | nindent 2 }}{{- end }}
   {{- if dig "enabled" false (default dict .Values.jaeger) }}
   {{- /* Per-container OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES are set as explicit env by
   "istari-platform.workloadIdentityEnv": the resource attributes reference downward-API $(VAR)s,

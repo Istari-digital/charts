@@ -310,9 +310,8 @@ ISTARI_DIGITAL_API_INTERNAL_URL: {{ printf "http://%s" (include "api-gateway.ful
 {{- end }}
 
 {{/*
-Public base URLs for the platform's backend services, emitted into each backend's ConfigMap after
-the in-cluster ones. A URL is rendered only when its host is configured; `ISTARI_DIGITAL_API_URL`
-is the gateway URL, which identity-service also uses as its token audience.
+Public base URLs, emitted after the in-cluster ones. The API URL also serves as
+identity-service's token audience.
 */}}
 {{- define "istari-platform.publicServiceUrls" -}}
 {{- $common := .Values.common -}}
