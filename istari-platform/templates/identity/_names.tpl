@@ -36,10 +36,10 @@ Call with a dict: {"root": $, "name": <agent name>}.
 {{- end }}
 
 {{/*
-Names for the bootstrap hook and its password Secret. A fullname too long for the
-63-character limit with its suffix is cut and given a hash of the whole name.
+The identity fullname plus a suffix. A fullname too long for the 63-character limit with
+its suffix is cut and given a hash of the whole name. Call with {"root": $, "suffix": "-x"}.
 */}}
-{{- define "identity.localAdmin.hookName" -}}
+{{- define "identity.suffixedName" -}}
 {{- $full := include "identity.fullname" .root -}}
 {{- if le (add (len $full) (len .suffix)) 63 -}}
 {{- printf "%s%s" $full .suffix -}}
@@ -48,10 +48,13 @@ Names for the bootstrap hook and its password Secret. A fullname too long for th
 {{- end -}}
 {{- end }}
 
-{{- define "identity.localAdmin.name" -}}
-{{ include "identity.localAdmin.hookName" (dict "root" . "suffix" "-local-admin-bootstrap") }}
+{{/*
+Name of the first-admin bootstrap Job, ServiceAccount, Role and RoleBinding.
+*/}}
+{{- define "identity.localAdmin.bootstrapName" -}}
+{{ include "identity.suffixedName" (dict "root" . "suffix" "-local-admin-bootstrap") }}
 {{- end }}
 
 {{- define "identity.localAdmin.passwordSecretName" -}}
-{{ include "identity.localAdmin.hookName" (dict "root" . "suffix" "-local-admin-password") }}
+{{ include "identity.suffixedName" (dict "root" . "suffix" "-local-admin-password") }}
 {{- end }}

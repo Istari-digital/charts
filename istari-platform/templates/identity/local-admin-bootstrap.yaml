@@ -6,7 +6,7 @@
 {{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.localAdmin.email requires identity.migrations.runAsJob=true: the hook that creates the first platform admin runs after the migration hook and needs its schema" }}{{ end }}
 {{- if not $localAdmin.tenant }}{{ fail "identity.bootstrap.localAdmin.tenant is required when identity.bootstrap.localAdmin.email is set: set it to `default`" }}{{ end }}
 {{- if and $passwordSecret.name (not $passwordSecret.key) }}{{ fail "identity.bootstrap.localAdmin.passwordSecret.key is required when passwordSecret.name is set: set it to `password`" }}{{ end }}
-{{- $name := include "identity.localAdmin.name" . -}}
+{{- $name := include "identity.localAdmin.bootstrapName" . -}}
 {{- $secretName := include "identity.localAdmin.passwordSecretName" . -}}
 {{- $generated := not (empty (include "istari-platform.localAdminPasswordGenerated" .)) -}}
 {{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
