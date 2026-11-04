@@ -1,7 +1,7 @@
 {{- if not .Values.override.enabled }}
 {{- with .Values.configurator.zitadel_internal_url }}
-{{- if not (or (hasPrefix "http://" .) (hasPrefix "https://" .)) }}
-{{- fail "configurator.zitadel_internal_url must start with http:// or https://, e.g. http://zitadel.<namespace>.svc.cluster.local" }}
+{{- if not (regexMatch `^https?://[^/\s]+` .) }}
+{{- fail "configurator.zitadel_internal_url must be an http:// or https:// URL with a host, e.g. http://zitadel.<namespace>.svc.cluster.local:8080" }}
 {{- end }}
 {{- end }}
 apiVersion: v1
