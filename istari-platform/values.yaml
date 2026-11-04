@@ -871,6 +871,12 @@ identity:
     # -- (int) Password hashes one replica computes at once, 1 to 1024.
     # @default -- the container's CPU limit, set by identity-service
     passwordHashConcurrency: null
+    # -- (string) URL of the Terms of Service link at the foot of identity-service's sign-in pages, opened in a new tab.
+    # @default -- no link
+    tosLink: null
+    # -- (string) URL of the Privacy Policy link at the foot of identity-service's sign-in pages, opened in a new tab.
+    # @default -- no link
+    privacyLink: null
     # -- The first platform admin, created as a local account. Required when `identity.oidc.provider` is `none`. See [Installing with no identity provider](#installing-with-no-identity-provider).
     # @default -- (see fields below)
     firstAdmin:

@@ -289,6 +289,19 @@ The Secure Connection Service needs a credential that identity-service accepts, 
 
 If the service's Secret is missing, its pods do not start. If the registration Secret is missing, the agent is not registered and identity-service refuses the service's token requests.
 
+### Terms of Service and Privacy Policy links
+
+identity-service's sign-in pages end with links to your Terms of Service and Privacy Policy when these are set:
+
+```yaml
+identity:
+  localAccounts:
+    tosLink: https://example.com/terms-of-service
+    privacyLink: https://example.com/privacy-policy
+```
+
+They match `configurator.tos_link` and `configurator.privacy_link` in istari-zitadel-configurator, which set the same links on Zitadel's sign-in pages.
+
 ### Client addresses and the sign-in limit
 
 identity-service limits sign-in attempts per client address (`identity.localAccounts.signInRateLimit`). Unless it can see each person's address, everyone shares that one limit. Set these before installing:
