@@ -20,3 +20,13 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- if and .Values.provisioner.enabled .Values.identity.enabled (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $provisionerTag) (semverCompare "<0.4.0-0" $provisionerTag) }}
 {{- fail (printf "provisioner.tag %q is too old for identity: images before 0.4.0 do not generate the identity service's keys, so its pods cannot start. Set provisioner.tag to 0.4.0 or later." $provisionerTag) }}
 {{- end }}
+{{- /* The platform client needs a credential the provisioner writes, and images before 0.6.0
+never write it, which leaves the service waiting on a Secret that never arrives. */ -}}
+{{- if eq (include "secure-connection.platformClient" .) "true" }}
+{{- if not (or .Values.provisioner.enabled .Values.provisioner.external) }}
+{{- fail "secureConnection.platformClient.enabled needs provisioner.enabled or provisioner.external: the provisioner generates the platform client's credential." }}
+{{- end }}
+{{- if and .Values.provisioner.enabled (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $provisionerTag) (semverCompare "<0.6.0-0" $provisionerTag) }}
+{{- fail (printf "provisioner.tag %q is too old for secureConnection.platformClient.enabled: images before 0.6.0 do not generate the Secure Connection Service's credential. Set provisioner.tag to 0.6.0 or later." $provisionerTag) }}
+{{- end }}
+{{- end }}

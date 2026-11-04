@@ -36,7 +36,7 @@ Secret carrying registry's private credential blob.
 
 {{/*
 Secret carrying the Secure Connection Service's private platform-client credential. Written only
-when `secureConnection.enabled` is true in the release that runs the provisioner.
+when `secureConnection.platformClient.enabled` is true in the release that runs the provisioner.
 */}}
 {{- define "provisioner.secureConnectionSecretName" -}}
 {{- printf "%s-secure-connection-credentials" (include "provisioner.fullname" .) -}}

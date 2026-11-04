@@ -18,7 +18,7 @@ metadata:
 data:
   {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
   ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
-  {{- if or .Values.provisioner.enabled .Values.provisioner.external }}
+  {{- if eq (include "secure-connection.platformClient" .) "true" }}
   {{- /* A platform-client token carries its roles only from identity-service's v2 token endpoint.
   Set here rather than as explicit env so secureConnection.secretName/extraEnvSecrets/env can still
   override it, e.g. for an operator credential that needs a different path. */}}

@@ -1,7 +1,7 @@
 {{- $serviceValues := .Values.secureConnection -}}
 {{- $migrationsEnv := dig "migrations" "env" list $serviceValues -}}
 {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) -}}
-{{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
+{{- $mountProvisionerSecret := eq (include "secure-connection.platformClient" .) "true" -}}
 {{- if $serviceValues.enabled }}
 apiVersion: apps/v1
 kind: Deployment

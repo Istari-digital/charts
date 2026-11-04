@@ -499,8 +499,11 @@ secureConnection:
   tag: "12.0.1"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
-  # -- Secret name. The secret should contain the environment variables required by the service. With `provisioner.enabled` or `provisioner.external`, the service also mounts the provisioner's generated credential Secret (`ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_CREDENTIALS`) and the chart sets `ISTARI_DIGITAL_IDENTITY_ROUTER_TOKEN_PATH` to `/api/v2/oauth2/token`; this secret, `extraEnvSecrets`, and `env` override both, so a secret that still carries an agent credential under that key wins over the provisioner's. The chart does not set `ISTARI_DIGITAL_IDENTITY_ROUTER_ENABLED` or `ISTARI_DIGITAL_IDENTITY_ROUTER_URL`; set them here to switch the service onto the Identity Service.
+  # -- Secret name. The secret should contain the environment variables required by the service.
   secretName: "istari-secure-connection"
+  platformClient:
+    # -- Authenticate as the Identity Service platform client `secure_connection` instead of an agent. Needs `provisioner.enabled` with `provisioner.tag` 0.6.0 or later, or `provisioner.external`; rendering fails otherwise. The service image must read `ISTARI_DIGITAL_IDENTITY_ROUTER_TOKEN_PATH`. When on, the provisioner generates the credential, the service mounts it, and the chart sets the token path to `/api/v2/oauth2/token`. `secretName`, `extraEnvSecrets`, and `env` still override both. See [Secure Connection Service](#secure-connection-service).
+    enabled: false
   # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
   extraEnvConfigMaps: []
   # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
@@ -790,7 +793,7 @@ identity:
       limits:
         cpu: 500m
         memory: 1Gi
-  # -- Registers service agents with the Identity Service on every install and upgrade, so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job, which reads the agent's inputs from env vars in `identity.secretName` and `extraEnvSecrets`. Renders only when `identity.enabled` and `enabled` are `true` and `agents` is not empty. With `provisioner.enabled` (or `provisioner.external`), the provisioner provisions the Secure Connection Service as a platform client instead, so it needs no entry here. See [Agent registration](#agent-registration) for an example.
+  # -- Registers service agents with the Identity Service on every install and upgrade, so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job, which reads the agent's inputs from env vars in `identity.secretName` and `extraEnvSecrets`. Renders only when `identity.enabled` and `enabled` are `true` and `agents` is not empty. With `secureConnection.platformClient.enabled`, the Secure Connection Service authenticates as a platform client instead and needs no entry here. See [Agent registration](#agent-registration) for an example.
   # @default -- (see fields below)
   agentRegistration:
     # -- Whether to render the agent-registration Jobs. Requires `identity.migrations.runAsJob: true`; rendering fails otherwise. Safe to leave on: an entry whose secret is not provisioned yet skips registration and leaves the release green, so the secret, not this flag, switches an agent on.
@@ -882,8 +885,8 @@ identity:
 # -- Settings for the provisioner: a one-shot Terraform-in-a-Job (an ordinary release resource, not
 # a Helm hook) that generates and publishes platform secrets. Its current use is registering the
 # registry/frontend/mcp services as OAuth/OIDC clients — generating their credentials for identity
-# to read at startup — and, when `secureConnection.enabled` is true, the Secure Connection Service
-# as the platform client `secure_connection` with the `secure_connector` role, replacing its
+# to read at startup — and, when `secureConnection.platformClient.enabled` is true, the Secure
+# Connection Service as the platform client `secure_connection` with the `secure_connector` role, replacing its
 # `identity.agentRegistration` entry. It may grow to other secret-generation uses. See
 # [Provisioner](#provisioner).
 # @default -- (see fields below)
@@ -897,8 +900,7 @@ provisioner:
   registry: "istaridigital.jfrog.io/customer-docker"
   # -- Image name.
   image: "provisioner"
-  # -- Image tag. 0.6.0 or later is needed to provision the Secure Connection Service; an earlier
-  # image ignores `secureConnection.enabled` and never writes the Secret that service mounts.
+  # -- Image tag. `secureConnection.platformClient.enabled` needs 0.6.0 or later.
   tag: "0.6.0"
   # -- Image pull policy.
   imagePullPolicy: IfNotPresent
