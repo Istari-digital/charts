@@ -44,7 +44,7 @@ data:
   ISTARI_DIGITAL_IDENTITY_SERVICE_TRUSTED_PROXIES: {{ join "," . | quote }}
   {{- end }}
   {{- /* Unset or empty keeps identity-service's default. */}}
-  {{- $settings := dict "passwordMinLength" "PASSWORD_MIN_LENGTH" "passwordBlocklistFile" "PASSWORD_BLOCKLIST_FILE" "tempPasswordTtl" "TEMP_PASSWORD_TTL" "loginThrottleAfter" "LOGIN_THROTTLE_AFTER" "loginDisableAfter" "LOGIN_DISABLE_AFTER" "loginRateLimit" "LOGIN_RATE_LIMIT" "passwordHashConcurrency" "PASSWORD_HASH_CONCURRENCY" }}
+  {{- $settings := dict "passwordMinLength" "PASSWORD_MIN_LENGTH" "passwordBlocklistFile" "PASSWORD_BLOCKLIST_FILE" "tempPasswordTtl" "TEMP_PASSWORD_TTL" "loginThrottleAfter" "SIGN_IN_THROTTLE_AFTER" "loginDisableAfter" "SIGN_IN_DISABLE_AFTER" "loginRateLimit" "SIGN_IN_RATE_LIMIT" "passwordHashConcurrency" "PASSWORD_HASH_CONCURRENCY" }}
   {{- with $serviceValues.localAccounts }}
   {{- $localAccounts := . }}
   {{- range $key, $var := $settings }}
