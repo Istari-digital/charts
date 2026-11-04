@@ -222,9 +222,11 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | apiGateway.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | apiGateway.volumes | list | `[]` | Pod Volumes |
 | common | object | (see fields below) | Chart-wide settings shared across services. |
-| common.apiFqdnOverride | string | `""` | Override the API gateway host outright, e.g. `api.istari.customer-domain.com`. Empty uses the default, `api.<mainFqdn>`. |
-| common.mainFqdn | string | `""` | **Required** platform host — the frontend FQDN, e.g. `istari.customer-domain.com`. The API gateway and mcp hosts default to subdomains of it. Drives the `ISTARI_DIGITAL_API_URL` the services receive and the OIDC redirect URIs the provisioner registers. The chart fails to render with an empty value, since every platform host and URL derives from it. |
-| common.mcpFqdnOverride | string | `""` | Override the mcp host outright. Empty uses the default, `mcp.<mainFqdn>`. |
+| common.apiFqdnOverride | string | `""` | Override the API gateway host outright, e.g. `api.istari.customer-domain.com`. Empty uses the default, `api.<mainFqdn>`. The host becomes `ISTARI_DIGITAL_API_URL` (and the frontend's `VITE_ISTARI_DIGITAL_API_URL`), set only when `apiGateway.enabled`. |
+| common.identityFqdn | string | `""` | Public host of the identity service, without a scheme, e.g. `identity.istari.customer-domain.com`. Empty by default; leave it empty when identity is reached through the API gateway. When set, it becomes `ISTARI_DIGITAL_IDENTITY_SERVICE_URL` in the backend ConfigMaps. |
+| common.mainFqdn | string | `""` | **Required** platform host — the frontend FQDN, e.g. `istari.customer-domain.com`. The API gateway and mcp hosts default to subdomains of it. Becomes the frontend's `VITE_UI_URL` and the OIDC redirect URIs the provisioner registers. The chart fails to render with an empty value, since every platform host and URL derives from it. |
+| common.mcpFqdnOverride | string | `""` | Override the mcp host outright. Empty uses the default, `mcp.<mainFqdn>`. The host also becomes `ISTARI_DIGITAL_MCP_SERVICE_URL` when `mcp.enabled`. |
+| common.registryFqdn | string | `""` | Public host of the registry, without a scheme, e.g. `registry.istari.customer-domain.com`. Empty by default; leave it empty when the registry is reached through the API gateway. When set, it becomes `ISTARI_DIGITAL_REGISTRY_SERVICE_URL` in the backend ConfigMaps and the frontend's registry endpoint. |
 | commonLabels | object | `{}` | Additional labels to add to all resources of all services |
 | dgraph-sec.alpha.acl.bootstrap.enabled | bool | `false` | Run the ACL bootstrap/reconciler Job. |
 | dgraph-sec.alpha.acl.bootstrap.existingSecret | string | `""` | Secret holding groot and user passwords for the bootstrap Job. |
