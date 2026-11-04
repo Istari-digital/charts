@@ -1,14 +1,14 @@
 {{- $serviceValues := .Values.identity -}}
-{{- $localAdmin := include "istari-platform.localAdmin" . | fromJson -}}
+{{- $firstAdmin := include "istari-platform.firstAdmin" . | fromJson -}}
 {{- $passwordSecret := dict -}}
-{{- with $localAdmin.passwordSecret }}{{- $passwordSecret = . }}{{- end }}
-{{- if and $serviceValues.enabled $localAdmin.email }}
-{{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.bootstrap.localAdmin.email requires identity.migrations.runAsJob=true: the hook that creates the first platform admin runs after the migration hook and needs its schema" }}{{ end }}
-{{- if not $localAdmin.tenant }}{{ fail "identity.bootstrap.localAdmin.tenant is required when identity.bootstrap.localAdmin.email is set: set it to `default`" }}{{ end }}
-{{- if and $passwordSecret.name (not $passwordSecret.key) }}{{ fail "identity.bootstrap.localAdmin.passwordSecret.key is required when passwordSecret.name is set: set it to `password`" }}{{ end }}
+{{- with $firstAdmin.passwordSecret }}{{- $passwordSecret = . }}{{- end }}
+{{- if and $serviceValues.enabled $firstAdmin.email }}
+{{- if not $serviceValues.migrations.runAsJob }}{{ fail "identity.localAccounts.firstAdmin.email requires identity.migrations.runAsJob=true: the hook that creates the first platform admin runs after the migration hook and needs its schema" }}{{ end }}
+{{- if not $firstAdmin.tenant }}{{ fail "identity.localAccounts.firstAdmin.tenant is required when identity.localAccounts.firstAdmin.email is set: set it to `default`" }}{{ end }}
+{{- if and $passwordSecret.name (not $passwordSecret.key) }}{{ fail "identity.localAccounts.firstAdmin.passwordSecret.key is required when passwordSecret.name is set: set it to `password`" }}{{ end }}
 {{- $name := include "identity.localAdmin.bootstrapName" . -}}
 {{- $secretName := include "identity.localAdmin.passwordSecretName" . -}}
-{{- $generated := not (empty (include "istari-platform.localAdminPasswordGenerated" .)) -}}
+{{- $generated := not (empty (include "istari-platform.firstAdminPasswordGenerated" .)) -}}
 {{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
 {{- if $generated }}
 apiVersion: v1
@@ -120,17 +120,17 @@ spec:
         - "-database-url-env"
         - "ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL"
         - "-local-admin-email"
-        - {{ $localAdmin.email | quote }}
-        {{- with $localAdmin.givenName }}
+        - {{ $firstAdmin.email | quote }}
+        {{- with $firstAdmin.givenName }}
         - "-local-admin-given-name"
         - {{ . | quote }}
         {{- end }}
-        {{- with $localAdmin.familyName }}
+        {{- with $firstAdmin.familyName }}
         - "-local-admin-family-name"
         - {{ . | quote }}
         {{- end }}
         - "-tenant"
-        - {{ $localAdmin.tenant | quote }}
+        - {{ $firstAdmin.tenant | quote }}
         {{- /* The command needs one password flag; with an issuer set it exits before using it. */}}
         {{- if $passwordSecret.name }}
         - "-password-env"

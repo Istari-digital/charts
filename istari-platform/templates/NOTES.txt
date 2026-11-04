@@ -28,10 +28,10 @@ controller at the {{ include "api-gateway.fullname" . }} Service on port 80, the
 registry service is exposed. TLS terminates there — the API Gateway itself serves plain HTTP.
 The chart can also create these for you: see `apiGateway.ingress` and `apiGateway.virtualService`.
 {{- end -}}
-{{- $localAdmin := include "istari-platform.localAdmin" . | fromJson }}
-{{- if and .Release.IsInstall .Values.identity.enabled $localAdmin.email (include "istari-platform.localAdminPasswordGenerated" .) }}
+{{- $firstAdmin := include "istari-platform.firstAdmin" . | fromJson }}
+{{- if and .Release.IsInstall .Values.identity.enabled $firstAdmin.email (include "istari-platform.firstAdminPasswordGenerated" .) }}
 
-The first platform admin, {{ $localAdmin.email }}, has a temporary password. Read it with:
+The first platform admin, {{ $firstAdmin.email }}, has a temporary password. Read it with:
 
   kubectl get secret {{ include "identity.localAdmin.passwordSecretName" . }} -n {{ .Release.Namespace }} -o jsonpath='{.data.password}' | base64 -d
 

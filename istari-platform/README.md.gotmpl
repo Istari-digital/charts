@@ -191,8 +191,8 @@ identity:
     runAsJob: true
   oidc:
     provider: none
-  bootstrap:
-    localAdmin:
+  localAccounts:
+    firstAdmin:
       email: admin@example.com
 apiGateway:
   enabled: true
@@ -204,9 +204,9 @@ The chart refuses to render with `none` unless each of these is set:
 - `identity.clientIntegration.enabled: true`, so registry-service, the frontend and MCP sign people in through identity-service.
 - `apiGateway.enabled: true`, so the chart gives those services their identity-service settings.
 - `identity.migrations.runAsJob: true`, so the database schema exists before the hook creates the admin.
-- `identity.bootstrap.localAdmin.email`, the first platform admin's email.
+- `identity.localAccounts.firstAdmin.email`, the first platform admin's email.
 
-The admin joins the tenant in `identity.bootstrap.localAdmin.tenant`, default `default`. Leave it at `default`: it must name an existing tenant, and on a new install only `default` exists.
+The admin joins the tenant in `identity.localAccounts.firstAdmin.tenant`, default `default`. Leave it at `default`: it must name an existing tenant, and on a new install only `default` exists.
 
 The chart also refuses to render with `none` if any of these is set:
 
@@ -226,7 +226,7 @@ If the cluster also runs Zitadel and `istari-zitadel-configurator`:
 Skip this to have the hook generate a temporary password.
 
 1. Create a Secret holding the password in the release's namespace, before `helm install`.
-2. Set `identity.bootstrap.localAdmin.passwordSecret.name` to the Secret's name, and `passwordSecret.key` if the key is not `password`.
+2. Set `identity.localAccounts.firstAdmin.passwordSecret.name` to the Secret's name, and `passwordSecret.key` if the key is not `password`.
 
 The password must have at least 15 characters by default (`identity.localAccounts.passwordMinLength`). The admin still changes it at first sign-in. A password Secret set after the admin exists has no effect.
 
@@ -283,7 +283,7 @@ The Secure Connection Service needs a credential that identity-service accepts, 
          - secure_connector
    ```
 
-   `name` only labels the registration Job; the agent's identity comes from the credential. The agent joins the tenant in `identity.bootstrap.localAdmin.tenant` unless the entry sets `tenantSlug`. [Agent registration](#agent-registration) describes the other fields, except `providerName` and `providerTenantIdEnv`, which the chart refuses with `none`.
+   `name` only labels the registration Job; the agent's identity comes from the credential. The agent joins the tenant in `identity.localAccounts.firstAdmin.tenant` unless the entry sets `tenantSlug`. [Agent registration](#agent-registration) describes the other fields, except `providerName` and `providerTenantIdEnv`, which the chart refuses with `none`.
 
 5. Delete `creds/`, which holds the private key.
 

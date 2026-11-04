@@ -192,8 +192,8 @@ identity:
     runAsJob: true
   oidc:
     provider: none
-  bootstrap:
-    localAdmin:
+  localAccounts:
+    firstAdmin:
       email: admin@example.com
 apiGateway:
   enabled: true
@@ -205,9 +205,9 @@ The chart refuses to render with `none` unless each of these is set:
 - `identity.clientIntegration.enabled: true`, so registry-service, the frontend and MCP sign people in through identity-service.
 - `apiGateway.enabled: true`, so the chart gives those services their identity-service settings.
 - `identity.migrations.runAsJob: true`, so the database schema exists before the hook creates the admin.
-- `identity.bootstrap.localAdmin.email`, the first platform admin's email.
+- `identity.localAccounts.firstAdmin.email`, the first platform admin's email.
 
-The admin joins the tenant in `identity.bootstrap.localAdmin.tenant`, default `default`. Leave it at `default`: it must name an existing tenant, and on a new install only `default` exists.
+The admin joins the tenant in `identity.localAccounts.firstAdmin.tenant`, default `default`. Leave it at `default`: it must name an existing tenant, and on a new install only `default` exists.
 
 The chart also refuses to render with `none` if any of these is set:
 
@@ -227,7 +227,7 @@ If the cluster also runs Zitadel and `istari-zitadel-configurator`:
 Skip this to have the hook generate a temporary password.
 
 1. Create a Secret holding the password in the release's namespace, before `helm install`.
-2. Set `identity.bootstrap.localAdmin.passwordSecret.name` to the Secret's name, and `passwordSecret.key` if the key is not `password`.
+2. Set `identity.localAccounts.firstAdmin.passwordSecret.name` to the Secret's name, and `passwordSecret.key` if the key is not `password`.
 
 The password must have at least 15 characters by default (`identity.localAccounts.passwordMinLength`). The admin still changes it at first sign-in. A password Secret set after the admin exists has no effect.
 
@@ -284,7 +284,7 @@ The Secure Connection Service needs a credential that identity-service accepts, 
          - secure_connector
    ```
 
-   `name` only labels the registration Job; the agent's identity comes from the credential. The agent joins the tenant in `identity.bootstrap.localAdmin.tenant` unless the entry sets `tenantSlug`. [Agent registration](#agent-registration) describes the other fields, except `providerName` and `providerTenantIdEnv`, which the chart refuses with `none`.
+   `name` only labels the registration Job; the agent's identity comes from the credential. The agent joins the tenant in `identity.localAccounts.firstAdmin.tenant` unless the entry sets `tenantSlug`. [Agent registration](#agent-registration) describes the other fields, except `providerName` and `providerTenantIdEnv`, which the chart refuses with `none`.
 
 5. Delete `creds/`, which holds the private key.
 
@@ -594,14 +594,6 @@ The command prints the new password once. It also re-enables a disabled password
 | identity.autoscaling.maxReplicas | int | `2` | Maximum number of replicas |
 | identity.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | identity.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
-| identity.bootstrap | object | (see fields below) | The first platform admin, created as a local account. Required when `identity.oidc.provider` is `none`. See [Installing with no identity provider](#installing-with-no-identity-provider). |
-| identity.bootstrap.localAdmin.email | string | `""` | Email of the first platform admin. With `identity.oidc.provider: none`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody and only stops an upgrade that sets an issuer while local accounts exist. Requires `identity.tag` 2.5.0 or later. |
-| identity.bootstrap.localAdmin.familyName | string | `""` | Family name of the first platform admin. At most 200 characters. |
-| identity.bootstrap.localAdmin.givenName | string | `""` | Given name of the first platform admin, shown with the family name instead of the email. At most 200 characters. |
-| identity.bootstrap.localAdmin.passwordSecret | object | (see fields below) | An existing Secret holding a password you choose for the first admin, who must change it at first sign-in. Create it before installing, and keep it while `name` is set: the hook reads it on every install and upgrade. Leave `name` empty to have the hook generate a temporary password and write it to the Secret `<fullnameOverride, or the release name when that is empty>-identity-local-admin-password`, shortened with a hash past 63 characters, under the key `password`. The chart creates that Secret on `helm install` only. |
-| identity.bootstrap.localAdmin.passwordSecret.key | string | `"password"` | Key in the Secret. |
-| identity.bootstrap.localAdmin.passwordSecret.name | string | `""` | Name of the Secret. |
-| identity.bootstrap.localAdmin.tenant | string | `"default"` | Slug of the tenant the first platform admin joins. It must exist when the hook creates the admin; on a new install only `default` exists. |
 | identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. |
 | identity.clientIntegration.enabled | bool | `true` | Whether the registry, the frontend and MCP authenticate through identity-service; a release that turns identity-service off sets this to `false` too. |
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
@@ -636,7 +628,15 @@ The command prints the new password once. It also re-enables a disabled password
 | identity.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard Identity Service labels). |
 | identity.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
 | identity.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
-| identity.localAccounts | object | (see fields below) | identity-service's password and sign-in settings, used only with `identity.oidc.provider: none`. Each renders only when set; unset keeps identity-service's own default. With an identity provider configured, identity-service logs that a set value is ignored. |
+| identity.localAccounts | object | (see fields below) | identity-service's password and sign-in settings, used only with `identity.oidc.provider: none`, and the first platform admin (`firstAdmin`). Each renders only when set; unset keeps identity-service's own default. With an identity provider configured, identity-service logs that a set value is ignored. |
+| identity.localAccounts.firstAdmin | object | (see fields below) | The first platform admin, created as a local account. Required when `identity.oidc.provider` is `none`. See [Installing with no identity provider](#installing-with-no-identity-provider). |
+| identity.localAccounts.firstAdmin.email | string | `""` | Email of the first platform admin. With `identity.oidc.provider: none`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody and only stops an upgrade that sets an issuer while local accounts exist. Requires `identity.tag` 2.5.0 or later. |
+| identity.localAccounts.firstAdmin.familyName | string | `""` | Family name of the first platform admin. At most 200 characters. |
+| identity.localAccounts.firstAdmin.givenName | string | `""` | Given name of the first platform admin, shown with the family name instead of the email. At most 200 characters. |
+| identity.localAccounts.firstAdmin.passwordSecret | object | (see fields below) | An existing Secret holding a password you choose for the first admin, who must change it at first sign-in. Create it before installing, and keep it while `name` is set: the hook reads it on every install and upgrade. Leave `name` empty to have the hook generate a temporary password and write it to the Secret `<fullnameOverride, or the release name when that is empty>-identity-local-admin-password`, shortened with a hash past 63 characters, under the key `password`. The chart creates that Secret on `helm install` only. |
+| identity.localAccounts.firstAdmin.passwordSecret.key | string | `"password"` | Key in the Secret. |
+| identity.localAccounts.firstAdmin.passwordSecret.name | string | `""` | Name of the Secret. |
+| identity.localAccounts.firstAdmin.tenant | string | `"default"` | Slug of the tenant the first platform admin joins. It must exist when the hook creates the admin; on a new install only `default` exists. |
 | identity.localAccounts.loginDisableAfter | int | 100, set by identity-service | Consecutive failed sign-ins that disable the password until an administrator resets it, 3 to 100. |
 | identity.localAccounts.loginRateLimit | int | 30, set by identity-service | POSTs one client address may make to the sign-in and change-password pages per minute, per replica, 1 to 10000. |
 | identity.localAccounts.loginThrottleAfter | int | 5, set by identity-service | Consecutive failed sign-ins before each further attempt is delayed, 1 to 100. |

@@ -310,24 +310,24 @@ identity.oidc.provider as a string, empty when unset. Values reused from an olde
 {{- end }}
 
 {{/*
-identity.bootstrap.localAdmin as JSON, an empty object when unset. Read it with
-`include "istari-platform.localAdmin" . | fromJson`. Values reused from an older chart
+identity.localAccounts.firstAdmin as JSON, an empty object when unset. Read it with
+`include "istari-platform.firstAdmin" . | fromJson`. Values reused from an older chart
 (--reuse-values) may lack the map.
 */}}
-{{- define "istari-platform.localAdmin" -}}
-{{- $localAdmin := dict -}}
-{{- with .Values.identity.bootstrap }}{{- with .localAdmin }}{{- $localAdmin = . }}{{- end }}{{- end -}}
-{{- toJson $localAdmin -}}
+{{- define "istari-platform.firstAdmin" -}}
+{{- $firstAdmin := dict -}}
+{{- with .Values.identity.localAccounts }}{{- with .firstAdmin }}{{- $firstAdmin = . }}{{- end }}{{- end -}}
+{{- toJson $firstAdmin -}}
 {{- end }}
 
 {{/*
 "true" when the chart generates the first platform admin's password: provider none and no
 passwordSecret.name. Empty otherwise.
 */}}
-{{- define "istari-platform.localAdminPasswordGenerated" -}}
-{{- $localAdmin := include "istari-platform.localAdmin" . | fromJson -}}
+{{- define "istari-platform.firstAdminPasswordGenerated" -}}
+{{- $firstAdmin := include "istari-platform.firstAdmin" . | fromJson -}}
 {{- $secretName := "" -}}
-{{- with $localAdmin.passwordSecret }}{{ $secretName = .name }}{{ end -}}
+{{- with $firstAdmin.passwordSecret }}{{ $secretName = .name }}{{ end -}}
 {{- if and (eq (include "istari-platform.identityProvider" .) "none") (not $secretName) }}true{{ end -}}
 {{- end }}
 

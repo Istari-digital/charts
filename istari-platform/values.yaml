@@ -845,28 +845,9 @@ identity:
     extraEnvSecrets: []
     # -- Resource requests/limits for the migration Job.
     resources: {}
-  # -- The first platform admin, created as a local account. Required when `identity.oidc.provider` is `none`. See [Installing with no identity provider](#installing-with-no-identity-provider).
-  # @default -- (see fields below)
-  bootstrap:
-    localAdmin:
-      # -- Email of the first platform admin. With `identity.oidc.provider: none`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody and only stops an upgrade that sets an issuer while local accounts exist. Requires `identity.tag` 2.5.0 or later.
-      email: ""
-      # -- Given name of the first platform admin, shown with the family name instead of the email. At most 200 characters.
-      givenName: ""
-      # -- Family name of the first platform admin. At most 200 characters.
-      familyName: ""
-      # -- Slug of the tenant the first platform admin joins. It must exist when the hook creates the admin; on a new install only `default` exists.
-      tenant: default
-      # -- An existing Secret holding a password you choose for the first admin, who must change it at first sign-in. Create it before installing, and keep it while `name` is set: the hook reads it on every install and upgrade. Leave `name` empty to have the hook generate a temporary password and write it to the Secret `<fullnameOverride, or the release name when that is empty>-identity-local-admin-password`, shortened with a hash past 63 characters, under the key `password`. The chart creates that Secret on `helm install` only.
-      # @default -- (see fields below)
-      passwordSecret:
-        # -- Name of the Secret.
-        name: ""
-        # -- Key in the Secret.
-        key: password
   # -- IP addresses or CIDR ranges of the proxies in front of identity-service, such as the API gateway's pods and the ingress controller in front of it. identity-service trusts their `X-Forwarded-For` to find each client's address for its per-address sign-in limit. Left empty, every client behind them shares one limit. See [Client addresses and the sign-in limit](#client-addresses-and-the-sign-in-limit).
   trustedProxies: []
-  # -- identity-service's password and sign-in settings, used only with `identity.oidc.provider: none`. Each renders only when set; unset keeps identity-service's own default. With an identity provider configured, identity-service logs that a set value is ignored.
+  # -- identity-service's password and sign-in settings, used only with `identity.oidc.provider: none`, and the first platform admin (`firstAdmin`). Each renders only when set; unset keeps identity-service's own default. With an identity provider configured, identity-service logs that a set value is ignored.
   # @default -- (see fields below)
   localAccounts:
     # -- (int) Fewest characters a password may have, 8 to 128. identity-service warns below 15.
@@ -890,6 +871,24 @@ identity:
     # -- (int) Password hashes one replica computes at once, 1 to 1024.
     # @default -- the container's CPU limit, set by identity-service
     passwordHashConcurrency: null
+    # -- The first platform admin, created as a local account. Required when `identity.oidc.provider` is `none`. See [Installing with no identity provider](#installing-with-no-identity-provider).
+    # @default -- (see fields below)
+    firstAdmin:
+      # -- Email of the first platform admin. With `identity.oidc.provider: none`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody and only stops an upgrade that sets an issuer while local accounts exist. Requires `identity.tag` 2.5.0 or later.
+      email: ""
+      # -- Given name of the first platform admin, shown with the family name instead of the email. At most 200 characters.
+      givenName: ""
+      # -- Family name of the first platform admin. At most 200 characters.
+      familyName: ""
+      # -- Slug of the tenant the first platform admin joins. It must exist when the hook creates the admin; on a new install only `default` exists.
+      tenant: default
+      # -- An existing Secret holding a password you choose for the first admin, who must change it at first sign-in. Create it before installing, and keep it while `name` is set: the hook reads it on every install and upgrade. Leave `name` empty to have the hook generate a temporary password and write it to the Secret `<fullnameOverride, or the release name when that is empty>-identity-local-admin-password`, shortened with a hash past 63 characters, under the key `password`. The chart creates that Secret on `helm install` only.
+      # @default -- (see fields below)
+      passwordSecret:
+        # -- Name of the Secret.
+        name: ""
+        # -- Key in the Secret.
+        key: password
   # Ingress -- optional Kubernetes Ingress for this service.
   ingress:
     # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
