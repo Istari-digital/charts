@@ -1,0 +1,42 @@
+{{- /*
+We put the generated default env vars in this config map so that user-defined values of
+'connector.secretName', 'connector.extraEnvSecrets', and 'connector.env' will always override them.
+*/}}
+{{- $serviceValues := .Values.connector -}}
+{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
+{{- if $serviceValues.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "connector.configmap.name" . | quote }}
+  labels:
+    {{- include "connector.labels" . | nindent 4 }}
+data:
+  {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
+  # The connector service hosts its OAuth authorization server at this public URL (callback
+  # <base>/auth/callback) and serves each connector at <base>/<connector-id>/mcp.
+  ISTARI_CONNECTOR_BASE_URL: {{ include "istari-platform.connectorUrl" . | quote }}
+  ISTARI_CONNECTOR_REGISTRY_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+  {{- if .Values.apiGateway.enabled }}
+  # With the gateway the connector reaches the registry at <base>/registry and derives the identity
+  # issuer as <base>/identity, so the direct registry URL above becomes a fallback only.
+  ISTARI_CONNECTOR_API_URL: {{ $gatewayUrl | quote }}
+  ISTARI_CONNECTOR_IDENTITY_SERVICE_ENABLED: {{ dig "clientIntegration" "enabled" false .Values.identity | quote }}
+  {{- if dig "clientIntegration" "enabled" false .Values.identity }}
+  # The connector shares MCP's identity client: the provisioner registers a fixed client set, and
+  # the connector's callback is added to that client's redirect allowlist (identity/configmap.yaml).
+  ISTARI_CONNECTOR_IDENTITY_SERVICE_CLIENT_ID: "mcp"
+  {{- end }}
+  {{- end }}
+  {{- if dig "enabled" false (default dict .Values.jaeger) }}
+  {{- /* The connector service runs under opentelemetry-instrument with the SDK disabled by default;
+  OTEL_SDK_DISABLED=false opts in. OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES are set as
+  explicit env by "istari-platform.workloadIdentityEnv": the resource attributes reference
+  downward-API $(VAR)s, which envFrom cannot expand, so they cannot live here. */}}
+  OTEL_SDK_DISABLED: "false"
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ include "istari-platform.jaeger.otlpUrl" . | quote }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+  OTEL_LOGS_EXPORTER: "none"
+  OTEL_METRICS_EXPORTER: "none"
+  {{- end }}
+{{- end }}

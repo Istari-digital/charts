@@ -1,0 +1,144 @@
+{{- $serviceValues := .Values.connector -}}
+{{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
+{{- if $serviceValues.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "connector.fullname" . | quote }}
+  labels:
+    {{- include "connector.labels" . | nindent 4 }}
+  {{- with $serviceValues.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if not $serviceValues.autoscaling.enabled }}
+  replicas: {{ $serviceValues.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "connector.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        # Rolls the Pods when the ConfigMap's data changes (e.g. a common.mainFqdn edit): envFrom
+        # alone leaves a running Pod on the old values. Hashes only .data, so a label- or
+        # chart-version-only change does not needlessly roll the Pods.
+        checksum/config: {{ include (print $.Template.BasePath "/connector/configmap.yaml") . | fromYaml | dig "data" dict | toYaml | sha256sum }}
+        {{- with $serviceValues.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "connector.labels" . | nindent 8 }}
+        {{- with $serviceValues.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "connector.fullname" . | quote }}
+      {{- with $serviceValues.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with default .Values.imagePullSecrets $serviceValues.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: "istari-platform"
+        {{- with $serviceValues.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ printf "%s/%s:%s" $serviceValues.registry $serviceValues.image $serviceValues.tag | quote }}
+        imagePullPolicy: {{ $serviceValues.imagePullPolicy | quote }}
+        ports:
+        - containerPort: 8000
+          name: "http"
+          protocol: "TCP"
+        livenessProbe:
+          httpGet:
+            path: "/health"
+            port: 8000
+        readinessProbe:
+          httpGet:
+            path: "/health"
+            port: 8000
+        {{- with $serviceValues.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        envFrom:
+        {{- /*
+        We put the generated default env vars in this config map so that user-defined values of
+        'connector.extraEnvConfigMaps', 'connector.secretName', 'connector.extraEnvSecrets', and 'connector.env' will always override them.
+        */}}
+        - configMapRef:
+            name: {{ include "connector.configmap.name" . | quote }}
+        {{- with $serviceValues.extraEnvConfigMaps }}
+        {{- range . }}
+        - configMapRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if $serviceValues.secretName }}
+        - secretRef:
+            name: {{ $serviceValues.secretName | quote }}
+        {{- end }}
+        {{- with $serviceValues.extraEnvSecrets }}
+        {{- range . }}
+        - secretRef:
+            name: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- $jaegerEnabled := dig "enabled" false (default dict .Values.jaeger) }}
+        {{- /* Chart identity/OTEL defaults render first; the fragments below are appended in
+        order and deduped last-wins, so service env overrides a chart default and a repeated name
+        collapses to one patchable entry. */}}
+        {{- $extra := list }}
+        {{- if and $mountProvisionerSecret .Values.apiGateway.enabled (dig "clientIntegration" "enabled" false .Values.identity) }}
+        {{- /* The connector signs users in through MCP's identity client (see configmap.yaml), so it
+        presents MCP's provisioner-generated secret under its own variable name. Explicit env outranks
+        every envFrom source, so to supply a different value set it in `connector.env`, which is
+        appended after this and wins. Optional: the Secret exists only once the provisioner has run,
+        and the identity service does not verify the secret of a PKCE client. */}}
+        {{- $extra = append $extra (list (dict "name" "ISTARI_CONNECTOR_IDENTITY_SERVICE_CLIENT_SECRET" "valueFrom" (dict "secretKeyRef" (dict "name" (include "provisioner.mcpSecretName" .) "key" "ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_SECRET" "optional" true)))) }}
+        {{- end }}
+        {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
+        {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
+        env:
+        {{- include "istari-platform.containerEnv" (dict "service" "connector" "subservice" "web" "containerName" "istari-platform" "otelDefaults" $jaegerEnabled "extra" $extra) | nindent 8 }}
+        {{- if or $serviceValues.volumeMounts .Values.trustedCertBundle }}
+        volumeMounts:
+        {{- with $serviceValues.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.trustedCertBundle }}
+        - name: trusted-certs
+          mountPath: /usr/lib/ssl/cert.pem
+          subPath: bundle.crt
+        {{- end }}
+        {{- end }}
+      {{- if or $serviceValues.volumes .Values.trustedCertBundle }}
+      volumes:
+      {{- with $serviceValues.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if .Values.trustedCertBundle }}
+      - name: trusted-certs
+        configMap:
+          name: {{ include "shared.trustedCerts.name" . | quote }}
+      {{- end }}
+      {{- end }}
+      {{- with $serviceValues.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $serviceValues.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}

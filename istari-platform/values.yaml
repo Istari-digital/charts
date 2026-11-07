@@ -27,6 +27,8 @@ common:
   apiFqdnOverride: ""
   # -- Override the mcp host outright. Empty uses the default, `mcp.<mainFqdn>`.
   mcpFqdnOverride: ""
+  # -- Override the connector service host outright. Empty uses the default, `connectors.<mainFqdn>`.
+  connectorFqdnOverride: ""
 
 # -- Optional: Trusted certificate bundle for when using a self-signed certificate. This is a PEM-encoded certificate bundle. AWS, Azure, and GCP root certs will also automatically be trusted.
 trustedCertBundle: ""
@@ -484,6 +486,152 @@ mcp:
     # -- `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). The default below is an EXAMPLE — you MUST replace it with your actual hostname(s) before enabling the VirtualService. Clearing this list while `enabled: true` will cause the chart to fail to render.
     hosts:
     - mcp.example.com
+    # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
+    gateways: []
+
+# Default values for the Connector Service.
+connector:
+  # -- Enable / Disable the whole deployment. The connector service exposes vendor applications' HTTP APIs to the AI chat and to external MCP clients as MCP servers, one endpoint per connector (`https://<connector host>/<connector-id>/mcp`). When enabled, the registry service is pointed at it automatically.
+  enabled: false
+  # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
+  registry: "istaridigital.jfrog.io/customer-docker"
+  # -- Image name. The combination of registry, image, and tag will be used to pull the image.
+  image: "connector-mcp-service"
+  # -- Image tag. The combination of registry, image, and tag will be used to pull the image.
+  tag: "0.1.0"
+  # -- Image pull policy
+  imagePullPolicy: IfNotPresent
+  # -- Secret name. The secret should contain the environment variables required by the service.
+  # Note that a ConfigMap is also automatically created & used with the chart-derivable values (ISTARI_CONNECTOR_BASE_URL, ISTARI_CONNECTOR_REGISTRY_URL, and the gateway/identity settings), so the secret carries only the identity-provider credentials and any overrides.
+  secretName: istari-connector
+  # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
+  extraEnvConfigMaps: []
+  # -- Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service.
+  extraEnvSecrets: []
+  # -- Replica count
+  replicaCount: 1
+  # -- Restart policy
+  restartPolicy: "Always"
+  # -- Additional labels to add to all of this service's resources
+  commonLabels: {}
+  # -- Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName.
+  serviceType: "ClusterIP"
+  # -- Additional annotations to apply to the service, note the following annotations for duplicate keys.
+  serviceAnnotations: {}
+  # -- Additional annotations to add to the deployment
+  deploymentAnnotations: {}
+  # -- Additional annotations to add to pods
+  podAnnotations: {}
+  # -- Additional labels to add to pods
+  podLabels: {}
+  # -- Pod security context
+  podSecurityContext:
+    fsGroup: 65532
+  # -- Primary container's security context
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 65532
+  # -- Additional annotations to apply to the service account
+  serviceAccountAnnotations: {}
+  # Environment variables
+  ###############################
+  # This has the same schema as the standard `env:` block in a pod's container's definition. For example:
+  # env:
+  # - name: ISTARI_CONNECTOR_LOG_LEVEL
+  #   value: DEBUG
+  ###############################
+  # If you are using secrets, you can use the following format:
+  # env:
+  # - name: ISTARI_DIGITAL_LOG_LEVEL
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: istari-connector
+  #       key: ISTARI_CONNECTOR_LOG_LEVEL
+  env: []
+  # Autoscaling -- set autoscaling (HPA) parameters
+  autoscaling:
+    # -- Enable/Disable autoscaling
+    enabled: false
+    # -- Minimum number of replicas
+    minReplicas: 1
+    # -- Maximum number of replicas
+    maxReplicas: 3
+    # -- Average CPU utilization percentage. Set to `null` to disable.
+    cpuUtilization: 80
+    # -- Average Memory utilization percentage. Set to `null` to disable.
+    memoryUtilization: 80
+  # -- Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
+  resources:
+    requests:
+      cpu: "250m"
+      memory: 1Gi
+    limits:
+      memory: 1Gi
+  # -- Tolerations.
+  # Example:
+  #
+  # ```
+  # tolerations:
+  # - "effect": "NoSchedule"
+  #   "key": "istari.k8s.io/role"
+  #   "operator": "Equal"
+  #   "value": "main"
+  # ```
+  # -- Pod Volumes
+  volumes: []
+  # -- Volume Mounts for pod containers
+  volumeMounts: []
+  # -- Tolerations.
+  # Example:
+  #
+  # ```
+  # tolerations:
+  # - "effect": "NoSchedule"
+  #   "key": "istari.k8s.io/role"
+  #   "operator": "Equal"
+  #   "value": "main"
+  # ```
+  tolerations: []
+  # -- Node selector
+  nodeSelector: {}
+  # -- Affinity
+  affinity: {}
+  # Ingress -- optional Kubernetes Ingress for this service.
+  ingress:
+    # -- Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass.
+    enabled: false
+    # -- `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass.
+    className: ""
+    # -- Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.).
+    annotations: {}
+    # -- Additional labels on the Ingress (in addition to the standard connector labels).
+    labels: {}
+    # -- One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host.
+    hosts:
+    - host: connectors.istari.customer-domain.com
+      paths:
+      - path: /
+        pathType: Prefix
+    # -- TLS configuration; passed through to `spec.tls[]` verbatim.
+    tls: []
+    # -- Service port the Ingress targets. Defaults to 80.
+    servicePort: 80
+  # VirtualService -- optional Istio VirtualService for this service. The chart generates a single HTTP route sending all traffic (for the listed `hosts`) to this service's `kind: Service` on port 80. For custom routing logic (URL rewriting, retries, CORS, etc.), create a separate VirtualService alongside this chart.
+  virtualService:
+    # -- Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+).
+    enabled: false
+    # -- Additional labels on the VirtualService (in addition to the standard connector labels).
+    labels: {}
+    # -- Annotations on the VirtualService.
+    annotations: {}
+    # -- `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). The default below is an EXAMPLE — you MUST replace it with your actual hostname(s) before enabling the VirtualService. Clearing this list while `enabled: true` will cause the chart to fail to render.
+    hosts:
+    - connectors.example.com
     # -- `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only.
     gateways: []
 
