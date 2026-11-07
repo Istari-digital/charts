@@ -115,6 +115,14 @@ The provisioner runs under its own ServiceAccount and Role. The mutating verbs o
 
 The generated Secret names derive from `provisioner.fullname` — `<fullnameOverride>-provisioner` when `fullnameOverride` is set, `<release>-provisioner` otherwise. Because `fullnameOverride` defaults to `istari`, a second release in the same namespace collides on these names — as it does on every other resource the chart names — unless you give it a distinct `fullnameOverride`. When the provisioner runs in a separate release from a consumer (`provisioner.external`), the two instead agree on the names by sharing the same `fullnameOverride` — two separate releases in one namespace can't share a release name, so the override is the only way to make their Secret names match.
 
+## Connector service
+
+`connector.enabled` deploys the connector service, which exposes vendor applications' HTTP APIs as MCP servers: one endpoint per connector at `https://<connector host>/<connector-id>/mcp`, where the host is `connectors.<mainFqdn>` or `common.connectorFqdnOverride`. The chart points the registry service at it (`FILE_SERVICE_CONNECTOR_SERVICE_URL`, in-cluster) so the AI chat can use its connectors, and derives the service's own public base URL and registry URL, so its Secret (`connector.secretName`) carries only your identity provider's credentials.
+
+External MCP clients sign in through the connector service's OAuth endpoints, whose callback is `https://<connector host>/auth/callback`. With the identity service, the connector shares MCP's client: the chart adds that callback to MCP's redirect allowlist and gives the connector MCP's client id and provisioner-generated secret. Without the identity service, register the callback with your identity provider and put the client's credentials in the connector's Secret as `ISTARI_CONNECTOR_ZITADEL_ISSUER`, `ISTARI_CONNECTOR_ZITADEL_CLIENT_ID` and `ISTARI_CONNECTOR_ZITADEL_CLIENT_SECRET`.
+
+To run more than one replica, set `ISTARI_CONNECTOR_NATS_URL` (and `ISTARI_CONNECTOR_NATS_TOKEN`) so the replicas share their sign-in state, as MCP's `ISTARI_DIGITAL_NATS_URL` does.
+
 ## Agent registration
 
 `identity.agentRegistration` registers service agents, for example the Secure Connection Service, with the identity service so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job on install and upgrade. On a Zitadel configurator install, these values register the Secure Connection Service:

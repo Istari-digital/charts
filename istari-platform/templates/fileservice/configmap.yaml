@@ -19,6 +19,11 @@ metadata:
   reference to this ConfigMap `optional` (see migration-job.yaml). */}}
 data:
   {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
+  {{- if .Values.connector.enabled }}
+  # The registry lists the connectors this service publishes (<url>/connectors) and connects the AI
+  # chat to <url>/<connector-id>/mcp, both server-side, so the in-cluster address is enough.
+  FILE_SERVICE_CONNECTOR_SERVICE_URL: {{ printf "http://%s" (include "connector.fullname" .) | quote }}
+  {{- end }}
   {{- if $jaegerEnabled }}
   FILE_SERVICE_OPENTELEMETRY_ENABLED: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ include "istari-platform.jaeger.otlpUrl" . | quote }}

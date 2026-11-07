@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 7.2.0](https://img.shields.io/badge/Version-7.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
+![Version: 7.3.0](https://img.shields.io/badge/Version-7.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -116,6 +116,14 @@ The provisioner runs under its own ServiceAccount and Role. The mutating verbs o
 
 The generated Secret names derive from `provisioner.fullname` — `<fullnameOverride>-provisioner` when `fullnameOverride` is set, `<release>-provisioner` otherwise. Because `fullnameOverride` defaults to `istari`, a second release in the same namespace collides on these names — as it does on every other resource the chart names — unless you give it a distinct `fullnameOverride`. When the provisioner runs in a separate release from a consumer (`provisioner.external`), the two instead agree on the names by sharing the same `fullnameOverride` — two separate releases in one namespace can't share a release name, so the override is the only way to make their Secret names match.
 
+## Connector service
+
+`connector.enabled` deploys the connector service, which exposes vendor applications' HTTP APIs as MCP servers: one endpoint per connector at `https://<connector host>/<connector-id>/mcp`, where the host is `connectors.<mainFqdn>` or `common.connectorFqdnOverride`. The chart points the registry service at it (`FILE_SERVICE_CONNECTOR_SERVICE_URL`, in-cluster) so the AI chat can use its connectors, and derives the service's own public base URL and registry URL, so its Secret (`connector.secretName`) carries only your identity provider's credentials.
+
+External MCP clients sign in through the connector service's OAuth endpoints, whose callback is `https://<connector host>/auth/callback`. With the identity service, the connector shares MCP's client: the chart adds that callback to MCP's redirect allowlist and gives the connector MCP's client id and provisioner-generated secret. Without the identity service, register the callback with your identity provider and put the client's credentials in the connector's Secret as `ISTARI_CONNECTOR_ZITADEL_ISSUER`, `ISTARI_CONNECTOR_ZITADEL_CLIENT_ID` and `ISTARI_CONNECTOR_ZITADEL_CLIENT_SECRET`.
+
+To run more than one replica, set `ISTARI_CONNECTOR_NATS_URL` (and `ISTARI_CONNECTOR_NATS_TOKEN`) so the replicas share their sign-in state, as MCP's `ISTARI_DIGITAL_NATS_URL` does.
+
 ## Agent registration
 
 `identity.agentRegistration` registers service agents, for example the Secure Connection Service, with the identity service so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job on install and upgrade. On a Zitadel configurator install, these values register the Secure Connection Service:
@@ -223,9 +231,53 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | apiGateway.volumes | list | `[]` | Pod Volumes |
 | common | object | (see fields below) | Chart-wide settings shared across services. |
 | common.apiFqdnOverride | string | `""` | Override the API gateway host outright, e.g. `api.istari.customer-domain.com`. Empty uses the default, `api.<mainFqdn>`. |
+| common.connectorFqdnOverride | string | `""` | Override the connector service host outright. Empty uses the default, `connectors.<mainFqdn>`. |
 | common.mainFqdn | string | `""` | **Required** platform host — the frontend FQDN, e.g. `istari.customer-domain.com`. The API gateway and mcp hosts default to subdomains of it. Drives the `ISTARI_DIGITAL_API_URL` the services receive and the OIDC redirect URIs the provisioner registers. The chart fails to render with an empty value, since every platform host and URL derives from it. |
 | common.mcpFqdnOverride | string | `""` | Override the mcp host outright. Empty uses the default, `mcp.<mainFqdn>`. |
 | commonLabels | object | `{}` | Additional labels to add to all resources of all services |
+| connector.affinity | object | `{}` | Affinity |
+| connector.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
+| connector.autoscaling.enabled | bool | `false` | Enable/Disable autoscaling |
+| connector.autoscaling.maxReplicas | int | `3` | Maximum number of replicas |
+| connector.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
+| connector.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
+| connector.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
+| connector.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
+| connector.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
+| connector.enabled | bool | `false` | Enable / Disable the whole deployment. The connector service exposes vendor applications' HTTP APIs to the AI chat and to external MCP clients as MCP servers, one endpoint per connector (`https://<connector host>/<connector-id>/mcp`). When enabled, the registry service is pointed at it automatically. |
+| connector.env | list | `[]` |  |
+| connector.extraEnvConfigMaps | list | `[]` | Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys). |
+| connector.extraEnvSecrets | list | `[]` | Extra secrets to mount in the pod. The secrets should contain the environment variables required by the service. |
+| connector.image | string | `"connector-mcp-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
+| connector.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| connector.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
+| connector.ingress.className | string | `""` | `ingressClassName` on the Ingress. Leave empty to use the cluster's default IngressClass. |
+| connector.ingress.enabled | bool | `false` | Create a Kubernetes Ingress for this service. The cluster must have an Ingress controller (nginx, ALB / EKS Auto Mode, GCE, Traefik, etc.) that watches the chosen IngressClass. |
+| connector.ingress.hosts | list | `[{"host":"connectors.istari.customer-domain.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | One entry per `spec.rules[]`. `host` is optional — when omitted, the rule matches any host. |
+| connector.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard connector labels). |
+| connector.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
+| connector.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
+| connector.nodeSelector | object | `{}` | Node selector |
+| connector.podAnnotations | object | `{}` | Additional annotations to add to pods |
+| connector.podLabels | object | `{}` | Additional labels to add to pods |
+| connector.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
+| connector.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
+| connector.replicaCount | int | `1` | Replica count |
+| connector.resources | object | `{"limits":{"memory":"1Gi"},"requests":{"cpu":"250m","memory":"1Gi"}}` | Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request. |
+| connector.restartPolicy | string | `"Always"` | Restart policy |
+| connector.secretName | string | `"istari-connector"` | Secret name. The secret should contain the environment variables required by the service. Note that a ConfigMap is also automatically created & used with the chart-derivable values (ISTARI_CONNECTOR_BASE_URL, ISTARI_CONNECTOR_REGISTRY_URL, and the gateway/identity settings), so the secret carries only the identity-provider credentials and any overrides. |
+| connector.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
+| connector.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
+| connector.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
+| connector.tag | string | `"0.1.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
+| connector.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
+| connector.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
+| connector.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
+| connector.virtualService.gateways | list | `[]` | `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only. |
+| connector.virtualService.hosts | list | `["connectors.example.com"]` | `spec.hosts[]` — DNS names this VirtualService matches (FQDNs, or short names for mesh-internal traffic). The default below is an EXAMPLE — you MUST replace it with your actual hostname(s) before enabling the VirtualService. Clearing this list while `enabled: true` will cause the chart to fail to render. |
+| connector.virtualService.labels | object | `{}` | Additional labels on the VirtualService (in addition to the standard connector labels). |
+| connector.volumeMounts | list | `[]` | Volume Mounts for pod containers |
+| connector.volumes | list | `[]` | Pod Volumes |
 | dgraph-sec.alpha.acl.bootstrap.enabled | bool | `false` | Run the ACL bootstrap/reconciler Job. |
 | dgraph-sec.alpha.acl.bootstrap.existingSecret | string | `""` | Secret holding groot and user passwords for the bootstrap Job. |
 | dgraph-sec.alpha.acl.bootstrap.grootPasswordSecretKey | string | `"groot_password"` | Key in the Secret holding groot's rotated password. |
