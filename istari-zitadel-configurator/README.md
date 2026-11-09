@@ -86,7 +86,7 @@ helm uninstall istari-zitadel-configurator
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy (e.g., Always, IfNotPresent, Never) |
 | image.registry | string | `"istaridigital.jfrog.io"` | Docker registry where the image is hosted |
 | image.repository | string | `"main-docker-local/istari-zitadel-configurator"` | Docker repository for the image |
-| image.tag | string | `"1.11.4"` | Image tag to use |
+| image.tag | string | `"1.11.5"` | Image tag to use |
 | imagePullSecrets[0].name | string | `"docker-pull-secret"` |  |
 | nameOverride | string | `"istari-zitadel-configurator"` | Override the name of the chart. |
 | nodeSelector | object | `{}` | Node selector for pod assignment. For more information, see: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/ |
