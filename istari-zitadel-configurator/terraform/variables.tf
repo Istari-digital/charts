@@ -58,6 +58,7 @@ variable "org_owner_temporary_password" {
   type        = string
   description = "Temporary password for the organization owner"
   default     = "IstariLocalPassword1!"
+  sensitive   = true
 }
 
 variable "mcp_enabled" {
@@ -128,6 +129,7 @@ variable "smtp_password" {
   type        = string
   description = "SMTP password"
   default     = ""
+  sensitive   = true
 }
 
 variable "smtp_tls" {
