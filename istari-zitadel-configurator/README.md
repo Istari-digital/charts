@@ -38,6 +38,14 @@ configurator:
   # ... more configuration ...
 ```
 
+## Upgrading to 1.12.0
+
+From 1.12.0, the `zitadel-identity-service-env` Secret this chart writes sets `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to `zitadel`. Versions of identity-service that read this setting no longer assume Zitadel when it is unset; earlier versions ignore it.
+
+If your identity-service signs in through another provider but still loads this Secret (for example through istari-platform's `identity.extraEnvSecrets`), set istari-platform's `identity.oidc.provider` to that provider. istari-platform renders it as an explicit environment variable, which takes precedence over every Secret. Setting the provider in the Secret named by `identity.secretName` does not override this one, because istari-platform loads that Secret first and a later Secret wins.
+
+Otherwise identity-service signs in through Zitadel. If the provider is also still set under the older name `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER` to a different value, identity-service refuses to start.
+
 ## Uninstall
 ```sh
 helm uninstall istari-zitadel-configurator
