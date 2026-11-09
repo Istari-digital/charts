@@ -40,11 +40,14 @@ configurator:
 
 ## Upgrading to 1.12.0
 
-From 1.12.0, the `zitadel-identity-service-env` Secret this chart writes sets `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to `zitadel`. Versions of identity-service that read this setting no longer assume Zitadel when it is unset; earlier versions ignore it.
+From 1.12.0, the `zitadel-identity-service-env` Secret this chart writes sets `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to `zitadel`. An install whose identity-service signs in through Zitadel needs no change.
 
-If your identity-service signs in through another provider but still loads this Secret (for example through istari-platform's `identity.extraEnvSecrets`), set istari-platform's `identity.oidc.provider` to that provider. istari-platform renders it as an explicit environment variable, which takes precedence over every Secret. Setting the provider in the Secret named by `identity.secretName` does not override this one, because istari-platform loads that Secret first and a later Secret wins.
+If identity-service signs in through another provider but still loads this Secret (for example through istari-platform's `identity.extraEnvSecrets`), set `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to that provider from a source that overrides this Secret:
 
-Otherwise identity-service signs in through Zitadel. If the provider is also still set under the older name `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER` to a different value, identity-service refuses to start.
+- If your istari-platform release renders `identity.oidc.provider` as `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` (check the rendered Deployment with `helm template`), set `identity.oidc.provider`. An explicit environment variable overrides every Secret.
+- Otherwise, add a Secret that sets `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to your provider and list it after this one in `identity.extraEnvSecrets`. A later Secret overrides an earlier one, and the Secret named by `identity.secretName` loads before all of them, so it cannot override this one.
+
+If you do neither, identity-service versions that read `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` sign in through Zitadel, or refuse to start when the older name `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER` holds a different provider. Earlier versions ignore the new name.
 
 ## Uninstall
 ```sh
