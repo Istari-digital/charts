@@ -47,6 +47,8 @@ If identity-service signs in through another provider but still loads this Secre
 - If your istari-platform release renders `identity.oidc.provider` as `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` (check the rendered Deployment with `helm template`), set `identity.oidc.provider`. An explicit environment variable overrides every Secret.
 - Otherwise, add a Secret that sets `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to your provider and list it after this one in `identity.extraEnvSecrets`. A later Secret overrides an earlier one, and the Secret named by `identity.secretName` loads before all of them, so it cannot override this one.
 
+identity-service reads these variables only when its containers start, so make the change before rolling out an identity-service release that reads the new name, and restart identity-service after changing a Secret it already loads.
+
 If you do neither, identity-service versions that read `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` sign in through Zitadel, logging a warning when the older name `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER` holds a different provider. Earlier versions ignore the new name.
 
 ## Uninstall
