@@ -374,7 +374,21 @@ People keep their principals, roles and keys when the install moves to an identi
 
    - Entra: set `ISTARI_DIGITAL_IDENTITY_SERVICE_ALLOW_UNVERIFIED_EMAIL_LINKING` to `true` for the move. Set it back to `false` once everyone has signed in: while it is on, an Entra account that asserts a person's email can take over their identity.
    - Lastwall links nobody by email. Link each person with `import-principal-mappings`, giving `local` as the old provider and the person's principal ID as the old subject.
-3. Set `identity.oidc.provider` and the provider's other `identity.oidc` values, and set `identity.idpMigration.enabled: false`, because the chart cannot tell this upgrade from a Zitadel install's and would otherwise run the Zitadel import. For Zitadel, add `zitadel-identity-service-env` back to `identity.extraEnvSecrets`. Then run `helm upgrade`.
+3. Change the values, then run `helm upgrade`:
+   - Set `identity.oidc.provider` and the provider's other `identity.oidc` values.
+   - Set `identity.idpMigration.enabled: false`. The chart cannot tell this upgrade from a Zitadel install's, and would otherwise run the Zitadel import.
+   - For Zitadel, add `zitadel-identity-service-env` back to `identity.extraEnvSecrets`.
+   - In `identity.agentRegistration`, give each agent without `tenantSlug` the tenant it joined, `identity.localAccounts.firstAdmin.tenant`. With a provider, the chart requires `tenantSlug` or `providerName`.
+   - If the Secure Connection Service runs, keep it signing in through identity-service, since its credential is an identity-service agent's. The chart sets this only under `local`, so add it to `secureConnection.env`:
+
+     ```yaml
+     secureConnection:
+       env:
+         - name: ISTARI_DIGITAL_IDENTITY_ROUTER_ENABLED
+           value: "true"
+         - name: ISTARI_DIGITAL_IDENTITY_ROUTER_URL
+           value: https://<API gateway host>/identity
+     ```
 4. Confirm that people can sign in through the provider.
 5. Delete the set-aside passwords. This step is required:
 
