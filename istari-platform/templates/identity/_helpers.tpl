@@ -27,7 +27,7 @@ identity-service, which checks it at startup.
 {{- range $e := .env }}
 {{- if has (toString $e.name) (list "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER") }}{{- fail (printf "identity.oidc.provider is \"local\", so identity.env must not set %s: remove that entry" $e.name) }}{{- end }}
 {{- end }}
-{{- /* Explicit env beats envFrom, so an issuer left in a mounted Secret cannot select an identity provider. */}}
+{{- /* Explicit env beats envFrom: blanks an issuer left in a mounted Secret, which identity-service would warn about. */}}
 - name: ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER
   value: ""
 {{- else }}
@@ -54,3 +54,8 @@ identity-service, which checks it at startup.
 {{- end }}
 {{- end }}
 {{- end }}
+
+{{/*
+identity.oidc.provider's accepted values, space-separated; local means local accounts.
+*/}}
+{{- define "identity.providers" -}}local zitadel keycloak entra okta pingfederate lastwall google{{- end }}

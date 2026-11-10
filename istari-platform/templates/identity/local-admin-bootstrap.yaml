@@ -131,7 +131,7 @@ spec:
         {{- end }}
         - "-tenant"
         - {{ $firstAdmin.tenant | quote }}
-        {{- /* The command needs one password flag; with an issuer set it exits before using it. */}}
+        {{- /* The command needs one password flag; under a provider other than local it exits before using it. */}}
         {{- if $passwordSecret.name }}
         - "-password-env"
         - "LOCAL_ADMIN_PASSWORD"

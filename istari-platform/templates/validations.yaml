@@ -22,7 +22,7 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- end }}
 {{- /* local is read only from identity.oidc.provider; the idp-migration hook reads identity.env first. */ -}}
 {{- range $e := .Values.identity.env }}
-{{- if and (has (toString $e.name) (list "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER")) (eq (toString $e.value) "local") }}{{- fail (printf "identity.env sets %s to local: set identity.oidc.provider: local instead, which the whole chart reads" $e.name) }}{{- end }}
+{{- if and (has (toString $e.name) (list "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER")) (eq (lower (trim (toString $e.value))) "local") }}{{- fail (printf "identity.env sets %s to local: set identity.oidc.provider: local instead, which the whole chart reads" $e.name) }}{{- end }}
 {{- end }}
 {{- $provider := include "istari-platform.identityProvider" . }}
 {{- $providers := splitList " " (include "identity.providers" .) }}

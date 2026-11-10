@@ -32,7 +32,7 @@ A default install deploys the identity service, the API Gateway and the provisio
 
 - A Secret named by `identity.secretName` (default `istari-identity`) holding the identity service's PostgreSQL connection string as `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL`.
 - On a Zitadel-backed install, the Zitadel configurator's Secret. Zitadel-backed installs must add `zitadel-identity-service-env` to `identity.extraEnvSecrets` (the default is `[]`). Run the configurator with `configurator.identity_service_base_url` set to `https://<your-api-host>/identity`, or sign-in through the identity service fails.
-- `identity.oidc.provider`, which the chart requires: `zitadel` on a Zitadel-backed install, `local` for local accounts, or the provider you use. Charts before 8.0.0 read an empty provider as Zitadel, so set it before upgrading.
+- `identity.oidc.provider`, which the chart requires: `zitadel` on a Zitadel-backed install, `local` for local accounts, or the provider you use. Before 8.0.0 an empty provider meant Zitadel, so set it in the upgrade's values.
 - On an install whose identity provider is not Zitadel, leave `identity.extraEnvSecrets` at its default `[]` or list your own Secrets, because every listed Secret must exist for the identity service's pods to start.
 - DNS and TLS for the API Gateway's host, `api.<mainFqdn>` unless overridden (see [API Gateway](#api-gateway)).
 
@@ -364,9 +364,16 @@ People keep their principals, roles and keys when the install moves to an identi
    ```
 
 2. Meet the provider's prerequisites. identity-service refuses to start without them, and its error says what to add:
-   - Zitadel and Keycloak: map each tenant that has local people to its organization or realm with `create-tenant`.
-   - Entra: set `ISTARI_DIGITAL_IDENTITY_SERVICE_ALLOW_UNVERIFIED_EMAIL_LINKING` to `true`.
-   - LastWall links nobody by email. Link each person with `import-principal-mappings`, giving `local` as the old provider and the person's principal ID as the old subject.
+   - Zitadel and Keycloak: map each tenant that has local people to its organization or realm:
+
+     ```bash
+     kubectl exec -n <namespace> deploy/istari-identity -- /create-tenant -slug <tenant slug> \
+       -provider-name <zitadel or keycloak> -provider-tenant-id <the tenant's id at the provider> \
+       -database-url-env ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
+     ```
+
+   - Entra: set `ISTARI_DIGITAL_IDENTITY_SERVICE_ALLOW_UNVERIFIED_EMAIL_LINKING` to `true` for the move. Set it back to `false` once everyone has signed in: while it is on, an Entra account that asserts a person's email can take over their identity.
+   - Lastwall links nobody by email. Link each person with `import-principal-mappings`, giving `local` as the old provider and the person's principal ID as the old subject.
 3. Set `identity.oidc.provider` and the provider's other `identity.oidc` values, and set `identity.idpMigration.enabled: false`, because the chart cannot tell this upgrade from a Zitadel install's and would otherwise run the Zitadel import. For Zitadel, add `zitadel-identity-service-env` back to `identity.extraEnvSecrets`. Then run `helm upgrade`.
 4. Confirm that people can sign in through the provider.
 5. Delete the set-aside passwords. This step is required:
@@ -382,7 +389,7 @@ People keep their principals, roles and keys when the install moves to an identi
 
 If the identity provider fails, set `identity.oidc.provider: local` and run `helm upgrade`. People whose passwords were not deleted sign in with them again, and sessions from the provider stop refreshing.
 
-A kept password also readmits anyone deprovisioned only at the provider. Before falling back, check people with `list-people` and deactivate anyone who should not return.
+A kept password also readmits anyone deprovisioned only at the provider. Before falling back, check people with `list-people` and deactivate anyone who should not return from the People list in the web app.
 
 If the passwords were deleted, find an admin and issue a temporary password:
 

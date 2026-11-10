@@ -306,7 +306,7 @@ identity.oidc.provider as a string, empty when unset. Values reused from an olde
 (--reuse-values) may lack the identity.oidc map.
 */}}
 {{- define "istari-platform.identityProvider" -}}
-{{- with .Values.identity.oidc }}{{ toString .provider }}{{ end -}}
+{{- with .Values.identity.oidc }}{{ toString (default "" .provider) }}{{ end -}}
 {{- end }}
 
 {{/*
