@@ -1,5 +1,6 @@
 output "secret_file" {
   value = templatefile("${path.module}/secrets.yaml.tftpl", {
+    credential_token_key                 = terraform_data.credential_token_key.output
     common_domain                        = var.zitadel_insecure ? "http://${var.zitadel_domain}:${var.zitadel_port}" : "https://${var.zitadel_domain}"
     fe_zitadel_client_id                 = zitadel_application_oidc.istari_frontend_service.client_id
     identity_service_base_url            = var.identity_service_base_url
