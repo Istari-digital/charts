@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 7.3.0](https://img.shields.io/badge/Version-7.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
+![Version: 8.0.0](https://img.shields.io/badge/Version-8.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -33,7 +33,8 @@ A default install deploys the identity service, the API Gateway and the provisio
 
 - A Secret named by `identity.secretName` (default `istari-identity`) holding the identity service's PostgreSQL connection string as `ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL`.
 - On a Zitadel-backed install, the Zitadel configurator's Secret. Zitadel-backed installs must add `zitadel-identity-service-env` to `identity.extraEnvSecrets` (the default is `[]`). Run the configurator with `configurator.identity_service_base_url` set to `https://<your-api-host>/identity`, or sign-in through the identity service fails.
-- On an install whose identity provider is not Zitadel, set `identity.oidc.provider` (or `identity.idpMigration.enabled: false`) so the Zitadel import does not run, and leave `identity.extraEnvSecrets` at its default `[]` or list your own Secrets, because every listed Secret must exist for the identity service's pods to start.
+- `identity.oidc.provider`, which the chart requires: `zitadel` on a Zitadel-backed install, `local` for local accounts, or the provider you use. Charts before 8.0.0 read an empty provider as Zitadel, so set it before upgrading.
+- On an install whose identity provider is not Zitadel, leave `identity.extraEnvSecrets` at its default `[]` or list your own Secrets, because every listed Secret must exist for the identity service's pods to start.
 - DNS and TLS for the API Gateway's host, `api.<mainFqdn>` unless overridden (see [API Gateway](#api-gateway)).
 
 The chart supplies the rest of what a default install needs:
@@ -46,7 +47,7 @@ The chart supplies the rest of what a default install needs:
 
 Okta, Google, and Lastwall integrations are **Preview**, not generally available.
 
-Select one upstream provider with `identity.oidc.provider`: `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall`, or `google`, or `none` to use local accounts instead (see [Installing with no identity provider](#installing-with-no-identity-provider)). Configure its issuer, client ID, authentication method, and scopes through `identity.oidc` or your existing environment configuration. Empty OIDC values add no chart override, preserving configuration supplied through Secrets and the service's own defaults. Keep client secrets and private keys in `identity.secretName` or `identity.extraEnvSecrets`. Identity Service validates provider-specific requirements at startup.
+Set `identity.oidc.provider` to one of `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall` or `google`, or to `local` to use local accounts instead (see [Installing with no identity provider](#installing-with-no-identity-provider)). The chart refuses to render without it. Configure its issuer, client ID, authentication method, and scopes through `identity.oidc` or your existing environment configuration. Empty OIDC values add no chart override, preserving configuration supplied through Secrets and the service's own defaults. Keep client secrets and private keys in `identity.secretName` or `identity.extraEnvSecrets`. Identity Service validates provider-specific requirements at startup.
 
 The migration hook supports switches from Zitadel to `keycloak`, `entra`, `okta`, or `pingfederate`. Set `identity.idpMigration.to` to the provider configured for Identity Service, and explicitly enable the hook for the switch. For Google and Lastwall, prepare authoritative subject mappings with `import-principal-mappings` and set `identity.idpMigration.enabled: false`.
 
@@ -171,7 +172,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 
 ## Installing with no identity provider
 
-With `identity.oidc.provider: none`, people sign in with local accounts stored in identity-service instead of through an external identity provider. The chart creates the first platform admin during `helm install`. Use it for a new install. An install with local accounts cannot move to an identity provider; switching means reinstalling with one and adding people again.
+With `identity.oidc.provider: local`, people sign in with local accounts stored in identity-service instead of through an external identity provider. The chart creates the first platform admin during `helm install`. Use it for a new install. The install can move to an identity provider later; see [Moving to an identity provider](#moving-to-an-identity-provider).
 
 > The commands below assume the default `fullnameOverride`, `istari`. If you set another value, replace `istari` with it; if you set it empty, use the release name. With a prefix longer than 32 characters, the chart shortens the names and adds a hash. Use the Secret name from the `helm install` notes, and find the Job with `kubectl get jobs -n <namespace>`; its name ends in `-local-admin-bootstrap`.
 
@@ -191,7 +192,7 @@ identity:
   migrations:
     runAsJob: true
   oidc:
-    provider: none
+    provider: local
   localAccounts:
     firstAdmin:
       email: admin@example.com
@@ -199,7 +200,7 @@ apiGateway:
   enabled: true
 ```
 
-The chart refuses to render with `none` unless each of these is set:
+The chart refuses to render with `local` unless each of these is set:
 
 - `identity.enabled: true`, so identity-service runs in the same release.
 - `identity.clientIntegration.enabled: true`, so registry-service, the frontend and MCP sign people in through identity-service.
@@ -209,10 +210,9 @@ The chart refuses to render with `none` unless each of these is set:
 
 The admin joins the tenant in `identity.localAccounts.firstAdmin.tenant`, default `default`. Leave it at `default`: it must name an existing tenant, and on a new install only `default` exists.
 
-The chart also refuses to render with `none` if any of these is set:
+With `local` the chart ignores the other `identity.oidc` values, so they can stay set for a later move to a provider. It refuses to render if any of these is set:
 
-- `identity.oidc.issuer`, `clientId`, `clientAuthMethod`, `scopes` or `defaultTenantId`.
-- An `identity.env` entry that sets `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER`, `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER`, `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_ID`, `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_PRIVATE_KEY` or `ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_CLIENT_SECRET`.
+- An `identity.env` entry that sets `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` or its former name, `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER`.
 - `identity.idpMigration.enabled: true`, or `identity.idpMigration.to` unless `identity.idpMigration.enabled` is false.
 
 Each error names the key to change.
@@ -220,7 +220,7 @@ Each error names the key to change.
 If the cluster also runs Zitadel and `istari-zitadel-configurator`:
 
 - Leave registry-service's Zitadel settings and Secrets as they are, including its Zitadel domain.
-- Remove `zitadel-identity-service-env` from `identity.extraEnvSecrets`, and from `identity.secretName` if it names it. That Secret sets OIDC client credentials, and identity-service and the bootstrap hook do not start while those are set.
+- Remove `zitadel-identity-service-env` from `identity.extraEnvSecrets`, and from `identity.secretName` if it names it. identity-service ignores the OIDC settings in that Secret and warns about each one at every start. Add it back when you move to Zitadel.
 
 ### Choosing the first admin's password
 
@@ -237,7 +237,7 @@ Keep the Secret while `passwordSecret.name` is set. The hook reads it on every i
 
 Skip this if `secureConnection.enabled` is false.
 
-The Secure Connection Service needs a credential that identity-service accepts, registered as an agent. The chart refuses to render with `none` and `secureConnection.enabled: true` until `identity.agentRegistration` declares an agent with the platform role `secure_connector`. Do these steps once, before the `helm install` or `helm upgrade` that enables the service. You need docker, jq, openssl and kubectl.
+The Secure Connection Service needs a credential that identity-service accepts, registered as an agent. The chart refuses to render with `local` and `secureConnection.enabled: true` until `identity.agentRegistration` declares an agent with the platform role `secure_connector`. Do these steps once, before the `helm install` or `helm upgrade` that enables the service. You need docker, jq, openssl and kubectl.
 
 1. Generate the credential with the identity-service image. Use the same tag as `identity.tag`.
 
@@ -284,7 +284,7 @@ The Secure Connection Service needs a credential that identity-service accepts, 
          - secure_connector
    ```
 
-   `name` only labels the registration Job; the agent's identity comes from the credential. The agent joins the tenant in `identity.localAccounts.firstAdmin.tenant` unless the entry sets `tenantSlug`. [Agent registration](#agent-registration) describes the other fields, except `providerName` and `providerTenantIdEnv`, which the chart refuses with `none`.
+   `name` only labels the registration Job; the agent's identity comes from the credential. The agent joins the tenant in `identity.localAccounts.firstAdmin.tenant` unless the entry sets `tenantSlug`. [Agent registration](#agent-registration) describes the other fields, except `providerName` and `providerTenantIdEnv`, which the chart refuses with `local`.
 
 5. Delete `creds/`, which holds the private key.
 
@@ -352,6 +352,49 @@ kubectl exec -n <namespace> deploy/istari-identity -- /reset-password \
 ```
 
 The command prints the new password once. It also re-enables a disabled password and ends the admin's sessions. Access tokens already issued stay valid until they expire, 15 minutes by default.
+
+### Moving to an identity provider
+
+People keep their principals, roles and keys when the install moves to an identity provider. On its first start with a provider, identity-service links each local person to the provider by email, ends their local sessions and sets their password aside. Each person then signs in through the provider with the same email.
+
+1. Create each person at the provider with the email they use on Istari. To list them:
+
+   ```bash
+   kubectl exec -n <namespace> deploy/istari-identity -- /list-people \
+     -database-url-env ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
+   ```
+
+2. Meet the provider's prerequisites. identity-service refuses to start without them, and its error says what to add:
+   - Zitadel and Keycloak: map each tenant that has local people to its organization or realm with `create-tenant`.
+   - Entra: set `ISTARI_DIGITAL_IDENTITY_SERVICE_ALLOW_UNVERIFIED_EMAIL_LINKING` to `true`.
+   - LastWall links nobody by email. Link each person with `import-principal-mappings`, giving `local` as the old provider and the person's principal ID as the old subject.
+3. Set `identity.oidc.provider` and the provider's other `identity.oidc` values, and set `identity.idpMigration.enabled: false`, because the chart cannot tell this upgrade from a Zitadel install's and would otherwise run the Zitadel import. For Zitadel, add `zitadel-identity-service-env` back to `identity.extraEnvSecrets`. Then run `helm upgrade`.
+4. Confirm that people can sign in through the provider.
+5. Delete the set-aside passwords. This step is required:
+
+   ```bash
+   kubectl exec -n <namespace> deploy/istari-identity -- /purge-local-passwords \
+     -all -database-url-env ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
+   ```
+
+   Until you run it, identity-service warns at every start, and every kept password works again whenever `identity.oidc.provider` is set to `local`, including by mistake.
+
+### Falling back to local accounts
+
+If the identity provider fails, set `identity.oidc.provider: local` and run `helm upgrade`. People whose passwords were not deleted sign in with them again, and sessions from the provider stop refreshing.
+
+A kept password also readmits anyone deprovisioned only at the provider. Before falling back, check people with `list-people` and deactivate anyone who should not return.
+
+If the passwords were deleted, find an admin and issue a temporary password:
+
+```bash
+kubectl exec -n <namespace> deploy/istari-identity -- /list-people -platform-admins \
+  -database-url-env ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
+kubectl exec -n <namespace> deploy/istari-identity -- /reset-password -email <admin email> \
+  -database-url-env ISTARI_DIGITAL_IDENTITY_SERVICE_DATABASE_URL
+```
+
+To return to the provider, set it again, keep `identity.idpMigration.enabled: false` and run `helm upgrade`. People sign in through the links made on the first move.
 
 ## Values
 
@@ -631,7 +674,7 @@ The command prints the new password once. It also re-enables a disabled password
 | identity.idpMigration.podLabels | object | `{}` | Extra labels for the migration Job Pod template only. |
 | identity.idpMigration.resources | object | `{}` | Resource requests/limits for the migration Job. |
 | identity.idpMigration.slugPrefix | string | `""` | Optional slug prefix for derived tenants; forwarded to bootstrap-tenants. Leave it empty for the import, so tenant slugs follow the Zitadel organization names. |
-| identity.idpMigration.to | string | `""` | Target provider: `zitadel` to import, or `keycloak`, `entra`, `okta`, or `pingfederate` to switch. Required for a switch. When empty, use the last provider entry in `identity.env`, then `identity.oidc.provider` when no environment override exists, then `zitadel` for the automatic import. Set the target to the provider configured for Identity Service. Helm cannot inspect Secret values or unresolved `valueFrom`/`$(VAR)` references: set `to` explicitly or disable the hook. Google and Lastwall require explicit subject mapping with the hook disabled. Prepare the destination's subject mappings or pending registrations before cutover; the hook does not discover incoming subject IDs. |
+| identity.idpMigration.to | string | `""` | Target provider: `zitadel` to import, or `keycloak`, `entra`, `okta`, or `pingfederate` to switch. Required for a switch. When empty, use the last `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` entry in `identity.env`, then `identity.oidc.provider`. Set the target to the provider configured for Identity Service. Helm cannot inspect Secret values or unresolved `valueFrom`/`$(VAR)` references: set `to` explicitly or disable the hook. Google and Lastwall require explicit subject mapping with the hook disabled. Prepare the destination's subject mappings or pending registrations before cutover; the hook does not discover incoming subject IDs. |
 | identity.image | string | `"identity-service"` | Image name. The combination of registry, image, and tag will be used to pull the image. |
 | identity.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | identity.ingress.annotations | object | `{}` | Annotations on the Ingress. Use this for controller-specific behavior (cert-manager, nginx, ALB, etc.). |
@@ -641,9 +684,9 @@ The command prints the new password once. It also re-enables a disabled password
 | identity.ingress.labels | object | `{}` | Additional labels on the Ingress (in addition to the standard Identity Service labels). |
 | identity.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
 | identity.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
-| identity.localAccounts | object | (see fields below) | identity-service's password and sign-in settings, used only with `identity.oidc.provider: none`, and the first platform admin (`firstAdmin`). Each renders only when set; unset keeps identity-service's own default. With an identity provider configured, identity-service logs that a set value is ignored. |
-| identity.localAccounts.firstAdmin | object | (see fields below) | The first platform admin, created as a local account. Required when `identity.oidc.provider` is `none`. See [Installing with no identity provider](#installing-with-no-identity-provider). |
-| identity.localAccounts.firstAdmin.email | string | `""` | Email of the first platform admin. With `identity.oidc.provider: none`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody and only stops an upgrade that sets an issuer while local accounts exist. Requires `identity.tag` 2.5.0 or later. |
+| identity.localAccounts | object | (see fields below) | identity-service's password and sign-in settings, used only with `identity.oidc.provider: local`, and the first platform admin (`firstAdmin`). Each renders only when set; unset keeps identity-service's own default. With an identity provider configured, identity-service logs that a set value is ignored. |
+| identity.localAccounts.firstAdmin | object | (see fields below) | The first platform admin, created as a local account. Required when `identity.oidc.provider` is `local`. See [Installing with no identity provider](#installing-with-no-identity-provider). |
+| identity.localAccounts.firstAdmin.email | string | `""` | Email of the first platform admin. With `identity.oidc.provider: local`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody. Requires `identity.tag` 2.5.0 or later. |
 | identity.localAccounts.firstAdmin.familyName | string | `""` | Family name of the first platform admin. At most 200 characters. |
 | identity.localAccounts.firstAdmin.givenName | string | `""` | Given name of the first platform admin, shown with the family name instead of the email. At most 200 characters. |
 | identity.localAccounts.firstAdmin.passwordSecret | object | (see fields below) | An existing Secret holding a password you choose for the first admin, who must change it at first sign-in. Create it before installing, and keep it while `name` is set: the hook reads it on every install and upgrade. Leave `name` empty to have the hook generate a temporary password and write it to the Secret `<fullnameOverride, or the release name when that is empty>-identity-local-admin-password`, shortened with a hash past 63 characters, under the key `password`. The chart creates that Secret on `helm install` only. |
@@ -655,12 +698,12 @@ The command prints the new password once. It also re-enables a disabled password
 | identity.localAccounts.passwordBlocklistFile | string | no extra list | Path to a UTF-8 file of extra forbidden passwords, one per line, added to the built-in list. Mount the file with `identity.volumes` and `identity.volumeMounts`. |
 | identity.localAccounts.passwordHashConcurrency | int | the container's CPU limit, set by identity-service | Password hashes one replica computes at once, 1 to 1024. |
 | identity.localAccounts.passwordMinLength | int | 15, set by identity-service | Fewest characters a password may have, 8 to 128. |
-| identity.localAccounts.privacyLink | string | no link | URL of the Privacy Policy link at the foot of identity-service's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: none`. |
+| identity.localAccounts.privacyLink | string | no link | URL of the Privacy Policy link at the foot of identity-service's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: local`. |
 | identity.localAccounts.signInDisableAfter | int | 100, set by identity-service | Consecutive failed sign-ins that disable the password until an administrator resets it, 3 to 100. |
 | identity.localAccounts.signInRateLimit | int | 30, set by identity-service | POSTs one client address may make to the sign-in and change-password pages per minute, per replica, 1 to 10000. |
 | identity.localAccounts.signInThrottleAfter | int | 5, set by identity-service | Consecutive failed sign-ins before each further attempt is delayed, 1 to 100. |
 | identity.localAccounts.tempPasswordTtl | string | `168h`, set by identity-service | How long a temporary password stays usable, as a Go duration. |
-| identity.localAccounts.tosLink | string | no link | URL of the Terms of Service link at the foot of identity-service's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: none`. |
+| identity.localAccounts.tosLink | string | no link | URL of the Terms of Service link at the foot of identity-service's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: local`. |
 | identity.migrations.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). When `true`, Helm may remove the Job after the migration succeeds (less clutter; logs are shorter-lived on the cluster). When `false`, only `before-hook-creation` is set, so the completed Job (and its Pods) remain until the next install or upgrade replaces the hook—useful for auditing or inspecting migration logs. |
 | identity.migrations.backoffLimit | int | `0` | `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries. |
 | identity.migrations.env | list | `[]` | Extra environment variables for the migration workloads only (the `db-migrate` Job, or the `init-db` init container when `runAsJob` is `false`), rendered after the service-level `env` — on duplicate names, these win. |
@@ -674,7 +717,7 @@ The command prints the new password once. It also re-enables a disabled password
 | identity.oidc.clientId | string | `""` | Client ID registered for identity at the upstream IdP. |
 | identity.oidc.defaultTenantId | string | `""` | For `entra`, `okta`, `pingfederate`, `lastwall`, and `google`: not used; each person takes their tenant from their own membership. Otherwise OPTIONAL, and NOT needed for a migration: migrated users carry their tenant on their imported principal, so tenancy resolves without this. It only stamps a fallback grouping for NET-NEW users at a grouping-less IdP (a Keycloak realm) with no principal yet, and only makes sense for a single-tenant deployment (one realm cannot default to the right one of several imported tenants). Set it to the provider tenant id the deployment's tenant mapping is keyed on. |
 | identity.oidc.issuer | string | `""` | Upstream IdP issuer URL, no trailing slash. OIDC discovery resolves at this issuer at startup. |
-| identity.oidc.provider | string | `""` | Upstream IdP provider: `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall`, `google` or `none`. Select one provider per deployment. Okta, Google, and Lastwall are Preview integrations. With `none` there is no identity provider and people sign in with local accounts that identity-service stores; see [Installing with no identity provider](#installing-with-no-identity-provider) for the other keys it requires. Empty adds no chart override. |
+| identity.oidc.provider | string | `""` | Required. The sign-in provider: `local`, `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall` or `google`; the chart refuses to render with it empty. Zitadel installs set `zitadel`. Select one provider per deployment. Okta, Google, and Lastwall are Preview integrations. With `local` there is no identity provider: people sign in with local accounts that identity-service stores, the other `identity.oidc` values are ignored, and [Installing with no identity provider](#installing-with-no-identity-provider) lists the other keys it requires. Rendered as `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER`. |
 | identity.oidc.scopes | string | `""` | Space-separated OIDC scopes to request. Empty adds no chart override; Secrets or Identity Service determine the scopes. Use the scopes required by your provider configuration. |
 | identity.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | identity.podLabels | object | `{}` | Additional labels to add to pods |

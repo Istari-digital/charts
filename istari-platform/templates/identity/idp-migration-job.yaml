@@ -3,27 +3,26 @@
 {{- $provider := include "istari-platform.identityProvider" . -}}
 {{- $from := dig "from" "zitadel" $idp -}}
 {{- /* The incoming provider is the one identity-service runs after the upgrade: idpMigration.to, else
-       identity.oidc.provider, else zitadel (identity-service's own default). A deployment that stays on
-       the outgoing provider needs the import, so it runs unless enabled is explicitly false; switching
-       providers still takes enabled=true. */ -}}
+       identity.oidc.provider. A deployment that stays on the outgoing provider needs the import, so it
+       runs unless enabled is explicitly false; switching providers still takes enabled=true. */ -}}
 {{- /* identity.env overrides identity.oidc.provider in the Deployment, last entry winning, so it does here too. */ -}}
 {{- $providerEntry := dict -}}
 {{- range $e := $serviceValues.env }}
-{{- if eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER" }}{{- $providerEntry = $e -}}{{- end }}
+{{- if eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" }}{{- $providerEntry = $e -}}{{- end }}
 {{- end }}
 {{- $envProvider := toString (default "" $providerEntry.value) -}}
-{{- if and $serviceValues.enabled (or $providerEntry.valueFrom (contains "$(" $envProvider)) (not $idp.to) (ne (toString (index $idp "enabled")) "false") }}{{ fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER through valueFrom or a $(VAR) reference, which the chart cannot read: set identity.idpMigration.to to the provider identity-service runs (zitadel to import, or the incoming provider to switch), or identity.idpMigration.enabled=false" }}{{ end }}
-{{- /* An entry present but empty still replaces identity.oidc.provider; identity-service reads empty as zitadel. */ -}}
+{{- if and $serviceValues.enabled (or $providerEntry.valueFrom (contains "$(" $envProvider)) (not $idp.to) (ne (toString (index $idp "enabled")) "false") }}{{ fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER through valueFrom or a $(VAR) reference, which the chart cannot read: set identity.idpMigration.to to the provider identity-service runs (zitadel to import, or the incoming provider to switch), or identity.idpMigration.enabled=false" }}{{ end }}
+{{- /* An entry present but empty still replaces identity.oidc.provider; identity-service then refuses to start. */ -}}
 {{- $baseProvider := ternary $envProvider $provider (hasKey $providerEntry "name") -}}
 {{- /* Checked before deciding whether to render: a typo would otherwise either fail migrate-idp
        (-to is forwarded unchecked) after the upgrade has started, or, with enabled unset, read as a
        provider switch and silently skip the import. zitadel runs the import. */ -}}
 {{- if and $serviceValues.enabled $idp.to (ne (toString (index $idp "enabled")) "false") (not (has $idp.to (list "zitadel" "keycloak" "entra" "okta" "pingfederate"))) }}{{ fail (printf "identity.idpMigration.to must be one of zitadel (the import), keycloak, entra, okta, pingfederate; google and lastwall require explicit subject mapping with identity.idpMigration.enabled=false, got %q" $idp.to) }}{{ end }}
-{{- $incoming := $idp.to | default $baseProvider | default "zitadel" -}}
+{{- $incoming := $idp.to | default $baseProvider -}}
 {{- $import := eq $incoming $from -}}
 {{- $idpEnabled := index $idp "enabled" -}}
 {{- $render := ternary (ne (toString $idpEnabled) "false") (eq (toString $idpEnabled) "true") $import -}}
-{{- if and $serviceValues.enabled (eq $provider "none") (or $render (and $idp.to (ne (toString $idpEnabled) "false"))) }}{{ fail "identity.oidc.provider is \"none\", so the identity-provider migration cannot run: set identity.idpMigration.enabled to false" }}{{ end }}
+{{- if and $serviceValues.enabled (eq $provider "local") (or $render (and $idp.to (ne (toString $idpEnabled) "false"))) }}{{ fail "identity.oidc.provider is \"local\", so the identity-provider migration cannot run: set identity.idpMigration.enabled to false" }}{{ end }}
 {{- if and $serviceValues.enabled $render }}
 {{- $runAsJob := dig "runAsJob" false (dig "migrations" dict $serviceValues) -}}
 {{- /* migrate-idp runs against the schema the weight-5 db-migrate hook leaves, which exists only with

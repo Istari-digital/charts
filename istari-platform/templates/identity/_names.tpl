@@ -58,3 +58,8 @@ Name of the first-admin bootstrap Job, ServiceAccount, Role and RoleBinding.
 {{- define "identity.firstAdmin.passwordSecretName" -}}
 {{ include "identity.suffixedName" (dict "root" . "suffix" "-local-admin-password") }}
 {{- end }}
+
+{{/*
+identity.oidc.provider's accepted values, space-separated; local means local accounts.
+*/}}
+{{- define "identity.providers" -}}local zitadel keycloak entra okta pingfederate lastwall google{{- end }}

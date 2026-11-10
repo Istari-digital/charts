@@ -20,28 +20,35 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- if and .Values.provisioner.enabled .Values.identity.enabled (include "istari-platform.isFullSemver" $provisionerTag) (semverCompare "<0.4.0-0" $provisionerTag) }}
 {{- fail (printf "provisioner.tag %q is too old for identity: images before 0.4.0 do not generate the identity service's keys, so its pods cannot start. Set provisioner.tag to 0.4.0 or later." $provisionerTag) }}
 {{- end }}
-{{- /* none is read only from identity.oidc.provider; the idp-migration hook reads identity.env first. */ -}}
+{{- /* local is read only from identity.oidc.provider; the idp-migration hook reads identity.env first. */ -}}
 {{- range $e := .Values.identity.env }}
-{{- if and (eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER") (eq (toString $e.value) "none") }}{{- fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER to none: set identity.oidc.provider: none instead, which the whole chart reads" }}{{- end }}
+{{- if and (has (toString $e.name) (list "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER")) (eq (toString $e.value) "local") }}{{- fail (printf "identity.env sets %s to local: set identity.oidc.provider: local instead, which the whole chart reads" $e.name) }}{{- end }}
 {{- end }}
 {{- $provider := include "istari-platform.identityProvider" . }}
+{{- $providers := splitList " " (include "identity.providers" .) }}
+{{- if and .Values.identity.enabled (not $provider) }}
+{{- fail "identity.oidc.provider is required: set local for local accounts, or the identity provider this install uses (zitadel on a Zitadel install)" }}
+{{- end }}
+{{- if and $provider (not (has $provider $providers)) }}
+{{- fail (printf "identity.oidc.provider must be one of %s, got %q" (join ", " $providers) $provider) }}
+{{- end }}
 {{- $firstAdmin := include "istari-platform.firstAdmin" . | fromJson }}
 {{- $clientIntegration := false }}
 {{- with .Values.identity.clientIntegration }}{{- $clientIntegration = .enabled }}{{- end }}
-{{- if and (eq $provider "none") (not $clientIntegration) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled) }}
-{{- fail "identity.oidc.provider is \"none\", so identity.clientIntegration.enabled must be true: without it registry-service, the frontend and MCP still authenticate against Zitadel" }}
+{{- if and (eq $provider "local") (not $clientIntegration) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled) }}
+{{- fail "identity.oidc.provider is \"local\", so identity.clientIntegration.enabled must be true: without it registry-service, the frontend and MCP still authenticate against Zitadel" }}
 {{- end }}
-{{- if and (eq $provider "none") (not .Values.identity.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.secureConnection.enabled) }}
-{{- fail "identity.oidc.provider is \"none\", so identity.enabled must be true: registry-service, the frontend, MCP and the Secure Connection Service authenticate through identity-service, which must run in the same release" }}
+{{- if and (eq $provider "local") (not .Values.identity.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.secureConnection.enabled) }}
+{{- fail "identity.oidc.provider is \"local\", so identity.enabled must be true: registry-service, the frontend, MCP and the Secure Connection Service authenticate through identity-service, which must run in the same release" }}
 {{- end }}
-{{- if and (eq $provider "none") (not .Values.apiGateway.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.identity.enabled .Values.secureConnection.enabled) }}
-{{- fail "identity.oidc.provider is \"none\", so apiGateway.enabled must be true: without the API gateway the chart gives registry-service, the frontend and MCP no identity-service settings, and identity-service cannot accept the Secure Connection Service's token" }}
+{{- if and (eq $provider "local") (not .Values.apiGateway.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.identity.enabled .Values.secureConnection.enabled) }}
+{{- fail "identity.oidc.provider is \"local\", so apiGateway.enabled must be true: without the API gateway the chart gives registry-service, the frontend and MCP no identity-service settings, and identity-service cannot accept the Secure Connection Service's token" }}
 {{- end }}
-{{- if and (eq $provider "none") .Values.identity.enabled (not $firstAdmin.email) }}
-{{- fail "identity.oidc.provider is \"none\", so identity.localAccounts.firstAdmin.email must be set: it names the first platform admin, whom the chart creates as a local account" }}
+{{- if and (eq $provider "local") .Values.identity.enabled (not $firstAdmin.email) }}
+{{- fail "identity.oidc.provider is \"local\", so identity.localAccounts.firstAdmin.email must be set: it names the first platform admin, whom the chart creates as a local account" }}
 {{- end }}
 {{- /* The chart can check that the agent is declared, but not that its Secrets exist. */ -}}
-{{- if and (eq $provider "none") .Values.identity.enabled .Values.secureConnection.enabled }}
+{{- if and (eq $provider "local") .Values.identity.enabled .Values.secureConnection.enabled }}
 {{- $declared := false }}
 {{- with .Values.identity.agentRegistration }}
 {{- if .enabled }}
@@ -51,11 +58,11 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- end }}
 {{- end }}
 {{- if not $declared }}
-{{- fail "identity.oidc.provider is \"none\" and secureConnection.enabled is true, so identity.agentRegistration must register the Secure Connection Service's agent with platformRoles [secure_connector]: see the chart README's section on installing with no identity provider" }}
+{{- fail "identity.oidc.provider is \"local\" and secureConnection.enabled is true, so identity.agentRegistration must register the Secure Connection Service's agent with platformRoles [secure_connector]: see the chart README's section on installing with no identity provider" }}
 {{- end }}
 {{- end }}
 {{- /* Only a full semver tag is checked; <X-0 also lets X's prereleases through. Applies whenever the hook renders. */ -}}
 {{- $identityTag := toString .Values.identity.tag }}
-{{- if and .Values.identity.enabled (or (eq $provider "none") $firstAdmin.email) (include "istari-platform.isFullSemver" $identityTag) (semverCompare "<2.5.0-0" $identityTag) }}
-{{- fail (printf "identity.tag %q is older than 2.5.0, which the bootstrap hook and identity.oidc.provider none require. Set identity.tag to 2.5.0 or later." $identityTag) }}
+{{- if and .Values.identity.enabled (or (eq $provider "local") $firstAdmin.email) (include "istari-platform.isFullSemver" $identityTag) (semverCompare "<2.5.0-0" $identityTag) }}
+{{- fail (printf "identity.tag %q is older than 2.5.0, which the bootstrap hook and identity.oidc.provider local require. Set identity.tag to 2.5.0 or later." $identityTag) }}
 {{- end }}

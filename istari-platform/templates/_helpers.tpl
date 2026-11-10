@@ -320,14 +320,14 @@ when unset, since values reused from an older chart (--reuse-values) may lack th
 {{- end }}
 
 {{/*
-"true" when the chart generates the first platform admin's password: provider none and no
+"true" when the chart generates the first platform admin's password: provider local and no
 passwordSecret.name. Empty otherwise.
 */}}
 {{- define "istari-platform.firstAdminPasswordGenerated" -}}
 {{- $firstAdmin := include "istari-platform.firstAdmin" . | fromJson -}}
 {{- $secretName := "" -}}
 {{- with $firstAdmin.passwordSecret }}{{ $secretName = .name }}{{ end -}}
-{{- if and (eq (include "istari-platform.identityProvider" .) "none") (not $secretName) }}true{{ end -}}
+{{- if and (eq (include "istari-platform.identityProvider" .) "local") (not $secretName) }}true{{ end -}}
 {{- end }}
 
 {{/*
