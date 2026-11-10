@@ -43,7 +43,7 @@ configurator:
 
 ## Upgrading to 1.12.0
 
-From 1.12.0, the `zitadel-identity-service-env` Secret this chart writes sets `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to `zitadel`. An install whose identity-service signs in through Zitadel needs no change.
+From 1.12.0, the `zitadel-identity-service-env` Secret this chart writes sets `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to `zitadel`. An install whose identity-service signs in through Zitadel needs no values change, but upgrade this chart and let its hook Job rewrite the Secret before deploying an identity-service release that requires the provider.
 
 If identity-service signs in through another provider but still loads this Secret (for example through istari-platform's `identity.extraEnvSecrets`), set `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to that provider from a source that overrides this Secret:
 
