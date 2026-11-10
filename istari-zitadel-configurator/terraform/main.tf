@@ -158,6 +158,9 @@ resource "zitadel_application_key" "registry-service-key" {
   app_id          = zitadel_application_api.registry-service.id
   key_type        = "KEY_TYPE_JSON"
   expiration_date = "2519-04-01T08:45:00Z"
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "zitadel_application_oidc" "identity-service" {
@@ -185,6 +188,9 @@ resource "zitadel_application_key" "identity-service-key" {
   app_id          = zitadel_application_oidc.identity-service.id
   key_type        = "KEY_TYPE_JSON"
   expiration_date = "2519-04-01T08:45:00Z"
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Formerly identity-service's Zitadel management user. Unused since
@@ -206,7 +212,8 @@ resource "zitadel_machine_key" "identity-service-management-key" {
   key_type        = "KEY_TYPE_JSON"
   expiration_date = "2519-04-01T08:45:00Z"
   lifecycle {
-    ignore_changes = ["expiration_date"]
+    create_before_destroy = true
+    ignore_changes        = ["expiration_date"]
   }
 }
 
@@ -251,6 +258,9 @@ resource "zitadel_machine_key" "registry-service-machine-key" {
   user_id         = zitadel_machine_user.registry-service-user.id
   key_type        = "KEY_TYPE_JSON"
   expiration_date = "2519-04-01T08:45:00Z"
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "zitadel_machine_key" "secure-connection-service-machine-key" {
@@ -259,6 +269,9 @@ resource "zitadel_machine_key" "secure-connection-service-machine-key" {
   user_id         = zitadel_machine_user.secure-connection-service-user.id
   key_type        = "KEY_TYPE_JSON"
   expiration_date = "2519-04-01T08:45:00Z"
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "zitadel_personal_access_token" "registry-service-management-token" {
@@ -266,6 +279,9 @@ resource "zitadel_personal_access_token" "registry-service-management-token" {
   org_id          = zitadel_org.default.id
   user_id         = zitadel_machine_user.registry-service-user.id
   expiration_date = "2519-04-01T08:45:00Z"
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "zitadel_org_member" "registry-service-default" {
