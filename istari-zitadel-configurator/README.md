@@ -42,6 +42,8 @@ configurator:
 
 From 1.12.0, the `zitadel-identity-service-env` Secret this chart writes sets `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to `zitadel`. An install whose identity-service signs in through Zitadel needs no values change, but upgrade this chart and let its hook Job rewrite the Secret before deploying an identity-service release that requires the provider.
 
+If `override.enabled` replaces this chart's Terraform plan, your plan does not gain the new key: add `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to the Secret it writes, or supply the variable another way, before that rollout.
+
 If identity-service signs in through another provider but still loads this Secret (for example through istari-platform's `identity.extraEnvSecrets`), set `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to that provider from a source that overrides this Secret:
 
 - If your istari-platform release renders `identity.oidc.provider` as `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` (check the rendered Deployment with `helm template`), set `identity.oidc.provider`. An explicit environment variable overrides every Secret.
