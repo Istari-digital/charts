@@ -331,3 +331,14 @@ resource "zitadel_smtp_config" "default" {
   reply_to_address = var.smtp_sender_address
   set_active       = true
 }
+
+# The key a service presents to the registry for a user's plaintext vendor credential (POST /v3/credentials/{id}:token):
+# the registry and the connector service share it. Built in, so no provider to fetch: two crypto-random UUIDs, fixed
+# once created (the state outlives the job), rotated by replacing this resource.
+resource "terraform_data" "credential_token_key" {
+  input = "${replace(uuid(), "-", "")}${replace(uuid(), "-", "")}"
+
+  lifecycle {
+    ignore_changes = [input]
+  }
+}
