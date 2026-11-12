@@ -936,8 +936,13 @@ provisioner:
   commonLabels: {}
   # -- Annotations for the provisioning Job Pod template only — the chart defaults `sidecar.istio.io/inject: "false"` here so these one-shot Job pods do not get a (never-exiting) Istio sidecar; your entries merge over that default, so set it to `"true"` to re-enable injection.
   podAnnotations: {}
-  # -- Resources for the provisioner container.
-  resources: {}
+  # -- Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request. Applies to both the `terraform-init` and `provisioner` containers. A baseline sized like the istari-zitadel-configurator's Terraform Job; set `provisioner.resources` to `null` to render no resources.
+  resources:
+    requests:
+      cpu: "1"
+      memory: 512Mi
+    limits:
+      memory: 512Mi
   # -- Node selector for the provisioning Job pod.
   nodeSelector: {}
   # -- Affinity for the provisioning Job pod.
