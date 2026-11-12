@@ -17,6 +17,53 @@ A value carrying a scheme or path (a common migration mistake) would render e.g.
 {{- /* Provisioner images before 0.4.0 never write the identity-keys Secret identity mounts. Only a
 full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- $provisionerTag := toString .Values.provisioner.tag }}
-{{- if and .Values.provisioner.enabled .Values.identity.enabled (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $provisionerTag) (semverCompare "<0.4.0-0" $provisionerTag) }}
+{{- if and .Values.provisioner.enabled .Values.identity.enabled (include "istari-platform.isFullSemver" $provisionerTag) (semverCompare "<0.4.0-0" $provisionerTag) }}
 {{- fail (printf "provisioner.tag %q is too old for identity: images before 0.4.0 do not generate the identity service's keys, so its pods cannot start. Set provisioner.tag to 0.4.0 or later." $provisionerTag) }}
+{{- end }}
+{{- /* local is read only from identity.oidc.provider; the idp-migration hook reads identity.env first. */ -}}
+{{- range $e := .Values.identity.env }}
+{{- if and (has (toString $e.name) (list "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER")) (eq (lower (trim (toString $e.value))) "local") }}{{- fail (printf "identity.env sets %s to local: set identity.oidc.provider: local instead, which the whole chart reads" $e.name) }}{{- end }}
+{{- if and (eq (toString $e.name) "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER") (not $e.valueFrom) (not (trim (toString (default "" $e.value)))) }}{{- fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER to an empty value, which replaces identity.oidc.provider and stops identity-service from starting: remove the entry or set a provider" }}{{- end }}
+{{- end }}
+{{- $provider := include "istari-platform.identityProvider" . }}
+{{- $providers := splitList " " (include "identity.providers" .) }}
+{{- if and .Values.identity.enabled (not $provider) }}
+{{- fail "identity.oidc.provider is required: set local for local accounts, or the identity provider this install uses (zitadel on a Zitadel install)" }}
+{{- end }}
+{{- if and $provider (not (has $provider $providers)) }}
+{{- fail (printf "identity.oidc.provider must be one of %s, got %q" (join ", " $providers) $provider) }}
+{{- end }}
+{{- $firstAdmin := include "istari-platform.firstAdmin" . | fromJson }}
+{{- $clientIntegration := false }}
+{{- with .Values.identity.clientIntegration }}{{- $clientIntegration = .enabled }}{{- end }}
+{{- if and (eq $provider "local") (not $clientIntegration) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled) }}
+{{- fail "identity.oidc.provider is \"local\", so identity.clientIntegration.enabled must be true: without it registry-service, the frontend and MCP still authenticate against Zitadel" }}
+{{- end }}
+{{- if and (eq $provider "local") (not .Values.identity.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.secureConnection.enabled) }}
+{{- fail "identity.oidc.provider is \"local\", so identity.enabled must be true: registry-service, the frontend, MCP and the Secure Connection Service authenticate through identity-service, which must run in the same release" }}
+{{- end }}
+{{- if and (eq $provider "local") (not .Values.apiGateway.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.identity.enabled .Values.secureConnection.enabled) }}
+{{- fail "identity.oidc.provider is \"local\", so apiGateway.enabled must be true: without the API gateway the chart gives registry-service, the frontend and MCP no identity-service settings, and identity-service cannot accept the Secure Connection Service's token" }}
+{{- end }}
+{{- if and (eq $provider "local") .Values.identity.enabled (not $firstAdmin.email) }}
+{{- fail "identity.oidc.provider is \"local\", so identity.localAccounts.firstAdmin.email must be set: it names the first platform admin, whom the chart creates as a local account" }}
+{{- end }}
+{{- /* The chart can check that the agent is declared, but not that its Secrets exist. */ -}}
+{{- if and (eq $provider "local") .Values.identity.enabled .Values.secureConnection.enabled }}
+{{- $declared := false }}
+{{- with .Values.identity.agentRegistration }}
+{{- if .enabled }}
+{{- range $agent := .agents }}
+{{- if has "secure_connector" (default list $agent.platformRoles) }}{{- $declared = true }}{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if not $declared }}
+{{- fail "identity.oidc.provider is \"local\" and secureConnection.enabled is true, so identity.agentRegistration must register the Secure Connection Service's agent with platformRoles [secure_connector]: see the chart README's section on installing with no identity provider" }}
+{{- end }}
+{{- end }}
+{{- /* Only a full semver tag is checked; <X-0 also lets X's prereleases through. Applies whenever the hook renders. */ -}}
+{{- $identityTag := toString .Values.identity.tag }}
+{{- if and .Values.identity.enabled (or (eq $provider "local") $firstAdmin.email) (include "istari-platform.isFullSemver" $identityTag) (semverCompare "<2.5.0-0" $identityTag) }}
+{{- fail (printf "identity.tag %q is older than 2.5.0, which the bootstrap hook and identity.oidc.provider local require. Set identity.tag to 2.5.0 or later." $identityTag) }}
 {{- end }}

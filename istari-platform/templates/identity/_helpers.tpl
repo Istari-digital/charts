@@ -10,22 +10,28 @@ OIDC_PRIVATE_KEY).
 
 Reads the identity.oidc.* fields directly — values.yaml is the source of truth
 for their defaults (per AGENTS.md), so the template adds no fallbacks of its own.
-Each field emits only when non-empty, so an empty block adds nothing. provider
-and clientAuthMethod are validated against the supported enums, so a typo fails
-`helm template` rather than the running pod. What a provider requires of the
-other fields (Entra's, for one) is left to identity-service, which checks it at
-startup.
+The provider always emits; validations.yaml requires it and checks it against
+identity.providers. Each other field emits only when non-empty, and clientAuthMethod
+is validated, so a typo fails `helm template` rather than the running pod. With
+provider `local` it emits only the provider and an empty issuer, ignoring the rest.
+What a provider requires of the other fields (Entra's, for one) is left to
+identity-service, which checks it at startup.
 */}}
 {{- define "identity.oidcEnv" -}}
 {{- $oidc := .oidc -}}
 {{- $provider := $oidc.provider -}}
-{{- if and $provider (not (has $provider (list "zitadel" "keycloak" "entra" "okta" "pingfederate" "lastwall" "google"))) }}{{- fail (printf "identity.oidc.provider must be one of zitadel, keycloak, entra, okta, pingfederate, lastwall, google, got %q" $provider) }}{{- end }}
 {{- $authMethod := $oidc.clientAuthMethod -}}
-{{- if and $authMethod (not (has $authMethod (list "private_key_jwt" "client_secret_basic" "client_secret_post"))) }}{{- fail (printf "identity.oidc.clientAuthMethod must be one of private_key_jwt, client_secret_basic, client_secret_post, got %q" $authMethod) }}{{- end }}
-{{- with $provider }}
-- name: ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER
-  value: {{ . | quote }}
+- name: ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER
+  value: {{ $provider | quote }}
+{{- if eq $provider "local" }}
+{{- range $e := .env }}
+{{- if has (toString $e.name) (list "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" "ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER") }}{{- fail (printf "identity.oidc.provider is \"local\", so identity.env must not set %s: remove that entry" $e.name) }}{{- end }}
 {{- end }}
+{{- /* Explicit env beats envFrom: blanks an issuer left in a mounted Secret, which identity-service would warn about. */}}
+- name: ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER
+  value: ""
+{{- else }}
+{{- if and $authMethod (not (has $authMethod (list "private_key_jwt" "client_secret_basic" "client_secret_post"))) }}{{- fail (printf "identity.oidc.clientAuthMethod must be one of private_key_jwt, client_secret_basic, client_secret_post, got %q" $authMethod) }}{{- end }}
 {{- with $oidc.issuer }}
 - name: ISTARI_DIGITAL_IDENTITY_SERVICE_OIDC_ISSUER
   value: {{ . | quote }}
@@ -47,3 +53,9 @@ startup.
   value: {{ . | quote }}
 {{- end }}
 {{- end }}
+{{- end }}
+
+{{/*
+identity.oidc.provider's accepted values, space-separated; local means local accounts.
+*/}}
+{{- define "identity.providers" -}}local zitadel keycloak entra okta pingfederate lastwall google{{- end }}
