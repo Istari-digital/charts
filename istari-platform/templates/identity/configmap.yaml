@@ -3,7 +3,6 @@ We put the generated default env vars in this config map so that user-defined va
 'identity.secretName', 'identity.extraEnvSecrets', and 'identity.env' will always override them.
 */}}
 {{- $serviceValues := .Values.identity -}}
-{{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}
 {{- if $serviceValues.enabled }}
 apiVersion: v1
 kind: ConfigMap
@@ -21,7 +20,13 @@ metadata:
   {{- end }}
 data:
   {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
-  ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
+  {{- with include "istari-platform.publicServiceUrls" . | trim }}{{ . | nindent 2 }}{{- end }}
+  {{- if not .Values.apiGateway.enabled }}
+  {{- with trim .Values.common.identityFqdn }}
+  # Without the gateway, identity-service's issuer defaults to localhost and rejects assertions the backends sign for this URL.
+  ISTARI_DIGITAL_IDENTITY_SERVICE_JWT_ISSUER: {{ printf "https://%s" . | quote }}
+  {{- end }}
+  {{- end }}
   # identity-service exits at startup without an allowlist; the frontend's origin is the one browser caller.
   ISTARI_DIGITAL_IDENTITY_SERVICE_CORS_ALLOWED_ORIGINS: {{ include "istari-platform.frontendRedirectUri" . | quote }}
   {{- if dig "enabled" false (default dict .Values.jaeger) }}
@@ -34,11 +39,6 @@ data:
   OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
   OTEL_LOGS_EXPORTER: "none"
   OTEL_METRICS_EXPORTER: "none"
-  {{- end }}
-  {{- if .Values.apiGateway.enabled }}
-  # identity derives its gateway-prefixed assertion audience from this directly. Emitted only
-  # when the API Gateway is enabled, since that is the host clients reach this URL through.
-  ISTARI_DIGITAL_API_URL: {{ $gatewayUrl | quote }}
   {{- end }}
   {{- if or .Values.provisioner.enabled .Values.provisioner.external }}
   {{- /* The frontend/mcp OIDC redirect allowlists are chart-derivable (from common.*), so they come
