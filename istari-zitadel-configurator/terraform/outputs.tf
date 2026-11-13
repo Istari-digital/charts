@@ -1,3 +1,11 @@
+locals {
+  zitadel_scheme = var.zitadel_insecure ? "http" : "https"
+  # Zitadel's iss claim omits the scheme's default port.
+  zitadel_default_port = var.zitadel_insecure ? 80 : 443
+  zitadel_port_suffix  = var.zitadel_port == local.zitadel_default_port ? "" : ":${var.zitadel_port}"
+  zitadel_issuer       = "${local.zitadel_scheme}://${trimsuffix(var.zitadel_domain, "/")}${local.zitadel_port_suffix}"
+}
+
 output "secret_file" {
   value = templatefile("${path.module}/secrets.yaml.tftpl", {
     common_domain                        = var.zitadel_insecure ? "http://${var.zitadel_domain}:${var.zitadel_port}" : "https://${var.zitadel_domain}"
@@ -19,6 +27,8 @@ output "secret_file" {
     scs_zitadel_user_id                  = zitadel_machine_user.secure-connection-service-user.id
     scs_zitadel_user_manager_secret      = base64encode(zitadel_machine_key.secure-connection-service-machine-key.key_details)
     zitadel_domain                       = "https://${trimsuffix(var.zitadel_domain, "/")}"
+    zitadel_internal_url                 = trimsuffix(var.zitadel_internal_url, "/")
+    zitadel_issuer                       = local.zitadel_issuer
     zitadel_org_id                       = zitadel_org.default.id
   })
   sensitive = true

@@ -163,6 +163,12 @@ variable "zitadel_insecure" {
   default     = false
 }
 
+variable "zitadel_internal_url" {
+  type        = string
+  description = "In-cluster Zitadel URL, including scheme and any non-default port, e.g. http://zitadel.<namespace>.svc.cluster.local:8080. Written to the backends as ISTARI_DIGITAL_ZITADEL_INTERNAL_URL; empty writes an empty value, which the services treat as unset"
+  default     = ""
+}
+
 variable "zitadel_port" {
   type        = number
   description = "Port for the ZITADEL instance"

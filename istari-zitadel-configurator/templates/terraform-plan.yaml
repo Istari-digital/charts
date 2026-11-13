@@ -1,4 +1,9 @@
 {{- if not .Values.override.enabled }}
+{{- with .Values.configurator.zitadel_internal_url }}
+{{- if not (regexMatch `^https?://[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*(:[0-9]{1,5})?/?$` .) }}
+{{- fail "configurator.zitadel_internal_url must be http:// or https:// followed by a host and optional port, with no path, e.g. http://zitadel.<namespace>.svc.cluster.local:8080" }}
+{{- end }}
+{{- end }}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -53,6 +58,9 @@ stringData:
     {{- end }}
     tos_link                            = {{ .Values.configurator.tos_link | quote }}
     zitadel_domain                      = {{ .Values.configurator.zitadel_domain | quote }}
+    {{- if .Values.configurator.zitadel_internal_url }}
+    zitadel_internal_url                = {{ .Values.configurator.zitadel_internal_url | quote }}
+    {{- end }}
     zitadel_port                        = {{ .Values.configurator.zitadel_port | quote }}
     zitadel_insecure                    = {{ .Values.configurator.zitadel_insecure | quote }}
 
