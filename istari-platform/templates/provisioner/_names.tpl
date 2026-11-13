@@ -28,27 +28,28 @@ precedence over the release name.
 */}}
 
 {{/*
-Suffix each generated Secret name carries once `provisioner.secretRotationIteration` leaves its
-default. Renaming the Secrets on rotation is what makes the consumers' new pods wait for the
-provisioner to write the new material instead of restarting onto the old.
+One generated Secret name: `<provisioner.fullname>-<base>`, plus `-<iteration>` once
+`provisioner.secretRotationIteration` leaves its default. Renaming the Secrets on rotation is what
+makes the consumers' new pods wait for the provisioner to write the new material instead of
+restarting onto the old. Input: dict with `root` (the chart context), `base`, and `iteration`.
 */}}
-{{- define "provisioner.secretRotationSuffix" -}}
-{{- $iteration := int .Values.provisioner.secretRotationIteration -}}
-{{- if ne $iteration 1 }}-{{ $iteration }}{{ end -}}
+{{- define "provisioner.generatedSecretName" -}}
+{{- $iteration := int .iteration -}}
+{{- printf "%s-%s%s" (include "provisioner.fullname" .root) .base (ternary "" (printf "-%d" $iteration) (eq $iteration 1)) -}}
 {{- end }}
 
 {{/*
 Secret carrying registry's private credential blob.
 */}}
 {{- define "provisioner.registrySecretName" -}}
-{{- printf "%s-registry-credentials%s" (include "provisioner.fullname" .) (include "provisioner.secretRotationSuffix" .) -}}
+{{- include "provisioner.generatedSecretName" (dict "root" . "base" "registry-credentials" "iteration" .Values.provisioner.secretRotationIteration) -}}
 {{- end }}
 
 {{/*
 Secret carrying mcp's placeholder client_secret.
 */}}
 {{- define "provisioner.mcpSecretName" -}}
-{{- printf "%s-mcp-credentials%s" (include "provisioner.fullname" .) (include "provisioner.secretRotationSuffix" .) -}}
+{{- include "provisioner.generatedSecretName" (dict "root" . "base" "mcp-credentials" "iteration" .Values.provisioner.secretRotationIteration) -}}
 {{- end }}
 
 {{/*
@@ -56,7 +57,7 @@ Secret carrying the env vars identity-service reads at startup to self-register
 registry/frontend/mcp.
 */}}
 {{- define "provisioner.identityPlatformClientsSecretName" -}}
-{{- printf "%s-identity-platform-clients%s" (include "provisioner.fullname" .) (include "provisioner.secretRotationSuffix" .) -}}
+{{- include "provisioner.generatedSecretName" (dict "root" . "base" "identity-platform-clients" "iteration" .Values.provisioner.secretRotationIteration) -}}
 {{- end }}
 
 {{/*
@@ -64,7 +65,21 @@ Secret carrying identity-service's own generated keys: its token signing key and
 key.
 */}}
 {{- define "provisioner.identitySecretName" -}}
-{{- printf "%s-identity-keys%s" (include "provisioner.fullname" .) (include "provisioner.secretRotationSuffix" .) -}}
+{{- include "provisioner.generatedSecretName" (dict "root" . "base" "identity-keys" "iteration" .Values.provisioner.secretRotationIteration) -}}
+{{- end }}
+
+{{/*
+Every generated Secret name from iteration 1 up to the current one, as YAML list items for the
+Role's resourceNames: a rotation still has Terraform read and delete the previous iteration's
+Secrets, so the provisioner keeps name-scoped access to them.
+*/}}
+{{- define "provisioner.generatedSecretNames" -}}
+{{- $root := . -}}
+{{- range $iteration := untilStep 1 (int (add1 (int .Values.provisioner.secretRotationIteration))) 1 }}
+{{- range $base := list "registry-credentials" "mcp-credentials" "identity-platform-clients" "identity-keys" }}
+- {{ include "provisioner.generatedSecretName" (dict "root" $root "base" $base "iteration" $iteration) | quote }}
+{{- end }}
+{{- end }}
 {{- end }}
 
 {{/*
