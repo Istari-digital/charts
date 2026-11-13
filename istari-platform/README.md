@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 7.3.0](https://img.shields.io/badge/Version-7.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
+![Version: 7.4.0](https://img.shields.io/badge/Version-7.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -115,6 +115,24 @@ The identity service's keys come from their own Secret, `<fullname>-identity-key
 The provisioner runs under its own ServiceAccount and Role. The mutating verbs on Secrets (`get`/`update`/`patch`/`delete`) are scoped **by name** to only the Secrets the provisioner owns — the generated credential Secrets and its Terraform state Secret — so it can modify just those. `create` and `list` can't be restricted by `resourceNames`, so both are namespace-wide: `create` because the credential and state Secrets are created at runtime with names that don't yet exist when the verb is checked, and `list` because the Terraform kubernetes backend locates its state by label. Namespace-wide `list` returns full Secret objects, so the provisioner can **read** every Secret in the release's namespace, and `create` lets it add Secrets of any name — though it can still modify only its own. If that scope matters for your environment, install the release in a dedicated namespace.
 
 The generated Secret names derive from `provisioner.fullname` — `<fullnameOverride>-provisioner` when `fullnameOverride` is set, `<release>-provisioner` otherwise. Because `fullnameOverride` defaults to `istari`, a second release in the same namespace collides on these names — as it does on every other resource the chart names — unless you give it a distinct `fullnameOverride`. When the provisioner runs in a separate release from a consumer (`provisioner.external`), the two instead agree on the names by sharing the same `fullnameOverride` — two separate releases in one namespace can't share a release name, so the override is the only way to make their Secret names match.
+
+### Rotating the generated secrets
+
+Set `provisioner.secretRotationIteration` to any new integer (the default is `1`; count up) to regenerate the material the provisioner manages:
+
+```bash
+helm upgrade --reuse-values --set provisioner.secretRotationIteration=2 <release> <chart>
+```
+
+| Rotated | Kept |
+| --- | --- |
+| The registry service's client keypair and key id | The identity service's token encryption key, which encrypts stored data |
+| MCP's client secret | |
+| The identity service's token signing key and key id | |
+
+The new value renames the generated Secrets with the iteration as a suffix (`<fullname>-provisioner-identity-keys-2`, and so on), which reruns the provisioner and rolls the identity service, the registry service and, when enabled, MCP onto the new names. Their new pods wait in `ContainerCreating` until the provisioner has written the new Secrets, then start with the new material, while the old pods keep serving until the new ones are ready; the previous Secrets are deleted. The identity service reads the registry service's public key at startup, so the new registry key is registered by that same restart and nothing has to be re-registered by hand. The kept token encryption key carries its value over into the renamed Secret.
+
+Expect every signed-in user to sign in again, since tokens signed by the previous key no longer verify, and a few minutes of failed requests between the registry service and the identity service while the two roll onto the new keys at slightly different moments. No stored data is affected. A release with `provisioner.external: true` mounts the Secrets by name, so give it the same value in the same window. Reverting the value renames the Secrets back and rotates again; it does not restore the previous keys. Images before `0.6.0` ignore the value, and the chart refuses to render a rotation against them.
 
 ## Agent registration
 
@@ -598,8 +616,9 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | provisioner.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for the provisioner's image. |
 | provisioner.rerunToken | string | `""` | Change this to any new value to force the provisioning Job to rerun without changing any other input: `helm upgrade --reuse-values --set provisioner.rerunToken=<anything>`. The Job's name is a hash of its inputs, and this token is one of them. |
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
+| provisioner.secretRotationIteration | int | `1` | Change to any new integer to rotate every provisioner-generated key and secret: the registry service's client keypair and key id, MCP's client secret, and the identity service's signing key and key id. The identity service's token encryption key encrypts stored data and is never rotated. The generated Secrets are renamed with the new value, so the identity service, the registry service and MCP restart only once the new material exists. See [Rotating the generated secrets](#rotating-the-generated-secrets). |
 | provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
-| provisioner.tag | string | `"0.5.1"` | Image tag. |
+| provisioner.tag | string | `"0.6.0"` | Image tag. |
 | provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | secureConnection.affinity | object | `{}` | Affinity |
 | secureConnection.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |

@@ -28,17 +28,27 @@ precedence over the release name.
 */}}
 
 {{/*
+Suffix each generated Secret name carries once `provisioner.secretRotationIteration` leaves its
+default. Renaming the Secrets on rotation is what makes the consumers' new pods wait for the
+provisioner to write the new material instead of restarting onto the old.
+*/}}
+{{- define "provisioner.secretRotationSuffix" -}}
+{{- $iteration := int .Values.provisioner.secretRotationIteration -}}
+{{- if ne $iteration 1 }}-{{ $iteration }}{{ end -}}
+{{- end }}
+
+{{/*
 Secret carrying registry's private credential blob.
 */}}
 {{- define "provisioner.registrySecretName" -}}
-{{- printf "%s-registry-credentials" (include "provisioner.fullname" .) -}}
+{{- printf "%s-registry-credentials%s" (include "provisioner.fullname" .) (include "provisioner.secretRotationSuffix" .) -}}
 {{- end }}
 
 {{/*
 Secret carrying mcp's placeholder client_secret.
 */}}
 {{- define "provisioner.mcpSecretName" -}}
-{{- printf "%s-mcp-credentials" (include "provisioner.fullname" .) -}}
+{{- printf "%s-mcp-credentials%s" (include "provisioner.fullname" .) (include "provisioner.secretRotationSuffix" .) -}}
 {{- end }}
 
 {{/*
@@ -46,7 +56,7 @@ Secret carrying the env vars identity-service reads at startup to self-register
 registry/frontend/mcp.
 */}}
 {{- define "provisioner.identityPlatformClientsSecretName" -}}
-{{- printf "%s-identity-platform-clients" (include "provisioner.fullname" .) -}}
+{{- printf "%s-identity-platform-clients%s" (include "provisioner.fullname" .) (include "provisioner.secretRotationSuffix" .) -}}
 {{- end }}
 
 {{/*
@@ -54,7 +64,7 @@ Secret carrying identity-service's own generated keys: its token signing key and
 key.
 */}}
 {{- define "provisioner.identitySecretName" -}}
-{{- printf "%s-identity-keys" (include "provisioner.fullname" .) -}}
+{{- printf "%s-identity-keys%s" (include "provisioner.fullname" .) (include "provisioner.secretRotationSuffix" .) -}}
 {{- end }}
 
 {{/*

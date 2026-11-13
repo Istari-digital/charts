@@ -115,6 +115,24 @@ The provisioner runs under its own ServiceAccount and Role. The mutating verbs o
 
 The generated Secret names derive from `provisioner.fullname` — `<fullnameOverride>-provisioner` when `fullnameOverride` is set, `<release>-provisioner` otherwise. Because `fullnameOverride` defaults to `istari`, a second release in the same namespace collides on these names — as it does on every other resource the chart names — unless you give it a distinct `fullnameOverride`. When the provisioner runs in a separate release from a consumer (`provisioner.external`), the two instead agree on the names by sharing the same `fullnameOverride` — two separate releases in one namespace can't share a release name, so the override is the only way to make their Secret names match.
 
+### Rotating the generated secrets
+
+Set `provisioner.secretRotationIteration` to any new integer (the default is `1`; count up) to regenerate the material the provisioner manages:
+
+```bash
+helm upgrade --reuse-values --set provisioner.secretRotationIteration=2 <release> <chart>
+```
+
+| Rotated | Kept |
+| --- | --- |
+| The registry service's client keypair and key id | The identity service's token encryption key, which encrypts stored data |
+| MCP's client secret | |
+| The identity service's token signing key and key id | |
+
+The new value renames the generated Secrets with the iteration as a suffix (`<fullname>-provisioner-identity-keys-2`, and so on), which reruns the provisioner and rolls the identity service, the registry service and, when enabled, MCP onto the new names. Their new pods wait in `ContainerCreating` until the provisioner has written the new Secrets, then start with the new material, while the old pods keep serving until the new ones are ready; the previous Secrets are deleted. The identity service reads the registry service's public key at startup, so the new registry key is registered by that same restart and nothing has to be re-registered by hand. The kept token encryption key carries its value over into the renamed Secret.
+
+Expect every signed-in user to sign in again, since tokens signed by the previous key no longer verify, and a few minutes of failed requests between the registry service and the identity service while the two roll onto the new keys at slightly different moments. No stored data is affected. A release with `provisioner.external: true` mounts the Secrets by name, so give it the same value in the same window. Reverting the value renames the Secrets back and rotates again; it does not restore the previous keys. Images before `0.6.0` ignore the value, and the chart refuses to render a rotation against them.
+
 ## Agent registration
 
 `identity.agentRegistration` registers service agents, for example the Secure Connection Service, with the identity service so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job on install and upgrade. On a Zitadel configurator install, these values register the Secure Connection Service:

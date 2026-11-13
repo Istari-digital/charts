@@ -896,7 +896,7 @@ provisioner:
   # -- Image name.
   image: "provisioner"
   # -- Image tag.
-  tag: "0.5.1"
+  tag: "0.6.0"
   # -- Image pull policy.
   imagePullPolicy: IfNotPresent
   # -- Image pull secrets for the provisioning Job pod. When empty, the chart-wide `imagePullSecrets` apply.
@@ -913,6 +913,13 @@ provisioner:
   # other input: `helm upgrade --reuse-values --set provisioner.rerunToken=<anything>`. The Job's
   # name is a hash of its inputs, and this token is one of them.
   rerunToken: ""
+  # -- Change to any new integer to rotate every provisioner-generated key and secret: the registry
+  # service's client keypair and key id, MCP's client secret, and the identity service's signing key
+  # and key id. The identity service's token encryption key encrypts stored data and is never
+  # rotated. The generated Secrets are renamed with the new value, so the identity service, the
+  # registry service and MCP restart only once the new material exists. See
+  # [Rotating the generated secrets](#rotating-the-generated-secrets).
+  secretRotationIteration: 1
   # -- Extra environment variables for the provisioner container.
   env: []
   # -- Extra secrets to mount (via `envFrom`) into the provisioner container.
