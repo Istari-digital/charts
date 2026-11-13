@@ -198,7 +198,8 @@ Platform hostnames live under `common`: `mainFqdn` is the platform host (the fro
 and other hosts default to subdomains of it (`api.<mainFqdn>`, `mcp.<mainFqdn>`), each
 overridable with a scheme-less `*FqdnOverride`. `registryFqdn` and `identityFqdn` are the
 exception: empty by default, and when set they only add that service's public URL variable (the
-registry's also feeds the frontend). Everything under `common` is scheme-less — add `https://`
+registry's also feeds the frontend; with the gateway off, the identity host also becomes
+identity-service's JWT issuer). Everything under `common` is scheme-less — add `https://`
 only where a URL is emitted. The `istari-platform.apiGatewayUrl` helper deliberately
 derives the gateway URL from `common.mainFqdn`: the one sanctioned exception to the
 never-derive-one-value's-default-from-another rule, because the whole domain surface is meant to

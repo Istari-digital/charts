@@ -36,7 +36,8 @@ common:
   registryFqdn: ""
   # -- Public host of the identity service, without a scheme, e.g. `identity.istari.customer-domain.com`.
   # Empty by default; leave it empty when identity is reached through the API gateway. When set, it
-  # becomes `ISTARI_DIGITAL_IDENTITY_SERVICE_URL` in the backend ConfigMaps.
+  # becomes `ISTARI_DIGITAL_IDENTITY_SERVICE_URL` in the backend ConfigMaps and, with `apiGateway.enabled`
+  # false, identity-service's `ISTARI_DIGITAL_IDENTITY_SERVICE_JWT_ISSUER`.
   identityFqdn: ""
 
 # -- Optional: Trusted certificate bundle for when using a self-signed certificate. This is a PEM-encoded certificate bundle. AWS, Azure, and GCP root certs will also automatically be trusted.

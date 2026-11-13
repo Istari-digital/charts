@@ -27,6 +27,14 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 >
 > The `jaeger` and `dgraph-sec` dependencies are **optional** (`jaeger.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
 
+## Upgrading
+
+Upgrade from an earlier chart version with `--reset-then-reuse-values`, not `--reuse-values`. With `--reuse-values`, keys added since that version, such as `common.registryFqdn` and `common.identityFqdn`, are missing and the render fails.
+
+`ISTARI_DIGITAL_REGISTRY_SERVICE_URL` no longer holds the registry's in-cluster URL; the chart now sets it to the registry's public URL, and only when `common.registryFqdn` is set. If you pin Secure Connection Service or MCP images older than the chart's defaults, upgrade those images before upgrading the chart.
+
+An upgrade from an earlier version can leave a `<fullname>-identity-idp-migrate-defaults` ConfigMap behind, because Helm does not track hook resources as part of the release. It is unused and can be deleted.
+
 ## Identity service
 
 A default install deploys the identity service, the API Gateway and the provisioner, and configures the registry service, the frontend and, when `mcp.enabled` is set, MCP to authenticate through the identity service. The chart cannot create these prerequisites, so they must exist before the identity service starts:
@@ -223,7 +231,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | apiGateway.volumes | list | `[]` | Pod Volumes |
 | common | object | (see fields below) | Chart-wide settings shared across services. |
 | common.apiFqdnOverride | string | `""` | Override the API gateway host outright, e.g. `api.istari.customer-domain.com`. Empty uses the default, `api.<mainFqdn>`. The host becomes `ISTARI_DIGITAL_API_URL` (and the frontend's `VITE_ISTARI_DIGITAL_API_URL`), set only when `apiGateway.enabled`. |
-| common.identityFqdn | string | `""` | Public host of the identity service, without a scheme, e.g. `identity.istari.customer-domain.com`. Empty by default; leave it empty when identity is reached through the API gateway. When set, it becomes `ISTARI_DIGITAL_IDENTITY_SERVICE_URL` in the backend ConfigMaps. |
+| common.identityFqdn | string | `""` | Public host of the identity service, without a scheme, e.g. `identity.istari.customer-domain.com`. Empty by default; leave it empty when identity is reached through the API gateway. When set, it becomes `ISTARI_DIGITAL_IDENTITY_SERVICE_URL` in the backend ConfigMaps and, with `apiGateway.enabled` false, identity-service's `ISTARI_DIGITAL_IDENTITY_SERVICE_JWT_ISSUER`. |
 | common.mainFqdn | string | `""` | **Required** platform host — the frontend FQDN, e.g. `istari.customer-domain.com`. The API gateway and mcp hosts default to subdomains of it. Becomes the frontend's `VITE_UI_URL` and the OIDC redirect URIs the provisioner registers. The chart fails to render with an empty value, since every platform host and URL derives from it. |
 | common.mcpFqdnOverride | string | `""` | Override the mcp host outright. Empty uses the default, `mcp.<mainFqdn>`. The host also becomes `ISTARI_DIGITAL_MCP_SERVICE_URL` when `mcp.enabled`. |
 | common.registryFqdn | string | `""` | Public host of the registry, without a scheme, e.g. `registry.istari.customer-domain.com`. Empty by default; leave it empty when the registry is reached through the API gateway. When set, it becomes `ISTARI_DIGITAL_REGISTRY_SERVICE_URL` in the backend ConfigMaps and the frontend's registry endpoint. |
