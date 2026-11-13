@@ -913,7 +913,7 @@ provisioner:
   # other input: `helm upgrade --reuse-values --set provisioner.rerunToken=<anything>`. The Job's
   # name is a hash of its inputs, and this token is one of them.
   rerunToken: ""
-  # -- Change to any new integer to rotate every provisioner-generated key and secret: the registry
+  # -- Increase by one to rotate every provisioner-generated key and secret: the registry
   # service's client keypair and key id, MCP's client secret, and the identity service's signing key
   # and key id. The identity service's token encryption key encrypts stored data and is never
   # rotated. The generated Secrets are renamed with the new value, so the identity service, the

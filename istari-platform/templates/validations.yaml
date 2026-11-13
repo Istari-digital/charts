@@ -20,8 +20,14 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- if and .Values.provisioner.enabled .Values.identity.enabled (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $provisionerTag) (semverCompare "<0.4.0-0" $provisionerTag) }}
 {{- fail (printf "provisioner.tag %q is too old for identity: images before 0.4.0 do not generate the identity service's keys, so its pods cannot start. Set provisioner.tag to 0.4.0 or later." $provisionerTag) }}
 {{- end }}
+{{- /* The Role enumerates every iteration's Secret names, so the counter must stay a small positive
+integer; a timestamp-sized value (the rerunToken habit) would render an enormous Role. */ -}}
+{{- $iteration := int .Values.provisioner.secretRotationIteration }}
+{{- if and .Values.provisioner.enabled (or (lt $iteration 1) (gt $iteration 1000)) }}
+{{- fail (printf "provisioner.secretRotationIteration must be an integer from 1 to 1000, got %v. Increase it by one per rotation; it is a counter, not a token." .Values.provisioner.secretRotationIteration) }}
+{{- end }}
 {{- /* Images before 0.6.0 ignore secret_rotation_iteration, so a bump would rename the Secrets
 without regenerating anything. */ -}}
-{{- if and .Values.provisioner.enabled (ne (int .Values.provisioner.secretRotationIteration) 1) (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $provisionerTag) (semverCompare "<0.6.0-0" $provisionerTag) }}
+{{- if and .Values.provisioner.enabled (ne $iteration 1) (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $provisionerTag) (semverCompare "<0.6.0-0" $provisionerTag) }}
 {{- fail (printf "provisioner.tag %q does not support provisioner.secretRotationIteration: images before 0.6.0 ignore it, so the generated Secrets would be renamed without rotating any key. Set provisioner.tag to 0.6.0 or later." $provisionerTag) }}
 {{- end }}
