@@ -58,7 +58,9 @@ stringData:
     {{- end }}
     tos_link                            = {{ .Values.configurator.tos_link | quote }}
     zitadel_domain                      = {{ .Values.configurator.zitadel_domain | quote }}
+    {{- if .Values.configurator.zitadel_internal_url }}
     zitadel_internal_url                = {{ .Values.configurator.zitadel_internal_url | quote }}
+    {{- end }}
     zitadel_port                        = {{ .Values.configurator.zitadel_port | quote }}
     zitadel_insecure                    = {{ .Values.configurator.zitadel_insecure | quote }}
 
