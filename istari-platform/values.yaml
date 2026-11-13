@@ -1379,14 +1379,14 @@ jaeger:
         resourceFieldRef:
           resource: limits.memory
           divisor: "1"
-    # -- Resources for the Jaeger container. Badger's memory use scales with the stored dataset (table indexes and bloom filters live on the heap, and data files are memory-mapped), so a mature store needs real memory — and without a request the scheduler may place Jaeger on a node without room for it. Raise these together with `jaeger.persistence.size` / the `ttl.spans` retention.
+    # -- Resources for the Jaeger container. Badger's memory scales with the stored dataset (heap indexes/bloom filters plus memory-mapped data files), and compaction transiently spikes RSS above steady state with no knob to cap it — so size the memory limit for the spike, not the average, or a healthy Pod is OOM-killed mid-compaction and crash-loops. `GOMEMLIMIT` (in `extraEnv`) tracks the limit so the GC compacts near the cap, but cannot absorb a spike past it. The request is a modest floor (the Pod bursts to the limit); the limit reserves nothing until used, so it carries the headroom. Raise both alongside `jaeger.persistence.size` / `ttl.spans` for heavier ingest.
     resources:
       requests:
         cpu: 250m
         memory: 2Gi
       limits:
-        memory: 4Gi
-    # -- Startup probe for the Jaeger container. Badger opens every on-disk table at boot, which on a large store (tens of GiB / thousands of tables) can take minutes; without a startup probe the liveness probe SIGTERMs the container mid-open and crash-loops it forever. This holds liveness off until the Jaeger v2 healthcheckv2 endpoint (`/status` on 13133, enabled by `userconfig`) first reports healthy, allowing up to ~10 minutes (`failureThreshold` × `periodSeconds`). Scale `failureThreshold` up alongside `jaeger.persistence.size`.
+        memory: 16Gi
+    # -- Startup probe for the Jaeger container, holding liveness off until the Jaeger v2 healthcheckv2 endpoint (`/status` on 13133, enabled by `userconfig`) first reports healthy. Cold-start grows with store size in two phases — Badger opening every on-disk table, then the collector populating its block cache and service/operation index — both of which must finish before `/status` is healthy; without this probe the liveness probe SIGTERMs the container mid-boot and crash-loops it (common after a reschedule, when the single-replica Pod re-opens the whole store). Budget is `failureThreshold` × `periodSeconds` (default ~20 min); it only delays detecting a failed boot, so scale `failureThreshold` up alongside `jaeger.persistence.size`. Give a waited or atomic `helm upgrade` a deploy timeout above this budget plus scheduling time; past it, a wait-only upgrade is marked failed with resources left in place, while an atomic one also rolls back mid-boot.
     startupProbe:
       httpGet:
         path: /status
@@ -1394,7 +1394,7 @@ jaeger:
         scheme: HTTP
       initialDelaySeconds: 10
       periodSeconds: 10
-      failureThreshold: 60
+      failureThreshold: 120
       timeoutSeconds: 5
       successThreshold: 1
     # -- Liveness probe for the Jaeger container, hitting the healthcheckv2 `/status` endpoint. `timeoutSeconds` is 5 (not the subchart default 1): a Badger compaction pause can stall `/status` past a 1s deadline and, after five misses, kill an otherwise-healthy Pod. The startup probe above covers the boot window.
@@ -1435,7 +1435,7 @@ jaeger:
     extraVolumeMounts:
     - name: badger-data
       mountPath: /badger
-  # -- Jaeger v2 configuration (passed to the binary via `--config`). REQUIRED: without a config file Jaeger v2 binds OTLP to localhost only (unreachable from other Pods) and serves no health endpoint on port 13133, so the subchart's probes would crash-loop the Pod. This default enables OTLP gRPC/HTTP ingest on all interfaces, the query UI, and Badger storage with a 72h span TTL. To use ephemeral in-memory storage instead: replace the `badger:` block with `memory: {max_traces: 100000}`, set `jaeger.jaeger.extraVolumes`/`extraVolumeMounts` to `[]`, and set `jaeger.persistence.enabled: false`.
+  # -- Jaeger v2 configuration (passed to the binary via `--config`). REQUIRED: without a config file Jaeger v2 binds OTLP to localhost only (unreachable from other Pods) and serves no health endpoint on port 13133, so the subchart's probes would crash-loop the Pod. This default enables OTLP gRPC/HTTP ingest on all interfaces, the query UI, and Badger storage with a 72h span TTL. To use ephemeral in-memory storage instead: replace the `badger:` block with `memory: {max_traces: 100000}`, set `jaeger.jaeger.extraVolumes`/`extraVolumeMounts` to `[]`, and set `jaeger.persistence.enabled: false`. Store size ≈ ingest-rate × `ttl.spans`, and compaction memory and cold-start time scale with it; at high volume, cap all three via `ttl.spans` and/or a `tail_sampling` processor (commented example in `processors` below).
   userconfig:
     service:
       extensions: [jaeger_storage, jaeger_query, healthcheckv2]
@@ -1471,6 +1471,17 @@ jaeger:
             endpoint: 0.0.0.0:4318
     processors:
       batch: {}
+      # High ingest: uncomment and prepend `tail_sampling` to the traces pipeline (`[tail_sampling, batch]`).
+      # Keeps ~10% of traces; store scales ~linearly with `sampling_percentage` (trades fidelity for size).
+      # Raise num_traces if the early-drop metric (otelcol_processor_tail_sampling_sampling_trace_dropped_too_early) climbs.
+      # tail_sampling:
+      #   decision_wait: 10s
+      #   num_traces: 50000
+      #   policies:
+      #   - name: probabilistic
+      #     type: probabilistic
+      #     probabilistic:
+      #       sampling_percentage: 10
     exporters:
       jaeger_storage_exporter:
         trace_storage: primary_store
@@ -1478,8 +1489,8 @@ jaeger:
   persistence:
     # -- Create a PersistentVolumeClaim named `jaeger-badger` for Badger trace storage. The PVC is deleted on `helm uninstall` (trace history is disposable). Note: block-storage PVCs are zonal on AWS/Azure — the Jaeger Pod becomes pinned to the volume's availability zone (on Azure, a ZRS storage class avoids this). Disable only if you also switch `jaeger.userconfig` to in-memory storage and set `jaeger.jaeger.extraVolumes` / `jaeger.jaeger.extraVolumeMounts` to `[]` (see the `jaeger.userconfig` comment for the full recipe; the chart refuses to render a half-configured state).
     enabled: true
-    # -- Size of the Badger PVC (raise `jaeger.jaeger.resources` memory alongside it — see there). Retention is TIME-based only (`ttl.spans` in `jaeger.userconfig`, default 72h): Badger does NOT evict old data under disk pressure. A full volume stops trace collection and can wedge Badger's garbage collection (reclaiming space itself needs free disk), potentially crash-looping the Pod. Size with headroom — 20Gi over 72h ≈ 80 KB/s of stored spans, and expired data is reclaimed lazily — and alert on PVC usage (`kubelet_volume_stats_used_bytes`) around 80%. Increasing this value expands the volume in place when the StorageClass allows expansion; to reduce trace volume, lower `ttl.spans` or sample at the source. Trace history is disposable: deleting the PVC and restarting the Pod is a valid recovery.
-    size: 20Gi
+    # -- Size of the Badger PVC. Retention is TIME-based only (`ttl.spans` in `jaeger.userconfig`, default 72h): Badger does not evict under disk pressure, so a full volume stops ingestion and wedges GC (which itself needs free disk to reclaim), crash-looping the Pod — size with headroom. The default holds a moderate store; for a short-lived Jaeger, prefer in-memory storage (see `jaeger.userconfig`) over a tiny PVC. Fill rate ≈ 20Gi per 72h (~80 KB/s of spans); expired data is reclaimed lazily. Alert on `kubelet_volume_stats_used_bytes` near 80%. Raising this expands the volume in place when the StorageClass allows. Disk is usually not the first limit — compaction memory (`jaeger.jaeger.resources`) and cold-start time (`jaeger.jaeger.startupProbe`) grow with store size too; cap all three via `ttl.spans` or sampling (see `jaeger.userconfig`). Recovery from a wedged store: scale Jaeger down, delete the PVC, wait for it to be gone, then `helm upgrade` (or re-sync) to recreate an empty claim before Jaeger restarts — this discards trace history. Upgrade note: raising this value resizes the bound PVC, which FAILS the `helm upgrade` on a StorageClass without `allowVolumeExpansion` — an existing release on non-expandable storage must pin its current `size` here (or migrate to an expandable class) before upgrading. And never lower `size` below the current PVC — Kubernetes rejects a shrink, so a rollback to a smaller value fails too.
+    size: 100Gi
     # -- StorageClass for the Badger PVC. Empty string uses the cluster's default StorageClass.
     storageClassName: ""
     # -- Additional annotations for the Badger PVC.
