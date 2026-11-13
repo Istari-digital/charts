@@ -26,7 +26,7 @@ runs on the raw value because `int` would silently turn 1.5 or true into 1 while
 receives the raw value. */ -}}
 {{- $rawIteration := toString .Values.provisioner.secretRotationIteration }}
 {{- $iteration := int .Values.provisioner.secretRotationIteration }}
-{{- if and .Values.provisioner.enabled (or (not (regexMatch "^[0-9]+$" $rawIteration)) (lt $iteration 1) (gt $iteration 1000)) }}
+{{- if and (or .Values.provisioner.enabled .Values.provisioner.external) (or (not (regexMatch "^[0-9]+$" $rawIteration)) (lt $iteration 1) (gt $iteration 1000)) }}
 {{- fail (printf "provisioner.secretRotationIteration must be an integer from 1 to 1000, got %v. Increase it by one per rotation; it is a counter, not a token." .Values.provisioner.secretRotationIteration) }}
 {{- end }}
 {{- /* Images before 0.6.0 ignore secret_rotation_iteration, so a bump would rename the Secrets
