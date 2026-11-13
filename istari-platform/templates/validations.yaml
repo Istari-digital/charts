@@ -21,9 +21,12 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- fail (printf "provisioner.tag %q is too old for identity: images before 0.4.0 do not generate the identity service's keys, so its pods cannot start. Set provisioner.tag to 0.4.0 or later." $provisionerTag) }}
 {{- end }}
 {{- /* The Role enumerates every iteration's Secret names, so the counter must stay a small positive
-integer; a timestamp-sized value (the rerunToken habit) would render an enormous Role. */ -}}
+integer; a timestamp-sized value (the rerunToken habit) would render an enormous Role. The regex
+runs on the raw value because `int` would silently turn 1.5 or true into 1 while the provisioner
+receives the raw value. */ -}}
+{{- $rawIteration := toString .Values.provisioner.secretRotationIteration }}
 {{- $iteration := int .Values.provisioner.secretRotationIteration }}
-{{- if and .Values.provisioner.enabled (or (lt $iteration 1) (gt $iteration 1000)) }}
+{{- if and .Values.provisioner.enabled (or (not (regexMatch "^[0-9]+$" $rawIteration)) (lt $iteration 1) (gt $iteration 1000)) }}
 {{- fail (printf "provisioner.secretRotationIteration must be an integer from 1 to 1000, got %v. Increase it by one per rotation; it is a counter, not a token." .Values.provisioner.secretRotationIteration) }}
 {{- end }}
 {{- /* Images before 0.6.0 ignore secret_rotation_iteration, so a bump would rename the Secrets

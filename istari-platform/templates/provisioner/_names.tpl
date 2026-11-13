@@ -75,7 +75,8 @@ Secrets, so the provisioner keeps name-scoped access to them.
 */}}
 {{- define "provisioner.generatedSecretNames" -}}
 {{- $root := . -}}
-{{- range $iteration := untilStep 1 (int (add1 (int .Values.provisioner.secretRotationIteration))) 1 }}
+{{- /* Capped because this renders before validations.yaml rejects an out-of-range value. */ -}}
+{{- range $iteration := untilStep 1 (int (add1 (min 1000 (int .Values.provisioner.secretRotationIteration)))) 1 }}
 {{- range $base := list "registry-credentials" "mcp-credentials" "identity-platform-clients" "identity-keys" }}
 - {{ include "provisioner.generatedSecretName" (dict "root" $root "base" $base "iteration" $iteration) | quote }}
 {{- end }}
