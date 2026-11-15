@@ -28,3 +28,10 @@ controller at the {{ include "api-gateway.fullname" . }} Service on port 80, the
 registry service is exposed. TLS terminates there — the API Gateway itself serves plain HTTP.
 The chart can also create these for you: see `apiGateway.ingress` and `apiGateway.virtualService`.
 {{- end -}}
+{{- if and .Values.provisioner.enabled (ne (int .Values.provisioner.secretRotationIteration) 1) }}
+
+provisioner.secretRotationIteration is {{ .Values.provisioner.secretRotationIteration }}. If this upgrade changed it, the provisioner Job
+is rewriting the generated Secrets; once it has completed, restart the services that read them:
+
+  kubectl rollout restart -n {{ .Release.Namespace }} deployment/{{ include "identity.fullname" . }} deployment/{{ include "fileservice.fullname" . }}{{ if .Values.mcp.enabled }} deployment/{{ include "mcp.fullname" . }}{{ end }}
+{{- end }}

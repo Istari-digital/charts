@@ -118,10 +118,11 @@ The generated Secret names derive from `provisioner.fullname` — `<fullnameOver
 
 ### Rotating the generated secrets
 
-Set `provisioner.secretRotationIteration` to the next integer up (the default is `1`; the chart accepts 1 to 1000) to regenerate the material the provisioner manages:
+Set `provisioner.secretRotationIteration` to the next integer up (the default is `1`) to regenerate the material the provisioner manages, then restart the services that read it once the provisioner Job has completed:
 
 ```bash
-helm upgrade --reuse-values --set provisioner.secretRotationIteration=2 <release> <chart>
+helm upgrade --reuse-values --set provisioner.secretRotationIteration=2 --wait --wait-for-jobs <release> <chart>
+kubectl rollout restart -n <namespace> deployment/<fullname>-identity deployment/<fullname>-fileservice deployment/<fullname>-mcp
 ```
 
 | Rotated | Kept |
@@ -130,9 +131,9 @@ helm upgrade --reuse-values --set provisioner.secretRotationIteration=2 <release
 | MCP's client secret | |
 | The identity service's token signing key and key id | |
 
-The new value renames the generated Secrets with the iteration as a suffix (`<fullname>-provisioner-identity-keys-2`, and so on), which reruns the provisioner and rolls the identity service, the registry service and, when enabled, MCP onto the new names. Their new pods wait in `ContainerCreating` until the provisioner has written the new Secrets, then start with the new material, while the old pods keep serving until the new ones are ready; the previous Secrets are deleted. The identity service reads the registry service's public key at startup, so the new registry key is registered by that same restart and nothing has to be re-registered by hand. The kept token encryption key carries its value over into the renamed Secret.
+The provisioner Job reruns (its name hashes its inputs, and the value is one of them) and rewrites the generated Secrets in place, under their existing names. Running pods keep the old environment until they restart, so run the restarts as soon as the Job has completed: from that moment until the restart, the identity service, the registry service and MCP hold credentials the provisioner has already replaced. `--wait-for-jobs` makes `helm upgrade` return only once the Job has finished. A cluster that runs a Secret-watching controller such as [Stakater Reloader](https://github.com/stakater/Reloader) restarts the consumers on its own. The identity service reads the registry service's public key at startup, so nothing has to be re-registered by hand. Skip the MCP restart when MCP is disabled.
 
-Expect every signed-in user to sign in again, since tokens signed by the previous key no longer verify, and a few minutes of failed requests between the registry service and the identity service while the two roll onto the new keys at slightly different moments. No stored data is affected. A release with `provisioner.external: true` mounts the Secrets by name, so give it the same value in the same window. Only ever increase the value: the provisioner keeps access to the Secrets of every iteration up to the current one, so a lower value would leave it unable to read or delete the current Secrets. For the same reason, do not run a rotation upgrade with `--atomic` and do not `helm rollback` across one: both restore the previous iteration, whose Secrets the rotation deleted. Images before `0.6.0` ignore the value; the chart refuses to render a rotation against a semver `provisioner.tag` older than that, but cannot check a tag such as `latest`.
+Expect every signed-in user to sign in again, since tokens signed by the previous key no longer verify, and a few minutes of failed requests between the registry service and the identity service while the two roll onto the new keys at slightly different moments. No stored data is affected. Any change to the value rotates, including a `helm rollback` that restores the previous one, so a rollback across a rotation is itself a rotation and needs the same restarts. Images before `0.6.0` ignore the value; the chart refuses to render a rotation against a semver `provisioner.tag` older than that, but cannot check a tag such as `latest`.
 
 ## Agent registration
 
@@ -616,7 +617,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | provisioner.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for the provisioner's image. |
 | provisioner.rerunToken | string | `""` | Change this to any new value to force the provisioning Job to rerun without changing any other input: `helm upgrade --reuse-values --set provisioner.rerunToken=<anything>`. The Job's name is a hash of its inputs, and this token is one of them. |
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
-| provisioner.secretRotationIteration | int | `1` | Increase by one to rotate every provisioner-generated key and secret: the registry service's client keypair and key id, MCP's client secret, and the identity service's signing key and key id. The identity service's token encryption key encrypts stored data and is never rotated. The generated Secrets are renamed with the new value, so the identity service, the registry service and MCP restart only once the new material exists. See [Rotating the generated secrets](#rotating-the-generated-secrets). |
+| provisioner.secretRotationIteration | int | `1` | Increase by one to rotate every provisioner-generated key and secret: the registry service's client keypair and key id, MCP's client secret, and the identity service's signing key and key id. The identity service's token encryption key encrypts stored data and is never rotated. The provisioner rewrites the generated Secrets in place; once its Job has completed, restart the identity service, the registry service and MCP so they pick up the new material (a controller such as Stakater Reloader does this for you). See [Rotating the generated secrets](#rotating-the-generated-secrets). |
 | provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
 | provisioner.tag | string | `"0.6.0"` | Image tag. |
 | provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |

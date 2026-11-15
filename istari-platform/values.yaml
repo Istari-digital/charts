@@ -916,8 +916,9 @@ provisioner:
   # -- Increase by one to rotate every provisioner-generated key and secret: the registry
   # service's client keypair and key id, MCP's client secret, and the identity service's signing key
   # and key id. The identity service's token encryption key encrypts stored data and is never
-  # rotated. The generated Secrets are renamed with the new value, so the identity service, the
-  # registry service and MCP restart only once the new material exists. See
+  # rotated. The provisioner rewrites the generated Secrets in place; once its Job has completed,
+  # restart the identity service, the registry service and MCP so they pick up the new material
+  # (a controller such as Stakater Reloader does this for you). See
   # [Rotating the generated secrets](#rotating-the-generated-secrets).
   secretRotationIteration: 1
   # -- Extra environment variables for the provisioner container.
