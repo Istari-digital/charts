@@ -125,7 +125,7 @@ helm upgrade --reuse-values --set provisioner.secretRotationIteration=2 --wait -
 kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=<release>
 ```
 
-The identity service's token encryption key is kept, so no stored data is affected. Every signed-in user signs in again, and requests between the registry service and the identity service can fail for a few minutes while the two restart.
+Expect a few minutes of errors while the services restart. Tokens issued before the rotation stop working: a signed-in user gets a new one through their session's next refresh, and anyone whose session cannot refresh signs in again. Stored data is unaffected.
 
 ## Agent registration
 
