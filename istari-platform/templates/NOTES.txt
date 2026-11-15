@@ -30,8 +30,7 @@ The chart can also create these for you: see `apiGateway.ingress` and `apiGatewa
 {{- end -}}
 {{- if and .Values.provisioner.enabled (ne (int .Values.provisioner.secretRotationIteration) 1) }}
 
-provisioner.secretRotationIteration is {{ .Values.provisioner.secretRotationIteration }}. If this upgrade changed it, the provisioner Job
-is rewriting the generated Secrets; once it has completed, restart the services that read them:
+If this upgrade changed provisioner.secretRotationIteration, restart the services once the provisioner Job has completed:
 
   kubectl rollout restart -n {{ .Release.Namespace }} deployment/{{ include "identity.fullname" . }} deployment/{{ include "fileservice.fullname" . }}{{ if .Values.mcp.enabled }} deployment/{{ include "mcp.fullname" . }}{{ end }}
 {{- end }}
