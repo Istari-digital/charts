@@ -32,5 +32,5 @@ The chart can also create these for you: see `apiGateway.ingress` and `apiGatewa
 
 If this upgrade changed provisioner.secretRotationIteration, restart the services once the provisioner Job has completed:
 
-  kubectl rollout restart -n {{ .Release.Namespace }} deployment/{{ include "identity.fullname" . }} deployment/{{ include "fileservice.fullname" . }}{{ if .Values.mcp.enabled }} deployment/{{ include "mcp.fullname" . }}{{ end }}
+  kubectl rollout restart deployment -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "istari-platform.name" . }},app.kubernetes.io/instance={{ .Release.Name }}
 {{- end }}

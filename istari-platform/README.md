@@ -122,10 +122,10 @@ To replace the credentials the provisioner generates, set `provisioner.secretRot
 
 ```bash
 helm upgrade --reuse-values --set provisioner.secretRotationIteration=2 --wait --wait-for-jobs <release> <chart>
-kubectl rollout restart -n <namespace> deployment/<fullname>-identity deployment/<fullname>-fileservice deployment/<fullname>-mcp
+kubectl rollout restart deployment -n <namespace> -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=<release>
 ```
 
-Skip the MCP restart when MCP is disabled. The identity service's token encryption key is kept, so no stored data is affected. Every signed-in user signs in again, and requests between the registry service and the identity service can fail for a few minutes while the two restart. Requires `provisioner.tag` 0.6.0 or later.
+The identity service's token encryption key is kept, so no stored data is affected. Every signed-in user signs in again, and requests between the registry service and the identity service can fail for a few minutes while the two restart. Requires `provisioner.tag` 0.6.0 or later.
 
 ## Agent registration
 
