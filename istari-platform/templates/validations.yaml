@@ -20,15 +20,8 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- if and .Values.provisioner.enabled .Values.identity.enabled (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $provisionerTag) (semverCompare "<0.4.0-0" $provisionerTag) }}
 {{- fail (printf "provisioner.tag %q is too old for identity: images before 0.4.0 do not generate the identity service's keys, so its pods cannot start. Set provisioner.tag to 0.4.0 or later." $provisionerTag) }}
 {{- end }}
-{{- /* The regex runs on the raw value because `int` would silently turn 1.5 or true into 1 while
-the provisioner receives the raw value. */ -}}
-{{- $rawIteration := toString .Values.provisioner.secretRotationIteration }}
-{{- $iteration := int .Values.provisioner.secretRotationIteration }}
-{{- if and .Values.provisioner.enabled (or (not (regexMatch "^[0-9]+$" $rawIteration)) (lt $iteration 1)) }}
-{{- fail (printf "provisioner.secretRotationIteration must be a positive integer, got %v." .Values.provisioner.secretRotationIteration) }}
-{{- end }}
 {{- /* Images before 0.6.0 ignore secret_rotation_iteration, so a bump would rerun the provisioner
 without regenerating anything. */ -}}
-{{- if and .Values.provisioner.enabled (ne $iteration 1) (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $provisionerTag) (semverCompare "<0.6.0-0" $provisionerTag) }}
+{{- if and .Values.provisioner.enabled (ne (toString .Values.provisioner.secretRotationIteration) "1") (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $provisionerTag) (semverCompare "<0.6.0-0" $provisionerTag) }}
 {{- fail (printf "provisioner.tag %q does not support provisioner.secretRotationIteration: images before 0.6.0 ignore it, so nothing would be rotated. Set provisioner.tag to 0.6.0 or later." $provisionerTag) }}
 {{- end }}
