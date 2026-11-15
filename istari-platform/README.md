@@ -118,11 +118,12 @@ The generated Secret names derive from `provisioner.fullname` — `<fullnameOver
 
 ### Rotating the generated secrets
 
-To replace the credentials the provisioner generates, set `provisioner.secretRotationIteration` to the next integer up (the default is `1`), then restart the services that use them once the provisioner Job has completed (`helm upgrade` prints this command with your release's names filled in):
+To replace the credentials the provisioner generates, set `provisioner.secretRotationIteration` to the next integer up (the default is `1`), then restart the services that use them once the provisioner Job has completed :
 
 ```bash
-helm upgrade --reuse-values --set provisioner.secretRotationIteration=2 --wait --wait-for-jobs <release> <chart>
-kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=<release>
+RELEASE=istari
+helm upgrade --reuse-values --set provisioner.secretRotationIteration=2 --wait --wait-for-jobs $RELEASE istari/istari-platform
+kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=$RELEASE
 ```
 
 Expect a few minutes of errors while the services restart, after which every signed-in user signs in again. Stored data is unaffected.
