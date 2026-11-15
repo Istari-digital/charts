@@ -45,6 +45,12 @@ instructions (`AGENTS.md`) within repository instructions, so anything here that
 - A new `values.yaml` key with no `# --` comment above it — it renders as an
   undocumented row in the generated README.
 - A values combination that can produce a broken release without a render-time `fail`.
+- A render-time check, or a README note, that a pinned image `*.tag` is new enough for a
+  feature. Customers run the default tags; bumping the default in the same PR is the whole fix.
+- README or `values.yaml` text written for the chart's developers rather than its operators:
+  which key material a change touches, how the chart does something internally, or how to pair
+  it with a tool the chart does not ship. Customer docs give the procedure and its visible
+  effect, and stop.
 - A comment the PR **adds or changes** that is verbose, redundant, or merely restates the
   code. Comments in code and config (templates, scripts, Terraform, non-template YAML) should
   be sparse and written for a human. Not this: the `# --` / `# @default --` doc comments above

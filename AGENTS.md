@@ -180,6 +180,20 @@ When a values combination cannot produce a working release, `fail` during render
 message naming the offending keys and what to set instead, rather than installing and
 misbehaving later.
 
+Do not guard image versions. The default image tags in `values.yaml` are the supported ones and
+customers run them, so a render-time check that a pinned `*.tag` is new enough for a feature,
+or a README note saying which tag a value needs, is noise. Bump the default tag in the same PR
+and leave it at that.
+
+### Write customer docs for operators
+
+The README and `values.yaml` comments are read by customers who run the chart, not by its
+developers. Give them the procedure and its visible effect, and stop. Leave out which key
+material a change touches, how the chart achieves something internally, and how to combine it
+with tools the chart does not ship (such as a Secret-watching controller); an operator who runs
+such a tool knows how to use it. The provisioner exists so that customers need not learn the
+services' environment variables; documentation that teaches them anyway defeats it.
+
 ### What belongs in the chart vs. the service
 
 The chart supplies **deployment-specific** values — hostnames, URLs, service-discovery
