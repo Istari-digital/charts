@@ -121,8 +121,8 @@ The generated Secret names derive from `provisioner.fullname` — `<fullnameOver
 To replace the credentials the provisioner generates, set `provisioner.secretRotationIteration` to the next integer up (the default is `1`), then restart the services that use them once the provisioner Job has completed :
 
 ```bash
-RELEASE=<release name>
-CHART=<chart reference>
+RELEASE=istari
+CHART=oci://istaridigital.jfrog.io/main-charts-local/istari-platform
 helm upgrade --reuse-values --set provisioner.secretRotationIteration=2 --wait --wait-for-jobs $RELEASE $CHART
 kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=$RELEASE
 ```
