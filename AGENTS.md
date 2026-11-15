@@ -191,8 +191,9 @@ The README and the `values.yaml` comments are read by the customers who install 
 the chart. Give them the procedure and what they will see happen, and stop. Leave out which
 key material a change touches, how the chart achieves something internally, and how to pair it
 with tools the chart does not ship (such as a Secret-watching controller); someone who runs
-such a tool already knows how to use it. The provisioner exists so that customers need not
-learn the services' environment variables; documentation that teaches them anyway defeats it.
+such a tool already knows how to use it. The chart exists so that customers need not learn the
+services' environment variables and internals; documentation that teaches them anyway defeats
+it.
 
 ### What belongs in the chart vs. the service
 
