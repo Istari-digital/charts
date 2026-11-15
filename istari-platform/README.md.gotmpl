@@ -124,7 +124,7 @@ helm upgrade --reuse-values --set provisioner.secretRotationIteration=2 --wait -
 kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=<release>
 ```
 
-Expect a few minutes of errors while the services restart. Tokens issued before the rotation stop working: a signed-in user gets a new one through their session's next refresh, and anyone whose session cannot refresh signs in again. Stored data is unaffected.
+Expect a few minutes of errors while the services restart, after which every signed-in user signs in again. Stored data is unaffected.
 
 ## Agent registration
 
