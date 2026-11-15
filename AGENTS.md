@@ -195,6 +195,13 @@ such a tool already knows how to use it. The chart exists so that customers need
 services' environment variables and internals; documentation that teaches them anyway defeats
 it.
 
+Every command the README shows follows the public customer install docs, the Istari Platform
+install page of the [official Istari Documentation](https://docs.istaridigital.com/): release
+`istari`, the chart pulled as `istari-platform-<version>.tgz` from
+`oci://istaridigital.jfrog.io/customer-charts/istari-platform`, values in `istari-values.yaml`.
+Never base a command on how our own environments deploy the chart; the internal repositories and
+aliases mean nothing to a customer.
+
 ### What belongs in the chart vs. the service
 
 The chart supplies **deployment-specific** values — hostnames, URLs, service-discovery
