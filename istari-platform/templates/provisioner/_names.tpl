@@ -42,6 +42,13 @@ Secret carrying mcp's placeholder client_secret.
 {{- end }}
 
 {{/*
+Secret carrying the credential token key the registry and the connector service share.
+*/}}
+{{- define "provisioner.credentialTokenKeySecretName" -}}
+{{- printf "%s-credential-token-key" (include "provisioner.fullname" .) -}}
+{{- end }}
+
+{{/*
 Secret carrying the env vars identity-service reads at startup to self-register
 registry/frontend/mcp.
 */}}

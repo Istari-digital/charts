@@ -882,7 +882,10 @@ identity:
 # -- Settings for the provisioner: a one-shot Terraform-in-a-Job (an ordinary release resource, not
 # a Helm hook) that generates and publishes platform secrets. Its current use is registering the
 # registry/frontend/mcp services as OAuth/OIDC clients — generating their credentials for identity
-# to read at startup — and it may grow to other secret-generation uses. Not for
+# to read at startup — and it may grow to other secret-generation uses. It also generates the
+# credential token key the registry and the connector service share, in the Secret named
+# `<provisioner.fullname>-credential-token-key`, which the registry mounts automatically (the
+# connector service mounts it too, from its own release). Not for
 # secure-connection-service (see `identity.agentRegistration`).
 # @default -- (see fields below)
 provisioner:
@@ -896,7 +899,7 @@ provisioner:
   # -- Image name.
   image: "provisioner"
   # -- Image tag.
-  tag: "0.5.1"
+  tag: "0.6.0"
   # -- Image pull policy.
   imagePullPolicy: IfNotPresent
   # -- Image pull secrets for the provisioning Job pod. When empty, the chart-wide `imagePullSecrets` apply.

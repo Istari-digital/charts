@@ -91,6 +91,11 @@ spec:
         {{- if $mountProvisionerSecret }}
         - secretRef:
             name: {{ include "provisioner.registrySecretName" . | quote }}
+        {{- /* `optional` so a pinned provisioner image that does not generate the credential token
+        key yet does not leave the pod unable to start. */}}
+        - secretRef:
+            name: {{ include "provisioner.credentialTokenKeySecretName" . | quote }}
+            optional: true
         {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
@@ -153,6 +158,9 @@ spec:
         {{- if $mountProvisionerSecret }}
         - secretRef:
             name: {{ include "provisioner.registrySecretName" . | quote }}
+        - secretRef:
+            name: {{ include "provisioner.credentialTokenKeySecretName" . | quote }}
+            optional: true
         {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}

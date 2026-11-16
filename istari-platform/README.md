@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 7.3.0](https://img.shields.io/badge/Version-7.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
+![Version: 7.5.0](https://img.shields.io/badge/Version-7.5.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -576,7 +576,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | nats.reloader.image.repository | string | `"istaridigital.jfrog.io/customer-docker/istaridigital.com/nats-server-config-reloader-fips"` | Config-reloader image repository. Defaults to the Chainguard FIPS variant. |
 | nats.reloader.image.tag | string | `"0.24.0"` | Config-reloader image tag. |
 | nats.statefulSet.merge.spec.persistentVolumeClaimRetentionPolicy | object | `{"whenDeleted":"Delete","whenScaled":"Delete"}` | Delete the JetStream PVCs when the StatefulSet is deleted or scaled down. Set to `Retain` if you need the data to outlive the StatefulSet. |
-| provisioner | object | (see fields below) | Settings for the provisioner: a one-shot Terraform-in-a-Job (an ordinary release resource, not a Helm hook) that generates and publishes platform secrets. Its current use is registering the registry/frontend/mcp services as OAuth/OIDC clients — generating their credentials for identity to read at startup — and it may grow to other secret-generation uses. Not for secure-connection-service (see `identity.agentRegistration`). |
+| provisioner | object | (see fields below) | Settings for the provisioner: a one-shot Terraform-in-a-Job (an ordinary release resource, not a Helm hook) that generates and publishes platform secrets. Its current use is registering the registry/frontend/mcp services as OAuth/OIDC clients — generating their credentials for identity to read at startup — and it may grow to other secret-generation uses. It also generates the credential token key the registry and the connector service share, in the Secret named `<provisioner.fullname>-credential-token-key`, which the registry mounts automatically (the connector service mounts it too, from its own release). Not for secure-connection-service (see `identity.agentRegistration`). |
 | provisioner.activeDeadlineSeconds | int | `180` | `spec.activeDeadlineSeconds` for the provisioning Job — a wall-clock ceiling after which a stuck or failing Job goes `Failed`, surfacing the error instead of leaving consumer pods waiting on a Secret that never arrives. The Terraform run normally completes in seconds. |
 | provisioner.affinity | object | `{}` | Affinity for the provisioning Job pod. |
 | provisioner.backend | object | (see fields below) | Terraform state backend: a Kubernetes Secret (with Lease-based locking), needing no external cloud state infra. |
@@ -599,7 +599,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | provisioner.rerunToken | string | `""` | Change this to any new value to force the provisioning Job to rerun without changing any other input: `helm upgrade --reuse-values --set provisioner.rerunToken=<anything>`. The Job's name is a hash of its inputs, and this token is one of them. |
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
 | provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
-| provisioner.tag | string | `"0.5.1"` | Image tag. |
+| provisioner.tag | string | `"0.6.0"` | Image tag. |
 | provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | secureConnection.affinity | object | `{}` | Affinity |
 | secureConnection.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
