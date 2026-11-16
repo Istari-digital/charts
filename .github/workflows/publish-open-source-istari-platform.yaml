@@ -227,7 +227,7 @@ jobs:
         jf rt delete --quiet ${HELM_OCI_MANIFEST_SHA_PATH_WITHOUT_TRAILING_SLASH}
 
     - name: Create Git tag from chart version
-      if: success() && github.ref == 'refs/heads/main'
+      if: success() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
       run: |
         TAG="${HELM_CHART_NAME}-${HELM_CHART_VERSION}"
         VERSION="${HELM_CHART_VERSION}"
