@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 7.3.0](https://img.shields.io/badge/Version-7.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
+![Version: 7.4.0](https://img.shields.io/badge/Version-7.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -115,6 +115,19 @@ The identity service's keys come from their own Secret, `<fullname>-identity-key
 The provisioner runs under its own ServiceAccount and Role. The mutating verbs on Secrets (`get`/`update`/`patch`/`delete`) are scoped **by name** to only the Secrets the provisioner owns — the generated credential Secrets and its Terraform state Secret — so it can modify just those. `create` and `list` can't be restricted by `resourceNames`, so both are namespace-wide: `create` because the credential and state Secrets are created at runtime with names that don't yet exist when the verb is checked, and `list` because the Terraform kubernetes backend locates its state by label. Namespace-wide `list` returns full Secret objects, so the provisioner can **read** every Secret in the release's namespace, and `create` lets it add Secrets of any name — though it can still modify only its own. If that scope matters for your environment, install the release in a dedicated namespace.
 
 The generated Secret names derive from `provisioner.fullname` — `<fullnameOverride>-provisioner` when `fullnameOverride` is set, `<release>-provisioner` otherwise. Because `fullnameOverride` defaults to `istari`, a second release in the same namespace collides on these names — as it does on every other resource the chart names — unless you give it a distinct `fullnameOverride`. When the provisioner runs in a separate release from a consumer (`provisioner.external`), the two instead agree on the names by sharing the same `fullnameOverride` — two separate releases in one namespace can't share a release name, so the override is the only way to make their Secret names match.
+
+### Rotating the generated secrets
+
+To replace the credentials the provisioner generates, set `provisioner.secretRotationIteration` in your values file to the next integer up (the default is `1`), upgrade, and restart the services that use them once the provisioner Job has completed:
+
+```bash
+RELEASE=istari
+CHART=istari-platform-7.4.0.tgz
+helm upgrade --wait --wait-for-jobs -f istari-values.yaml $RELEASE $CHART
+kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=$RELEASE
+```
+
+Expect a few minutes of errors while the services restart, after which every signed-in user signs in again. Stored data is unaffected.
 
 ## Agent registration
 
@@ -598,8 +611,9 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | provisioner.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for the provisioner's image. |
 | provisioner.rerunToken | string | `""` | Change this to any new value to force the provisioning Job to rerun without changing any other input: `helm upgrade --reuse-values --set provisioner.rerunToken=<anything>`. The Job's name is a hash of its inputs, and this token is one of them. |
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
+| provisioner.secretRotationIteration | int | `1` | Increase by one to replace the credentials the provisioner generates, then restart the identity service, the registry service and MCP. See [Rotating the generated secrets](#rotating-the-generated-secrets). |
 | provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
-| provisioner.tag | string | `"0.5.1"` | Image tag. |
+| provisioner.tag | string | `"0.6.0"` | Image tag. |
 | provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | secureConnection.affinity | object | `{}` | Affinity |
 | secureConnection.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |

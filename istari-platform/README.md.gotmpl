@@ -115,6 +115,19 @@ The provisioner runs under its own ServiceAccount and Role. The mutating verbs o
 
 The generated Secret names derive from `provisioner.fullname` — `<fullnameOverride>-provisioner` when `fullnameOverride` is set, `<release>-provisioner` otherwise. Because `fullnameOverride` defaults to `istari`, a second release in the same namespace collides on these names — as it does on every other resource the chart names — unless you give it a distinct `fullnameOverride`. When the provisioner runs in a separate release from a consumer (`provisioner.external`), the two instead agree on the names by sharing the same `fullnameOverride` — two separate releases in one namespace can't share a release name, so the override is the only way to make their Secret names match.
 
+### Rotating the generated secrets
+
+To replace the credentials the provisioner generates, set `provisioner.secretRotationIteration` in your values file to the next integer up (the default is `1`), upgrade, and restart the services that use them once the provisioner Job has completed:
+
+```bash
+RELEASE=istari
+CHART=istari-platform-{{ template "chart.version" . }}.tgz
+helm upgrade --wait --wait-for-jobs -f istari-values.yaml $RELEASE $CHART
+kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=$RELEASE
+```
+
+Expect a few minutes of errors while the services restart, after which every signed-in user signs in again. Stored data is unaffected.
+
 ## Agent registration
 
 `identity.agentRegistration` registers service agents, for example the Secure Connection Service, with the identity service so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job on install and upgrade. On a Zitadel configurator install, these values register the Secure Connection Service:

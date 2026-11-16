@@ -18,6 +18,7 @@ authority URL, enable flags) comes from their own ConfigMaps, not the provisione
   (dict "name" "TF_VAR_mcp_secret_name" "value" (include "provisioner.mcpSecretName" .))
   (dict "name" "TF_VAR_namespace" "value" .Release.Namespace)
   (dict "name" "TF_VAR_registry_secret_name" "value" (include "provisioner.registrySecretName" .))
+  (dict "name" "TF_VAR_secret_rotation_iteration" "value" (toString $provisioner.secretRotationIteration))
   (dict "name" "TF_VAR_service_account_name" "value" (include "provisioner.fullname" .))
 -}}
 {{- $env := include "istari-platform.dedupeEnv" (concat $tfVars $provisioner.env) }}
