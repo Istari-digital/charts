@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 7.4.0](https://img.shields.io/badge/Version-7.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
+![Version: 7.4.1](https://img.shields.io/badge/Version-7.4.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -122,7 +122,7 @@ To replace the credentials the provisioner generates, set `provisioner.secretRot
 
 ```bash
 RELEASE=istari
-CHART=istari-platform-7.4.0.tgz
+CHART=istari-platform-7.4.1.tgz
 helm upgrade --wait --wait-for-jobs -f istari-values.yaml $RELEASE $CHART
 kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=$RELEASE
 ```
@@ -552,7 +552,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | mcp.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | mcp.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.replicaCount | int | `1` | Replica count |
-| mcp.resources | object | `{"limits":{"memory":"1Gi"},"requests":{"cpu":"250m","memory":"1Gi"}}` | Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request. |
+| mcp.resources | object | `{"limits":{"memory":"2Gi"},"requests":{"cpu":"250m","memory":"2Gi"}}` | Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request. The memory covers the server plus one process per concurrently running `execute` program and one spare. |
 | mcp.restartPolicy | string | `"Always"` | Restart policy |
 | mcp.secretName | string | `"istari-mcp"` | Secret name. The secret should contain the environment variables required by the service. Note that a ConfigMap is also automatically created & used with the correct value for ISTARI_DIGITAL_REGISTRY_SERVICE_URL |
 | mcp.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
