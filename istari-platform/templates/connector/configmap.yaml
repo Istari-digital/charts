@@ -1,6 +1,6 @@
 {{- /*
 We put the generated default env vars in this config map so that user-defined values of
-'connector.secretName', 'connector.extraEnvSecrets', and 'connector.env' will always override them.
+'connector.extraEnvSecrets' and 'connector.env' will always override them.
 */}}
 {{- $serviceValues := .Values.connector -}}
 {{- $gatewayUrl := include "istari-platform.apiGatewayUrl" . -}}

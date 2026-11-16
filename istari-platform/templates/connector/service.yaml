@@ -1,5 +1,8 @@
 {{- $serviceValues := .Values.connector -}}
 {{- if $serviceValues.enabled }}
+{{- if eq $serviceValues.serviceType "ExternalName" }}
+{{- fail "connector.serviceType ExternalName is not supported; use ClusterIP, NodePort or LoadBalancer" }}
+{{- end }}
 apiVersion: v1
 kind: Service
 metadata:

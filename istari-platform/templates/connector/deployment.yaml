@@ -70,7 +70,7 @@ spec:
         envFrom:
         {{- /*
         We put the generated default env vars in this config map so that user-defined values of
-        'connector.extraEnvConfigMaps', 'connector.secretName', 'connector.extraEnvSecrets', and 'connector.env' will always override them.
+        'connector.extraEnvConfigMaps', 'connector.extraEnvSecrets', and 'connector.env' will always override them.
         */}}
         - configMapRef:
             name: {{ include "connector.configmap.name" . | quote }}
@@ -79,10 +79,6 @@ spec:
         - configMapRef:
             name: {{ . | quote }}
         {{- end }}
-        {{- end }}
-        {{- if $serviceValues.secretName }}
-        - secretRef:
-            name: {{ $serviceValues.secretName | quote }}
         {{- end }}
         {{- with $serviceValues.extraEnvSecrets }}
         {{- range . }}

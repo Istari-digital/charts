@@ -180,6 +180,28 @@ When a values combination cannot produce a working release, `fail` during render
 message naming the offending keys and what to set instead, rather than installing and
 misbehaving later.
 
+Do not guard image versions. The default image tags in `values.yaml` are the supported ones and
+customers run them, so a render-time check that a pinned `*.tag` is new enough for a feature,
+or a README note saying which tag a value needs, is noise. Bump the default tag in the same PR
+and leave it at that.
+
+### Write the README for the people who run the chart
+
+The README and the `values.yaml` comments are read by the customers who install and upgrade
+the chart. Give them the procedure and what they will see happen, and stop. Leave out which
+key material a change touches, how the chart achieves something internally, and how to pair it
+with tools the chart does not ship (such as a Secret-watching controller); someone who runs
+such a tool already knows how to use it. The chart exists so that customers need not learn the
+services' environment variables and internals; documentation that teaches them anyway defeats
+it.
+
+Every command the README shows follows the public customer install docs, the Istari Platform
+install page of the [official Istari Documentation](https://docs.istaridigital.com/): release
+`istari`, the chart pulled as `istari-platform-<version>.tgz` from
+`oci://istaridigital.jfrog.io/customer-charts/istari-platform`, values in `istari-values.yaml`.
+Never base a command on how our own environments deploy the chart; the internal repositories and
+aliases mean nothing to a customer.
+
 ### What belongs in the chart vs. the service
 
 The chart supplies **deployment-specific** values — hostnames, URLs, service-discovery
