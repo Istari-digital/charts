@@ -1,6 +1,12 @@
 {{- $serviceValues := .Values.connector -}}
 {{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
 {{- if $serviceValues.enabled }}
+{{- $multiReplica := or (gt (int $serviceValues.replicaCount) 1) (and $serviceValues.autoscaling.enabled (gt (int $serviceValues.autoscaling.maxReplicas) 1)) }}
+{{- $natsInEnv := false }}
+{{- range $serviceValues.env }}{{- if eq .name "ISTARI_CONNECTOR_NATS_URL" }}{{- $natsInEnv = true }}{{- end }}{{- end }}
+{{- if and $multiReplica (not .Values.nats.enabled) (not $natsInEnv) }}
+{{- fail "connector runs more than one replica (connector.replicaCount or connector.autoscaling) but has no shared sign-in state: enable the bundled NATS (nats.enabled) or set ISTARI_CONNECTOR_NATS_URL (and ISTARI_CONNECTOR_NATS_TOKEN) in connector.env" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -98,6 +104,12 @@ spec:
         appended after this and wins. Optional: the Secret exists only once the provisioner has run,
         and the identity service does not verify the secret of a PKCE client. */}}
         {{- $extra = append $extra (list (dict "name" "ISTARI_CONNECTOR_IDENTITY_SERVICE_CLIENT_SECRET" "valueFrom" (dict "secretKeyRef" (dict "name" (include "provisioner.mcpSecretName" .) "key" "ISTARI_DIGITAL_IDENTITY_SERVICE_CLIENT_SECRET" "optional" true)))) }}
+        {{- end }}
+        {{- if .Values.nats.enabled }}
+        {{- /* Replicas share OAuth sign-in state through the bundled NATS (JetStream KV), authenticating
+        with the same Secret the NATS server reads its token from. */}}
+        {{- $natsToken := .Values.nats.container.env.NATS_AUTH_TOKEN.valueFrom.secretKeyRef }}
+        {{- $extra = append $extra (list (dict "name" "ISTARI_CONNECTOR_NATS_URL" "value" (include "istari-platform.nats.url" .)) (dict "name" "ISTARI_CONNECTOR_NATS_TOKEN" "valueFrom" (dict "secretKeyRef" (dict "name" $natsToken.name "key" $natsToken.key)))) }}
         {{- end }}
         {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
         {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}

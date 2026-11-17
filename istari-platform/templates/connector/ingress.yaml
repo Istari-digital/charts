@@ -1,5 +1,8 @@
 {{- $serviceValues := .Values.connector -}}
 {{- if and $serviceValues.enabled $serviceValues.ingress.enabled }}
+{{- if ne (int $serviceValues.ingress.servicePort) 80 }}
+{{- fail "connector.ingress.servicePort must be 80, the only port the connector Service exposes" }}
+{{- end }}
 {{- if not $serviceValues.ingress.hosts }}
 {{- fail "connector.ingress.hosts must contain at least one entry when connector.ingress.enabled is true" }}
 {{- end }}
@@ -40,7 +43,7 @@ spec:
               service:
                 name: {{ include "connector.fullname" $ | quote }}
                 port:
-                  number: {{ $serviceValues.ingress.servicePort | default 80 }}
+                  number: {{ $serviceValues.ingress.servicePort }}
           {{- end }}
     {{- end }}
 {{- end }}
