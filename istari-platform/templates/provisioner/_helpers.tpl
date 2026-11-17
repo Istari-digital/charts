@@ -20,6 +20,8 @@ authority URL, enable flags) comes from their own ConfigMaps, not the provisione
   (dict "name" "TF_VAR_registry_secret_name" "value" (include "provisioner.registrySecretName" .))
   (dict "name" "TF_VAR_secret_rotation_iteration" "value" (toString $provisioner.secretRotationIteration))
   (dict "name" "TF_VAR_secret_value_prefix" "value" (toString $provisioner.secretValuePrefix))
+  (dict "name" "TF_VAR_secure_connection_enabled" "value" (include "secure-connection.platformClient" .))
+  (dict "name" "TF_VAR_secure_connection_secret_name" "value" (include "provisioner.secureConnectionSecretName" .))
   (dict "name" "TF_VAR_service_account_name" "value" (include "provisioner.fullname" .))
 -}}
 {{- $env := include "istari-platform.dedupeEnv" (concat $tfVars $provisioner.env) }}
