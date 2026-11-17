@@ -9,7 +9,9 @@ name hashes this block to rerun on change (mechanism and immutability rationale 
 {{/*
 The image emits only generated credential material, so the chart passes just the Secret names,
 namespace, labels, and ServiceAccount name. The identity config the services need (redirect URIs,
-authority URL, enable flags) comes from their own ConfigMaps, not the provisioner.
+authority URL, enable flags) comes from their own ConfigMaps, not the provisioner. The one
+exception is `TF_VAR_secure_connection_enabled`: the Secure Connection Service's platform client is
+optional, so the provisioner generates its credential only when it is on.
 */}}
 {{- $tfVars := list
   (dict "name" "TF_VAR_common_labels" "value" (include "provisioner.podLabels" . | fromYaml | toJson))

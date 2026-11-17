@@ -502,7 +502,7 @@ secureConnection:
   # -- Secret name. The secret should contain the environment variables required by the service.
   secretName: "istari-secure-connection"
   platformClient:
-    # -- Authenticate as the Identity Service platform client `secure_connection` instead of an agent. Needs `provisioner.enabled` with `provisioner.tag` 0.7.0 or later, or `provisioner.external`; rendering fails otherwise. The service image must read `ISTARI_DIGITAL_IDENTITY_ROUTER_TOKEN_PATH`. When on, the provisioner generates the credential, the service mounts it, and the chart sets the token path to `/api/v2/oauth2/token`. `secretName`, `extraEnvSecrets`, and `env` still override both. See [Secure Connection Service](#secure-connection-service).
+    # -- Authenticate as the Identity Service platform client `secure_connection` instead of an agent. Needs `provisioner.enabled` with `provisioner.tag` 0.7.0 or later, or `provisioner.external`; rendering fails otherwise. The service image must read `ISTARI_DIGITAL_IDENTITY_ROUTER_TOKEN_PATH`. When on, the provisioner generates the credential, the service mounts it, and the chart sets the token path to `/api/v2/oauth2/token`. `extraEnvConfigMaps`, `secretName`, `extraEnvSecrets`, and `env` still override both. See [Secure Connection Service](#secure-connection-service).
     enabled: false
   # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
   extraEnvConfigMaps: []
@@ -886,8 +886,8 @@ identity:
 # a Helm hook) that generates and publishes platform secrets. Its current use is registering the
 # registry/frontend/mcp services as OAuth/OIDC clients — generating their credentials for identity
 # to read at startup — and, when `secureConnection.platformClient.enabled` is true, the Secure
-# Connection Service as the platform client `secure_connection` with the `secure_connector` role, replacing its
-# `identity.agentRegistration` entry. It may grow to other secret-generation uses. See
+# Connection Service as the platform client `secure_connection` with the `secure_connector` role, which makes its
+# `identity.agentRegistration` entry unnecessary. It may grow to other secret-generation uses. See
 # [Provisioner](#provisioner).
 # @default -- (see fields below)
 provisioner:

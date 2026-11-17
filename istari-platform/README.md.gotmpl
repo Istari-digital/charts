@@ -140,7 +140,7 @@ Expect a few minutes of errors while the services restart, after which every sig
 - The chart does not set `ISTARI_DIGITAL_IDENTITY_ROUTER_ENABLED` or `ISTARI_DIGITAL_IDENTITY_ROUTER_URL`; the service uses the credential only when those are set in its secret or `secureConnection.env`.
 - With `provisioner.external`, set `secureConnection.platformClient.enabled` in both releases. The provisioner's release generates the credential from it even with `secureConnection.enabled` off there; the consumer's release mounts it.
 
-Turning the value off again returns the service to the credential its own secret carries.
+Turning the value off again returns the service to the credential its own secret carries, and the provisioner's next run deletes the generated one. If you removed the agent credential from that secret, restore it before turning the value off, or the service has no credential.
 
 ## Agent registration
 
