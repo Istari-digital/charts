@@ -1,6 +1,19 @@
 {{- $serviceValues := .Values.mcp -}}
 {{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
 {{- if $serviceValues.enabled }}
+{{- /* 7.4.1 raised the default memory request; an upgrade that overrides only the limit would get a
+request above it, which Kubernetes rejects. Binary-unit quantities (Ki/Mi/Gi/Ti) are compared; others
+are left to Kubernetes. */}}
+{{- $mem := dict "request" (dig "resources" "requests" "memory" "" $serviceValues | toString) "limit" (dig "resources" "limits" "memory" "" $serviceValues | toString) }}
+{{- $units := dict "Ki" 1 "Mi" 1024 "Gi" 1048576 "Ti" 1073741824 }}
+{{- $kib := dict }}
+{{- range $k, $q := $mem }}
+{{- $m := regexFindAll "^([0-9]+)(Ki|Mi|Gi|Ti)$" $q 1 }}
+{{- if $m }}{{- $_ := set $kib $k (mul (regexReplaceAll "^([0-9]+)(Ki|Mi|Gi|Ti)$" $q "${1}" | int64) (get $units (regexReplaceAll "^([0-9]+)(Ki|Mi|Gi|Ti)$" $q "${2}"))) }}{{- end }}
+{{- end }}
+{{- if and (hasKey $kib "request") (hasKey $kib "limit") (gt (get $kib "request" | int64) (get $kib "limit" | int64)) }}
+{{- fail (printf "mcp.resources.requests.memory (%s) is above mcp.resources.limits.memory (%s), which Kubernetes rejects. The default is now 2Gi for both; raise the limit, or set the request too." $mem.request $mem.limit) }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
