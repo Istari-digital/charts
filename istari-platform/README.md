@@ -552,7 +552,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | mcp.podSecurityContext | object | `{"fsGroup":65532}` | Pod security context |
 | mcp.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for images. The combination of registry, image, and tag will be used to pull the image. |
 | mcp.replicaCount | int | `1` | Replica count |
-| mcp.resources | object | `{"limits":{"memory":"2Gi"},"requests":{"cpu":"250m","memory":"2Gi"}}` | Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request. The memory covers the server plus one process per concurrently running `execute` program and one spare. |
+| mcp.resources | object | `{"limits":{"memory":"2Gi"},"requests":{"cpu":"250m","memory":"2Gi"}}` | Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request. Each concurrently running `execute` program needs about 200 MB; raise both the request and the limit if you allow more concurrent programs. |
 | mcp.restartPolicy | string | `"Always"` | Restart policy |
 | mcp.secretName | string | `"istari-mcp"` | Secret name. The secret should contain the environment variables required by the service. Note that a ConfigMap is also automatically created & used with the correct value for ISTARI_DIGITAL_REGISTRY_SERVICE_URL |
 | mcp.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |

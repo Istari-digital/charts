@@ -418,7 +418,7 @@ mcp:
     # -- Average Memory utilization percentage. Set to `null` to disable.
     memoryUtilization: 80
   # -- Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request.
-  # The memory covers the server plus one process per concurrently running `execute` program and one spare.
+  # Each concurrently running `execute` program needs about 200 MB; raise both the request and the limit if you allow more concurrent programs.
   resources:
     requests:
       cpu: "250m"
