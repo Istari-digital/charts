@@ -134,7 +134,7 @@ Expect a few minutes of errors while the services restart, after which every sig
 
 External MCP clients sign in through the connector service's OAuth endpoints, whose callback is `https://<connector host>/auth/callback`. With the identity service, the connector shares MCP's client: the chart adds that callback to MCP's redirect allowlist and gives the connector MCP's client id and provisioner-generated secret. If you set `ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_REDIRECT_URIS` on the identity service yourself, that value replaces the chart's list, so include the connector callback in it. Without the identity service, register the callback with your identity provider and put the client's credentials in a Secret listed in `connector.extraEnvSecrets` as `ISTARI_CONNECTOR_ZITADEL_ISSUER`, `ISTARI_CONNECTOR_ZITADEL_CLIENT_ID` and `ISTARI_CONNECTOR_ZITADEL_CLIENT_SECRET`.
 
-Replicas share their sign-in state through NATS. With the bundled NATS (`nats.enabled`, the default) the chart wires `ISTARI_CONNECTOR_NATS_URL` and `ISTARI_CONNECTOR_NATS_TOKEN` itself; without it, set both in `connector.env` before running more than one replica, or rendering fails.
+Replicas share their sign-in state through NATS. With the bundled NATS (`nats.enabled`, the default) the chart wires `ISTARI_CONNECTOR_NATS_URL` and `ISTARI_CONNECTOR_NATS_TOKEN` itself; without it, set both in `connector.env` before running more than one replica. Rendering fails when `ISTARI_CONNECTOR_NATS_URL` is missing; it can't check the token, which an authenticated NATS server also needs.
 
 ## Agent registration
 

@@ -1,7 +1,8 @@
 {{- $serviceValues := .Values.connector -}}
 {{- $mountProvisionerSecret := or .Values.provisioner.enabled .Values.provisioner.external -}}
 {{- if $serviceValues.enabled }}
-{{- $multiReplica := or (gt (int $serviceValues.replicaCount) 1) (and $serviceValues.autoscaling.enabled (gt (int $serviceValues.autoscaling.maxReplicas) 1)) }}
+{{- /* With autoscaling the Deployment omits replicas, so the HPA bound is what counts. */}}
+{{- $multiReplica := ternary (gt (int $serviceValues.autoscaling.maxReplicas) 1) (gt (int $serviceValues.replicaCount) 1) (eq $serviceValues.autoscaling.enabled true) }}
 {{- $natsInEnv := false }}
 {{- range $serviceValues.env }}{{- if eq .name "ISTARI_CONNECTOR_NATS_URL" }}{{- $natsInEnv = true }}{{- end }}{{- end }}
 {{- if and $multiReplica (not .Values.nats.enabled) (not $natsInEnv) }}
@@ -108,8 +109,14 @@ spec:
         {{- if .Values.nats.enabled }}
         {{- /* Replicas share OAuth sign-in state through the bundled NATS (JetStream KV), authenticating
         with the same Secret the NATS server reads its token from. */}}
-        {{- $natsToken := .Values.nats.container.env.NATS_AUTH_TOKEN.valueFrom.secretKeyRef }}
-        {{- $extra = append $extra (list (dict "name" "ISTARI_CONNECTOR_NATS_URL" "value" (include "istari-platform.nats.url" .)) (dict "name" "ISTARI_CONNECTOR_NATS_TOKEN" "valueFrom" (dict "secretKeyRef" (dict "name" $natsToken.name "key" $natsToken.key)))) }}
+        {{- $extra = append $extra (list (dict "name" "ISTARI_CONNECTOR_NATS_URL" "value" (include "istari-platform.nats.url" .))) }}
+        {{- /* The NATS chart takes the token as a plain string or as an EnvVar map; copy whichever is set. */}}
+        {{- $natsToken := .Values.nats.container.env.NATS_AUTH_TOKEN }}
+        {{- if kindIs "string" $natsToken }}
+        {{- $extra = append $extra (list (dict "name" "ISTARI_CONNECTOR_NATS_TOKEN" "value" $natsToken)) }}
+        {{- else if kindIs "map" $natsToken }}
+        {{- $extra = append $extra (list (merge (dict "name" "ISTARI_CONNECTOR_NATS_TOKEN") (omit $natsToken "name"))) }}
+        {{- end }}
         {{- end }}
         {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
         {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
