@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 7.4.0](https://img.shields.io/badge/Version-7.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
+![Version: 7.4.1](https://img.shields.io/badge/Version-7.4.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -122,7 +122,7 @@ To replace the credentials the provisioner generates, set `provisioner.secretRot
 
 ```bash
 RELEASE=istari
-CHART=istari-platform-7.4.0.tgz
+CHART=istari-platform-7.4.1.tgz
 helm upgrade --wait --wait-for-jobs -f istari-values.yaml $RELEASE $CHART
 kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=$RELEASE
 ```
@@ -613,7 +613,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
 | provisioner.secretRotationIteration | int | `1` | Increase by one to replace the credentials the provisioner generates, then restart the identity service, the registry service and MCP. See [Rotating the generated secrets](#rotating-the-generated-secrets). |
 | provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
-| provisioner.tag | string | `"0.6.0"` | Image tag. |
+| provisioner.tag | string | `"0.6.1"` | Image tag. |
 | provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | secureConnection.affinity | object | `{}` | Affinity |
 | secureConnection.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
