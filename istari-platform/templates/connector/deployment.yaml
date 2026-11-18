@@ -81,6 +81,14 @@ spec:
         */}}
         - configMapRef:
             name: {{ include "connector.configmap.name" . | quote }}
+        {{- if and .Values.apiGateway.enabled (dig "clientIntegration" "enabled" false .Values.identity) }}
+        {{- /* The connector's own identity-service client (ISTARI_CONNECTOR_IDENTITY_SERVICE_CLIENT_CREDENTIALS),
+        which proves it to the registry when it mints a vendor credential: no Zitadel-derived key. The install's
+        Terraform writes this Secret; optional, so the pod starts (and says what's missing) before it exists. */}}
+        - secretRef:
+            name: istari-connector-identity-client
+            optional: true
+        {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
         - configMapRef:
