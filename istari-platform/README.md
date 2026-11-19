@@ -117,6 +117,19 @@ The provisioner runs under its own ServiceAccount and Role. The mutating verbs o
 
 The generated Secret names derive from `provisioner.fullname` — `<fullnameOverride>-provisioner` when `fullnameOverride` is set, `<release>-provisioner` otherwise. Because `fullnameOverride` defaults to `istari`, a second release in the same namespace collides on these names — as it does on every other resource the chart names — unless you give it a distinct `fullnameOverride`. When the provisioner runs in a separate release from a consumer (`provisioner.external`), the two instead agree on the names by sharing the same `fullnameOverride` — two separate releases in one namespace can't share a release name, so the override is the only way to make their Secret names match.
 
+### Rotating the generated secrets
+
+To replace the credentials the provisioner generates, set `provisioner.secretRotationIteration` in your values file to the next integer up (the default is `1`), upgrade, and restart the services that use them once the provisioner Job has completed:
+
+```bash
+RELEASE=istari
+CHART=istari-platform-8.0.0.tgz
+helm upgrade --wait --wait-for-jobs -f istari-values.yaml $RELEASE $CHART
+kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=$RELEASE
+```
+
+Expect a few minutes of errors while the services restart, after which every signed-in user signs in again. Stored data is unaffected.
+
 ## Agent registration
 
 `identity.agentRegistration` registers service agents, for example the Secure Connection Service, with the identity service so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job on install and upgrade. On a Zitadel configurator install, these values register the Secure Connection Service:
@@ -871,8 +884,10 @@ To return to the provider, set it again, keep `identity.idpMigration.enabled: fa
 | provisioner.registry | string | `"istaridigital.jfrog.io/customer-docker"` | Registry URL for the provisioner's image. |
 | provisioner.rerunToken | string | `""` | Change this to any new value to force the provisioning Job to rerun without changing any other input: `helm upgrade --reuse-values --set provisioner.rerunToken=<anything>`. The Job's name is a hash of its inputs, and this token is one of them. |
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
+| provisioner.secretRotationIteration | int | `1` | Increase by one to replace the credentials the provisioner generates, then restart the identity service, the registry service and MCP. See [Rotating the generated secrets](#rotating-the-generated-secrets). |
+| provisioner.secretValuePrefix | string | `"istsec_"` | Prefix for generated secrets that are free-form strings (the MCP client secret), so log masking and code scanning can recognise them. Empty for none. After changing it, restart MCP once the provisioner Job has completed. |
 | provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
-| provisioner.tag | string | `"0.5.1"` | Image tag. |
+| provisioner.tag | string | `"0.6.1"` | Image tag. |
 | provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
 | secureConnection.affinity | object | `{}` | Affinity |
 | secureConnection.autoscaling.cpuUtilization | int | `80` | Average CPU utilization percentage. Set to `null` to disable. |
