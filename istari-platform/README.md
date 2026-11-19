@@ -18,7 +18,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 | Repository | Name | Version |
 |------------|------|---------|
-| https://bushelpowered.github.io/spicedb-operator-chart | spicedb-operator | 2.6.0 |
+| https://bushelpowered.github.io/spicedb-operator-chart | spicedb-operator | 2.8.0 |
 | https://istaridigital.jfrog.io/artifactory/main-helm-local | dgraph-sec | 0.6.1 |
 | https://jaegertracing.github.io/helm-charts | jaeger | 4.16.1 |
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |

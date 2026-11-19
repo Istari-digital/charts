@@ -22,6 +22,6 @@ dependencies:
   repository: "https://jaegertracing.github.io/helm-charts"
   condition: jaeger.enabled
 - name: spicedb-operator
-  version: "2.6.0"
+  version: "2.8.0"
   repository: "https://bushelpowered.github.io/spicedb-operator-chart"
   condition: spicedb.enabled
