@@ -925,8 +925,9 @@ provisioner:
   # [Rotating the generated secrets](#rotating-the-generated-secrets).
   secretRotationIteration: 1
   # -- Prefix for generated secrets that are free-form strings (the MCP client secret), so log
-  # masking and code scanning can recognise them. Empty for none.
-  secretValuePrefix: ""
+  # masking and code scanning can recognise them. Empty for none. After changing it, restart MCP
+  # once the provisioner Job has completed.
+  secretValuePrefix: "istsec_"
   # -- Extra environment variables for the provisioner container.
   env: []
   # -- Extra secrets to mount (via `envFrom`) into the provisioner container.

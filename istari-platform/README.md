@@ -614,7 +614,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | provisioner.rerunToken | string | `""` | Change this to any new value to force the provisioning Job to rerun without changing any other input: `helm upgrade --reuse-values --set provisioner.rerunToken=<anything>`. The Job's name is a hash of its inputs, and this token is one of them. |
 | provisioner.resources | object | `{}` | Resources for the provisioner container. |
 | provisioner.secretRotationIteration | int | `1` | Increase by one to replace the credentials the provisioner generates, then restart the identity service, the registry service and MCP. See [Rotating the generated secrets](#rotating-the-generated-secrets). |
-| provisioner.secretValuePrefix | string | `""` | Prefix for generated secrets that are free-form strings (the MCP client secret), so log masking and code scanning can recognise them. Empty for none. |
+| provisioner.secretValuePrefix | string | `"istsec_"` | Prefix for generated secrets that are free-form strings (the MCP client secret), so log masking and code scanning can recognise them. Empty for none. After changing it, restart MCP once the provisioner Job has completed. |
 | provisioner.serviceAccountAnnotations | object | `{}` | Annotations on the provisioner ServiceAccount — e.g. for a pod-identity annotation. |
 | provisioner.tag | string | `"0.6.1"` | Image tag. |
 | provisioner.tolerations | list | `[]` | Tolerations for the provisioning Job pod. |
