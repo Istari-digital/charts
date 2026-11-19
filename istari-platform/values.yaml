@@ -865,16 +865,16 @@ identity:
     # -- (int) Consecutive failed sign-ins that disable the password until an administrator resets it, 3 to 100.
     # @default -- 100, set by identity-service
     signInDisableAfter: null
-    # -- (int) POSTs one client address may make to the sign-in and change-password pages per minute, per replica, 1 to 10000.
+    # -- (int) POSTs one client address may make to the web app's sign-in pages per minute, per replica, 1 to 10000.
     # @default -- 30, set by identity-service
     signInRateLimit: null
     # -- (int) Password hashes one replica computes at once, 1 to 1024.
     # @default -- the container's CPU limit, set by identity-service
     passwordHashConcurrency: null
-    # -- (string) URL of the Terms of Service link at the foot of identity-service's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: local`.
+    # -- (string) URL of the Terms of Service link at the foot of the web app's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: local`.
     # @default -- no link
     tosLink: null
-    # -- (string) URL of the Privacy Policy link at the foot of identity-service's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: local`.
+    # -- (string) URL of the Privacy Policy link at the foot of the web app's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: local`.
     # @default -- no link
     privacyLink: null
     # -- The first platform admin, created as a local account. Required when `identity.oidc.provider` is `local`. See [Installing with no identity provider](#installing-with-no-identity-provider).

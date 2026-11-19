@@ -45,6 +45,9 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- if and (eq $provider "local") (not .Values.apiGateway.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.identity.enabled .Values.secureConnection.enabled) }}
 {{- fail "identity.oidc.provider is \"local\", so apiGateway.enabled must be true: without the API gateway the chart gives registry-service, the frontend and MCP no identity-service settings, and identity-service cannot accept the Secure Connection Service's token" }}
 {{- end }}
+{{- if and (eq $provider "local") .Values.identity.enabled (not .Values.frontend.enabled) }}
+{{- fail "identity.oidc.provider is \"local\", so frontend.enabled must be true: people sign in with a local password only on the web app's sign-in page, MCP sign-ins included" }}
+{{- end }}
 {{- if and (eq $provider "local") .Values.identity.enabled (not $firstAdmin.email) }}
 {{- fail "identity.oidc.provider is \"local\", so identity.localAccounts.firstAdmin.email must be set: it names the first platform admin, whom the chart creates as a local account" }}
 {{- end }}

@@ -202,6 +202,7 @@ apiGateway:
 The chart refuses to render with `local` unless each of these is set:
 
 - `identity.enabled: true`, so identity-service runs in the same release.
+- `frontend.enabled: true`, because people sign in with a local password only on the web app's sign-in page, MCP sign-ins included. The chart sets identity-service's `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_URL` to `https://<common.mainFqdn>/sign-in`.
 - `identity.clientIntegration.enabled: true`, so registry-service, the frontend and MCP sign people in through identity-service.
 - `apiGateway.enabled: true`, so the chart gives those services their identity-service settings.
 - `identity.migrations.runAsJob: true`, so the database schema exists before the hook creates the admin.
@@ -220,6 +221,8 @@ If the cluster also runs Zitadel and `istari-zitadel-configurator`:
 
 - Leave registry-service's Zitadel settings and Secrets as they are, including its Zitadel domain.
 - Remove `zitadel-identity-service-env` from `identity.extraEnvSecrets`, and from `identity.secretName` if it names it. identity-service ignores the OIDC settings in that Secret and warns about each one at every start. Add it back when you move to Zitadel.
+
+The web app and the API must be on the same site, meaning the same registrable domain, such as `istari.example.com` and `api.istari.example.com`. identity-service checks this at startup and refuses to start otherwise, so `common.apiFqdnOverride` must stay under the domain of `common.mainFqdn`.
 
 ### Choosing the first admin's password
 

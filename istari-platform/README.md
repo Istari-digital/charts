@@ -203,6 +203,7 @@ apiGateway:
 The chart refuses to render with `local` unless each of these is set:
 
 - `identity.enabled: true`, so identity-service runs in the same release.
+- `frontend.enabled: true`, because people sign in with a local password only on the web app's sign-in page, MCP sign-ins included. The chart sets identity-service's `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_URL` to `https://<common.mainFqdn>/sign-in`.
 - `identity.clientIntegration.enabled: true`, so registry-service, the frontend and MCP sign people in through identity-service.
 - `apiGateway.enabled: true`, so the chart gives those services their identity-service settings.
 - `identity.migrations.runAsJob: true`, so the database schema exists before the hook creates the admin.
@@ -221,6 +222,8 @@ If the cluster also runs Zitadel and `istari-zitadel-configurator`:
 
 - Leave registry-service's Zitadel settings and Secrets as they are, including its Zitadel domain.
 - Remove `zitadel-identity-service-env` from `identity.extraEnvSecrets`, and from `identity.secretName` if it names it. identity-service ignores the OIDC settings in that Secret and warns about each one at every start. Add it back when you move to Zitadel.
+
+The web app and the API must be on the same site, meaning the same registrable domain, such as `istari.example.com` and `api.istari.example.com`. identity-service checks this at startup and refuses to start otherwise, so `common.apiFqdnOverride` must stay under the domain of `common.mainFqdn`.
 
 ### Choosing the first admin's password
 
@@ -719,12 +722,12 @@ To return to the provider, set it again, keep `identity.idpMigration.enabled: fa
 | identity.localAccounts.passwordBlocklistFile | string | no extra list | Path to a UTF-8 file of extra forbidden passwords, one per line, added to the built-in list. Mount the file with `identity.volumes` and `identity.volumeMounts`. |
 | identity.localAccounts.passwordHashConcurrency | int | the container's CPU limit, set by identity-service | Password hashes one replica computes at once, 1 to 1024. |
 | identity.localAccounts.passwordMinLength | int | 15, set by identity-service | Fewest characters a password may have, 8 to 128. |
-| identity.localAccounts.privacyLink | string | no link | URL of the Privacy Policy link at the foot of identity-service's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: local`. |
+| identity.localAccounts.privacyLink | string | no link | URL of the Privacy Policy link at the foot of the web app's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: local`. |
 | identity.localAccounts.signInDisableAfter | int | 100, set by identity-service | Consecutive failed sign-ins that disable the password until an administrator resets it, 3 to 100. |
-| identity.localAccounts.signInRateLimit | int | 30, set by identity-service | POSTs one client address may make to the sign-in and change-password pages per minute, per replica, 1 to 10000. |
+| identity.localAccounts.signInRateLimit | int | 30, set by identity-service | POSTs one client address may make to the web app's sign-in pages per minute, per replica, 1 to 10000. |
 | identity.localAccounts.signInThrottleAfter | int | 5, set by identity-service | Consecutive failed sign-ins before each further attempt is delayed, 1 to 100. |
 | identity.localAccounts.tempPasswordTtl | string | `168h`, set by identity-service | How long a temporary password stays usable, as a Go duration. |
-| identity.localAccounts.tosLink | string | no link | URL of the Terms of Service link at the foot of identity-service's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: local`. |
+| identity.localAccounts.tosLink | string | no link | URL of the Terms of Service link at the foot of the web app's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: local`. |
 | identity.migrations.autoCleanupSuccessfulJob | bool | `true` | Automatically clean up the successful migration hook `Job` by including **`hook-succeeded`** in `helm.sh/hook-delete-policy` (alongside `before-hook-creation`). When `true`, Helm may remove the Job after the migration succeeds (less clutter; logs are shorter-lived on the cluster). When `false`, only `before-hook-creation` is set, so the completed Job (and its Pods) remain until the next install or upgrade replaces the hook—useful for auditing or inspecting migration logs. |
 | identity.migrations.backoffLimit | int | `0` | `spec.backoffLimit` for the migration `Job` (number of retries after a failed Pod). `0` means no retries. |
 | identity.migrations.env | list | `[]` | Extra environment variables for the migration workloads only (the `db-migrate` Job, or the `init-db` init container when `runAsJob` is `false`), rendered after the service-level `env` — on duplicate names, these win. |
