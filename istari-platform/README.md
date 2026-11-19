@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 7.6.0](https://img.shields.io/badge/Version-7.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
+![Version: 8.0.0](https://img.shields.io/badge/Version-8.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -65,7 +65,7 @@ provisioner:
   enabled: false
 ```
 
-The chart then deploys no identity service and no provisioner, whose generated keys serve only the identity service, and the registry service, the frontend and MCP authenticate directly against your identity provider. Setting only `identity.enabled: false` leaves those services configured to use an identity service that is not deployed, so sign-in fails. The API Gateway remains the default route. To disable it too, explicitly configure direct Registry access and upstream authentication for each client, including the frontend's `VITE_FILE_AUTH_ENDPOINT`.
+The chart then deploys no identity service and no provisioner, whose generated keys serve only the identity service, and the registry service, the frontend and MCP authenticate directly against your identity provider. Setting only `identity.enabled: false` leaves those services configured to use an identity service that is not deployed, so sign-in fails. The API Gateway remains the default route. To disable it too, set `common.registryFqdn` to the registry's public host and configure upstream authentication for each client.
 
 These values keep identity-service off on an install that never enabled it; turning it off after it has been on hasn't been tested.
 
@@ -75,7 +75,7 @@ On an install that sets `trustedCertBundle`, turning the identity service off af
 
 The API Gateway (`apiGateway.enabled`, default `true`) is a reverse proxy that lets clients reach the platform's API services — currently the registry service (the `fileservice` block in values) and the identity service — through **one external API host** instead of one DNS name per service. It routes by path prefix (`/registry`, `/identity`), stripping the prefix before forwarding, and answers 404 for unrecognized paths.
 
-Set `common.mainFqdn` to the platform's frontend FQDN. The API host is `api.<mainFqdn>`, or `common.apiFqdnOverride` when configured. With `apiGateway.enabled: true`, the chart configures the registry service, frontend, and enabled MCP service to use the gateway automatically.
+Set `common.mainFqdn` to the platform's frontend FQDN. The API host is `api.<mainFqdn>`, or `common.apiFqdnOverride` when configured. With `apiGateway.enabled: true`, the chart configures the registry service, identity service, Secure Connection Service, frontend, and enabled MCP service to use the gateway automatically.
 
 For external client tools using the gateway, set the base URL (`ISTARI_DIGITAL_API_URL`) to `https://<your-api-host>` with no path; clients append `/registry` and `/identity` themselves.
 
@@ -122,7 +122,7 @@ To replace the credentials the provisioner generates, set `provisioner.secretRot
 
 ```bash
 RELEASE=istari
-CHART=istari-platform-7.6.0.tgz
+CHART=istari-platform-8.0.0.tgz
 helm upgrade --wait --wait-for-jobs -f istari-values.yaml $RELEASE $CHART
 kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=$RELEASE
 ```
@@ -236,8 +236,10 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | apiGateway.volumes | list | `[]` | Pod Volumes |
 | common | object | (see fields below) | Chart-wide settings shared across services. |
 | common.apiFqdnOverride | string | `""` | Override the API gateway host outright, e.g. `api.istari.customer-domain.com`. Empty uses the default, `api.<mainFqdn>`. |
-| common.mainFqdn | string | `""` | **Required** platform host — the frontend FQDN, e.g. `istari.customer-domain.com`. The API gateway and mcp hosts default to subdomains of it. Drives the `ISTARI_DIGITAL_API_URL` the services receive and the OIDC redirect URIs the provisioner registers. The chart fails to render with an empty value, since every platform host and URL derives from it. |
+| common.identityFqdn | string | `""` | Public host of the identity service, without a scheme, e.g. `identity.istari.customer-domain.com`. Leave it empty when clients reach the identity service through the API gateway; set it when they reach the identity service directly. |
+| common.mainFqdn | string | `""` | **Required** platform host — the frontend FQDN, e.g. `istari.customer-domain.com`. The API gateway and mcp hosts default to subdomains of it, and the provisioner registers OIDC redirect URIs on it. The chart fails to render with an empty value, since every platform host and URL derives from it. |
 | common.mcpFqdnOverride | string | `""` | Override the mcp host outright. Empty uses the default, `mcp.<mainFqdn>`. |
+| common.registryFqdn | string | `""` | Public host of the registry service, without a scheme, e.g. `registry.istari.customer-domain.com`. Leave it empty when clients reach the registry through the API gateway; set it when they reach the registry directly. |
 | commonLabels | object | `{}` | Additional labels to add to all resources of all services |
 | dgraph-sec.alpha.acl.bootstrap.enabled | bool | `false` | Run the ACL bootstrap/reconciler Job. |
 | dgraph-sec.alpha.acl.bootstrap.existingSecret | string | `""` | Secret holding groot and user passwords for the bootstrap Job. |
@@ -554,7 +556,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | mcp.replicaCount | int | `1` | Replica count |
 | mcp.resources | object | `{"limits":{"memory":"1Gi"},"requests":{"cpu":"250m","memory":"1Gi"}}` | Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request. |
 | mcp.restartPolicy | string | `"Always"` | Restart policy |
-| mcp.secretName | string | `"istari-mcp"` | Secret name. The secret should contain the environment variables required by the service. Note that a ConfigMap is also automatically created & used with the correct value for ISTARI_DIGITAL_REGISTRY_SERVICE_URL |
+| mcp.secretName | string | `"istari-mcp"` | Secret name. The secret should contain the environment variables required by the service. |
 | mcp.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
 | mcp.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | mcp.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |

@@ -66,14 +66,10 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{- if or .Values.apiGateway.enabled $serviceValues.secretName $serviceValues.extraEnvSecrets $serviceValues.extraEnvConfigMaps }}
         envFrom:
-        {{- end }}
         {{- /* Chart defaults FIRST so the user's ConfigMaps, Secret(s), and explicit env override them */}}
-        {{- if .Values.apiGateway.enabled }}
         - configMapRef:
             name: {{ include "frontend.configmap.name" $ | quote }}
-        {{- end }}
         {{- with $serviceValues.extraEnvConfigMaps }}
         {{- range . }}
         - configMapRef:
