@@ -1,0 +1,53 @@
+{{- if .Values.spicedb.enabled }}
+apiVersion: authzed.com/v1alpha1
+kind: SpiceDBCluster
+metadata:
+  name: spicedb
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: spicedb
+    app.kubernetes.io/name: spicedb
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  secretName: {{ .Values.spicedb.cluster.secretName | quote }}
+  config:
+    replicas: {{ .Values.spicedb.cluster.replicas }}
+    datastoreEngine: {{ .Values.spicedb.cluster.datastoreEngine | quote }}
+    image: {{ printf "%s:%s" .Values.spicedb.cluster.image.repository .Values.spicedb.cluster.image.tag | quote }}
+    logFormat: json
+    logLevel: {{ .Values.spicedb.cluster.logLevel | quote }}
+  patches:
+  - kind: Service
+    patch:
+      spec:
+        ports:
+        - name: dispatch
+          port: 50053
+          targetPort: 50053
+          appProtocol: grpc
+  - kind: ServiceAccount
+    patch:
+      imagePullSecrets:
+        {{- toYaml .Values.spicedb.cluster.imagePullSecrets | nindent 8 }}
+  - kind: Deployment
+    patch:
+      spec:
+        template:
+          spec:
+            containers:
+            - name: spicedb
+              # Empty value disables phone-home to telemetry.authzed.com.
+              # Do not set --dispatch-upstream-addr. The operator injects a per-pod
+              # kubernetes:// address, and a ClusterIP VIP causes GOAWAY (incident 2026-06-09).
+              args:
+              - "--telemetry-endpoint="
+  - kind: Job
+    patch:
+      spec:
+        template:
+          metadata:
+            labels:
+              # Migrate talks to Postgres and has hung on shutdown with Istio injected.
+              sidecar.istio.io/inject: "false"
+{{- end }}

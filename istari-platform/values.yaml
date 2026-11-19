@@ -1594,3 +1594,42 @@ dgraph-sec:
     incremental:
       enabled: true
       schedule: "0 1-23 * * *"
+
+# Optional SpiceDB. The operator is the `spicedb-operator` dependency, so its image lives under `spicedb-operator`.
+# This chart's SpiceDBCluster reads `spicedb` only. Both sides use a field named `image`, so they cannot share one block.
+#
+# `spicedb.enabled` has to stay in this file. Helm ignores a condition whose path is missing and loads the dependency.
+# Deleting the key would start the operator and skip the cluster, because the template treats a missing value as off.
+spicedb:
+  # -- Enable the SpiceDB operator and this chart's SpiceDBCluster. Set `true` or `false`. Do not delete this key: a missing path does not disable the operator, and the cluster template would stay off.
+  enabled: false
+  cluster:
+    # -- Secret the operator reads for `preshared_key` and `datastore_uri`. This chart does not create the Secret or the Postgres database.
+    secretName: spicedb
+    # -- SpiceDB replicas.
+    replicas: 3
+    # -- SpiceDB log level.
+    logLevel: info
+    # -- Datastore engine.
+    datastoreEngine: postgres
+    image:
+      # -- SpiceDB image repository. Dev runs the Chainguard FIPS image.
+      repository: istaridigital.jfrog.io/remote-docker-chainguard/istaridigital.com/spicedb-fips
+      # -- SpiceDB image tag.
+      tag: v1.56.2
+    # -- Pull secrets on the SpiceDB ServiceAccount. The umbrella `imagePullSecrets` do not reach this object. Same `{name: ...}` shape the operator chart uses.
+    imagePullSecrets:
+    - name: docker-pull-secret
+
+# Passed through to the `spicedb-operator` subchart. The key matches the dependency name.
+spicedb-operator:
+  # -- Install the SpiceDBCluster CRD with the operator. Leave this `true` so the cluster object has a type. Setting `spicedb.enabled` back to `false` removes the operator and this CRD.
+  installCRDs: true
+  image:
+    # -- SpiceDB operator image repository. Dev runs the Chainguard FIPS image.
+    repository: istaridigital.jfrog.io/remote-docker-chainguard/istaridigital.com/spicedb-operator-fips
+    # -- SpiceDB operator image tag.
+    tag: v1.27.0
+  # -- Pull secrets for the operator. A list of `{name: ...}`, not a list of strings.
+  imagePullSecrets:
+  - name: docker-pull-secret
