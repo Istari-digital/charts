@@ -19,13 +19,11 @@ metadata:
     helm.sh/resource-policy: keep
   {{- end }}
 data:
-  {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
-  {{- with include "istari-platform.publicServiceUrls" . | trim }}{{ . | nindent 2 }}{{- end }}
-  {{- if not .Values.apiGateway.enabled }}
-  {{- with trim .Values.common.identityFqdn }}
+  {{- include "istari-platform.serviceUrls" . | nindent 2 }}
+  {{- $identityFqdn := trim .Values.common.identityFqdn }}
+  {{- if and $identityFqdn (not .Values.apiGateway.enabled) }}
   # Without the gateway, identity-service's issuer defaults to localhost and rejects assertions the backends sign for this URL.
-  ISTARI_DIGITAL_IDENTITY_SERVICE_JWT_ISSUER: {{ printf "https://%s" . | quote }}
-  {{- end }}
+  ISTARI_DIGITAL_IDENTITY_SERVICE_JWT_ISSUER: {{ printf "https://%s" $identityFqdn | quote }}
   {{- end }}
   # identity-service exits at startup without an allowlist; the frontend's origin is the one browser caller.
   ISTARI_DIGITAL_IDENTITY_SERVICE_CORS_ALLOWED_ORIGINS: {{ include "istari-platform.frontendRedirectUri" . | quote }}

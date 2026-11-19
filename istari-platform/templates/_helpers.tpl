@@ -281,7 +281,7 @@ is required, so this always resolves; the guard below is retained only as defenc
 {{- $mainFqdn := trim .Values.common.mainFqdn -}}
 {{- $mcpHost := trim .Values.common.mcpFqdnOverride -}}
 {{- if and (not $mcpHost) $mainFqdn -}}
-{{- $mcpHost = printf "mcp.%s" $mainFqdn -}}
+  {{- $mcpHost = printf "mcp.%s" $mainFqdn -}}
 {{- end -}}
 {{- $mcpHost -}}
 {{- end }}
@@ -291,37 +291,27 @@ The mcp OIDC redirect URI (`https://<mcp host>/auth/callback`).
 */}}
 {{- define "istari-platform.mcpRedirectUri" -}}
 {{- with include "istari-platform.mcpHost" . -}}
-{{- printf "https://%s/auth/callback" . -}}
+  {{- printf "https://%s/auth/callback" . -}}
 {{- end -}}
 {{- end }}
 
 {{/*
-In-cluster base URLs for the platform's backend services, emitted into each backend's ConfigMap.
-Per-service addresses are always rendered; the gateway's only when this release enables it.
+Base URLs for the platform's backend services, emitted into each backend's ConfigMap: in-cluster
+addresses first, then public ones. The API URL also serves as identity-service's token audience.
 */}}
-{{- define "istari-platform.internalServiceUrls" -}}
+{{- define "istari-platform.serviceUrls" -}}
 ISTARI_DIGITAL_REGISTRY_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
 ISTARI_DIGITAL_IDENTITY_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "identity.fullname" .) | quote }}
 ISTARI_DIGITAL_MCP_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "mcp.fullname" .) | quote }}
 ISTARI_DIGITAL_SECURE_CONNECTION_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "secure-connection.fullname" .) | quote }}
 {{- if .Values.apiGateway.enabled }}
 ISTARI_DIGITAL_API_INTERNAL_URL: {{ printf "http://%s" (include "api-gateway.fullname" .) | quote }}
-{{- end }}
-{{- end }}
-
-{{/*
-Public base URLs, emitted after the in-cluster ones. The API URL also serves as
-identity-service's token audience.
-*/}}
-{{- define "istari-platform.publicServiceUrls" -}}
-{{- $common := .Values.common -}}
-{{- if .Values.apiGateway.enabled }}
 ISTARI_DIGITAL_API_URL: {{ include "istari-platform.apiGatewayUrl" . | quote }}
 {{- end }}
-{{- with trim $common.registryFqdn }}
+{{- with trim .Values.common.registryFqdn }}
 ISTARI_DIGITAL_REGISTRY_SERVICE_URL: {{ printf "https://%s" . | quote }}
 {{- end }}
-{{- with trim $common.identityFqdn }}
+{{- with trim .Values.common.identityFqdn }}
 ISTARI_DIGITAL_IDENTITY_SERVICE_URL: {{ printf "https://%s" . | quote }}
 {{- end }}
 {{- if .Values.mcp.enabled }}

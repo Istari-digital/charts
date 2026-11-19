@@ -18,26 +18,22 @@ nameOverride: ""
 # @default -- (see fields below)
 common:
   # -- **Required** platform host — the frontend FQDN, e.g. `istari.customer-domain.com`. The API
-  # gateway and mcp hosts default to subdomains of it. Becomes the frontend's `VITE_UI_URL` and the
-  # OIDC redirect URIs the provisioner registers. The chart fails to render with an empty value,
-  # since every platform host and URL derives from it.
+  # gateway and mcp hosts default to subdomains of it, and the provisioner registers OIDC redirect
+  # URIs on it. The chart fails to render with an empty value, since every platform host and URL
+  # derives from it.
   mainFqdn: ""
   # -- Override the API gateway host outright, e.g. `api.istari.customer-domain.com`. Empty uses the
-  # default, `api.<mainFqdn>`. The host becomes `ISTARI_DIGITAL_API_URL` (and the frontend's
-  # `VITE_ISTARI_DIGITAL_API_URL`), set only when `apiGateway.enabled`.
+  # default, `api.<mainFqdn>`.
   apiFqdnOverride: ""
-  # -- Override the mcp host outright. Empty uses the default, `mcp.<mainFqdn>`. The host also becomes
-  # `ISTARI_DIGITAL_MCP_SERVICE_URL` when `mcp.enabled`.
+  # -- Override the mcp host outright. Empty uses the default, `mcp.<mainFqdn>`.
   mcpFqdnOverride: ""
-  # -- Public host of the registry, without a scheme, e.g. `registry.istari.customer-domain.com`.
-  # Empty by default; leave it empty when the registry is reached through the API gateway. When set,
-  # it becomes `ISTARI_DIGITAL_REGISTRY_SERVICE_URL` in the backend ConfigMaps and the frontend's
-  # registry endpoint.
+  # -- Public host of the registry service, without a scheme, e.g. `registry.istari.customer-domain.com`.
+  # Leave it empty when clients reach the registry through the API gateway; set it when they reach the
+  # registry directly.
   registryFqdn: ""
   # -- Public host of the identity service, without a scheme, e.g. `identity.istari.customer-domain.com`.
-  # Empty by default; leave it empty when identity is reached through the API gateway. When set, it
-  # becomes `ISTARI_DIGITAL_IDENTITY_SERVICE_URL` in the backend ConfigMaps and, with `apiGateway.enabled`
-  # false, identity-service's `ISTARI_DIGITAL_IDENTITY_SERVICE_JWT_ISSUER`.
+  # Leave it empty when clients reach the identity service through the API gateway; set it when they
+  # reach the identity service directly.
   identityFqdn: ""
 
 # -- Optional: Trusted certificate bundle for when using a self-signed certificate. This is a PEM-encoded certificate bundle. AWS, Azure, and GCP root certs will also automatically be trusted.

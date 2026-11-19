@@ -11,8 +11,7 @@ metadata:
   labels:
     {{- include "mcp.labels" . | nindent 4 }}
 data:
-  {{- include "istari-platform.internalServiceUrls" . | nindent 2 }}
-  {{- with include "istari-platform.publicServiceUrls" . | trim }}{{ . | nindent 2 }}{{- end }}
+  {{- include "istari-platform.serviceUrls" . | nindent 2 }}
   {{- if .Values.apiGateway.enabled }}
   # Emitted for BOTH values, and only alongside the gateway URL: without the gateway,
   # identity-service's issuer is public only when common.identityFqdn or the operator sets it.
