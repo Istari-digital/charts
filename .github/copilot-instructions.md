@@ -45,6 +45,16 @@ instructions (`AGENTS.md`) within repository instructions, so anything here that
 - A new `values.yaml` key with no `# --` comment above it — it renders as an
   undocumented row in the generated README.
 - A values combination that can produce a broken release without a render-time `fail`.
+- A render-time check, or a README note, that a pinned image `*.tag` is new enough for a
+  feature. Customers run the default tags; bumping the default in the same PR is the whole fix.
+- README or `values.yaml` text written for the chart's developers rather than the people who
+  run it: which key material a change touches, how the chart does something internally, or how
+  to pair it with a tool the chart does not ship. The README gives the procedure and what the
+  reader will see happen, and stops.
+- A README command that does not match the public customer install docs: release `istari`,
+  chart `istari-platform-<version>.tgz` pulled from
+  `oci://istaridigital.jfrog.io/customer-charts/istari-platform`, values in `istari-values.yaml`.
+  An internal repository or alias (`main-charts-local`, `main-helm-local`) in a README is wrong.
 - A comment the PR **adds or changes** that is verbose, redundant, or merely restates the
   code. Comments in code and config (templates, scripts, Terraform, non-template YAML) should
   be sparse and written for a human. Not this: the `# --` / `# @default --` doc comments above
