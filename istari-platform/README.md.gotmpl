@@ -24,7 +24,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 > [!NOTE]
 > The `nats` dependency is **required** and enabled by default (`nats.enabled`, default `true`). Deploying it takes a StorageClass for its JetStream volume plus two Kubernetes Secrets you create yourself — read the `nats` block under [Values](#values) before installing or upgrading.
 >
-> The `jaeger` and `dgraph-sec` dependencies are **optional** (`jaeger.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
+> The `jaeger`, `dgraph-sec`, and `spicedb-operator` dependencies are **optional** (`jaeger.enabled` / `dgraph-sec.enabled` / `spicedb.enabled`, default `false`). Disabled subcharts are not rendered at install time. Set `spicedb.enabled` to `true` or `false`. Do not delete that key: Helm loads a dependency when its condition path is missing, and this chart's `SpiceDBCluster` stays off when the value is missing. See the corresponding blocks under [Values](#values).
 
 ## Identity service
 
@@ -180,6 +180,14 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 
 - **"is already linked to tenant":** the entry sets `tenantSlug` and `providerName`, but the import already mapped that organization to a different tenant. Remove `tenantSlug` and `tenantDisplayName`, or set `tenantSlug` to that tenant's slug, and upgrade again. The failed run leaves an empty tenant under the requested slug, which you can deactivate.
 - **No tenant mapped to the organization:** an entry without `tenantSlug` needs one, which the import normally creates. When the import is turned off, set `tenantSlug`.
+
+## SpiceDB
+
+SpiceDB is off unless `spicedb.enabled` is `true`. Leave that key in the file. `false` installs nothing. Deleting the key installs the operator and skips the cluster. When the flag is `true`, the chart installs the operator subchart and one `SpiceDBCluster` in the release namespace. It does not create Postgres and it does not create the Secret.
+
+Before turning the flag on, create a Secret named by `spicedb.cluster.secretName` (default `spicedb`) with keys `preshared_key` and `datastore_uri`, and point `datastore_uri` at Postgres you already run. The operator image is `spicedb-operator.image`. The cluster image is `spicedb.cluster.image`.
+
+The operator chart installs the `SpiceDBCluster` CRD while `spicedb-operator.installCRDs` is `true`. Setting `spicedb.enabled` back to `false` removes the operator and that CRD. Kubernetes then deletes the `SpiceDBCluster` objects.
 
 {{ template "chart.valuesSection" . }}
 

@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 7.5.0](https://img.shields.io/badge/Version-7.5.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
+![Version: 7.6.0](https://img.shields.io/badge/Version-7.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -18,6 +18,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 
 | Repository | Name | Version |
 |------------|------|---------|
+| https://bushelpowered.github.io/spicedb-operator-chart | spicedb-operator | 2.8.0 |
 | https://istaridigital.jfrog.io/artifactory/main-helm-local | dgraph-sec | 0.6.1 |
 | https://jaegertracing.github.io/helm-charts | jaeger | 4.16.1 |
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 2.14.0 |
@@ -25,7 +26,7 @@ Instructions for installing the istari-platform chart are available in the IT Ad
 > [!NOTE]
 > The `nats` dependency is **required** and enabled by default (`nats.enabled`, default `true`). Deploying it takes a StorageClass for its JetStream volume plus two Kubernetes Secrets you create yourself — read the `nats` block under [Values](#values) before installing or upgrading.
 >
-> The `jaeger` and `dgraph-sec` dependencies are **optional** (`jaeger.enabled` / `dgraph-sec.enabled`, default `false`). Disabled subcharts are not rendered at install time. See the corresponding blocks under [Values](#values).
+> The `jaeger`, `dgraph-sec`, and `spicedb-operator` dependencies are **optional** (`jaeger.enabled` / `dgraph-sec.enabled` / `spicedb.enabled`, default `false`). Disabled subcharts are not rendered at install time. Set `spicedb.enabled` to `true` or `false`. Do not delete that key: Helm loads a dependency when its condition path is missing, and this chart's `SpiceDBCluster` stays off when the value is missing. See the corresponding blocks under [Values](#values).
 
 ## Identity service
 
@@ -122,7 +123,7 @@ To replace the credentials the provisioner generates, set `provisioner.secretRot
 
 ```bash
 RELEASE=istari
-CHART=istari-platform-7.5.0.tgz
+CHART=istari-platform-7.6.0.tgz
 helm upgrade --wait --wait-for-jobs -f istari-values.yaml $RELEASE $CHART
 kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=$RELEASE
 ```
@@ -181,6 +182,14 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 
 - **"is already linked to tenant":** the entry sets `tenantSlug` and `providerName`, but the import already mapped that organization to a different tenant. Remove `tenantSlug` and `tenantDisplayName`, or set `tenantSlug` to that tenant's slug, and upgrade again. The failed run leaves an empty tenant under the requested slug, which you can deactivate.
 - **No tenant mapped to the organization:** an entry without `tenantSlug` needs one, which the import normally creates. When the import is turned off, set `tenantSlug`.
+
+## SpiceDB
+
+SpiceDB is off unless `spicedb.enabled` is `true`. Leave that key in the file. `false` installs nothing. Deleting the key installs the operator and skips the cluster. When the flag is `true`, the chart installs the operator subchart and one `SpiceDBCluster` in the release namespace. It does not create Postgres and it does not create the Secret.
+
+Before turning the flag on, create a Secret named by `spicedb.cluster.secretName` (default `spicedb`) with keys `preshared_key` and `datastore_uri`, and point `datastore_uri` at Postgres you already run. The operator image is `spicedb-operator.image`. The cluster image is `spicedb.cluster.image`.
+
+The operator chart installs the `SpiceDBCluster` CRD while `spicedb-operator.installCRDs` is `true`. Setting `spicedb.enabled` back to `false` removes the operator and that CRD. Kubernetes then deletes the `SpiceDBCluster` objects.
 
 ## Values
 
@@ -665,6 +674,18 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 | secureConnection.virtualService.labels | object | `{}` | Additional labels on the VirtualService (in addition to the standard secure-connection labels). |
 | secureConnection.volumeMounts | list | `[]` | Volume Mounts for pod containers |
 | secureConnection.volumes | list | `[]` | Pod Volumes |
+| spicedb-operator.image.repository | string | `"istaridigital.jfrog.io/remote-docker-chainguard/istaridigital.com/spicedb-operator-fips"` | SpiceDB operator image repository. Dev runs the Chainguard FIPS image. |
+| spicedb-operator.image.tag | string | `"v1.27.0"` | SpiceDB operator image tag. |
+| spicedb-operator.imagePullSecrets | list | `[{"name":"docker-pull-secret"}]` | Pull secrets for the operator. A list of `{name: ...}`, not a list of strings. |
+| spicedb-operator.installCRDs | bool | `true` | Install the SpiceDBCluster CRD with the operator. Leave this `true` so the cluster object has a type. Setting `spicedb.enabled` back to `false` removes the operator and this CRD. |
+| spicedb.cluster.datastoreEngine | string | `"postgres"` | Datastore engine. |
+| spicedb.cluster.image.repository | string | `"istaridigital.jfrog.io/remote-docker-chainguard/istaridigital.com/spicedb-fips"` | SpiceDB image repository. Dev runs the Chainguard FIPS image. |
+| spicedb.cluster.image.tag | string | `"v1.56.2"` | SpiceDB image tag. |
+| spicedb.cluster.imagePullSecrets | list | `[{"name":"docker-pull-secret"}]` | Pull secrets on the SpiceDB ServiceAccount. The umbrella `imagePullSecrets` do not reach this object. Same `{name: ...}` shape the operator chart uses. |
+| spicedb.cluster.logLevel | string | `"info"` | SpiceDB log level. |
+| spicedb.cluster.replicas | int | `3` | SpiceDB replicas. |
+| spicedb.cluster.secretName | string | `"spicedb"` | Secret the operator reads for `preshared_key` and `datastore_uri`. This chart does not create the Secret or the Postgres database. |
+| spicedb.enabled | bool | `false` | Enable the SpiceDB operator and this chart's SpiceDBCluster. Set `true` or `false`. Do not delete this key: a missing path does not disable the operator, and the cluster template would stay off. |
 | trustedCertBundle | string | `""` | Optional: Trusted certificate bundle for when using a self-signed certificate. This is a PEM-encoded certificate bundle. AWS, Azure, and GCP root certs will also automatically be trusted. |
 
 ## Maintainers

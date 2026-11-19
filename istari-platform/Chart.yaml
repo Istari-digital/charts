@@ -1,7 +1,7 @@
 apiVersion: v2
 name: istari-platform
 description: An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
-version: 7.5.0
+version: 7.6.0
 appVersion: 12.x.x
 type: application
 icon: https://raw.githubusercontent.com/Istari-digital/charts/main/assets/istari-icon.png
@@ -21,3 +21,7 @@ dependencies:
   version: "4.16.1"
   repository: "https://jaegertracing.github.io/helm-charts"
   condition: jaeger.enabled
+- name: spicedb-operator
+  version: "2.8.0"
+  repository: "https://bushelpowered.github.io/spicedb-operator-chart"
+  condition: spicedb.enabled
