@@ -236,7 +236,7 @@ If the cluster also runs Zitadel and `istari-zitadel-configurator`:
 - Leave registry-service's Zitadel settings and Secrets as they are, including its Zitadel domain.
 - Remove `zitadel-identity-service-env` from `identity.extraEnvSecrets`, and from `identity.secretName` if it names it. identity-service ignores the OIDC settings in that Secret and warns about each one at every start. Add it back when you move to Zitadel.
 
-The web app and the API must be on the same site, meaning the same registrable domain, such as `istari.example.com` and `api.istari.example.com`. identity-service checks this at startup and refuses to start otherwise, so `common.apiFqdnOverride` must stay under the domain of `common.mainFqdn`.
+The web app and the API must be on the same site, meaning the same registrable domain, such as `istari.example.com` and `api.istari.example.com`. identity-service checks this at startup and refuses to start otherwise, so `common.apiFqdnOverride` must share `common.mainFqdn`'s registrable domain.
 
 ### Choosing the first admin's password
 
@@ -308,7 +308,7 @@ If the service's Secret is missing, its pods do not start. If the registration S
 
 ### Terms of Service and Privacy Policy links
 
-identity-service's sign-in pages end with links to your Terms of Service and Privacy Policy when these are set:
+The web app's sign-in pages end with links to your Terms of Service and Privacy Policy when these are set:
 
 ```yaml
 identity:
@@ -737,7 +737,7 @@ To return to the provider, set it again, keep `identity.idpMigration.enabled: fa
 | identity.localAccounts.passwordMinLength | int | 15, set by identity-service | Fewest characters a password may have, 8 to 128. |
 | identity.localAccounts.privacyLink | string | no link | URL of the Privacy Policy link at the foot of the web app's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: local`. |
 | identity.localAccounts.signInDisableAfter | int | 100, set by identity-service | Consecutive failed sign-ins that disable the password until an administrator resets it, 3 to 100. |
-| identity.localAccounts.signInRateLimit | int | 30, set by identity-service | POSTs one client address may make to the web app's sign-in pages per minute, per replica, 1 to 10000. |
+| identity.localAccounts.signInRateLimit | int | 30, set by identity-service | Sign-in and password-change attempts one client address may make per minute, per replica, 1 to 10000. |
 | identity.localAccounts.signInThrottleAfter | int | 5, set by identity-service | Consecutive failed sign-ins before each further attempt is delayed, 1 to 100. |
 | identity.localAccounts.tempPasswordTtl | string | `168h`, set by identity-service | How long a temporary password stays usable, as a Go duration. |
 | identity.localAccounts.tosLink | string | no link | URL of the Terms of Service link at the foot of the web app's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: local`. |
