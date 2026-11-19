@@ -172,7 +172,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 
 ## SpiceDB
 
-SpiceDB is off unless `spicedb.enabled` is `true`. The chart installs the operator subchart and one `SpiceDBCluster` in the release namespace. It does not create Postgres and it does not create the Secret.
+SpiceDB is off unless `spicedb.enabled` is `true`. Leave that key in the file. `false` installs nothing. Deleting the key installs the operator and skips the cluster. When the flag is `true`, the chart installs the operator subchart and one `SpiceDBCluster` in the release namespace. It does not create Postgres and it does not create the Secret.
 
 Before turning the flag on, create a Secret named by `spicedb.cluster.secretName` (default `spicedb`) with keys `preshared_key` and `datastore_uri`, and point `datastore_uri` at Postgres you already run. The operator image is `spicedb-operator.image`. The cluster image is `spicedb.cluster.image`.
 
