@@ -69,6 +69,20 @@ Renders no leading conditional; callers gate the include behind their own `if $n
 {{- end }}
 
 {{/*
+Registry-service env when the provider is set and is not zitadel. Explicit env beats envFrom, so
+these win over a zitadel-*-env Secret left listed after a provider switch.
+*/}}
+{{- define "istari-platform.fileservice.noZitadelEnv" -}}
+{{- $provider := include "istari-platform.identityProvider" . -}}
+{{- if and $provider (ne $provider "zitadel") -}}
+- name: FILE_SERVICE_ZITADEL_DOMAIN
+  value: ""
+- name: FILE_SERVICE_FEATURE_FLAGS__IDENTITY_ROUTER_ACCEPT_ZITADEL_PATS
+  value: "false"
+{{- end -}}
+{{- end }}
+
+{{/*
 Name of the Jaeger Service created by the subchart. Must mirror the subchart's own
 `jaeger.fullname` helper (fullnameOverride, else nameOverride/release-name rules) so the name
 stays in sync however the user overrides naming.

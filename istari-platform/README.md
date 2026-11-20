@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 8.0.0](https://img.shields.io/badge/Version-8.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
+![Version: 8.1.0](https://img.shields.io/badge/Version-8.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -49,6 +49,8 @@ Okta, Google, and Lastwall integrations are **Preview**, not generally available
 
 Set `identity.oidc.provider` to one of `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall` or `google`, or to `local` to use local accounts instead (see [Installing with no identity provider](#installing-with-no-identity-provider)). The chart refuses to render without it. Configure its issuer, client ID, authentication method, and scopes through `identity.oidc` or your existing environment configuration. Empty OIDC values add no chart override, preserving configuration supplied through Secrets and the service's own defaults. Keep client secrets and private keys in `identity.secretName` or `identity.extraEnvSecrets`. Identity Service validates provider-specific requirements at startup.
 
+With any provider other than `zitadel`, the chart configures no service to use Zitadel. The Secure Connection Service gets its token from identity-service, registry-service has no Zitadel domain, and registry-service and MCP refuse Zitadel personal access tokens, even while a Zitadel configurator Secret is still listed. While registry-service, the frontend or MCP is enabled, the chart refuses to render unless `identity.enabled`, `identity.clientIntegration.enabled` and `apiGateway.enabled` are `true`. To run the Secure Connection Service, register its credential as [The Secure Connection Service](#the-secure-connection-service) describes.
+
 The migration hook supports switches from Zitadel to `keycloak`, `entra`, `okta`, or `pingfederate`. Set `identity.idpMigration.to` to the provider configured for Identity Service, and explicitly enable the hook for the switch. For Google and Lastwall, prepare authoritative subject mappings with `import-principal-mappings` and set `identity.idpMigration.enabled: false`.
 
 Zitadel imports reconcile on every install and upgrade unless disabled. Inspect import logs and verify the resulting accounts: missing management credentials or partial API reads can finish without a failing exit status.
@@ -67,6 +69,8 @@ provisioner:
 ```
 
 The chart then deploys no identity service and no provisioner, whose generated keys serve only the identity service, and the registry service, the frontend and MCP authenticate directly against your identity provider. Setting only `identity.enabled: false` leaves those services configured to use an identity service that is not deployed, so sign-in fails. The API Gateway remains the default route. To disable it too, explicitly configure direct Registry access and upstream authentication for each client, including the frontend's `VITE_FILE_AUTH_ENDPOINT`.
+
+Leave `identity.oidc.provider` unset or `zitadel`: with any other provider the chart refuses to render without identity-service.
 
 These values keep identity-service off on an install that never enabled it; turning it off after it has been on hasn't been tested.
 
@@ -123,7 +127,7 @@ To replace the credentials the provisioner generates, set `provisioner.secretRot
 
 ```bash
 RELEASE=istari
-CHART=istari-platform-8.0.0.tgz
+CHART=istari-platform-8.1.0.tgz
 helm upgrade --wait --wait-for-jobs -f istari-values.yaml $RELEASE $CHART
 kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=$RELEASE
 ```
@@ -232,7 +236,7 @@ identity-service ignores the other `identity.oidc` values under `local`, logging
 
 If the cluster also runs Zitadel and `istari-zitadel-configurator`:
 
-- Leave registry-service's Zitadel settings and Secrets as they are, including its Zitadel domain.
+- You can leave registry-service's Zitadel Secrets listed. The chart sets its Zitadel domain to empty, and registry-service and MCP refuse Zitadel personal access tokens.
 - Remove `zitadel-identity-service-env` from `identity.extraEnvSecrets`, and from `identity.secretName` if it names it. identity-service ignores the OIDC settings in that Secret and warns about each one at every start. Add it back when you move to Zitadel.
 
 The web app and the API must be on the same site, meaning the same registrable domain, such as `istari.example.com` and `api.istari.example.com`. identity-service checks this at startup and refuses to start otherwise, so `common.apiFqdnOverride` must share `common.mainFqdn`'s registrable domain.
@@ -252,9 +256,9 @@ Keep the Secret while `passwordSecret.name` is set. The hook reads it on every i
 
 Skip this if `secureConnection.enabled` is false.
 
-With `local`, the chart points the Secure Connection Service at identity-service, since client integration and the API gateway are already required there.
+With `local` or any other provider except `zitadel`, the chart points the Secure Connection Service at identity-service, since it already requires client integration and the API gateway with those providers.
 
-The Secure Connection Service needs a credential that identity-service accepts, registered as an agent. Do these steps once, before the `helm install` or `helm upgrade` that enables the service. You need docker, jq, openssl and kubectl.
+The Secure Connection Service needs a credential that identity-service accepts, registered as an agent. Do these steps once, before the `helm install` or `helm upgrade` that enables the service. If the service already runs under a provider other than `zitadel` on a chart older than 8.1.0, do them before upgrading. You need docker, jq, openssl and kubectl.
 
 1. Generate the credential with the identity-service image. Use the same tag as `identity.tag`.
 
@@ -301,7 +305,7 @@ The Secure Connection Service needs a credential that identity-service accepts, 
          - secure_connector
    ```
 
-   `name` only labels the registration Job; the agent's identity comes from the credential. The agent joins the installation's default tenant, `default` on a new install, unless the entry sets `tenantSlug`. [Agent registration](#agent-registration) describes the other fields.
+   `name` only labels the registration Job; the agent's identity comes from the credential. The agent joins the installation's default tenant, `default` on a new install, unless the entry sets `tenantSlug`. With an identity provider, the entry must set `tenantSlug`, or `providerName` and `providerTenantIdEnv`. [Agent registration](#agent-registration) describes the other fields.
 
 5. Delete `creds/`, which holds the private key.
 
@@ -697,7 +701,7 @@ To return to the provider, set it again, keep `identity.idpMigration.enabled: fa
 | identity.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | identity.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. |
-| identity.clientIntegration.enabled | bool | `true` | Whether the registry, the frontend and MCP authenticate through identity-service. Under local accounts (`identity.oidc.provider: local`) with the API gateway, the Secure Connection Service does too, while with an identity provider it keeps its current routing. A release that turns identity-service off sets this to `false` too. |
+| identity.clientIntegration.enabled | bool | `true` | Whether the registry, the frontend and MCP authenticate through identity-service. With the API gateway and any `identity.oidc.provider` other than `zitadel`, the Secure Connection Service does too, while with `zitadel` it keeps its current routing. A release that turns identity-service off sets this to `false` too. |
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | identity.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | identity.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
