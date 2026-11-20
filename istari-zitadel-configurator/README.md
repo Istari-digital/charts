@@ -1,6 +1,6 @@
 # istari-zitadel-configurator
 
-![Version: 1.11.4](https://img.shields.io/badge/Version-1.11.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 8.13.4](https://img.shields.io/badge/AppVersion-8.13.4-informational?style=flat-square)
+![Version: 1.12.0](https://img.shields.io/badge/Version-1.12.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 8.13.4](https://img.shields.io/badge/AppVersion-8.13.4-informational?style=flat-square)
 
 A Helm chart for configuring Zitadel instance to work with Istari.
 
@@ -37,6 +37,21 @@ configurator:
   zitadel_domain: "your-zitadel-domain"
   # ... more configuration ...
 ```
+
+## Upgrading to 1.12.0
+
+From 1.12.0, the `zitadel-identity-service-env` Secret this chart writes sets `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to `zitadel`. An install whose identity-service signs in through Zitadel needs no values change, but upgrade this chart and let its hook Job rewrite the Secret before deploying an identity-service release that requires the provider.
+
+If `override.enabled` replaces this chart's Terraform plan, your plan does not gain the new key: add `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to the Secret it writes, or supply the variable another way, before that rollout.
+
+If identity-service signs in through another provider but still loads this Secret (for example through istari-platform's `identity.extraEnvSecrets`), set `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to that provider from a source that overrides this Secret:
+
+- If your istari-platform release renders `identity.oidc.provider` as `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` (check the rendered Deployment with `helm template`), set `identity.oidc.provider`. An explicit environment variable overrides every Secret.
+- Otherwise, add a Secret that sets `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` to your provider and list it after this one in `identity.extraEnvSecrets`. A later Secret overrides an earlier one, and the Secret named by `identity.secretName` loads before all of them, so it cannot override this one.
+
+identity-service reads these variables only when its containers start, so make the change before rolling out an identity-service release that reads the new name, and restart identity-service after changing a Secret it already loads.
+
+If you do neither, identity-service versions that read `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` sign in through Zitadel, logging a warning when the older name `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER` holds a different provider. Earlier versions ignore the new name.
 
 ## Uninstall
 ```sh
