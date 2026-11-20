@@ -845,7 +845,7 @@ identity:
     extraEnvSecrets: []
     # -- Resource requests/limits for the migration Job.
     resources: {}
-  # -- IP addresses or CIDR ranges of the proxies in front of identity-service, such as the API gateway's pods and the ingress controller in front of it. identity-service trusts their `X-Forwarded-For` to find each client's address for its per-address sign-in limit. Required with `identity.oidc.provider: local`; use `127.0.0.1` when clients connect to identity-service directly. With other providers, left empty, every client behind them shares one limit. See [Client addresses and the sign-in limit](#client-addresses-and-the-sign-in-limit).
+  # -- IP addresses or CIDR ranges of the proxies in front of identity-service, such as the API gateway's pods and the ingress controller in front of it. identity-service trusts their `X-Forwarded-For` to find each client's address for its per-address sign-in limit. Required with `identity.oidc.provider: local`; use `127.0.0.1` when clients connect to identity-service directly. Left empty, behind the chart's API gateway every client shares one sign-in limit, and with `identity.ingress`, `identity.virtualService` or an Istio sidecar identity-service believes any `X-Forwarded-For` a client sends. See [Client addresses and the sign-in limit](#client-addresses-and-the-sign-in-limit).
   trustedProxies: []
   # -- identity-service's password and sign-in settings, used only with `identity.oidc.provider: local`, and the first platform admin (`firstAdmin`). Each renders only when set; unset keeps identity-service's own default. With an identity provider configured, identity-service logs that a set value is ignored.
   # @default -- (see fields below)
@@ -1172,7 +1172,7 @@ apiGateway:
   tag: "2.11.7"
   # -- Image pull policy
   imagePullPolicy: "IfNotPresent"
-  # -- IP addresses or CIDR ranges of the proxies in front of the API gateway, such as the ingress controller and load balancer. For requests from these addresses, the gateway keeps their `X-Forwarded-For` and appends the connecting proxy's address, so services behind it see the client's address. For any other request, or when the list is empty, it replaces the header with the connecting address.
+  # -- IP addresses or CIDR ranges of the proxies in front of the API gateway, such as the ingress controller and load balancer. For requests from these addresses, the gateway keeps their `X-Forwarded-For` and appends the connecting proxy's address, so services behind it see the client's address. For any other request, or when the list is empty, it replaces the header with the connecting address. Left empty, every client of identity-service shares one sign-in limit (see [Client addresses and the sign-in limit](#client-addresses-and-the-sign-in-limit)).
   trustedProxies: []
   # -- Extra ConfigMaps whose entries become environment variables in the proxy container (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
   extraEnvConfigMaps: []

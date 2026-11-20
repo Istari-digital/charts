@@ -324,9 +324,11 @@ identity-service limits sign-in attempts per client address (`identity.localAcco
 - `apiGateway.trustedProxies` to the CIDR ranges of the ingress controller and load balancer in front of the API gateway.
 - `identity.trustedProxies` to the same ranges plus the API gateway pods' addresses. Pod addresses change, so this is usually the pod network's range. When clients connect to identity-service directly rather than through a proxy, use `127.0.0.1`.
 
+If `apiGateway.trustedProxies` is empty, the gateway sends identity-service the load balancer's address for every request. Everyone then shares one sign-in limit, and one client can make sign-in fail with HTTP 429 for everyone. Set it to the load balancer and ingress controller in front of the gateway.
+
 If `identity.trustedProxies` includes the pod network, allow only the API gateway to reach identity-service, for example with a NetworkPolicy. Otherwise any pod can claim to be a proxy and send a false client address.
 
-This applies to traffic that reaches identity-service through the chart's API gateway. If you expose identity-service through `identity.ingress` or `identity.virtualService`, or run it with an Istio sidecar, set `identity.trustedProxies` to the proxies on that path.
+This applies to traffic that reaches identity-service through the chart's API gateway. If you expose identity-service through `identity.ingress` or `identity.virtualService`, or run it with an Istio sidecar, set `identity.trustedProxies` to the proxies on that path. Left empty there, a client can claim any address.
 
 ### Installing and signing in as the first admin
 
