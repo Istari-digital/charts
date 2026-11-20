@@ -166,7 +166,7 @@ identity:
 | --- | --- | --- |
 | `name` | Yes | Agent name, used in the Job name and the `istari.digital/agent` label: letters, digits, `-` or `_`, beginning and ending with a letter or digit, at most 63 characters. |
 | `keyEnv` | Yes | Env var holding the agent's public-only credential blob. |
-| `tenantSlug` | Unless `providerName` and `providerTenantIdEnv` are set | Tenant to register in; the Job creates it if missing. Leave it out to use the tenant mapped to `providerName` and `providerTenantIdEnv`. |
+| `tenantSlug` | Unless `providerName` and `providerTenantIdEnv` are set, or with `identity.oidc.provider: local`, where it defaults to the default tenant | Tenant to register in; the Job creates it if missing. Leave it out to use the tenant mapped to `providerName` and `providerTenantIdEnv`. |
 | `tenantDisplayName` | No | Display name for a tenant the Job creates. Only with `tenantSlug`. |
 | `providerName` | With `providerTenantIdEnv` | Upstream identity provider, such as `zitadel`. |
 | `providerTenantIdEnv` | With `providerName` | Env var holding the agent's upstream organization id. Maps the tenant to that organization, so the agent's token carries it for Zitadel role lookups. |
@@ -225,11 +225,7 @@ Set `identity.localAccounts.firstAdmin.email` on a new install: the hook creates
 
 The admin joins the tenant in `identity.localAccounts.firstAdmin.tenant`, default `default`. Leave it at `default`: it must name an existing tenant, and on a new install only `default` exists.
 
-identity-service ignores the other `identity.oidc` values under `local`, logging each one it ignores, so they can stay set for a later move to a provider. The chart refuses to render if this is set:
-
-- `identity.idpMigration.enabled: true`, or `identity.idpMigration.to` unless `identity.idpMigration.enabled` is false.
-
-Each error names the key to change.
+identity-service ignores the other `identity.oidc` values under `local`, logging each one it ignores, so they can stay set for a later move to a provider. Leave `identity.idpMigration` off: under `local`, `migrate-idp` does nothing in import mode and refuses to move people while local accounts exist.
 
 If the cluster also runs Zitadel and `istari-zitadel-configurator`:
 
@@ -302,7 +298,7 @@ The Secure Connection Service needs a credential that identity-service accepts, 
          - secure_connector
    ```
 
-   `name` only labels the registration Job; the agent's identity comes from the credential. The agent joins the tenant in `identity.localAccounts.firstAdmin.tenant` unless the entry sets `tenantSlug`. [Agent registration](#agent-registration) describes the other fields, except `providerName` and `providerTenantIdEnv`, which the chart refuses with `local`.
+   `name` only labels the registration Job; the agent's identity comes from the credential. The agent joins the installation's default tenant, `default` on a new install, unless the entry sets `tenantSlug`. [Agent registration](#agent-registration) describes the other fields.
 
 5. Delete `creds/`, which holds the private key.
 
@@ -397,7 +393,7 @@ People keep their principals, roles and keys when the install moves to an identi
    - Set `identity.oidc.provider` and the provider's other `identity.oidc` values.
    - Set `identity.idpMigration.enabled: false`. The chart cannot tell this upgrade from a Zitadel install's, and would otherwise run the Zitadel import.
    - For Zitadel, add `zitadel-identity-service-env` back to `identity.extraEnvSecrets`.
-   - In `identity.agentRegistration`, give each agent without `tenantSlug` the tenant it joined, `identity.localAccounts.firstAdmin.tenant`. With a provider, the chart requires `tenantSlug` or `providerName`.
+   - In `identity.agentRegistration`, give each agent without `tenantSlug` the tenant it joined, `identity.localAccounts.firstAdmin.tenant`. With a provider, `register-agent` requires `tenantSlug` or `providerName`.
    - If the Secure Connection Service runs, keep it signing in through identity-service, since its credential is an identity-service agent's. The chart sets this only under `local`, so add it to `secureConnection.env`:
 
      ```yaml

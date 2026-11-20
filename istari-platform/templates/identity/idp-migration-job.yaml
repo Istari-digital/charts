@@ -22,7 +22,6 @@
 {{- $import := eq $incoming $from -}}
 {{- $idpEnabled := index $idp "enabled" -}}
 {{- $render := ternary (ne (toString $idpEnabled) "false") (eq (toString $idpEnabled) "true") $import -}}
-{{- if and $serviceValues.enabled (eq $provider "local") (or $render (and $idp.to (ne (toString $idpEnabled) "false"))) }}{{ fail "identity.oidc.provider is \"local\", so the identity-provider migration cannot run: set identity.idpMigration.enabled to false" }}{{ end }}
 {{- if and $serviceValues.enabled $render }}
 {{- $runAsJob := dig "runAsJob" false (dig "migrations" dict $serviceValues) -}}
 {{- /* migrate-idp runs against the schema the weight-5 db-migrate hook leaves, which exists only with
