@@ -40,7 +40,7 @@ A default install deploys the identity service, the API Gateway and the provisio
 The chart supplies the rest of what a default install needs:
 
 - The identity service's database migration and, on a Zitadel install, the import of Zitadel's organizations, people and tenant administrator grants into the identity service, each as a Helm hook Job. The import requires `identity.migrations.runAsJob: true`, the default.
-- The identity service's CORS allowlist, `https://<mainFqdn>`. To allow other origins, set `ISTARI_DIGITAL_IDENTITY_SERVICE_CORS_ALLOWED_ORIGINS`, a comma-separated list, in `identity.env` or in the Secret named by `identity.secretName`. It replaces the chart's value, so include `https://<mainFqdn>`.
+- The identity service's CORS allowlist, `https://<mainFqdn>`. To allow other origins, set `ISTARI_DIGITAL_IDENTITY_SERVICE_CORS_ALLOWED_ORIGINS`, a comma-separated list, in `identity.env` or in the Secret named by `identity.secretName`. It replaces the chart's value, so include `https://<mainFqdn>`. With `identity.oidc.provider: local` and more than one origin, also set `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_URL` in `identity.env` to the web app's sign-in page, or identity-service does not start.
 - Through the [provisioner](#provisioner), the registry service's and MCP's client credentials and the identity service's signing and encryption keys.
 
 ### Customer identity providers
@@ -132,7 +132,7 @@ Expect a few minutes of errors while the services restart, after which every sig
 
 ## Agent registration
 
-`identity.agentRegistration` registers service agents, for example the Secure Connection Service, with the identity service so they can authenticate with `client_credentials`. With an identity provider, the chart leaves the Secure Connection Service on that provider. To move it to identity-service, register its agent here, then set `ISTARI_DIGITAL_IDENTITY_ROUTER_ENABLED: "true"` and `ISTARI_DIGITAL_IDENTITY_ROUTER_URL: https://<API host>/identity` in `secureConnection.env`, where the API host is `api.<common.mainFqdn>` unless `common.apiFqdnOverride` is set. Each entry in `agents` runs one hook Job on install and upgrade. On a Zitadel configurator install, these values register the Secure Connection Service:
+`identity.agentRegistration` registers service agents, for example the Secure Connection Service, with the identity service so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job on install and upgrade. On a Zitadel configurator install, these values register the Secure Connection Service:
 
 ```yaml
 identity:
@@ -216,12 +216,12 @@ apiGateway:
 The chart refuses to render with `local` unless each of these is set:
 
 - `identity.enabled: true`, so identity-service runs in the same release.
-- `frontend.enabled: true`, because people sign in with a local password only on the web app's sign-in page, MCP sign-ins included. identity-service sends sign-ins to `/sign-in` on its CORS origin, `https://<common.mainFqdn>`; to use another page, set `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_URL` in `identity.env`.
+- `frontend.enabled: true`, because people sign in with a local password only on the web app's sign-in page, MCP sign-ins included. identity-service sends sign-ins to `/sign-in` on its CORS origin, `https://<common.mainFqdn>`; to use another page, or when the CORS list holds more than one origin, set `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_URL` in `identity.env`.
 - `identity.clientIntegration.enabled: true`, so registry-service, the frontend and MCP sign people in through identity-service.
 - `apiGateway.enabled: true`, so the chart gives those services their identity-service settings.
 - `identity.migrations.runAsJob: true`, so the database schema exists before the hook creates the admin.
 
-Set `identity.localAccounts.firstAdmin.email` on a new install: the hook creates that person as the first platform admin. Without an active platform admin, identity-service warns at every start.
+Set `identity.localAccounts.firstAdmin.email` on a new install: the hook creates that person as the first platform admin. Without an active platform admin, identity-service warns at startup.
 
 The admin joins the tenant in `identity.localAccounts.firstAdmin.tenant`, default `default`. Leave it at `default`: it must name an existing tenant, and on a new install only `default` exists.
 
