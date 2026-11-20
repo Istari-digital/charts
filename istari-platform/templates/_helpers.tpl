@@ -196,8 +196,9 @@ which keys env by name and rejects duplicates.
 The one exception: when the winning entry's literal `value` references a `$(VAR)` whose first
 occurrence comes after the name's first position (say an `identity.env` override of a chart OIDC
 var pointing at a var defined earlier in `identity.env`), the name is emitted at the position of
-that winning entry instead, so the variable it references is defined ahead of it. `$$(` is an
-escape, not a reference.
+that winning entry instead, so the variable it references is defined ahead of it. It moves only
+when that variable first occurs between the two positions, and a reference to a variable that
+itself moves is not followed. `$$(` is an escape, not a reference.
 
 Input: a list of env maps (each with a `name`). Output: YAML for the deduped list.
 */}}
@@ -219,7 +220,7 @@ Input: a list of env maps (each with a `name`). Output: YAML for the deduped lis
 {{- /* An earlier entry that references this name then sees it unexpanded; the override's own reference wins. */ -}}
 {{- range $ref := regexFindAll `\$\$|\$\([^)]*\)` (toString $w.value) -1 -}}
 {{- $m := trimSuffix ")" (trimPrefix "$(" $ref) -}}
-{{- if and (hasKey $first $m) (gt (index $first $m) $i) }}{{- $pos = $j -}}{{- end -}}
+{{- if and (hasKey $first $m) (gt (index $first $m) $i) (lt (index $first $m) $j) }}{{- $pos = $j -}}{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- if eq $k $pos }}{{- $out = append $out $w -}}{{- end -}}
