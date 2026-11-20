@@ -9,8 +9,8 @@ Chart.lock
 charts/
 
 # Anchored to the repo root: an unanchored pattern would also swallow new files in
-# chart-level directories of the same name (e.g. dgraph-sec/scripts/, which is tracked
-# and shipped in the chart package).
+# chart-level directories of the same name (e.g. a chart's own scripts/ directory, which
+# would be shipped in the chart package).
 /manual/
 /scripts/
 
