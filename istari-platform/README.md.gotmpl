@@ -418,7 +418,13 @@ People keep their principals, roles and keys when the install moves to an identi
 
 ### Falling back to local accounts
 
-If the identity provider fails, set `identity.oidc.provider: local` and run `helm upgrade`. People whose passwords were not deleted sign in with them again, and sessions from the provider stop refreshing.
+If the identity provider fails, change the values, then run `helm upgrade`:
+
+1. Set `identity.oidc.provider: local`.
+2. Set `identity.trustedProxies`, which `local` requires; see [Client addresses and the sign-in limit](#client-addresses-and-the-sign-in-limit).
+3. In `identity.agentRegistration.agents`, for each entry that sets `providerName`, set `tenantSlug` to the tenant it joined and remove `providerName` and `providerTenantIdEnv`. The chart refuses to render otherwise.
+
+People whose passwords were not deleted sign in with them again, and sessions from the provider stop refreshing.
 
 A kept password also readmits anyone deprovisioned only at the provider. Before falling back, check people with `list-people` and deactivate anyone who should not return from the People list in the web app.
 
