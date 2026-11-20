@@ -14,6 +14,24 @@ A value carrying a scheme or path (a common migration mistake) would render e.g.
 {{- fail (printf "common.%s must be a scheme-less host (e.g. `api.example.com`), not a URL or path — got %q. Drop the scheme and any trailing path; the chart adds `https://` where it emits a URL." $key $val) }}
 {{- end }}
 {{- end }}
+{{- /* The provider checks below see only identity.oidc.provider and a literal identity.env value, so
+refuse a provider set anywhere else: identity-service and its Jobs then run the provider they check. */ -}}
+{{- if .Values.identity.enabled }}
+{{- range $key := list "migrations" "agentRegistration" }}
+{{- range (index $.Values.identity $key).env }}
+{{- if eq (toString .name) "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" }}
+{{- fail (printf "identity.%s.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER, which only that Job would run: remove it and set the provider in identity.oidc.provider (or identity.env), so identity-service and its Jobs run the same one" $key) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- $providerEntry := dict }}
+{{- range .Values.identity.env }}
+{{- if eq (toString .name) "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" }}{{- $providerEntry = . }}{{- end }}
+{{- end }}
+{{- if or $providerEntry.valueFrom (contains "$(" (toString (default "" $providerEntry.value))) }}
+{{- fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER through valueFrom or a $(VAR) reference, which the chart cannot read: set it as a literal value, or remove it and set identity.oidc.provider" }}
+{{- end }}
+{{- end }}
 {{- $provider := include "istari-platform.identityProvider" . }}
 {{- $providers := splitList " " (include "identity.providers" .) }}
 {{- if and .Values.identity.enabled (not $provider) }}
