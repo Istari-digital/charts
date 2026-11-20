@@ -62,6 +62,6 @@ full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- end }}
 {{- /* Only a full semver tag is checked; <X-0 also lets X's prereleases through. Applies whenever the hook renders. */ -}}
 {{- $identityTag := toString .Values.identity.tag }}
-{{- if and .Values.identity.enabled (or (eq $provider "local") $firstAdmin.email) (include "istari-platform.isFullSemver" $identityTag) (semverCompare "<2.5.0-0" $identityTag) }}
-{{- fail (printf "identity.tag %q is older than 2.5.0, which the bootstrap hook and identity.oidc.provider local require. Set identity.tag to 2.5.0 or later." $identityTag) }}
+{{- if and .Values.identity.enabled $firstAdmin.email (include "istari-platform.isFullSemver" $identityTag) (semverCompare "<2.5.0-0" $identityTag) }}
+{{- fail (printf "identity.tag %q is older than 2.5.0, which identity.localAccounts.firstAdmin.email requires: the hook that creates the first admin runs ensure-platform-admins -local-admin-email. Set identity.tag to 2.5.0 or later." $identityTag) }}
 {{- end }}

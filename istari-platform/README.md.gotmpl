@@ -191,7 +191,7 @@ With `identity.oidc.provider: local`, people sign in with local accounts stored 
 ### Requirements
 
 - One Helm release must deploy every platform service you run, including the API gateway. A release that deploys a service without the gateway fails to render, and releases that each enable the gateway conflict over its resources.
-- `identity.tag` must be 2.5.0 or later. The chart refuses to render with an older tag.
+- `identity.tag` must be 2.5.0 or later. With `identity.localAccounts.firstAdmin.email` set, the chart refuses to render with an older tag.
 
 ### Required values
 
