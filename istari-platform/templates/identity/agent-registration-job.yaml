@@ -167,8 +167,8 @@ spec:
         {{- end }}
         {{- end }}
       {{- end }}
-      {{- /* Without tenantSlug, register-agent finds the tenant through the provider mapping
-             the Zitadel import created, so there is nothing to create first. */}}
+      {{- /* Without tenantSlug, register-agent uses the tenant the provider mapping points to, or
+             the default tenant under local, so there is nothing to create first. */}}
       containers:
       - name: register-agent
         {{- with $serviceValues.containerSecurityContext }}

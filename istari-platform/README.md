@@ -168,7 +168,7 @@ identity:
 | `keyEnv` | Yes | Env var holding the agent's public-only credential blob. |
 | `tenantSlug` | Unless `providerName` and `providerTenantIdEnv` are set, or with `identity.oidc.provider: local`, where it defaults to the default tenant | Tenant to register in; the Job creates it if missing. Leave it out to use the tenant mapped to `providerName` and `providerTenantIdEnv`. |
 | `tenantDisplayName` | No | Display name for a tenant the Job creates. Only with `tenantSlug`. |
-| `providerName` | With `providerTenantIdEnv` | Upstream identity provider, such as `zitadel`. |
+| `providerName` | With `providerTenantIdEnv` | Upstream identity provider, such as `zitadel`. Not accepted with `identity.oidc.provider: local`; `register-agent` refuses it. |
 | `providerTenantIdEnv` | With `providerName` | Env var holding the agent's upstream organization id. Maps the tenant to that organization, so the agent's token carries it for Zitadel role lookups. |
 | `usernameEnv` | No | Env var holding the agent's upstream user id, binding the agent to that existing identity. |
 | `displayName` | No | Agent display name. |
@@ -182,6 +182,7 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 
 - **"is already linked to tenant":** the entry sets `tenantSlug` and `providerName`, but the import already mapped that organization to a different tenant. Remove `tenantSlug` and `tenantDisplayName`, or set `tenantSlug` to that tenant's slug, and upgrade again. The failed run leaves an empty tenant under the requested slug, which you can deactivate.
 - **No tenant mapped to the organization:** an entry without `tenantSlug` needs one, which the import normally creates. When the import is turned off, set `tenantSlug`.
+- **Neither `tenantSlug` nor `providerName` set, with an identity provider:** the registration Job fails. Read the `register-agent` container's log, set one of them, and upgrade again.
 
 ## Installing with no identity provider
 
@@ -393,7 +394,7 @@ People keep their principals, roles and keys when the install moves to an identi
    - Set `identity.oidc.provider` and the provider's other `identity.oidc` values.
    - Set `identity.idpMigration.enabled: false`. The chart cannot tell this upgrade from a Zitadel install's, and would otherwise run the Zitadel import.
    - For Zitadel, add `zitadel-identity-service-env` back to `identity.extraEnvSecrets`.
-   - In `identity.agentRegistration`, give each agent without `tenantSlug` the tenant it joined, `identity.localAccounts.firstAdmin.tenant`. With a provider, `register-agent` requires `tenantSlug` or `providerName`.
+   - In `identity.agentRegistration`, give each agent without `tenantSlug` the tenant it joined, the default tenant. With a provider, `register-agent` requires `tenantSlug` or `providerName`.
    - If the Secure Connection Service runs, keep it signing in through identity-service, since its credential is an identity-service agent's. The chart sets this only under `local`, so add it to `secureConnection.env`:
 
      ```yaml
