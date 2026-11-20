@@ -666,7 +666,7 @@ identity:
   # provider-specific configuration at startup, including configuration supplied through Secrets.
   # @default -- (see fields below)
   oidc:
-    # -- Required. The sign-in provider: `local`, `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall` or `google`; the chart refuses to render with it empty. Zitadel installs set `zitadel`. Select one provider per deployment. Okta, Google, and Lastwall are Preview integrations. With `local` there is no identity provider: people sign in with local accounts that identity-service stores, the other `identity.oidc` values are ignored, and [Installing with no identity provider](#installing-with-no-identity-provider) lists the other keys it requires. Rendered as `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER`.
+    # -- Required. The sign-in provider: `local`, `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall` or `google`; the chart refuses to render with it empty. Zitadel installs set `zitadel`. Select one provider per deployment. Okta, Google, and Lastwall are Preview integrations. With `local` there is no identity provider: people sign in with local accounts that identity-service stores, identity-service ignores the other `identity.oidc` values, and [Installing with no identity provider](#installing-with-no-identity-provider) lists the other keys it requires. Rendered as `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER`.
     provider: ""
     # -- Upstream IdP issuer URL, no trailing slash. OIDC discovery resolves at this issuer at startup.
     issuer: ""

@@ -223,9 +223,8 @@ The chart refuses to render with `local` unless each of these is set:
 
 The admin joins the tenant in `identity.localAccounts.firstAdmin.tenant`, default `default`. Leave it at `default`: it must name an existing tenant, and on a new install only `default` exists.
 
-With `local` the chart ignores the other `identity.oidc` values, so they can stay set for a later move to a provider. It refuses to render if any of these is set:
+identity-service ignores the other `identity.oidc` values under `local`, logging each one it ignores, so they can stay set for a later move to a provider. The chart refuses to render if this is set:
 
-- An `identity.env` entry that sets `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` or its former name, `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER`.
 - `identity.idpMigration.enabled: true`, or `identity.idpMigration.to` unless `identity.idpMigration.enabled` is false.
 
 Each error names the key to change.

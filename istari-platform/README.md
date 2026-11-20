@@ -224,9 +224,8 @@ The chart refuses to render with `local` unless each of these is set:
 
 The admin joins the tenant in `identity.localAccounts.firstAdmin.tenant`, default `default`. Leave it at `default`: it must name an existing tenant, and on a new install only `default` exists.
 
-With `local` the chart ignores the other `identity.oidc` values, so they can stay set for a later move to a provider. It refuses to render if any of these is set:
+identity-service ignores the other `identity.oidc` values under `local`, logging each one it ignores, so they can stay set for a later move to a provider. The chart refuses to render if this is set:
 
-- An `identity.env` entry that sets `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` or its former name, `ISTARI_DIGITAL_IDENTITY_SERVICE_IDP_PROVIDER`.
 - `identity.idpMigration.enabled: true`, or `identity.idpMigration.to` unless `identity.idpMigration.enabled` is false.
 
 Each error names the key to change.
@@ -754,7 +753,7 @@ To return to the provider, set it again, keep `identity.idpMigration.enabled: fa
 | identity.oidc.clientId | string | `""` | Client ID registered for identity at the upstream IdP. |
 | identity.oidc.defaultTenantId | string | `""` | For `entra`, `okta`, `pingfederate`, `lastwall`, and `google`: not used; each person takes their tenant from their own membership. Otherwise OPTIONAL, and NOT needed for a migration: migrated users carry their tenant on their imported principal, so tenancy resolves without this. It only stamps a fallback grouping for NET-NEW users at a grouping-less IdP (a Keycloak realm) with no principal yet, and only makes sense for a single-tenant deployment (one realm cannot default to the right one of several imported tenants). Set it to the provider tenant id the deployment's tenant mapping is keyed on. |
 | identity.oidc.issuer | string | `""` | Upstream IdP issuer URL, no trailing slash. OIDC discovery resolves at this issuer at startup. |
-| identity.oidc.provider | string | `""` | Required. The sign-in provider: `local`, `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall` or `google`; the chart refuses to render with it empty. Zitadel installs set `zitadel`. Select one provider per deployment. Okta, Google, and Lastwall are Preview integrations. With `local` there is no identity provider: people sign in with local accounts that identity-service stores, the other `identity.oidc` values are ignored, and [Installing with no identity provider](#installing-with-no-identity-provider) lists the other keys it requires. Rendered as `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER`. |
+| identity.oidc.provider | string | `""` | Required. The sign-in provider: `local`, `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall` or `google`; the chart refuses to render with it empty. Zitadel installs set `zitadel`. Select one provider per deployment. Okta, Google, and Lastwall are Preview integrations. With `local` there is no identity provider: people sign in with local accounts that identity-service stores, identity-service ignores the other `identity.oidc` values, and [Installing with no identity provider](#installing-with-no-identity-provider) lists the other keys it requires. Rendered as `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER`. |
 | identity.oidc.scopes | string | `""` | Space-separated OIDC scopes to request. Empty adds no chart override; Secrets or Identity Service determine the scopes. Use the scopes required by your provider configuration. |
 | identity.podAnnotations | object | `{}` | Additional annotations to add to pods |
 | identity.podLabels | object | `{}` | Additional labels to add to pods |
