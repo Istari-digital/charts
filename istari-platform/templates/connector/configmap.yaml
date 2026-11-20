@@ -21,14 +21,11 @@ data:
   # With the gateway the connector reaches the registry at <base>/registry and derives the identity
   # issuer as <base>/identity, so the direct registry URL above becomes a fallback only.
   ISTARI_CONNECTOR_API_URL: {{ $gatewayUrl | quote }}
-  ISTARI_CONNECTOR_IDENTITY_SERVICE_ENABLED: {{ dig "clientIntegration" "enabled" false .Values.identity | quote }}
-  {{- if dig "clientIntegration" "enabled" false .Values.identity }}
-  # The connector shares MCP's identity client: the provisioner registers a fixed client set, and
-  # the connector's callback is added to that client's redirect allowlist (identity/configmap.yaml).
-  ISTARI_CONNECTOR_IDENTITY_SERVICE_CLIENT_ID: "mcp"
+  # The connector signs users in through MCP's identity client, whose fixed id the connector image
+  # defaults; its callback is on that client's redirect allowlist (identity/configmap.yaml).
+  ISTARI_CONNECTOR_IDENTITY_SERVICE_ENABLED: {{ .Values.identity.clientIntegration.enabled | quote }}
   {{- end }}
-  {{- end }}
-  {{- if dig "enabled" false (default dict .Values.jaeger) }}
+  {{- if .Values.jaeger.enabled }}
   {{- /* The connector service runs under opentelemetry-instrument with the SDK disabled by default;
   OTEL_SDK_DISABLED=false opts in. OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES are set as
   explicit env by "istari-platform.workloadIdentityEnv": the resource attributes reference

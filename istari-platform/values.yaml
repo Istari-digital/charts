@@ -503,7 +503,7 @@ connector:
   imagePullPolicy: IfNotPresent
   # -- Extra ConfigMaps whose entries become environment variables (listed in `envFrom` after any chart-injected defaults and before the user-specified Secrets, so those Secrets win on duplicate keys).
   extraEnvConfigMaps: []
-  # -- Secrets whose entries become environment variables. A ConfigMap is created automatically with the chart-derivable values (ISTARI_CONNECTOR_BASE_URL, ISTARI_CONNECTOR_REGISTRY_URL, and the gateway/identity settings), so these carry only identity-provider credentials and any overrides. With the identity service, list the Secret holding the connector's own identity-service client (`ISTARI_CONNECTOR_IDENTITY_SERVICE_CLIENT_CREDENTIALS`; helm-stack's Terraform writes `istari-connector-identity-client`): it proves the connector to the registry, with no Zitadel-derived key. A listed Secret is required, so the pod waits for it rather than starting without it.
+  # -- Secrets whose entries become environment variables. A ConfigMap is created automatically with the chart-derivable values (ISTARI_CONNECTOR_BASE_URL, ISTARI_CONNECTOR_REGISTRY_URL, and the gateway/identity settings), so these carry only credentials and overrides. With the identity service, list a Secret holding `ISTARI_CONNECTOR_IDENTITY_SERVICE_CLIENT_CREDENTIALS`, the connector's own identity-service client, which proves the connector to the registry. A listed Secret is required, so the pod waits for it rather than starting without it.
   extraEnvSecrets: []
   # -- Replica count
   replicaCount: 1
@@ -535,20 +535,18 @@ connector:
     runAsUser: 65532
   # -- Additional annotations to apply to the service account
   serviceAccountAnnotations: {}
-  # Environment variables
-  ###############################
-  # This has the same schema as the standard `env:` block in a pod's container's definition. For example:
+  # Environment variables. For example:
   # env:
   # - name: ISTARI_CONNECTOR_LOG_LEVEL
   #   value: DEBUG
-  ###############################
-  # If you are using secrets, you can use the following format:
+  # or from a Secret:
   # env:
-  # - name: ISTARI_DIGITAL_LOG_LEVEL
+  # - name: ISTARI_CONNECTOR_LOG_LEVEL
   #   valueFrom:
   #     secretKeyRef:
   #       name: my-connector-secret
   #       key: ISTARI_CONNECTOR_LOG_LEVEL
+  # -- Extra environment variables for the connector container, in the standard container `env:` schema (`name` with `value` or `valueFrom`). They override the chart's generated defaults and every `envFrom` source.
   env: []
   # Autoscaling -- set autoscaling (HPA) parameters
   autoscaling:
