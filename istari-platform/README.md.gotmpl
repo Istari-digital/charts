@@ -219,7 +219,8 @@ The chart refuses to render with `local` unless each of these is set:
 - `identity.clientIntegration.enabled: true`, so registry-service, the frontend and MCP sign people in through identity-service.
 - `apiGateway.enabled: true`, so the chart gives those services their identity-service settings.
 - `identity.migrations.runAsJob: true`, so the database schema exists before the hook creates the admin.
-- `identity.localAccounts.firstAdmin.email`, the first platform admin's email.
+
+Set `identity.localAccounts.firstAdmin.email` on a new install: the hook creates that person as the first platform admin. Without an active platform admin, identity-service warns at every start.
 
 The admin joins the tenant in `identity.localAccounts.firstAdmin.tenant`, default `default`. Leave it at `default`: it must name an existing tenant, and on a new install only `default` exists.
 
@@ -253,7 +254,7 @@ Skip this if `secureConnection.enabled` is false.
 
 With `local`, the chart points the Secure Connection Service at identity-service, since client integration and the API gateway are already required there.
 
-The Secure Connection Service needs a credential that identity-service accepts, registered as an agent. The chart refuses to render with `local` and `secureConnection.enabled: true` until `identity.agentRegistration` declares an agent with the platform role `secure_connector`. Do these steps once, before the `helm install` or `helm upgrade` that enables the service. You need docker, jq, openssl and kubectl.
+The Secure Connection Service needs a credential that identity-service accepts, registered as an agent. Do these steps once, before the `helm install` or `helm upgrade` that enables the service. You need docker, jq, openssl and kubectl.
 
 1. Generate the credential with the identity-service image. Use the same tag as `identity.tag`.
 

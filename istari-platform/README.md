@@ -220,7 +220,8 @@ The chart refuses to render with `local` unless each of these is set:
 - `identity.clientIntegration.enabled: true`, so registry-service, the frontend and MCP sign people in through identity-service.
 - `apiGateway.enabled: true`, so the chart gives those services their identity-service settings.
 - `identity.migrations.runAsJob: true`, so the database schema exists before the hook creates the admin.
-- `identity.localAccounts.firstAdmin.email`, the first platform admin's email.
+
+Set `identity.localAccounts.firstAdmin.email` on a new install: the hook creates that person as the first platform admin. Without an active platform admin, identity-service warns at every start.
 
 The admin joins the tenant in `identity.localAccounts.firstAdmin.tenant`, default `default`. Leave it at `default`: it must name an existing tenant, and on a new install only `default` exists.
 
@@ -254,7 +255,7 @@ Skip this if `secureConnection.enabled` is false.
 
 With `local`, the chart points the Secure Connection Service at identity-service, since client integration and the API gateway are already required there.
 
-The Secure Connection Service needs a credential that identity-service accepts, registered as an agent. The chart refuses to render with `local` and `secureConnection.enabled: true` until `identity.agentRegistration` declares an agent with the platform role `secure_connector`. Do these steps once, before the `helm install` or `helm upgrade` that enables the service. You need docker, jq, openssl and kubectl.
+The Secure Connection Service needs a credential that identity-service accepts, registered as an agent. Do these steps once, before the `helm install` or `helm upgrade` that enables the service. You need docker, jq, openssl and kubectl.
 
 1. Generate the credential with the identity-service image. Use the same tag as `identity.tag`.
 
@@ -723,7 +724,7 @@ To return to the provider, set it again, keep `identity.idpMigration.enabled: fa
 | identity.ingress.servicePort | int | `80` | Service port the Ingress targets. Defaults to 80. |
 | identity.ingress.tls | list | `[]` | TLS configuration; passed through to `spec.tls[]` verbatim. |
 | identity.localAccounts | object | (see fields below) | identity-service's password and sign-in settings, used only with `identity.oidc.provider: local`, and the first platform admin (`firstAdmin`). Each renders only when set; unset keeps identity-service's own default. With an identity provider configured, identity-service logs that a set value is ignored. |
-| identity.localAccounts.firstAdmin | object | (see fields below) | The first platform admin, created as a local account. Required when `identity.oidc.provider` is `local`. See [Installing with no identity provider](#installing-with-no-identity-provider). |
+| identity.localAccounts.firstAdmin | object | (see fields below) | The first platform admin, created as a local account. Set it on a new install with `identity.oidc.provider: local`; identity-service warns at startup when local accounts have no active platform admin. See [Installing with no identity provider](#installing-with-no-identity-provider). |
 | identity.localAccounts.firstAdmin.email | string | `""` | Email of the first platform admin. With `identity.oidc.provider: local`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody. Requires `identity.tag` 2.5.0 or later. |
 | identity.localAccounts.firstAdmin.familyName | string | `""` | Family name of the first platform admin. At most 200 characters. |
 | identity.localAccounts.firstAdmin.givenName | string | `""` | Given name of the first platform admin, shown with the family name instead of the email. At most 200 characters. |

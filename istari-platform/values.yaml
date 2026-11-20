@@ -877,7 +877,7 @@ identity:
     # -- (string) URL of the Privacy Policy link at the foot of the web app's sign-in pages, opened in a new tab. Used only with `identity.oidc.provider: local`.
     # @default -- no link
     privacyLink: null
-    # -- The first platform admin, created as a local account. Required when `identity.oidc.provider` is `local`. See [Installing with no identity provider](#installing-with-no-identity-provider).
+    # -- The first platform admin, created as a local account. Set it on a new install with `identity.oidc.provider: local`; identity-service warns at startup when local accounts have no active platform admin. See [Installing with no identity provider](#installing-with-no-identity-provider).
     # @default -- (see fields below)
     firstAdmin:
       # -- Email of the first platform admin. With `identity.oidc.provider: local`, a pre-install and pre-upgrade hook creates this person as a local platform admin when no active platform admin exists and nobody holds the email. With an identity provider, the hook creates nobody. Requires `identity.tag` 2.5.0 or later.
