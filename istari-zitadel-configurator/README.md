@@ -1,6 +1,6 @@
 # istari-zitadel-configurator
 
-![Version: 1.11.4](https://img.shields.io/badge/Version-1.11.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 8.13.4](https://img.shields.io/badge/AppVersion-8.13.4-informational?style=flat-square)
+![Version: 1.12.0](https://img.shields.io/badge/Version-1.12.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 8.13.4](https://img.shields.io/badge/AppVersion-8.13.4-informational?style=flat-square)
 
 A Helm chart for configuring Zitadel instance to work with Istari.
 
@@ -77,6 +77,7 @@ helm uninstall istari-zitadel-configurator
 | configurator.tos_link | string | `"https://domain.com/terms-of-service"` | Terms of service link |
 | configurator.zitadel_domain | string | `"zitadel.domain.com"` | Ziatdel domain |
 | configurator.zitadel_insecure | bool | `false` | Whether to connect to Ziatdel over insecure channel |
+| configurator.zitadel_internal_url | string | `""` | In-cluster Zitadel URL, including scheme and any non-default port, e.g. `http://zitadel.<namespace>.svc.cluster.local:8080`. Written to the backends as ISTARI_DIGITAL_ZITADEL_INTERNAL_URL; empty writes an empty value, which the services treat as unset |
 | configurator.zitadel_port | int | `443` | Ziatdel port |
 | configurator.zitadel_sa_secret_name | string | `"zitadel-sa-user"` | The secret name the is created by Ziatdel helm chart |
 | extraEnv | list | `[]` | Additional environment variables to add to the container. |
