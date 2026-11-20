@@ -37,6 +37,9 @@ A value carrying a scheme or path (a common migration mistake) would render e.g.
 {{- if and (eq $provider "local") .Values.identity.enabled (not .Values.frontend.enabled) }}
 {{- fail "identity.oidc.provider is \"local\", so frontend.enabled must be true: people sign in with a local password only on the web app's sign-in page, MCP sign-ins included" }}
 {{- end }}
+{{- if and (eq $provider "local") .Values.identity.enabled (not .Values.identity.trustedProxies) }}
+{{- fail "identity.oidc.provider is \"local\", so identity.trustedProxies must be set: identity-service does not start without it under local. Set it to the proxies in front of identity-service (the API gateway pods and the ingress in front of them), or to 127.0.0.1 when clients connect to identity-service directly." }}
+{{- end }}
 {{- /* Only a full semver tag is checked; <X-0 also lets X's prereleases through. Applies whenever the hook renders. */ -}}
 {{- $identityTag := toString .Values.identity.tag }}
 {{- if and .Values.identity.enabled $firstAdmin.email (include "istari-platform.isFullSemver" $identityTag) (semverCompare "<2.5.0-0" $identityTag) }}

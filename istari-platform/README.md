@@ -220,6 +220,7 @@ The chart refuses to render with `local` unless each of these is set:
 - `identity.clientIntegration.enabled: true`, so registry-service, the frontend and MCP sign people in through identity-service.
 - `apiGateway.enabled: true`, so the chart gives those services their identity-service settings.
 - `identity.migrations.runAsJob: true`, so the database schema exists before the hook creates the admin.
+- `identity.trustedProxies`, because identity-service does not start without it. See [Client addresses and the sign-in limit](#client-addresses-and-the-sign-in-limit).
 
 Set `identity.localAccounts.firstAdmin.email` on a new install: the hook creates that person as the first platform admin. Without an active platform admin, identity-service warns at startup.
 
@@ -319,10 +320,10 @@ They match `configurator.tos_link` and `configurator.privacy_link` in istari-zit
 
 ### Client addresses and the sign-in limit
 
-identity-service limits sign-in attempts per client address (`identity.localAccounts.signInRateLimit`). Unless it can see each person's address, everyone shares that one limit. Set these before installing:
+identity-service limits sign-in attempts per client address (`identity.localAccounts.signInRateLimit`). Unless it can see each person's address, everyone shares that one limit. Under `local`, identity-service does not start without `identity.trustedProxies`. Set these before installing:
 
 - `apiGateway.trustedProxies` to the CIDR ranges of the ingress controller and load balancer in front of the API gateway.
-- `identity.trustedProxies` to the same ranges plus the API gateway pods' addresses. Pod addresses change, so this is usually the pod network's range.
+- `identity.trustedProxies` to the same ranges plus the API gateway pods' addresses. Pod addresses change, so this is usually the pod network's range. When clients connect to identity-service directly rather than through a proxy, use `127.0.0.1`.
 
 If `identity.trustedProxies` includes the pod network, allow only the API gateway to reach identity-service, for example with a NetworkPolicy. Otherwise any pod can claim to be a proxy and send a false client address.
 
@@ -767,7 +768,7 @@ To return to the provider, set it again, keep `identity.idpMigration.enabled: fa
 | identity.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
 | identity.tag | string | `"2.4.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |
 | identity.tolerations | list | `[]` | Tolerations. Example:  ``` tolerations: - "effect": "NoSchedule"   "key": "istari.k8s.io/role"   "operator": "Equal"   "value": "main" ``` |
-| identity.trustedProxies | list | `[]` | IP addresses or CIDR ranges of the proxies in front of identity-service, such as the API gateway's pods and the ingress controller in front of it. identity-service trusts their `X-Forwarded-For` to find each client's address for its per-address sign-in limit. Left empty, every client behind them shares one limit. See [Client addresses and the sign-in limit](#client-addresses-and-the-sign-in-limit). |
+| identity.trustedProxies | list | `[]` | IP addresses or CIDR ranges of the proxies in front of identity-service, such as the API gateway's pods and the ingress controller in front of it. identity-service trusts their `X-Forwarded-For` to find each client's address for its per-address sign-in limit. Required with `identity.oidc.provider: local`; use `127.0.0.1` when clients connect to identity-service directly. With other providers, left empty, every client behind them shares one limit. See [Client addresses and the sign-in limit](#client-addresses-and-the-sign-in-limit). |
 | identity.virtualService.annotations | object | `{}` | Annotations on the VirtualService. |
 | identity.virtualService.enabled | bool | `false` | Create an Istio VirtualService for this service. Requires Istio installed in the cluster with the `networking.istio.io/v1` CRD (Istio 1.22+). |
 | identity.virtualService.gateways | list | `[]` | `spec.gateways[]` — Gateway resources to attach to. Use `<namespace>/<gateway-name>` to reference a Gateway in another namespace. Leave empty for mesh-internal traffic only. |
