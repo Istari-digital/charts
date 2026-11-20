@@ -12,8 +12,8 @@ Reads the identity.oidc.* fields directly — values.yaml is the source of truth
 for their defaults (per AGENTS.md), so the template adds no fallbacks of its own.
 The provider always emits; validations.yaml requires it and checks it against
 identity.providers. Each other field emits only when non-empty, and clientAuthMethod
-is validated, so a typo fails `helm template` rather than the running pod. identity-service ignores the OIDC fields under `local`, so they
-emit as for any provider.
+is validated, so a typo fails `helm template` rather than the running pod. identity-service ignores the
+OIDC fields under `local`, so they emit as for any provider.
 What a provider requires of the other fields (Entra's, for one) is left to
 identity-service, which checks it at startup.
 */}}

@@ -132,7 +132,7 @@ Expect a few minutes of errors while the services restart, after which every sig
 
 ## Agent registration
 
-`identity.agentRegistration` registers service agents, for example the Secure Connection Service, with the identity service so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job on install and upgrade. On a Zitadel configurator install, these values register the Secure Connection Service:
+`identity.agentRegistration` registers service agents, for example the Secure Connection Service, with the identity service so they can authenticate with `client_credentials`. With `identity.clientIntegration.enabled` and the API gateway on, the chart points the Secure Connection Service at identity-service for any provider, so register it here before you upgrade. Each entry in `agents` runs one hook Job on install and upgrade. On a Zitadel configurator install, these values register the Secure Connection Service:
 
 ```yaml
 identity:
@@ -678,8 +678,8 @@ To return to the provider, set it again, keep `identity.idpMigration.enabled: fa
 | identity.autoscaling.maxReplicas | int | `2` | Maximum number of replicas |
 | identity.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | identity.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
-| identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, MCP once its credential is provisioned and, with the API gateway, the Secure Connection Service) onto it. |
-| identity.clientIntegration.enabled | bool | `true` | Whether the registry, the frontend and MCP authenticate through identity-service; a release that turns identity-service off sets this to `false` too. |
+| identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. |
+| identity.clientIntegration.enabled | bool | `true` | Whether the registry, the frontend, MCP and, with the API gateway, the Secure Connection Service authenticate through identity-service; a release that turns identity-service off sets this to `false` too. |
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | identity.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | identity.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
