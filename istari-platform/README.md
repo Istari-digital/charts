@@ -1,6 +1,6 @@
 # istari-platform
 
-![Version: 8.0.0](https://img.shields.io/badge/Version-8.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
+![Version: 8.1.0](https://img.shields.io/badge/Version-8.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.x.x](https://img.shields.io/badge/AppVersion-12.x.x-informational?style=flat-square)
 
 An umbrella helm chart used to install all Kubernetes components of the Istari Digital Platform's control plane.
 
@@ -125,7 +125,7 @@ To replace the credentials the provisioner generates, set `provisioner.secretRot
 
 ```bash
 RELEASE=istari
-CHART=istari-platform-8.0.0.tgz
+CHART=istari-platform-8.1.0.tgz
 helm upgrade --wait --wait-for-jobs -f istari-values.yaml $RELEASE $CHART
 kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app.kubernetes.io/instance=$RELEASE
 ```
