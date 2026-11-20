@@ -28,3 +28,9 @@ controller at the {{ include "api-gateway.fullname" . }} Service on port 80, the
 registry service is exposed. TLS terminates there — the API Gateway itself serves plain HTTP.
 The chart can also create these for you: see `apiGateway.ingress` and `apiGateway.virtualService`.
 {{- end -}}
+{{- if and .Values.provisioner.enabled (ne (toString .Values.provisioner.secretRotationIteration) "1") }}
+
+If this upgrade changed provisioner.secretRotationIteration, restart the services once the provisioner Job has completed:
+
+  kubectl rollout restart deployment -l app.kubernetes.io/name={{ include "istari-platform.name" . | trimAll "\"" }},app.kubernetes.io/instance={{ .Release.Name }}
+{{- end }}
