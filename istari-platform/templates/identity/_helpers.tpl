@@ -13,9 +13,9 @@ for their defaults (per AGENTS.md), so the template adds no fallbacks of its own
 The provider always emits; validations.yaml requires it and checks it against
 identity.providers. Each other field emits only when non-empty, and clientAuthMethod
 is validated (except under `local`, where identity-service ignores it), so a typo fails
-`helm template` rather than the running pod. The fields emit as for any provider.
-What a provider requires of the other fields (Entra's, for one) is left to
-identity-service, which checks it at startup.
+`helm template` rather than the running pod. Under local the fields still emit;
+identity-service ignores them. What a provider requires of the other fields (Entra's, for
+one) is left to identity-service, which checks it at startup.
 */}}
 {{- define "identity.oidcEnv" -}}
 {{- $oidc := .oidc -}}
@@ -58,7 +58,7 @@ identity.oidc.provider; upgrade if such an override must drive the chart's local
 {{- $r := $base -}}
 {{- range $id.env }}
 {{- if eq .name "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" }}
-{{- if and (hasKey . "value") (not (contains "$(" (toString .value))) }}{{ $r = toString .value }}{{ else }}{{ $r = $base }}{{ end }}
+{{- if and (hasKey . "value") (not (contains "$(" (toString (default "" .value)))) }}{{ $r = toString (default "" .value) }}{{ else }}{{ $r = $base }}{{ end }}
 {{- end }}
 {{- end -}}
 {{ $r }}
