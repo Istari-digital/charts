@@ -290,6 +290,23 @@ always resolves; the guard below is retained only as defence.
 {{- end }}
 
 {{/*
+The connector service's public base URL (`https://<connector host>`), where the host is
+`common.connectorFqdnOverride` or `connectors.<common.mainFqdn>`. Its OIDC redirect URI is this URL
+plus `/auth/callback`. `common.mainFqdn` is required, so the host always resolves; the guard below is
+retained only as defence.
+*/}}
+{{- define "istari-platform.connectorUrl" -}}
+{{- $mainFqdn := trim .Values.common.mainFqdn -}}
+{{- $host := trim .Values.common.connectorFqdnOverride -}}
+{{- if and (not $host) $mainFqdn -}}
+{{- $host = printf "connectors.%s" $mainFqdn -}}
+{{- end -}}
+{{- if $host -}}
+{{- printf "https://%s" $host -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 In-cluster base URLs for the platform's backend services, emitted into each backend's ConfigMap.
 Always rendered in full, independent of which services a release enables.
 */}}
@@ -297,6 +314,7 @@ Always rendered in full, independent of which services a release enables.
 ISTARI_DIGITAL_REGISTRY_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "fileservice.fullname" .) | quote }}
 ISTARI_DIGITAL_IDENTITY_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "identity.fullname" .) | quote }}
 ISTARI_DIGITAL_MCP_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "mcp.fullname" .) | quote }}
+ISTARI_DIGITAL_CONNECTOR_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "connector.fullname" .) | quote }}
 ISTARI_DIGITAL_SECURE_CONNECTION_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "secure-connection.fullname" .) | quote }}
 ISTARI_DIGITAL_API_GATEWAY_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "api-gateway.fullname" .) | quote }}
 {{- end }}

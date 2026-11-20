@@ -128,6 +128,18 @@ kubectl rollout restart deployment -l app.kubernetes.io/name=istari-platform,app
 
 Expect a few minutes of errors while the services restart, after which every signed-in user signs in again. Stored data is unaffected.
 
+## Connector service
+
+`connector.enabled` deploys the connector service, which exposes vendor applications' HTTP APIs as MCP servers: one endpoint per connector at `https://<connector host>/<connector-id>/mcp`. The chart points the registry service at it so the AI chat can use its connectors. To set it up:
+
+1. **Route its public host.** The service is served at `connectors.<mainFqdn>`, or at `common.connectorFqdnOverride` when set. Give that host DNS and TLS the way you do the platform's other hosts.
+2. **Allow its sign-in callback.** External MCP clients sign in through the connector service, whose callback is `https://<connector host>/auth/callback`. With the identity service, the chart adds it to MCP's redirect allowlist. If you set `ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_REDIRECT_URIS` on the identity service yourself, that value replaces the chart's list, so include the connector callback in it. Without the identity service, register the callback with your identity provider.
+3. **Supply its credentials in a Secret** listed in `connector.extraEnvSecrets`:
+   - With the identity service: `ISTARI_CONNECTOR_IDENTITY_SERVICE_CLIENT_CREDENTIALS`, the connector's own identity-service client, which it presents to the registry to fetch users' vendor credentials.
+   - Without it: `ISTARI_CONNECTOR_ZITADEL_ISSUER`, `ISTARI_CONNECTOR_ZITADEL_CLIENT_ID` and `ISTARI_CONNECTOR_ZITADEL_CLIENT_SECRET` for the client you registered.
+
+Replicas share their sign-in state through NATS. With the bundled NATS (`nats.enabled`, the default) the chart wires `ISTARI_CONNECTOR_NATS_URL` and `ISTARI_CONNECTOR_NATS_TOKEN` itself; without it, set both in `connector.env` before running more than one replica. Rendering fails when `ISTARI_CONNECTOR_NATS_URL` is missing; it can't check the token, which an authenticated NATS server also needs.
+
 ## Agent registration
 
 `identity.agentRegistration` registers service agents, for example the Secure Connection Service, with the identity service so they can authenticate with `client_credentials`. Each entry in `agents` runs one hook Job on install and upgrade. On a Zitadel configurator install, these values register the Secure Connection Service:

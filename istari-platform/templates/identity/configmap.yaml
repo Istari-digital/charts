@@ -47,8 +47,14 @@ data:
   {{- with include "istari-platform.frontendRedirectUri" . }}
   ISTARI_DIGITAL_IDENTITY_SERVICE_FRONTEND_REDIRECT_URIS: {{ . | quote }}
   {{- end }}
-  {{- with include "istari-platform.mcpRedirectUri" . }}
-  ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_REDIRECT_URIS: {{ . | quote }}
+  {{- /* The connector service signs users in through MCP's client, so its callback joins MCP's
+  allowlist (a comma-separated list) when it is enabled. */}}
+  {{- $mcpRedirectUris := compact (list (include "istari-platform.mcpRedirectUri" .)) }}
+  {{- if .Values.connector.enabled }}
+  {{- $mcpRedirectUris = append $mcpRedirectUris (printf "%s/auth/callback" (include "istari-platform.connectorUrl" .)) }}
+  {{- end }}
+  {{- with $mcpRedirectUris }}
+  ISTARI_DIGITAL_IDENTITY_SERVICE_MCP_REDIRECT_URIS: {{ join "," . | quote }}
   {{- end }}
   {{- end }}
 {{- end }}
