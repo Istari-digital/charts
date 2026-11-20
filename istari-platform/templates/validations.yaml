@@ -14,9 +14,58 @@ A value carrying a scheme or path (a common migration mistake) would render e.g.
 {{- fail (printf "common.%s must be a scheme-less host (e.g. `api.example.com`), not a URL or path — got %q. Drop the scheme and any trailing path; the chart adds `https://` where it emits a URL." $key $val) }}
 {{- end }}
 {{- end }}
+{{- /* The provider checks below see only identity.oidc.provider and a literal identity.env value, so
+refuse a provider set anywhere else: identity-service and its Jobs then run the provider they check. */ -}}
+{{- if .Values.identity.enabled }}
+{{- range $key := list "migrations" "agentRegistration" }}
+{{- range (index $.Values.identity $key).env }}
+{{- if eq (toString .name) "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" }}
+{{- fail (printf "identity.%s.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER, which identity-service itself would not run: remove it and set the provider in identity.oidc.provider (or identity.env), so identity-service and every workload run the same one" $key) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- $providerEntry := dict }}
+{{- range .Values.identity.env }}
+{{- if eq (toString .name) "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" }}{{- $providerEntry = . }}{{- end }}
+{{- end }}
+{{- if and (hasKey $providerEntry "name") (or $providerEntry.valueFrom (not $providerEntry.value) (contains "$(" (toString (default "" $providerEntry.value)))) }}
+{{- fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER without a literal value (through valueFrom, a $(VAR) reference, or no value), which the chart cannot read: give it a literal provider value, or remove it and set identity.oidc.provider" }}
+{{- end }}
+{{- end }}
+{{- $provider := include "istari-platform.identityProvider" . }}
+{{- $providers := splitList " " (include "identity.providers" .) }}
+{{- if and .Values.identity.enabled (not $provider) }}
+{{- fail "identity.oidc.provider is required: set local for local accounts, or the identity provider this install uses (zitadel on a Zitadel install)" }}
+{{- end }}
+{{- if and $provider (not (has $provider $providers)) }}
+{{- fail (printf "identity.oidc.provider must be one of %s, got %q" (join ", " $providers) $provider) }}
+{{- end }}
+{{- $firstAdmin := include "istari-platform.firstAdmin" . | fromJson }}
+{{- $clientIntegration := false }}
+{{- with .Values.identity.clientIntegration }}{{- $clientIntegration = .enabled }}{{- end }}
+{{- if and (eq $provider "local") (not $clientIntegration) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled) }}
+{{- fail "identity.oidc.provider is \"local\", so identity.clientIntegration.enabled must be true: without it registry-service, the frontend and MCP still authenticate against Zitadel" }}
+{{- end }}
+{{- if and (eq $provider "local") (not .Values.identity.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.secureConnection.enabled) }}
+{{- fail "identity.oidc.provider is \"local\", so identity.enabled must be true: registry-service, the frontend, MCP and the Secure Connection Service authenticate through identity-service, which must run in the same release" }}
+{{- end }}
+{{- if and (eq $provider "local") (not .Values.apiGateway.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.identity.enabled .Values.secureConnection.enabled) }}
+{{- fail "identity.oidc.provider is \"local\", so apiGateway.enabled must be true: without the API gateway the chart gives registry-service, the frontend and MCP no identity-service settings, and identity-service cannot accept the Secure Connection Service's token" }}
+{{- end }}
+{{- if and (eq $provider "local") .Values.identity.enabled (not .Values.frontend.enabled) }}
+{{- fail "identity.oidc.provider is \"local\", so frontend.enabled must be true: people sign in with a local password only on the web app's sign-in page, MCP sign-ins included" }}
+{{- end }}
+{{- if and (eq $provider "local") .Values.identity.enabled (not .Values.identity.trustedProxies) }}
+{{- fail "identity.oidc.provider is \"local\", so identity.trustedProxies must be set: identity-service does not start without it under local. Set it to the proxies in front of identity-service (the API gateway pods and the ingress in front of them), or to 127.0.0.1 when clients connect to identity-service directly. Behind an Istio sidecar the list must also include 127.0.0.6." }}
+{{- end }}
+{{- /* Only a full semver tag is checked; <X-0 also lets X's prereleases through. Applies whenever the hook renders. */ -}}
+{{- $identityTag := toString .Values.identity.tag }}
+{{- if and .Values.identity.enabled $firstAdmin.email (include "istari-platform.isFullSemver" $identityTag) (semverCompare "<2.5.0-0" $identityTag) }}
+{{- fail (printf "identity.tag %q is older than 2.5.0, which identity.localAccounts.firstAdmin.email requires: the hook that creates the first admin runs ensure-platform-admins -local-admin-email. Set identity.tag to 2.5.0 or later." $identityTag) }}
+{{- end }}
 {{- /* Provisioner images before 0.4.0 never write the identity-keys Secret identity mounts. Only a
 full semver tag is checked; <0.4.0-0 also rejects older prereleases. */ -}}
 {{- $provisionerTag := toString .Values.provisioner.tag }}
-{{- if and .Values.provisioner.enabled .Values.identity.enabled (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" $provisionerTag) (semverCompare "<0.4.0-0" $provisionerTag) }}
+{{- if and .Values.provisioner.enabled .Values.identity.enabled (include "istari-platform.isFullSemver" $provisionerTag) (semverCompare "<0.4.0-0" $provisionerTag) }}
 {{- fail (printf "provisioner.tag %q is too old for identity: images before 0.4.0 do not generate the identity service's keys, so its pods cannot start. Set provisioner.tag to 0.4.0 or later." $provisionerTag) }}
 {{- end }}

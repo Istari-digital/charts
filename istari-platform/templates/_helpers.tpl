@@ -164,7 +164,8 @@ render their env independently and receive no identity block):
      duplicate name LAST — typically user/service env, then per-Job env.
   3. "istari-platform.dedupeEnv" collapses the result: each name appears once, first position,
      last value — so a later fragment overrides an earlier default, the building blocks stay
-     ahead of the `$(VAR)`s that reference them, and the manifest stays patchable by a
+     ahead of the `$(VAR)`s that reference them (an override whose own value references a var
+     defined later moves to its own position instead), and the manifest stays patchable by a
      client-side strategic merge (Argo CD's diff), which keys env by name and rejects duplicates.
 
 Empty/absent fragments are skipped, so callers can `append` conditionally without emitting holes.
@@ -192,21 +193,37 @@ references it, or Kubernetes leaves the reference an unexpanded literal). Emitti
 is also what makes the manifest patchable by a client-side strategic merge (Argo CD's diff),
 which keys env by name and rejects duplicates.
 
+The one exception: when the winning entry's literal `value` references a `$(VAR)` whose first
+occurrence comes after the name's first position (say an `identity.env` override of a chart OIDC
+var pointing at a var defined earlier in `identity.env`), the name is emitted at the position of
+that winning entry instead, so the variable it references is defined ahead of it. It moves only
+when that variable first occurs between the two positions, and a reference to a variable that
+itself moves is not followed. `$$(` is an escape, not a reference.
+
 Input: a list of env maps (each with a `name`). Output: YAML for the deduped list.
 */}}
 {{- define "istari-platform.dedupeEnv" -}}
 {{- $entries := . -}}
-{{- $lastByName := dict -}}
-{{- range $e := $entries -}}
-{{- $_ := set $lastByName $e.name $e -}}
+{{- $first := dict -}}
+{{- $last := dict -}}
+{{- range $k, $e := $entries -}}
+{{- if not (hasKey $first $e.name) }}{{- $_ := set $first $e.name $k -}}{{- end -}}
+{{- $_ := set $last $e.name $k -}}
 {{- end -}}
-{{- $seen := dict -}}
 {{- $out := list -}}
-{{- range $e := $entries -}}
-{{- if not (hasKey $seen $e.name) -}}
-{{- $_ := set $seen $e.name true -}}
-{{- $out = append $out (index $lastByName $e.name) -}}
+{{- range $k, $e := $entries -}}
+{{- $i := index $first $e.name -}}
+{{- $j := index $last $e.name -}}
+{{- $w := index $entries $j -}}
+{{- $pos := $i -}}
+{{- if and (gt $j $i) (hasKey $w "value") -}}
+{{- /* An earlier entry that references this name then sees it unexpanded; the override's own reference wins. */ -}}
+{{- range $ref := regexFindAll `\$\$|\$\([^)]*\)` (toString $w.value) -1 -}}
+{{- $m := trimSuffix ")" (trimPrefix "$(" $ref) -}}
+{{- if and (hasKey $first $m) (gt (index $first $m) $i) (lt (index $first $m) $j) }}{{- $pos = $j -}}{{- end -}}
 {{- end -}}
+{{- end -}}
+{{- if eq $k $pos }}{{- $out = append $out $w -}}{{- end -}}
 {{- end -}}
 {{- toYaml $out -}}
 {{- end }}
@@ -299,4 +316,41 @@ ISTARI_DIGITAL_IDENTITY_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "id
 ISTARI_DIGITAL_MCP_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "mcp.fullname" .) | quote }}
 ISTARI_DIGITAL_SECURE_CONNECTION_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "secure-connection.fullname" .) | quote }}
 ISTARI_DIGITAL_API_GATEWAY_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include "api-gateway.fullname" .) | quote }}
+{{- end }}
+
+{{/*
+The provider identity-service runs: identity.oidc.provider, or an identity.env override
+of it; see "identity.provider".
+*/}}
+{{- define "istari-platform.identityProvider" -}}
+{{- include "identity.provider" .Values.identity -}}
+{{- end }}
+
+{{/*
+identity.localAccounts.firstAdmin as JSON; read it with `include ... | fromJson`. Empty
+when unset, since values reused from an older chart (--reuse-values) may lack the map.
+*/}}
+{{- define "istari-platform.firstAdmin" -}}
+{{- $firstAdmin := dict -}}
+{{- with .Values.identity.localAccounts }}{{- with .firstAdmin }}{{- $firstAdmin = . }}{{- end }}{{- end -}}
+{{- toJson $firstAdmin -}}
+{{- end }}
+
+{{/*
+"true" when the chart generates the first admin's password (firstAdmin.email set, no passwordSecret.name).
+Empty otherwise; ensure-platform-admins leaves the Secret empty under an identity provider.
+*/}}
+{{- define "istari-platform.firstAdminPasswordGenerated" -}}
+{{- $firstAdmin := include "istari-platform.firstAdmin" . | fromJson -}}
+{{- $secretName := "" -}}
+{{- with $firstAdmin.passwordSecret }}{{ $secretName = .name }}{{ end -}}
+{{- if and $firstAdmin.email (not $secretName) }}true{{ end -}}
+{{- end }}
+
+{{/*
+True for a full semver tag, the only kind the version gates compare; the gates use <X-0 so
+X's own prereleases pass.
+*/}}
+{{- define "istari-platform.isFullSemver" -}}
+{{- if regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" (toString .) }}true{{ end -}}
 {{- end }}
