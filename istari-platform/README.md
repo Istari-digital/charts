@@ -252,6 +252,8 @@ Keep the Secret while `passwordSecret.name` is set. The hook reads it on every i
 
 Skip this if `secureConnection.enabled` is false.
 
+The chart points the Secure Connection Service at identity-service whenever `identity.clientIntegration.enabled` and the API gateway are on.
+
 The Secure Connection Service needs a credential that identity-service accepts, registered as an agent. The chart refuses to render with `local` and `secureConnection.enabled: true` until `identity.agentRegistration` declares an agent with the platform role `secure_connector`. Do these steps once, before the `helm install` or `helm upgrade` that enables the service. You need docker, jq, openssl and kubectl.
 
 1. Generate the credential with the identity-service image. Use the same tag as `identity.tag`.
@@ -395,16 +397,6 @@ People keep their principals, roles and keys when the install moves to an identi
    - Set `identity.idpMigration.enabled: false`. The chart cannot tell this upgrade from a Zitadel install's, and would otherwise run the Zitadel import.
    - For Zitadel, add `zitadel-identity-service-env` back to `identity.extraEnvSecrets`.
    - In `identity.agentRegistration`, give each agent without `tenantSlug` the tenant it joined, `identity.localAccounts.firstAdmin.tenant`. With a provider, the chart requires `tenantSlug` or `providerName`.
-   - If the Secure Connection Service runs, keep it signing in through identity-service, since its credential is an identity-service agent's. The chart sets this only under `local`, so add it to `secureConnection.env`:
-
-     ```yaml
-     secureConnection:
-       env:
-         - name: ISTARI_DIGITAL_IDENTITY_ROUTER_ENABLED
-           value: "true"
-         - name: ISTARI_DIGITAL_IDENTITY_ROUTER_URL
-           value: https://<API gateway host>/identity
-     ```
 4. Confirm that people can sign in through the provider.
 5. Delete the set-aside passwords. This step is required:
 
@@ -686,7 +678,7 @@ To return to the provider, set it again, keep `identity.idpMigration.enabled: fa
 | identity.autoscaling.maxReplicas | int | `2` | Maximum number of replicas |
 | identity.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | identity.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
-| identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. |
+| identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, MCP once its credential is provisioned and, with the API gateway, the Secure Connection Service) onto it. |
 | identity.clientIntegration.enabled | bool | `true` | Whether the registry, the frontend and MCP authenticate through identity-service; a release that turns identity-service off sets this to `false` too. |
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | identity.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
