@@ -39,7 +39,7 @@ A default install deploys the identity service, the API Gateway and the provisio
 The chart supplies the rest of what a default install needs:
 
 - The identity service's database migration and, on a Zitadel install, the import of Zitadel's organizations, people and tenant administrator grants into the identity service, each as a Helm hook Job. The import requires `identity.migrations.runAsJob: true`, the default.
-- The identity service's CORS allowlist, `https://<mainFqdn>`. To allow other origins, set `ISTARI_DIGITAL_IDENTITY_SERVICE_CORS_ALLOWED_ORIGINS`, a comma-separated list, in `identity.env` or in the Secret named by `identity.secretName`. It replaces the chart's value, so include `https://<mainFqdn>`. With `identity.oidc.provider: local` and more than one origin, also set `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_URL` in `identity.env` to the web app's sign-in page, or identity-service does not start.
+- The identity service's CORS allowlist, `https://<mainFqdn>`. To allow other origins, set `ISTARI_DIGITAL_IDENTITY_SERVICE_CORS_ALLOWED_ORIGINS`, a comma-separated list, in `identity.env` or in the Secret named by `identity.secretName`. It replaces the chart's value, so include `https://<mainFqdn>`. With `identity.oidc.provider: local` and more than one origin, or allowing all origins (`ISTARI_DIGITAL_IDENTITY_SERVICE_CORS_ALLOW_ALL` or `*`), also set `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_URL` in `identity.env` to the web app's sign-in page, or identity-service does not start.
 - Through the [provisioner](#provisioner), the registry service's and MCP's client credentials and the identity service's signing and encryption keys.
 
 ### Customer identity providers
@@ -181,7 +181,6 @@ The Jobs use the identity service's `nodeSelector`, `affinity`, `tolerations`, s
 
 - **"is already linked to tenant":** the entry sets `tenantSlug` and `providerName`, but the import already mapped that organization to a different tenant. Remove `tenantSlug` and `tenantDisplayName`, or set `tenantSlug` to that tenant's slug, and upgrade again. The failed run leaves an empty tenant under the requested slug, which you can deactivate.
 - **No tenant mapped to the organization:** an entry without `tenantSlug` needs one, which the import normally creates. When the import is turned off, set `tenantSlug`.
-- **Neither `tenantSlug` nor `providerName` set, with an identity provider:** the registration Job fails. Read the `register-agent` container's log, set one of them, and upgrade again.
 
 ## Installing with no identity provider
 
@@ -216,7 +215,7 @@ apiGateway:
 The chart refuses to render with `local` unless each of these is set:
 
 - `identity.enabled: true`, so identity-service runs in the same release.
-- `frontend.enabled: true`, because people sign in with a local password only on the web app's sign-in page, MCP sign-ins included. identity-service sends sign-ins to `/sign-in` on its CORS origin, `https://<common.mainFqdn>`; to use another page, or when the CORS list holds more than one origin, set `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_URL` in `identity.env`.
+- `frontend.enabled: true`, because people sign in with a local password only on the web app's sign-in page, MCP sign-ins included. identity-service sends sign-ins to `/sign-in` on its CORS origin, `https://<common.mainFqdn>`; to use another page, or when the CORS list holds more than one origin or allows all origins (`ISTARI_DIGITAL_IDENTITY_SERVICE_CORS_ALLOW_ALL` or `*`), set `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_URL` in `identity.env`.
 - `identity.clientIntegration.enabled: true`, so registry-service, the frontend and MCP sign people in through identity-service.
 - `apiGateway.enabled: true`, so the chart gives those services their identity-service settings.
 - `identity.migrations.runAsJob: true`, so the database schema exists before the hook creates the admin.
@@ -393,7 +392,7 @@ People keep their principals, roles and keys when the install moves to an identi
    - Set `identity.oidc.provider` and the provider's other `identity.oidc` values.
    - Set `identity.idpMigration.enabled: false`. The chart cannot tell this upgrade from a Zitadel install's, and would otherwise run the Zitadel import.
    - For Zitadel, add `zitadel-identity-service-env` back to `identity.extraEnvSecrets`.
-   - In `identity.agentRegistration`, give each agent without `tenantSlug` the tenant it joined, the default tenant. With a provider, `register-agent` requires `tenantSlug` or `providerName`.
+   - In `identity.agentRegistration`, give each agent without `tenantSlug` the tenant it joined, the default tenant. With a provider, the chart requires `tenantSlug` or `providerName`.
    - If the Secure Connection Service runs, keep it signing in through identity-service, since its credential is an identity-service agent's. The chart sets this only under `local`, so add it to `secureConnection.env`:
 
      ```yaml

@@ -48,8 +48,7 @@ one) is left to identity-service, which checks it at startup.
 {{/*
 The provider identity-service will run, from the identity values (.Values.identity).
 identity.env is appended last, so its SIGN_IN_PROVIDER entry beats identity.oidc.provider.
-shortcut: reads only a literal value, so valueFrom or $(VAR) entries fall back to
-identity.oidc.provider; upgrade if such an override must drive the chart's local checks.
+shortcut: reads only literal values; valueFrom or $(VAR) entries fall back to identity.oidc.provider.
 */}}
 {{- define "identity.provider" -}}
 {{- $id := . | default dict -}}

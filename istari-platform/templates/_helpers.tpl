@@ -320,8 +320,8 @@ when unset, since values reused from an older chart (--reuse-values) may lack th
 {{- end }}
 
 {{/*
-"true" when the chart generates the first platform admin's password: firstAdmin.email set and no
-passwordSecret.name. Empty otherwise. ensure-platform-admins leaves the Secret empty under an identity provider.
+"true" when the chart generates the first admin's password (firstAdmin.email set, no passwordSecret.name).
+Empty otherwise; ensure-platform-admins leaves the Secret empty under an identity provider.
 */}}
 {{- define "istari-platform.firstAdminPasswordGenerated" -}}
 {{- $firstAdmin := include "istari-platform.firstAdmin" . | fromJson -}}
