@@ -237,7 +237,7 @@ The web app and the API must be on the same site, meaning the same registrable d
 
 ### Choosing the first admin's password
 
-Skip this to have the hook generate a temporary password.
+Skip this to have the hook generate a temporary password. For that, set `identity.localAccounts.firstAdmin.email` at `helm install`. If you set it on a `helm upgrade` instead, supply the password with `passwordSecret.name` (the steps below); otherwise the hook fails and its log asks you to create the Secret or supply a password.
 
 1. Create a Secret holding the password in the release's namespace, before `helm install`.
 2. Set `identity.localAccounts.firstAdmin.passwordSecret.name` to the Secret's name, and `passwordSecret.key` if the key is not `password`.
