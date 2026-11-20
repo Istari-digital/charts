@@ -216,7 +216,7 @@ apiGateway:
 The chart refuses to render with `local` unless each of these is set:
 
 - `identity.enabled: true`, so identity-service runs in the same release.
-- `frontend.enabled: true`, because people sign in with a local password only on the web app's sign-in page, MCP sign-ins included. The chart sets identity-service's `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_URL` to `https://<common.mainFqdn>/sign-in`.
+- `frontend.enabled: true`, because people sign in with a local password only on the web app's sign-in page, MCP sign-ins included. identity-service sends sign-ins to `/sign-in` on its CORS origin, `https://<common.mainFqdn>`; to use another page, set `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_URL` in `identity.env`.
 - `identity.clientIntegration.enabled: true`, so registry-service, the frontend and MCP sign people in through identity-service.
 - `apiGateway.enabled: true`, so the chart gives those services their identity-service settings.
 - `identity.migrations.runAsJob: true`, so the database schema exists before the hook creates the admin.
