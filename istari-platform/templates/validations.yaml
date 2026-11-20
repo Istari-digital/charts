@@ -41,16 +41,17 @@ refuse a provider set anywhere else: identity-service and its Jobs then run the 
 {{- fail (printf "identity.oidc.provider must be one of %s, got %q" (join ", " $providers) $provider) }}
 {{- end }}
 {{- $firstAdmin := include "istari-platform.firstAdmin" . | fromJson }}
+{{- $notZitadel := and $provider (ne $provider "zitadel") }}
 {{- $clientIntegration := false }}
 {{- with .Values.identity.clientIntegration }}{{- $clientIntegration = .enabled }}{{- end }}
-{{- if and (eq $provider "local") (not $clientIntegration) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled) }}
-{{- fail "identity.oidc.provider is \"local\", so identity.clientIntegration.enabled must be true: without it registry-service, the frontend and MCP still authenticate against Zitadel" }}
+{{- if and $notZitadel (not $clientIntegration) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled) }}
+{{- fail (printf "identity.oidc.provider is %q, so identity.clientIntegration.enabled must be true: without it registry-service, the frontend and MCP still authenticate against Zitadel" $provider) }}
 {{- end }}
-{{- if and (eq $provider "local") (not .Values.identity.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.secureConnection.enabled) }}
-{{- fail "identity.oidc.provider is \"local\", so identity.enabled must be true: registry-service, the frontend, MCP and the Secure Connection Service authenticate through identity-service, which must run in the same release" }}
+{{- if and $notZitadel (not .Values.identity.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.secureConnection.enabled) }}
+{{- fail (printf "identity.oidc.provider is %q, so identity.enabled must be true: registry-service, the frontend, MCP and the Secure Connection Service authenticate through identity-service, which must run in the same release" $provider) }}
 {{- end }}
-{{- if and (eq $provider "local") (not .Values.apiGateway.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.identity.enabled .Values.secureConnection.enabled) }}
-{{- fail "identity.oidc.provider is \"local\", so apiGateway.enabled must be true: without the API gateway the chart gives registry-service, the frontend and MCP no identity-service settings, and identity-service cannot accept the Secure Connection Service's token" }}
+{{- if and $notZitadel (not .Values.apiGateway.enabled) (or .Values.fileservice.enabled .Values.frontend.enabled .Values.mcp.enabled .Values.identity.enabled .Values.secureConnection.enabled) }}
+{{- fail (printf "identity.oidc.provider is %q, so apiGateway.enabled must be true: without the API gateway the chart gives registry-service, the frontend and MCP no identity-service settings, and identity-service cannot accept the Secure Connection Service's token" $provider) }}
 {{- end }}
 {{- if and (eq $provider "local") .Values.identity.enabled (not .Values.frontend.enabled) }}
 {{- fail "identity.oidc.provider is \"local\", so frontend.enabled must be true: people sign in with a local password only on the web app's sign-in page, MCP sign-ins included" }}

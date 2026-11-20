@@ -100,6 +100,8 @@ spec:
         order and deduped last-wins, so service env overrides a chart default and a repeated name
         collapses to one patchable entry. */}}
         {{- $extra := list }}
+        {{- $provider := include "istari-platform.identityProvider" . }}
+        {{- if and $provider (ne $provider "zitadel") }}{{- $extra = append $extra (list (dict "name" "ISTARI_DIGITAL_IDENTITY_SERVICE_ACCEPT_ZITADEL_PATS" "value" "false")) }}{{- end }}
         {{- with $serviceValues.env }}{{- $extra = append $extra . }}{{- end }}
         {{- if .Values.trustedCertBundle }}{{- $extra = append $extra (include "istari-platform.trustedCertEnv" . | fromYamlArray) }}{{- end }}
         env:
