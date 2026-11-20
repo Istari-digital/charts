@@ -302,11 +302,11 @@ ISTARI_DIGITAL_API_GATEWAY_SERVICE_INTERNAL_URL: {{ printf "http://%s" (include 
 {{- end }}
 
 {{/*
-identity.oidc.provider as a string, empty when unset. Values reused from an older chart
-(--reuse-values) may lack the identity.oidc map.
+The provider identity-service runs: identity.oidc.provider, or an identity.env override
+of it; see "identity.provider".
 */}}
 {{- define "istari-platform.identityProvider" -}}
-{{- with .Values.identity.oidc }}{{ with .provider }}{{ toString . }}{{ end }}{{ end -}}
+{{- include "identity.provider" .Values.identity -}}
 {{- end }}
 
 {{/*

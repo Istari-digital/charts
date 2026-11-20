@@ -646,7 +646,7 @@ identity:
   # -- Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it.
   # @default -- (see fields below)
   clientIntegration:
-    # -- Whether the registry, the frontend, MCP and, with the API gateway, the Secure Connection Service authenticate through identity-service; a release that turns identity-service off sets this to `false` too.
+    # -- Whether the registry, the frontend, MCP and, under local accounts (`identity.oidc.provider: local`) with the API gateway, the Secure Connection Service authenticate through identity-service (with an identity provider the Secure Connection Service keeps its current routing); a release that turns identity-service off sets this to `false` too.
     enabled: true
   # -- Registry URL for images. The combination of registry, image, and tag will be used to pull the image.
   registry: "istaridigital.jfrog.io/customer-docker"

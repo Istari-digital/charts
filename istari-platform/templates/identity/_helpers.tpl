@@ -12,15 +12,15 @@ Reads the identity.oidc.* fields directly — values.yaml is the source of truth
 for their defaults (per AGENTS.md), so the template adds no fallbacks of its own.
 The provider always emits; validations.yaml requires it and checks it against
 identity.providers. Each other field emits only when non-empty, and clientAuthMethod
-is validated, so a typo fails `helm template` rather than the running pod. identity-service ignores the
-OIDC fields under `local`, so they emit as for any provider.
+is validated (except under `local`, where identity-service ignores it), so a typo fails
+`helm template` rather than the running pod. The fields emit as for any provider.
 What a provider requires of the other fields (Entra's, for one) is left to
 identity-service, which checks it at startup.
 */}}
 {{- define "identity.oidcEnv" -}}
 {{- $oidc := .oidc -}}
 {{- $authMethod := $oidc.clientAuthMethod -}}
-{{- if and $authMethod (not (has $authMethod (list "private_key_jwt" "client_secret_basic" "client_secret_post"))) }}{{- fail (printf "identity.oidc.clientAuthMethod must be one of private_key_jwt, client_secret_basic, client_secret_post, got %q" $authMethod) }}{{- end }}
+{{- if and $authMethod (ne (include "identity.provider" .) "local") (not (has $authMethod (list "private_key_jwt" "client_secret_basic" "client_secret_post"))) }}{{- fail (printf "identity.oidc.clientAuthMethod must be one of private_key_jwt, client_secret_basic, client_secret_post, got %q" $authMethod) }}{{- end }}
 - name: ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER
   value: {{ $oidc.provider | quote }}
 {{- with $oidc.issuer }}
@@ -43,6 +43,25 @@ identity-service, which checks it at startup.
 - name: ISTARI_DIGITAL_IDENTITY_SERVICE_JWT_DEFAULT_TENANT_ID
   value: {{ . | quote }}
 {{- end }}
+{{- end }}
+
+{{/*
+The provider identity-service will run, from the identity values (.Values.identity).
+identity.env is appended last, so its SIGN_IN_PROVIDER entry beats identity.oidc.provider.
+shortcut: reads only a literal value, so valueFrom or $(VAR) entries fall back to
+identity.oidc.provider; upgrade if such an override must drive the chart's local checks.
+*/}}
+{{- define "identity.provider" -}}
+{{- $id := . | default dict -}}
+{{- $base := "" -}}
+{{- with $id.oidc }}{{ with .provider }}{{ $base = toString . }}{{ end }}{{ end -}}
+{{- $r := $base -}}
+{{- range $id.env }}
+{{- if eq .name "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" }}
+{{- if and (hasKey . "value") (not (contains "$(" (toString .value))) }}{{ $r = toString .value }}{{ else }}{{ $r = $base }}{{ end }}
+{{- end }}
+{{- end -}}
+{{ $r }}
 {{- end }}
 
 {{/*

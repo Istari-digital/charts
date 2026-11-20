@@ -132,7 +132,7 @@ Expect a few minutes of errors while the services restart, after which every sig
 
 ## Agent registration
 
-`identity.agentRegistration` registers service agents, for example the Secure Connection Service, with the identity service so they can authenticate with `client_credentials`. With `identity.clientIntegration.enabled` and the API gateway on, the chart points the Secure Connection Service at identity-service for any provider, so register it here before you upgrade. Each entry in `agents` runs one hook Job on install and upgrade. On a Zitadel configurator install, these values register the Secure Connection Service:
+`identity.agentRegistration` registers service agents, for example the Secure Connection Service, with the identity service so they can authenticate with `client_credentials`. With an identity provider, the chart leaves the Secure Connection Service on that provider. To move it to identity-service, register its agent here, then set `ISTARI_DIGITAL_IDENTITY_ROUTER_ENABLED: "true"` and `ISTARI_DIGITAL_IDENTITY_ROUTER_URL: https://<API host>/identity` in `secureConnection.env`, where the API host is `api.<common.mainFqdn>` unless `common.apiFqdnOverride` is set. Each entry in `agents` runs one hook Job on install and upgrade. On a Zitadel configurator install, these values register the Secure Connection Service:
 
 ```yaml
 identity:
@@ -252,7 +252,7 @@ Keep the Secret while `passwordSecret.name` is set. The hook reads it on every i
 
 Skip this if `secureConnection.enabled` is false.
 
-The chart points the Secure Connection Service at identity-service whenever `identity.clientIntegration.enabled` and the API gateway are on.
+With `local`, the chart points the Secure Connection Service at identity-service, since client integration and the API gateway are already required there.
 
 The Secure Connection Service needs a credential that identity-service accepts, registered as an agent. The chart refuses to render with `local` and `secureConnection.enabled: true` until `identity.agentRegistration` declares an agent with the platform role `secure_connector`. Do these steps once, before the `helm install` or `helm upgrade` that enables the service. You need docker, jq, openssl and kubectl.
 
@@ -397,6 +397,16 @@ People keep their principals, roles and keys when the install moves to an identi
    - Set `identity.idpMigration.enabled: false`. The chart cannot tell this upgrade from a Zitadel install's, and would otherwise run the Zitadel import.
    - For Zitadel, add `zitadel-identity-service-env` back to `identity.extraEnvSecrets`.
    - In `identity.agentRegistration`, give each agent without `tenantSlug` the tenant it joined, `identity.localAccounts.firstAdmin.tenant`. With a provider, the chart requires `tenantSlug` or `providerName`.
+   - If the Secure Connection Service runs, keep it signing in through identity-service, since its credential is an identity-service agent's. The chart sets this only under `local`, so add it to `secureConnection.env`:
+
+     ```yaml
+     secureConnection:
+       env:
+         - name: ISTARI_DIGITAL_IDENTITY_ROUTER_ENABLED
+           value: "true"
+         - name: ISTARI_DIGITAL_IDENTITY_ROUTER_URL
+           value: https://<API host>/identity
+     ```
 4. Confirm that people can sign in through the provider.
 5. Delete the set-aside passwords. This step is required:
 
@@ -679,7 +689,7 @@ To return to the provider, set it again, keep `identity.idpMigration.enabled: fa
 | identity.autoscaling.memoryUtilization | int | `80` | Average Memory utilization percentage. Set to `null` to disable. |
 | identity.autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | identity.clientIntegration | object | (see fields below) | Settings for whether clients in THIS release authenticate through the identity-service. Independent of `enabled` above: `enabled` DEPLOYS the identity-service; `clientIntegration.enabled` moves CLIENTS (the registry, the frontend, and MCP once its credential is provisioned) onto it. |
-| identity.clientIntegration.enabled | bool | `true` | Whether the registry, the frontend, MCP and, with the API gateway, the Secure Connection Service authenticate through identity-service; a release that turns identity-service off sets this to `false` too. |
+| identity.clientIntegration.enabled | bool | `true` | Whether the registry, the frontend, MCP and, under local accounts (`identity.oidc.provider: local`) with the API gateway, the Secure Connection Service authenticate through identity-service (with an identity provider the Secure Connection Service keeps its current routing); a release that turns identity-service off sets this to `false` too. |
 | identity.commonLabels | object | `{}` | Additional labels to add to all of this service's resources |
 | identity.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false,"runAsNonRoot":true,"runAsUser":65532}` | Primary container's security context |
 | identity.deploymentAnnotations | object | `{}` | Additional annotations to add to the deployment |
