@@ -49,7 +49,7 @@ Okta, Google, and Lastwall integrations are **Preview**, not generally available
 
 Set `identity.oidc.provider` to one of `zitadel`, `keycloak`, `entra`, `okta`, `pingfederate`, `lastwall` or `google`, or to `local` to use local accounts instead (see [Installing with no identity provider](#installing-with-no-identity-provider)). The chart refuses to render without it. Configure its issuer, client ID, authentication method, and scopes through `identity.oidc` or your existing environment configuration. Empty OIDC values add no chart override, preserving configuration supplied through Secrets and the service's own defaults. Keep client secrets and private keys in `identity.secretName` or `identity.extraEnvSecrets`. Identity Service validates provider-specific requirements at startup.
 
-With any provider other than `zitadel`, the chart configures no service to use Zitadel. The Secure Connection Service gets its token from identity-service, registry-service has no Zitadel domain, and registry-service and MCP refuse Zitadel personal access tokens, even while a Zitadel configurator Secret is still listed. The chart refuses to render unless `identity.enabled`, `identity.clientIntegration.enabled` and `apiGateway.enabled` are `true`. To run the Secure Connection Service, register its credential as [The Secure Connection Service](#the-secure-connection-service) describes.
+With any provider other than `zitadel`, the chart configures no service to use Zitadel. The Secure Connection Service gets its token from identity-service, registry-service has no Zitadel domain, and registry-service and MCP refuse Zitadel personal access tokens, even while a Zitadel configurator Secret is still listed. While registry-service, the frontend or MCP is enabled, the chart refuses to render unless `identity.enabled`, `identity.clientIntegration.enabled` and `apiGateway.enabled` are `true`. To run the Secure Connection Service, register its credential as [The Secure Connection Service](#the-secure-connection-service) describes.
 
 The migration hook supports switches from Zitadel to `keycloak`, `entra`, `okta`, or `pingfederate`. Set `identity.idpMigration.to` to the provider configured for Identity Service, and explicitly enable the hook for the switch. For Google and Lastwall, prepare authoritative subject mappings with `import-principal-mappings` and set `identity.idpMigration.enabled: false`.
 
@@ -69,6 +69,8 @@ provisioner:
 ```
 
 The chart then deploys no identity service and no provisioner, whose generated keys serve only the identity service, and the registry service, the frontend and MCP authenticate directly against your identity provider. Setting only `identity.enabled: false` leaves those services configured to use an identity service that is not deployed, so sign-in fails. The API Gateway remains the default route. To disable it too, explicitly configure direct Registry access and upstream authentication for each client, including the frontend's `VITE_FILE_AUTH_ENDPOINT`.
+
+Leave `identity.oidc.provider` unset or `zitadel`: with any other provider the chart refuses to render without identity-service.
 
 These values keep identity-service off on an install that never enabled it; turning it off after it has been on hasn't been tested.
 
@@ -256,7 +258,7 @@ Skip this if `secureConnection.enabled` is false.
 
 With `local` or any other provider except `zitadel`, the chart points the Secure Connection Service at identity-service, since it already requires client integration and the API gateway with those providers.
 
-The Secure Connection Service needs a credential that identity-service accepts, registered as an agent. Do these steps once, before the `helm install` or `helm upgrade` that enables the service. You need docker, jq, openssl and kubectl.
+The Secure Connection Service needs a credential that identity-service accepts, registered as an agent. Do these steps once, before the `helm install` or `helm upgrade` that enables the service. If the service already runs under a provider other than `zitadel` on a chart older than 8.1.0, do them before upgrading. You need docker, jq, openssl and kubectl.
 
 1. Generate the credential with the identity-service image. Use the same tag as `identity.tag`.
 
