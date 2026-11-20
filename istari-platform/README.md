@@ -222,7 +222,7 @@ The chart refuses to render with `local` unless each of these is set:
 - `identity.migrations.runAsJob: true`, so the database schema exists before the hook creates the admin.
 - `identity.trustedProxies`, because identity-service does not start without it. See [Client addresses and the sign-in limit](#client-addresses-and-the-sign-in-limit).
 
-An `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` entry in `identity.env` overrides `identity.oidc.provider` only as a literal value. The chart refuses to render with one set through `valueFrom` or a `$(VAR)` reference, or in `identity.migrations.env` or `identity.agentRegistration.env`.
+An `ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER` entry in `identity.env` overrides `identity.oidc.provider` only as a literal value. The chart refuses to render with one set through `valueFrom` or a `$(VAR)` reference or with no value, or in `identity.migrations.env` or `identity.agentRegistration.env`.
 
 Set `identity.localAccounts.firstAdmin.email` on a new install: the hook creates that person as the first platform admin. Without an active platform admin, identity-service warns at startup.
 
