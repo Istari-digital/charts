@@ -773,7 +773,7 @@ To return to the provider, set it again, keep `identity.idpMigration.enabled: fa
 | identity.resources | object | `{"limits":{"memory":"2Gi"},"requests":{"cpu":"1","memory":"2Gi"}}` | Set CPU/memory requests; no CPU limit (CFS throttling), memory limit == request. |
 | identity.restartPolicy | string | `"Always"` | Restart policy |
 | identity.secretName | string | `"istari-identity"` | Secret name. The secret should contain the environment variables required by the service. |
-| identity.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the service account |
+| identity.serviceAccountAnnotations | object | `{}` | Additional annotations to apply to the identity service account and, when the chart generates the first admin's password, to the first-admin hook's service account (`<release>-identity-local-admin-bootstrap`). A cloud identity binding that names a service account must allow both. |
 | identity.serviceAnnotations | object | `{}` | Additional annotations to apply to the service, note the following annotations for duplicate keys. |
 | identity.serviceType | string | `"ClusterIP"` | Service Type. Available options are ClusterIP, NodePort, LoadBalancer, ExternalName. |
 | identity.tag | string | `"2.4.0"` | Image tag. The combination of registry, image, and tag will be used to pull the image. |

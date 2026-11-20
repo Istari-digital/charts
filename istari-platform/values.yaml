@@ -710,7 +710,7 @@ identity:
     readOnlyRootFilesystem: false
     runAsNonRoot: true
     runAsUser: 65532
-  # -- Additional annotations to apply to the service account
+  # -- Additional annotations to apply to the identity service account and, when the chart generates the first admin's password, to the first-admin hook's service account (`<release>-identity-local-admin-bootstrap`). A cloud identity binding that names a service account must allow both.
   serviceAccountAnnotations: {}
   # Environment variables
   ###############################
