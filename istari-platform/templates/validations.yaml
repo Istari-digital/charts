@@ -20,7 +20,7 @@ refuse a provider set anywhere else: identity-service and its Jobs then run the 
 {{- range $key := list "migrations" "agentRegistration" }}
 {{- range (index $.Values.identity $key).env }}
 {{- if eq (toString .name) "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" }}
-{{- fail (printf "identity.%s.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER, which only that Job would run: remove it and set the provider in identity.oidc.provider (or identity.env), so identity-service and its Jobs run the same one" $key) }}
+{{- fail (printf "identity.%s.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER, which identity-service itself would not run: remove it and set the provider in identity.oidc.provider (or identity.env), so identity-service and every workload run the same one" $key) }}
 {{- end }}
 {{- end }}
 {{- end }}
@@ -28,8 +28,8 @@ refuse a provider set anywhere else: identity-service and its Jobs then run the 
 {{- range .Values.identity.env }}
 {{- if eq (toString .name) "ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER" }}{{- $providerEntry = . }}{{- end }}
 {{- end }}
-{{- if or $providerEntry.valueFrom (contains "$(" (toString (default "" $providerEntry.value))) }}
-{{- fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER through valueFrom or a $(VAR) reference, which the chart cannot read: set it as a literal value, or remove it and set identity.oidc.provider" }}
+{{- if and (hasKey $providerEntry "name") (or $providerEntry.valueFrom (not $providerEntry.value) (contains "$(" (toString (default "" $providerEntry.value)))) }}
+{{- fail "identity.env sets ISTARI_DIGITAL_IDENTITY_SERVICE_SIGN_IN_PROVIDER without a literal value (through valueFrom, a $(VAR) reference, or no value), which the chart cannot read: give it a literal provider value, or remove it and set identity.oidc.provider" }}
 {{- end }}
 {{- end }}
 {{- $provider := include "istari-platform.identityProvider" . }}

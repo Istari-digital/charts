@@ -48,7 +48,7 @@ one) is left to identity-service, which checks it at startup.
 {{/*
 The provider identity-service will run, from the identity values (.Values.identity).
 identity.env is appended last, so its SIGN_IN_PROVIDER entry beats identity.oidc.provider.
-validations.yaml refuses valueFrom and $(VAR) entries, so the fallback below never applies to a rendered release.
+validations.yaml refuses entries without a literal value (valueFrom, $(VAR), none), so the fallback below never applies to a rendered release.
 */}}
 {{- define "identity.provider" -}}
 {{- $id := . | default dict -}}
